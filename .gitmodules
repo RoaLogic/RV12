@@ -1,0 +1,6 @@
+[submodule "memory"]
+	path = memory
+	url = https://github.com/RoaLogic/memory.git
+[submodule "ahb3lite_pkg"]
+	path = ahb3lite_pkg
+	url = https://github.com/RoaLogic/ahb3lite_pkg.git

@@ -1,0 +1,67 @@
+#################################################################
+##                                                             ##
+##    ██████╗  ██████╗  █████╗                                 ##
+##    ██╔══██╗██╔═══██╗██╔══██╗                                ##
+##    ██████╔╝██║   ██║███████║                                ##
+##    ██╔══██╗██║   ██║██╔══██║                                ##
+##    ██║  ██║╚██████╔╝██║  ██║                                ##
+##    ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝                                ##
+##          ██╗      ██████╗  ██████╗ ██╗ ██████╗              ##
+##          ██║     ██╔═══██╗██╔════╝ ██║██╔════╝              ##
+##          ██║     ██║   ██║██║  ███╗██║██║                   ##
+##          ██║     ██║   ██║██║   ██║██║██║                   ##
+##          ███████╗╚██████╔╝╚██████╔╝██║╚██████╗              ##
+##          ╚══════╝ ╚═════╝  ╚═════╝ ╚═╝ ╚═════╝              ##
+##                                                             ##
+##    Synopsys VCS simulator Command file                      ##
+##                                                             ##
+#################################################################
+##                                                             ##
+##     Copyright (C) 2014 ROA Logic BV                         ##
+##                                                             ##
+##   This confidential and proprietary software is provided    ##
+##  under license. It may only be used as authorised by a      ##
+##  licensing agreement from ROA Logic BV.                     ##
+##  No parts may be copied, reproduced, distributed, modified  ##
+##  or adapted in any form without prior written consent.      ##
+##  This entire notice must be reproduced on all authorised    ##
+##  copies.                                                    ##
+##                                                             ##
+##     THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY     ##
+##  EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED  ##
+##  TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS  ##
+##  FOR A PARTICULAR PURPOSE. IN NO EVENT SHALL THE AUTHOR     ##
+##  OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,        ##
+##  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES   ##
+##  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE  ##
+##  GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR       ##
+##  BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF ##
+##  LIABILITY, WHETHER IN  CONTRACT, STRICT LIABILITY, OR TORT ##
+##  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT ##
+##  OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE        ##
+##  POSSIBILITY OF SUCH DAMAGE.                                ##
+##                                                             ##
+#################################################################
+
+all: sim
+
+##########################################################################
+#
+# Make Targets
+#
+##########################################################################
+#Notes:
+# -load is required to prevent undefined system function error
+#  set LD_LIBRARY_PATH to point to <xilinx-dir>/lib/linx64.0
+sim:
+	vcs +v2k -q -full64 -lca -timescale=1ns/1ns -R			\
+	$(VLOG) -Mupdate -debug						\
+	$(foreach d,$(DEFINES),+define+$d)				\
+	$(foreach d,$(INCDIRS),+incdir+$d)				\
+	$(foreach l,$(wildcard $(LIBDIRS)),-y $l)			\
+	+libext$(foreach e,$(LIBEXT),+$e)				\
+	$(foreach l,$(wildcard $(TECHLIBS)/*.v),-v $l)
+
+clean:
+	@rm -rf ./simv.daidir ./csrc simv
+
