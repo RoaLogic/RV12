@@ -69,9 +69,9 @@ REGRESSION_MEM_LATENCY     = 0 1 3
 #REGRESSION_XLEN             = 32 64
 REGRESSION_XLEN             = 32 64
 #REGRESSION_WRITEBUFFER_SIZE = 0 2 8
-REGRESSION_WRITEBUFFER_SIZE = 0 
-REGRESSION_ICACHE_SIZE = 0
-REGRESSION_DCACHE_SIZE = 0
+REGRESSION_WRITEBUFFER_SIZE = 0 2 8
+REGRESSION_ICACHE_SIZE = 0 4
+REGRESSION_DCACHE_SIZE = 0 4
 #REGRESSION_MULT_LATENCY = 3 2 1 0
 REGRESSION_MULT_LATENCY = 4
 
@@ -192,7 +192,7 @@ logs = $(call add_regression,DCACHE_SIZE,				\
 regression: $(logs)
 
 %.log:
-	$(MAKE) riviera_waves LOG=$(@F) 						\
+	$(MAKE) riviera LOG=./log/$(@F)						\
 	  PARAMS="DCACHE_SIZE=$(subst DCACHE_SIZE,,$(word 1,$(subst @, ,$*)))		\
 	          ICACHE_SIZE=$(subst ICACHE_SIZE,,$(word 2,$(subst @, ,$*)))		\
 	          MEM_LATENCY=$(subst MEM_LATENCY,,$(word 3,$(subst @, ,$*))) 		\
