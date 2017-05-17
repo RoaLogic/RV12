@@ -50,6 +50,7 @@ module testbench_top;
 
 //core parameters
 parameter XLEN             = 64;
+parameter PHYS_ADDR_SIZE   = 32;           //32bit address bus. Also sets non-cacheable range
 parameter PC_INIT          = 'h8000_0000;  //Start here after reset
 parameter BASE             = PC_INIT;      //offset where to load program in memory
 parameter INIT_FILE        = "test.hex";
@@ -77,40 +78,42 @@ parameter DCACHE_SIZE      = 0;
 //
 import ahb3lite_pkg::*;
 
+localparam MULLAT = MULT_LATENCY > 4 ? 4 : MULT_LATENCY;
+
 
 //////////////////////////////////////////////////////////////////
 //
 // Variables
 //
-logic              HCLK, HRESETn;
+logic                      HCLK, HRESETn;
 
 //Instruction interface
-logic              ins_HSEL;
-logic [XLEN  -1:0] ins_HADDR;
-logic [XLEN  -1:0] ins_HRDATA;
-logic [XLEN  -1:0] ins_HWDATA; //always 0
-logic              ins_HWRITE; //always 0
-logic [       2:0] ins_HSIZE;
-logic [       2:0] ins_HBURST;
-logic [       3:0] ins_HPROT;
-logic [       1:0] ins_HTRANS;
-logic              ins_HMASTLOCK;
-logic              ins_HREADY;
-logic              ins_HRESP;
+logic                      ins_HSEL;
+logic [PHYS_ADDR_SIZE-1:0] ins_HADDR;
+logic [XLEN          -1:0] ins_HRDATA;
+logic [XLEN          -1:0] ins_HWDATA; //always 0
+logic                      ins_HWRITE; //always 0
+logic [               2:0] ins_HSIZE;
+logic [               2:0] ins_HBURST;
+logic [               3:0] ins_HPROT;
+logic [               1:0] ins_HTRANS;
+logic                      ins_HMASTLOCK;
+logic                      ins_HREADY;
+logic                      ins_HRESP;
 
 //Data interface
-logic              dat_HSEL;
-logic [XLEN  -1:0] dat_HADDR;
-logic [XLEN  -1:0] dat_HWDATA;
-logic [XLEN  -1:0] dat_HRDATA;
-logic              dat_HWRITE;
-logic [       2:0] dat_HSIZE;
-logic [       2:0] dat_HBURST;
-logic [       3:0] dat_HPROT;
-logic [       1:0] dat_HTRANS;
-logic              dat_HMASTLOCK;
-logic              dat_HREADY;
-logic              dat_HRESP;
+logic                      dat_HSEL;
+logic [PHYS_ADDR_SIZE-1:0] dat_HADDR;
+logic [XLEN          -1:0] dat_HWDATA;
+logic [XLEN          -1:0] dat_HRDATA;
+logic                      dat_HWRITE;
+logic [               2:0] dat_HSIZE;
+logic [               2:0] dat_HBURST;
+logic [               3:0] dat_HPROT;
+logic [               1:0] dat_HTRANS;
+logic                      dat_HMASTLOCK;
+logic                      dat_HREADY;
+logic                      dat_HRESP;
 
 //Debug Interface
 logic              dbp_bp,
@@ -125,23 +128,23 @@ logic [XLEN  -1:0] dbg_dati,
 
 
 //Host Interface
-logic              host_csr_req,
-                   host_csr_ack,
-                   host_csr_we;
-logic [XLEN  -1:0] host_csr_tohost,
-                   host_csr_fromhost;
+logic                      host_csr_req,
+                           host_csr_ack,
+                           host_csr_we;
+logic [XLEN          -1:0] host_csr_tohost,
+                           host_csr_fromhost;
 
 
 //Unified memory interface
-logic [       1:0] mem_htrans[2];
-logic [       3:0] mem_hburst[2];
-logic              mem_hready[2],
-                   mem_hresp[2];
-logic [XLEN  -1:0] mem_haddr[2];
-logic [XLEN  -1:0] mem_hwdata[2],
-                   mem_hrdata[2];
-logic [       2:0] mem_hsize[2];
-logic              mem_hwrite[2];
+logic [               1:0] mem_htrans[2];
+logic [               3:0] mem_hburst[2];
+logic                      mem_hready[2],
+                           mem_hresp[2];
+logic [PHYS_ADDR_SIZE-1:0] mem_haddr[2];
+logic [XLEN          -1:0] mem_hwdata[2],
+                           mem_hrdata[2];
+logic [               2:0] mem_hsize[2];
+logic                      mem_hwrite[2];
 
 
 ////////////////////////////////////////////////////////////////
@@ -153,12 +156,14 @@ logic              mem_hwrite[2];
 
 riscv_top_ahb3lite #(
   .XLEN             ( XLEN             ),
+  .PHYS_ADDR_SIZE   ( PHYS_ADDR_SIZE   ), //31bit address bus
   .PC_INIT          ( PC_INIT          ),
   .HAS_USER         ( HAS_U            ),
   .HAS_SUPER        ( HAS_S            ),
   .HAS_HYPER        ( HAS_H            ),
   .HAS_AMO          ( HAS_AMO          ),
   .HAS_MULDIV       ( HAS_MULDIV       ),
+  .MULT_LATENCY     ( MULLAT           ),
 
   .WRITEBUFFER_SIZE ( WRITEBUFFER_SIZE ),
   .ICACHE_SIZE      ( ICACHE_SIZE      ),
@@ -219,11 +224,11 @@ assign dat_HRESP     = mem_hresp[1];
 
 //hookup memory model
 memory_model_ahb3lite #(
-  .DATA_WIDTH ( XLEN        ),
-  .ADDR_WIDTH ( XLEN        ),
-  .BASE       ( BASE        ),
-  .PORTS      (           2 ),
-  .LATENCY    ( MEM_LATENCY ) )
+  .DATA_WIDTH ( XLEN           ),
+  .ADDR_WIDTH ( PHYS_ADDR_SIZE ),
+  .BASE       ( BASE           ),
+  .PORTS      (              2 ),
+  .LATENCY    ( MEM_LATENCY    ) )
 unified_memory (
   .HRESETn ( HRESETn ),
   .HCLK   ( HCLK       ),
@@ -256,7 +261,7 @@ generate
   else
   begin
       //New MMIO interface
-      mmio_if #(XLEN, 32'h80001000)
+      mmio_if #(XLEN, PHYS_ADDR_SIZE, 32'h80001000)
       mmio_if_inst (
         .HRESETn ( HRESETn ),
         .HCLK    ( HCLK    ),
@@ -277,16 +282,23 @@ always #1 HCLK = ~HCLK;
 initial
 begin
     $display("\n\n");
-    $display("* RISC-V Regression Testbench ***********************");
-    $display("* XLEN | PRIV | MMU | FPU | AMO | MDU | CORES *");
-    $display("*  %3d | %C%C%C%C | %3d | %3d | %3d | %3d | %3d  *", 
+    $display ("------------------------------------------------------------");
+    $display (" ,------.                    ,--.                ,--.       ");
+    $display (" |  .--. ' ,---.  ,--,--.    |  |    ,---. ,---. `--' ,---. ");
+    $display (" |  '--'.'| .-. |' ,-.  |    |  |   | .-. | .-. |,--.| .--' ");
+    $display (" |  |\\  \\ ' '-' '\\ '-'  |    |  '--.' '-' ' '-' ||  |\\ `--. ");
+    $display (" `--' '--' `---'  `--`--'    `-----' `---' `-   /`--' `---' ");
+    $display ("- RISC-V Regression Testbench -----------  `---'  ----------");
+    $display ("  XLEN | PRIV | MMU | FPU | AMO | MDU | MULLAT | CORES  ");
+    $display ("   %3d | %C%C%C%C | %3d | %3d | %3d | %3d | %6d | %3d   ", 
                XLEN, "M", HAS_H > 0 ? "H" : " ", HAS_S > 0 ? "S" : " ", HAS_U > 0 ? "U" : " ",
-               HAS_MMU, HAS_FPU, HAS_AMO, HAS_MULDIV, CORES);
-    $display("*****************************************************");
-    $display("* ICache = %0dkB", ICACHE_SIZE);
-    $display("* DCache = %0dkB", DCACHE_SIZE);
-    $display("*****************************************************");
-    $display("\n");
+               HAS_MMU, HAS_FPU, HAS_AMO, HAS_MULDIV, MULLAT, CORES);
+    $display ("-------------------------------------------------------------");
+    $display ("  Test   = %s", INIT_FILE);
+    $display ("  ICache = %0dkB", ICACHE_SIZE);
+    $display ("  DCache = %0dkB", DCACHE_SIZE);
+    $display ("-------------------------------------------------------------");
+    $display ("\n");
 
 `ifdef WAVES
     $shm_open("waves");
@@ -340,33 +352,34 @@ endmodule
  * MMIO Interface
  */
 module mmio_if #(
-  parameter XLEN       = 32,
+  parameter HDATA_SIZE = 32,
+  parameter HADDR_SIZE = 32,
   parameter CATCH_ADDR = 80001000
 )
 (
-  input                 HRESETn,
-  input                 HCLK,
+  input                       HRESETn,
+  input                       HCLK,
 
-  input      [     1:0] HTRANS,
-  input      [XLEN-1:0] HADDR,
-  input                 HWRITE,
-  input      [     2:0] HSIZE,
-  input      [     2:0] HBURST,
-  input      [XLEN-1:0] HWDATA,
-  output reg [XLEN-1:0] HRDATA,
+  input      [           1:0] HTRANS,
+  input      [HADDR_SIZE-1:0] HADDR,
+  input                       HWRITE,
+  input      [           2:0] HSIZE,
+  input      [           2:0] HBURST,
+  input      [HDATA_SIZE-1:0] HWDATA,
+  output reg [HDATA_SIZE-1:0] HRDATA,
 
-  output reg            HREADYOUT,
-  output                HRESP
+  output reg                  HREADYOUT,
+  output                      HRESP
 );
   //
   // Variables
   //
-  logic [XLEN-1:0] data_reg;
-  logic            catch;
+  logic [HDATA_SIZE-1:0] data_reg;
+  logic                  catch;
 
-  logic [     1:0] dHTRANS;
-  logic [XLEN-1:0] dHADDR;
-  logic            dHWRITE;
+  logic [           1:0] dHTRANS;
+  logic [HADDR_SIZE-1:0] dHADDR;
+  logic                  dHWRITE;
 
 
   //
@@ -431,18 +444,18 @@ module mmio_if #(
       if (watchdog_cnt > 200_000 || catch)
       begin
           $display("\n\n");
-          $display("*****************************************************");
+          $display("-------------------------------------------------------------");
           $display("* RISC-V test bench finished");
           if (data_reg[0] == 1'b1)
           begin
-              if (~|data_reg[XLEN-1:1])
+              if (~|data_reg[HDATA_SIZE-1:1])
                 $display("* PASSED %0d", data_reg);
               else
                 $display ("* FAILED: code: 0x%h (%0d: %s)", data_reg >> 1, data_reg >> 1, hostcode_to_string(data_reg >> 1) );
           end
           else
             $display ("* FAILED: watchdog count reached (%0d) @%0t", watchdog_cnt, $time);
-          $display("*****************************************************");
+            $display("-------------------------------------------------------------");
           $display("\n");
 
           $finish();
