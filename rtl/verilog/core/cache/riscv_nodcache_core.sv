@@ -54,6 +54,7 @@ module riscv_nodcache_core #(
   output reg                      mem_ack,
   input                           bu_cacheflush,
   output                          dcflush_rdy,
+  input      [               1:0] st_prv,
 
   //To BIU
   output reg                      biu_stb,
@@ -70,9 +71,9 @@ module riscv_nodcache_core #(
                                   biu_rack,
   input                           biu_err,      //data error
 
-  output                          is_cacheable,
-                                  is_instruction,
-                                  is_atomic
+  output                          biu_is_cacheable,
+                                  biu_is_instruction,
+  output     [               1:0] biu_prv
 );
 
   //////////////////////////////////////////////////////////////////
@@ -86,6 +87,8 @@ module riscv_nodcache_core #(
   // Variables
   //
   enum logic [2:0] {IDLE=3'h0,WRITE=3'h1,WAIT4ACK=3'h2,READ=3'h4} state;
+
+  logic              is_cacheable;
 
   logic              hold_mem_req;
   logic              hold_mem_we;
@@ -105,7 +108,7 @@ module riscv_nodcache_core #(
 
   //Is this a cacheable region?
   //MSB=1 non-cacheable (IO region)
-  //MSB=0 cacheabel (instruction/data region)
+  //MSB=0 cacheable (instruction/data region)
   assign is_cacheable = ~mem_adr[PHYS_ADDR_SIZE-1];
 
 
@@ -222,9 +225,11 @@ module riscv_nodcache_core #(
   assign biu_di    = hold_mem_req ? hold_mem_d   : mem_d;
   assign biu_type  = 3'h0; //single access
 
+
   //Data cache..
-  assign is_instruction = 1'b0;
-  assign is_atomic      = 1'b0;
+  assign biu_is_instruction = 1'b0; //Data cache
+  assign biu_is_cacheable   = is_cacheable;
+  assign biu_prv            = st_prv;
 
 endmodule
 
