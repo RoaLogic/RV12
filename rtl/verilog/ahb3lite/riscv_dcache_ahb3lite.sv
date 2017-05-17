@@ -97,39 +97,39 @@ module riscv_dcache_ahb3lite #(
   //
   // Variables
   //
-  logic                          is_misaligned;
-  logic                          wbuf_mem_req;     //memory request to write buffer (from misalignment check)
-  logic                          wbuf_mem_ack;     //memory ack from write buffer
+  logic                      is_misaligned;
+  logic                      wbuf_mem_req;     //memory request to write buffer (from misalignment check)
+  logic                      wbuf_mem_ack;     //memory ack from write buffer
 
   //from Write Buffer
-  logic                          cache_req,        //cache access request
-                                 cache_ack;        //cache access acknowledge
-  logic [XLEN              -1:0] cache_adr;        //cache memory address
-  logic                          cache_we;         //cache write enable
-  logic [XLEN              -1:0] cache_d,          //cache write data
-                                 cache_q;          //cache read data
-  logic [XLEN/8            -1:0] cache_be;         //cache byte enable
-  logic [                   1:0] cache_prv;        //piped st_prv
-  logic                          cache_flush;      //piped bu_cacheflush
+  logic                      cache_req,        //cache access request
+                             cache_ack;        //cache access acknowledge
+  logic [XLEN          -1:0] cache_adr;        //cache memory address
+  logic                      cache_we;         //cache write enable
+  logic [XLEN          -1:0] cache_d,          //cache write data
+                             cache_q;          //cache read data
+  logic [XLEN/8        -1:0] cache_be;         //cache byte enable
+  logic [               1:0] cache_prv;        //piped st_prv
+  logic                      cache_flush;      //piped bu_cacheflush
 
   //From Cache Controller Core
-  logic                           biu_stb;
-  logic                           biu_stb_ack;
-  logic      [PHYS_ADDR_SIZE-1:0] biu_adro,
-                                  biu_adri;  
-  logic      [XLEN/8        -1:0] biu_be;       //Byte enables
-  logic      [               2:0] biu_type;     //burst type -AHB style
-  logic                           biu_lock;
-  logic                           biu_we;
-  logic      [XLEN          -1:0] biu_di;
-  logic      [XLEN          -1:0] biu_do;
-  logic                           biu_wack,     //data acknowledge, 1 per data
-                                  biu_rack;
-  logic                           biu_err;      //data error,
+  logic                      biu_stb;
+  logic                      biu_stb_ack;
+  logic [PHYS_ADDR_SIZE-1:0] biu_adro,
+                             biu_adri;  
+  logic [XLEN/8        -1:0] biu_be;       //Byte enables
+  logic [               2:0] biu_type;     //burst type -AHB style
+  logic                      biu_lock;
+  logic                      biu_we;
+  logic [XLEN          -1:0] biu_di;
+  logic [XLEN          -1:0] biu_do;
+  logic                      biu_wack,     //data acknowledge, 1 per data
+                             biu_rack;
+  logic                      biu_err;      //data error,
 
-  logic                           is_cacheable,
-                                  is_instruction,
-                                  is_atomic;
+  logic                      biu_is_cacheable,
+                             biu_is_instruction;
+  logic [               1:0] biu_prv;
 
 
   //////////////////////////////////////////////////////////////////
@@ -228,6 +228,7 @@ begin
     .mem_be         ( cache_be         ),
     .mem_q          ( cache_q          ),
     .mem_ack        ( cache_ack        ),
+    .st_prv         ( cache_prv        ),
     .bu_cacheflush  ( cache_flush      ),
  
 
