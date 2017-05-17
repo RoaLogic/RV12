@@ -98,22 +98,22 @@ module riscv_icache_ahb3lite #(
   // Variables
   //
   //From Cache Controller Core
-  logic                           biu_stb;
-  logic                           biu_stb_ack;
-  logic      [PHYS_ADDR_SIZE-1:0] biu_adro,
-                                  biu_adri;  
-  logic      [XLEN/8        -1:0] biu_be;       //Byte enables
-  logic      [               2:0] biu_type;     //burst type -AHB style
-  logic                           biu_lock;
-  logic                           biu_we;
-  logic      [XLEN          -1:0] biu_di;
-  logic      [XLEN          -1:0] biu_do;
-  logic                           biu_rack;     //data acknowledge, 1 per data
-  logic                           biu_err;      //data error,
+  logic                      biu_stb;
+  logic                      biu_stb_ack;
+  logic [PHYS_ADDR_SIZE-1:0] biu_adro,
+                             biu_adri;  
+  logic [XLEN/8        -1:0] biu_be;       //Byte enables
+  logic [               2:0] biu_type;     //burst type -AHB style
+  logic                      biu_lock;
+  logic                      biu_we;
+  logic [XLEN          -1:0] biu_di;
+  logic [XLEN          -1:0] biu_do;
+  logic                      biu_rack;     //data acknowledge, 1 per data
+  logic                      biu_err;      //data error,
 
-  logic                           is_cacheable,
-                                  is_instruction,
-                                  is_atomic;
+  logic                      biu_is_cacheable,
+                             biu_is_instruction;
+  logic [               1:0] biu_prv;       
 
 
   //////////////////////////////////////////////////////////////////
@@ -182,6 +182,7 @@ endgenerate
   )
   biu_inst (
     .biu_wack( ),
+    .biu_prv ( st_prv ),
     .*
   );
 
