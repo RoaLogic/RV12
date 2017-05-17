@@ -72,10 +72,9 @@ module riscv_cache_biu_ahb3lite #(
                                   biu_rack,
   output reg                      biu_err,      //data error
 
-  input                           is_cacheable,
-                                  is_instruction,
-                                  is_atomic,
-  input       [              1:0] st_prv
+  input                           biu_is_cacheable,
+                                  biu_is_instruction,
+  input       [              1:0] biu_prv
 );
 
   //////////////////////////////////////////////////////////////////
@@ -218,15 +217,16 @@ module riscv_cache_biu_ahb3lite #(
                     HWRITE      <= biu_we;
                     HSIZE       <= be2hsize(biu_be);
                     HBURST      <= biu_type;
-                    HPROT       <= (st_prv==PRV_U  ? HPROT_USER      : HPROT_PRIVILEGED   ) |
-                                   (is_instruction ? HPROT_OPCODE    : HPROT_DATA         ) |
-                                   (is_cacheable   ? HPROT_CACHEABLE : HPROT_NON_CACHEABLE);
-                    HMASTLOCK   <= is_atomic;
+                    HPROT       <= (biu_prv==PRV_U     ? HPROT_USER      : HPROT_PRIVILEGED   ) |
+                                   (biu_is_instruction ? HPROT_OPCODE    : HPROT_DATA         ) |
+                                   (biu_is_cacheable   ? HPROT_CACHEABLE : HPROT_NON_CACHEABLE);
+                    HMASTLOCK   <= biu_lock;
                 end
                 else
                 begin
-                    data_ena <= 1'b0;
-                    HTRANS   <= HTRANS_IDLE; //no new transfer
+                    data_ena  <= 1'b0;
+                    HTRANS    <= HTRANS_IDLE; //no new transfer
+                    HMASTLOCK <= biu_lock;
                 end
             end
             else //continue burst
