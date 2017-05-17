@@ -174,7 +174,6 @@ module riscv_top_ahb3lite #(
   assign rstn = HRESETn;
   assign clk  = HCLK;
 
-
   /*
    * Instantiate RISC-V core
    */
