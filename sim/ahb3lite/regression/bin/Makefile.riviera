@@ -69,7 +69,7 @@ simw: vlog
 	$(foreach p, $(PARAMS), -g`echo $p | sed -r 's/(\w+)=([^0-9].*)/\1="\2"/'`)
 	
 clean:
-	@rm -rf work *.log
+	@rm -rf work log
 
 
 
@@ -100,3 +100,4 @@ vlog: work $(VLOG) $(VLOG_LIBS)
 #################################################################
 work:
 	vlib $@
+	mkdir -p log
