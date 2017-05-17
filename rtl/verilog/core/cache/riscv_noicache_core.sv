@@ -55,6 +55,7 @@ module riscv_noicache_core #(
   output                          if_parcel_misaligned,
   input                           bu_cacheflush,
                                   dcflush_rdy,
+  input       [              1:0] st_prv,
 
   //To BIU
   output reg                      biu_stb,
@@ -70,9 +71,9 @@ module riscv_noicache_core #(
   input                           biu_rack,     //data acknowledge, 1 per data
   input                           biu_err,      //data error
 
-  output                          is_cacheable,
-                                  is_instruction,
-                                  is_atomic
+  output                          biu_is_cacheable,
+                                  biu_is_instruction,
+  output     [               1:0] biu_prv
 );
 
   //////////////////////////////////////////////////////////////////
@@ -103,6 +104,8 @@ module riscv_noicache_core #(
   //
   // Variables
   //
+  logic        is_cacheable;
+
   logic  [1:0] biu_stb_cnt;
   fifo_struct  biu_fifo[3];
   logic        if_flush_dly;
@@ -151,8 +154,9 @@ module riscv_noicache_core #(
   assign biu_type  = 3'h0; //single access
 
   //Instruction cache..
-  assign is_instruction = 1'b1;
-  assign is_atomic      = 1'b0;
+  assign biu_is_instruction = 1'b1;
+  assign biu_is_cacheable   = is_cacheable;
+  assign biu_prv            = st_prv;
 
 
   /*
