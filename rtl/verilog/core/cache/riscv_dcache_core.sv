@@ -62,6 +62,7 @@ module riscv_dcache_core #(
   input      [XLEN/8        -1:0] mem_be,
   output reg [XLEN          -1:0] mem_q,       //to CPU
   output reg                      mem_ack,
+  input      [               1:0] st_prv,
   input                           bu_cacheflush,
   output reg                      dcflush_rdy,
 
@@ -80,9 +81,9 @@ module riscv_dcache_core #(
                                   biu_rack,
   input                           biu_err,      //data error
 
-  output                          is_cacheable,
-                                  is_instruction,
-                                  is_atomic
+  output                          biu_is_cacheable,
+                                  biu_is_instruction,
+  output     [               1:0] biu_prv
 );
   //////////////////////////////////////////////////////////////////
   //
@@ -167,7 +168,8 @@ module riscv_dcache_core #(
   /*
    * Input section
    */
-  logic                              dis_cacheable;         //delayed cacheable check
+  logic                              is_cacheable,
+                                     dis_cacheable;         //delayed cacheable check
   logic                              mem_req_cacheable,
                                      mem_req_noncacheable;
   logic                              dmem_req_cacheable,
@@ -273,7 +275,8 @@ module riscv_dcache_core #(
     begin
        dmem_req              <= mem_req              | (dmem_req              & ~mem_ack);
        dmem_req_cacheable    <= mem_req_cacheable    | (dmem_req_cacheable    & ~mem_ack);
-       dmem_req_noncacheable <= (mem_req_noncacheable & ~biu_stb_ack) | (dmem_req_noncacheable & ~mem_ack);
+//       dmem_req_noncacheable <= (mem_req_noncacheable & ~biu_stb_ack) | (dmem_req_noncacheable & ~mem_ack);
+       dmem_req_noncacheable <= mem_req_noncacheable | (dmem_req_noncacheable & ~mem_ack);
     end
 
 
@@ -518,12 +521,20 @@ endgenerate
                     end
 
          FILL     : if (~|cnt && biu_rack)
-                    begin
-                        state    <= ARMED; //TODO: if another access is pending, should go to FILL again
-                        flushing <= 1'b0;
-                        filling  <= 1'b0;
-                        writing  <= 1'b0;
-                    end
+                      if ((mem_req_noncacheable) | (~mem_req & dmem_req_noncacheable))
+                      begin
+                          state    <= NONCACHEABLE;
+                          flushing <= 1'b0;
+                          filling  <= 1'b0;
+                          writing  <= 1'b0;
+                      end
+                      else
+                      begin
+                          state    <= ARMED; //TODO: if another access is pending, should go to FILL again
+                          flushing <= 1'b0;
+                          filling  <= 1'b0;
+                          writing  <= 1'b0;
+                      end
 
 /*
          FFLUSH   : if      (~|dcnt                                        ) state <= WAIT;
@@ -835,9 +846,9 @@ endgenerate
       cache_raw_dat    <=  be_mux(dmem_be, cache_dat, dmem_d);
   end
 
-  assign mem_q = filling ? biu_do
-                         : cache_raw_hazard ? cache_raw_dat //RAW hazard
-                                            : cache_dat;
+  assign mem_q = (filling | dmem_req_noncacheable) ? biu_do
+                                                   : cache_raw_hazard ? cache_raw_dat //RAW hazard
+                                                                      : cache_dat;
 
 
 
@@ -1066,7 +1077,10 @@ endgenerate
   /*
    * External Interface
    */
-  assign biu_lock = 1'b0;
+  assign biu_lock           = 1'b0;
+  assign biu_is_cacheable   = is_cacheable;
+  assign biu_is_instruction = 1'b0;         //This is a Data cache
+  assign biu_prv            = st_prv;
 
   always_comb
     case (state)
@@ -1138,7 +1152,7 @@ endgenerate
   always_comb
     if (!(cacheable_req_pending && !mem_ack) &&
         ((state==ARMED && !is_cacheable                     ) ||
-         (state==FILL  && !is_cacheable && ~|cnt && biu_rack) ||
+         (state==FILL  && ~|cnt && biu_rack && ((mem_req_noncacheable) | (~mem_req & dmem_req_noncacheable))) ||
          (state==NONCACHEABLE                               )  )
        ) biu_type = 3'h0; //single access
     else
@@ -1147,12 +1161,6 @@ endgenerate
          8      : biu_type = 3'b100;    //wrap8
          default: biu_type = 3'b010;    //wrap4
       endcase
-
-
-  //Instruction cache..
-  assign is_instruction = 1'b0; //Data Cache
-  assign is_atomic      = 1'b0;
-
 endmodule
 
 
