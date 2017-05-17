@@ -82,9 +82,8 @@ module riscv_icache_core #(
   input                           biu_rack,      //data acknowledge, 1 per data
   input                           biu_err,      //data error
 
-  output                          is_cacheable,
-                                  is_instruction,
-                                  is_atomic
+  output                          biu_is_cacheable,
+                                  biu_is_instruction
 );
 
   //////////////////////////////////////////////////////////////////
@@ -160,7 +159,8 @@ module riscv_icache_core #(
 
   logic [XLEN        -1:0] pc; //program counter
   logic                    if_stall_nxt_pc_dly;
-  logic                    is_cacheable_dly;
+  logic                    is_cacheable,
+                           is_cacheable_dly;
   logic [             1:0] biu_stb_cnt;
   fifo_struct              biu_fifo[3];
 
@@ -571,8 +571,8 @@ endgenerate
       endcase
 
   //Instruction cache..
-  assign is_instruction = 1'b1;
-  assign is_atomic      = 1'b0;
+  assign biu_is_instruction = 1'b1;
+  assign biu_lock           = 1'b0;
 
   always @(posedge clk,negedge rstn)
     if      (!rstn       ) biu_stb_cnt <= 2'h0;
