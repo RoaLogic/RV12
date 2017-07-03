@@ -286,11 +286,9 @@ endgenerate
   //exceptions
   always_comb
   begin
-       ex_exception = 'h0;
+       //Branch unit handles most exceptions and relays ID-exceptions
+       ex_exception = bu_exception;
 
-       ex_exception[CAUSE_MISALIGNED_INSTRUCTION  ] = bu_exception [CAUSE_MISALIGNED_INSTRUCTION  ];
-       ex_exception[CAUSE_INSTRUCTION_ACCESS_FAULT] = bu_exception [CAUSE_INSTRUCTION_ACCESS_FAULT];
-       ex_exception[CAUSE_ILLEGAL_INSTRUCTION     ] = bu_exception [CAUSE_ILLEGAL_INSTRUCTION     ];
        ex_exception[CAUSE_MISALIGNED_LOAD         ] = lsu_exception[CAUSE_MISALIGNED_LOAD         ];
        ex_exception[CAUSE_LOAD_ACCESS_FAULT       ] = lsu_exception[CAUSE_LOAD_ACCESS_FAULT       ];
        ex_exception[CAUSE_MISALIGNED_STORE        ] = lsu_exception[CAUSE_MISALIGNED_STORE        ];

@@ -242,7 +242,6 @@ module riscv_state1_9 #(
 
   logic                      take_interrupt;
 
-  logic [              11:0] st_exceptions;
   logic [              11:0] st_int;
   logic [               3:0] interrupt_cause,
                              trap_cause;
@@ -652,7 +651,7 @@ $display ("take_interrupt");
                 csr.mstatus.mpp  <= st_prv;
             end
         end
-        else if ( |(wb_exception & ~du_ie[15:0]) ) //NOT st_exceptions ... ebreak/ecall handled below
+        else if ( |(wb_exception & ~du_ie[15:0]) )
         begin
 $display("exception");
             st_flush  <= ~du_stall & ~du_flush;
@@ -676,90 +675,6 @@ $display("exception");
 
             end
             else if (has_h && st_prv >= PRV_H && |(wb_exception & csr.medeleg))
-            begin
-                st_prv    <= PRV_H;
-                st_nxt_pc <= csr.htvec;
-
-                csr.mstatus.hpie <= csr.mstatus[st_prv];
-                csr.mstatus.hie  <= 1'b0;
-                csr.mstatus.hpp  <= st_prv;
-            end
-            else
-            begin
-                st_prv    <= PRV_M;
-                st_nxt_pc <= csr.mtvec;
-
-                csr.mstatus.mpie <= csr.mstatus[st_prv];
-                csr.mstatus.mie  <= 1'b0;
-                csr.mstatus.mpp  <= st_prv;
-            end
-        end
-        else if (st_exceptions[CAUSE_BREAKPOINT] & ~du_ie[CAUSE_BREAKPOINT])
-        begin
-$display("BREAKPOINT");
-            st_flush  <= ~du_stall & ~du_flush;
-
-            if (has_n && st_prv == PRV_U && csr.medeleg[CAUSE_BREAKPOINT])
-            begin
-                st_prv    <= PRV_U;
-                st_nxt_pc <= csr.utvec;
-
-                csr.mstatus.upie <= csr.mstatus[st_prv];
-                csr.mstatus.uie  <= 1'b0;
-            end
-            else if (has_s && st_prv >= PRV_S && csr.medeleg[CAUSE_BREAKPOINT])
-            begin
-                st_prv    <= PRV_S;
-                st_nxt_pc <= csr.stvec;
-
-                csr.mstatus.spie <= csr.mstatus[st_prv];
-                csr.mstatus.sie  <= 1'b0;
-                csr.mstatus.spp  <= st_prv[0];
-
-            end
-            else if (has_h && st_prv >= PRV_H && csr.medeleg[CAUSE_BREAKPOINT])
-            begin
-                st_prv    <= PRV_H;
-                st_nxt_pc <= csr.htvec;
-
-                csr.mstatus.hpie <= csr.mstatus[st_prv];
-                csr.mstatus.hie  <= 1'b0;
-                csr.mstatus.hpp  <= st_prv;
-            end
-            else
-            begin
-                st_prv    <= PRV_M;
-                st_nxt_pc <= csr.mtvec;
-
-                csr.mstatus.mpie <= csr.mstatus[st_prv];
-                csr.mstatus.mie  <= 1'b0;
-                csr.mstatus.mpp  <= st_prv;
-            end
-        end
-        else if (!id_bubble && id_instr == ECALL && !bu_flush && !du_stall)
-        begin
-$display("ECALL");
-            st_flush  <= 1'b1;
-
-            //ECALL
-            if (has_n && st_prv == PRV_U && csr.medeleg[CAUSE_UMODE_ECALL])
-            begin
-                st_prv    <= PRV_U;
-                st_nxt_pc <= csr.utvec;
-
-                csr.mstatus.upie <= csr.mstatus[st_prv];
-                csr.mstatus.uie  <= 1'b0;
-            end
-            else if (has_s && st_prv >= PRV_S && csr.medeleg[CAUSE_SMODE_ECALL])
-            begin
-                st_prv    <= PRV_S;
-                st_nxt_pc <= csr.stvec;
-
-                csr.mstatus.spie <= csr.mstatus[st_prv];
-                csr.mstatus.sie  <= 1'b0;
-                csr.mstatus.spp  <= st_prv[0];
-            end
-            else if (has_h && st_prv >= PRV_H && csr.medeleg[CAUSE_HMODE_ECALL])
             begin
                 st_prv    <= PRV_H;
                 st_nxt_pc <= csr.htvec;
@@ -982,24 +897,8 @@ endgenerate
               (du_we_csr && du_addr    == MSCRATCH)                  ) csr.mscratch <= csr_wval;
 
 
-  //decode exceptions
   always_comb
-  begin
-      st_exceptions = 'h0;
-      st_exceptions[EXCEPTION_SIZE-1:0] = wb_exception;
-
-      //Breakpoints
-      st_exceptions[CAUSE_BREAKPOINT ] = (~id_bubble & id_instr == EBREAK & ~bu_flush & ~du_stall);
-
-      //UMODE, SMODE, HMODE, MMODE
-      st_exceptions[CAUSE_UMODE_ECALL] = has_u & st_prv==PRV_U & (~id_bubble & id_instr == ECALL & ~bu_flush & ~du_stall);
-      st_exceptions[CAUSE_SMODE_ECALL] = has_s & st_prv==PRV_S & (~id_bubble & id_instr == ECALL & ~bu_flush & ~du_stall);
-      st_exceptions[CAUSE_HMODE_ECALL] = has_h & st_prv==PRV_H & (~id_bubble & id_instr == ECALL & ~bu_flush & ~du_stall);
-      st_exceptions[CAUSE_MMODE_ECALL] =                         (~id_bubble & id_instr == ECALL & ~bu_flush & ~du_stall);
-  end
-
-  always_comb
-    casex (st_exceptions & ~du_ie[15:0])
+    casex (wb_exception & ~du_ie[15:0])
       12'b????_????_???1: trap_cause =  0;
       12'b????_????_??10: trap_cause =  1;
       12'b????_????_?100: trap_cause =  2;
@@ -1056,7 +955,7 @@ endgenerate
 
 
   //for Debug Unit
-  assign du_exceptions = { {16-$bits(st_int){1'b0}}, st_int, {16-$bits(st_exceptions){1'b0}}, st_exceptions} & du_ie;
+  assign du_exceptions = { {16-$bits(st_int){1'b0}}, st_int, {16-$bits(wb_exception){1'b0}}, wb_exception} & du_ie;
 
 
   //Update mepc and mcause
@@ -1173,7 +1072,7 @@ endgenerate
                 csr.mepc   <= id_pc;
             end
         end
-        else if (|(wb_exception & ~du_ie[15:0])) //NOT st_exceptions ... ebreak/ecall handled below
+        else if (|(wb_exception & ~du_ie[15:0]))
         begin
             //Trap
             if (has_n && st_prv == PRV_U && |(wb_exception & csr.medeleg))
@@ -1209,58 +1108,6 @@ endgenerate
                     wb_exception[CAUSE_MISALIGNED_LOAD       ] || wb_exception[CAUSE_LOAD_ACCESS_FAULT       ] ||
                     wb_exception[CAUSE_MISALIGNED_STORE      ] || wb_exception[CAUSE_STORE_ACCESS_FAULT      ])
                 csr.mbadaddr <= wb_badaddr;
-            end
-        end
-        else if (st_exceptions[CAUSE_BREAKPOINT] & ~du_ie[CAUSE_BREAKPOINT])
-        begin
-            //BREAKPOINT
-            if (has_n && st_prv == PRV_U && csr.medeleg[CAUSE_BREAKPOINT])
-            begin
-                csr.uepc     <= id_pc;
-                csr.ucause   <= CAUSE_BREAKPOINT;
-                csr.ubadaddr <= id_pc; //Should this be the address which triggers an 'access' breakpoint?
-            end
-            else if (has_s && st_prv >= PRV_S && csr.medeleg[CAUSE_BREAKPOINT])
-            begin
-                csr.sepc     <= id_pc;
-                csr.scause   <= CAUSE_BREAKPOINT;
-                csr.sbadaddr <= id_pc;
-            end
-            else if (has_h && st_prv >= PRV_H && csr.medeleg[CAUSE_BREAKPOINT])
-            begin
-                csr.hepc     <= id_pc;
-                csr.hcause   <= CAUSE_BREAKPOINT;
-                csr.hbadaddr <= id_pc;
-            end
-            else
-            begin
-                csr.mepc     <= id_pc;
-                csr.mcause   <= CAUSE_BREAKPOINT;
-                csr.mbadaddr <= id_pc;
-            end
-        end
-        else if (~id_bubble & id_instr == ECALL & ~bu_flush & ~du_stall)
-        begin
-            //ECALL
-            if (has_n && st_prv == PRV_U && csr.medeleg[CAUSE_UMODE_ECALL])
-            begin
-                csr.uepc   <= id_pc;
-                csr.ucause <= trap_cause;
-            end
-            else if (has_s && st_prv >= PRV_S && csr.medeleg[CAUSE_SMODE_ECALL])
-            begin
-                csr.sepc   <= id_pc;
-                csr.scause <= trap_cause;
-            end
-            else if (has_h && st_prv >= PRV_H && csr.medeleg[CAUSE_HMODE_ECALL])
-            begin
-                csr.hepc   <= id_pc;
-                csr.hcause <= trap_cause;
-            end
-            else
-            begin
-                csr.mepc   <= id_pc;
-                csr.mcause <= trap_cause;
             end
         end
      end

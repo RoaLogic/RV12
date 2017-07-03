@@ -135,8 +135,12 @@ module riscv_id #(
   logic [               6:0] if_func7;
 
   logic                      is_rv64,
+                             has_fp,
                              has_muldiv,
-                             has_amo;
+                             has_amo,
+                             has_user,
+                             has_super,
+                             has_hyper;
 
   logic [               4:0] if_src1,
                              if_src2,
@@ -205,8 +209,12 @@ module riscv_id #(
   assign wb_dst     = wb_instr [11:7];
 
   assign is_rv64    = (XLEN       == 64);
+  assign has_fp     = (HAS_FPU    !=  0);
   assign has_muldiv = (HAS_MULDIV !=  0);
   assign has_amo    = (HAS_AMO    !=  0);
+  assign has_user   = (HAS_USER   !=  0);
+  assign has_super  = (HAS_SUPER  !=  0);
+  assign has_hyper  = (HAS_HYPER  !=  0);
 
 
   always @(posedge clk)
@@ -224,6 +232,11 @@ module riscv_id #(
         begin
             id_exception                            <= if_exception;
             id_exception[CAUSE_ILLEGAL_INSTRUCTION] <= ~if_bubble & illegal_instr;
+            id_exception[CAUSE_BREAKPOINT         ] <= ~if_bubble & (if_instr == EBREAK);
+            id_exception[CAUSE_UMODE_ECALL        ] <= ~if_bubble & (if_instr == ECALL ) & (st_prv == PRV_U) & has_user;
+            id_exception[CAUSE_SMODE_ECALL        ] <= ~if_bubble & (if_instr == ECALL ) & (st_prv == PRV_S) & has_super;
+            id_exception[CAUSE_HMODE_ECALL        ] <= ~if_bubble & (if_instr == ECALL ) & (st_prv == PRV_H) & has_hyper;
+            id_exception[CAUSE_MMODE_ECALL        ] <= ~if_bubble & (if_instr == ECALL ) & (st_prv == PRV_M);
         end
 
   /*
@@ -554,9 +567,9 @@ module riscv_id #(
        FENCE_I: illegal_alu_instr = 1'b0;
        ECALL  : illegal_alu_instr = 1'b0;
        EBREAK : illegal_alu_instr = 1'b0;
-       URET   : illegal_alu_instr = HAS_USER  ? 1'b0             : 1'b1;
-       SRET   : illegal_alu_instr = HAS_SUPER ? st_prv <  PRV_S : 1'b1;
-       HRET   : illegal_alu_instr = HAS_HYPER ? st_prv <  PRV_H : 1'b1;
+       URET   : illegal_alu_instr = has_user  ? 1'b0            : 1'b1;
+       SRET   : illegal_alu_instr = has_super ? st_prv <  PRV_S : 1'b1;
+       HRET   : illegal_alu_instr = has_hyper ? st_prv <  PRV_H : 1'b1;
        MRET   : illegal_alu_instr = st_prv != PRV_M;
        default:
             (* synthesis,parallel_case *)
