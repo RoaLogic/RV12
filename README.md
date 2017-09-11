@@ -14,7 +14,7 @@ RISC-V CPU Core
 - Optional Data Cache
 
 ## License
-Released under the RoaLogic Non-Commerical license.
+Released under the RoaLogic [Non-Commerical license](https://roalogic.com/wp-content/licenses/Non-Commercial_License_Agreement.html).
 
 ## Regression tests
 The release contains regression tests for the supported modules, based on the official riscv-tests.
