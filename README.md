@@ -1,5 +1,5 @@
 # RV12
-RISC-V CPU Core
+The RV12 is a highly configurable single-issue, single-core RV32I, RV64I compliant RISC CPU intended for the embedded market. The RV12 is a member of the Roa Logic’s 32/64bit CPU family based on the industry standard RISC-V instruction set
 
 ## Compatibility
 - User Mode Specifications 2.1
@@ -22,5 +22,3 @@ The release contains regression tests for the supported modules, based on the of
 ## Dependencies
 Requires the RoaLogic Memories IPs and AHB3Lite Package. These are included as submodules.
 After cloning the RV12 git repository do a 'git submodule init' to download the submodules.
-
-
