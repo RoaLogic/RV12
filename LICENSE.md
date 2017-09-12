@@ -31,6 +31,7 @@ Specifically you are allowed to:
 
 1. Use the Product in your design to create, simulate, implement, manufacture, and use a Silicon Device provided you don’t do so to make a profit
 2. Distribute the Product, provided the original disclaimer and copyright notice are retained and this Agreement is part of the distribution.
+
 ## 3. OWNERSHIP
 
 The Product, its documentation, and any associated material is owned by Roa Logic and is protected by copyright and other intellectual property right laws.
@@ -62,6 +63,7 @@ The Product may be subject to U.S. or E.U. export laws and may be subject to exp
 
 1. exported directly, or indirectly, in violation of export laws;
 2. intended to be used for any purposes prohibited by export laws, including, but not limited to, nuclear, chemical, or biological weapons proliferation.
+
 ## 8. APPLICABLE LAW AND CHOICE OF FORUM
 
 All agreements and contracts between you and Roa Logic, which these conditions are applicable to, shall be governed by Dutch law with the exclusion of the uniform UN Convention on Contracts for the International Sale of Goods (CISG) and other bilateral or multilateral treaties for the purpose of unifying international sales.
