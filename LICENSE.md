@@ -24,10 +24,17 @@ PLEASE NOTE THAT THIS AGREEMENT IS INTENDED FOR NON-COMMERCIAL USE OF THE PRODUC
 
 ## 2. LICENSE TO USE
 
-Roa Logic hereby grants you a limited, non-exclusive, non-transferable, no-charge, and royalty-free copyright license to use, modify, and distribute the Product provided you do so for non-commercial (personal, educational, research and development, demonstration) purposes, where such license only applies to those patent claims licensable by Roa Logic.
+Roa Logic hereby grants you the following limited, non-exclusive, non-transferable, no-charge, and royalty-free licenses to use, modify, and distribute the Product provided you do so for non-commercial (personal, educational, research and development, demonstration) purposes:
+
+1. Copyright license
+2. Patent license, where such license only applies to those patent claims licensable by Roa Logic.
 
 Specifically you are allowed to:
 
+1. Use the Product in your design to create, simulate, implement, manufacture, and use a Silicon Device provided you don’t do so to make a profit
+2. Distribute the Product, provided the original disclaimer and copyright notice are retained and this Agreement is part of the distribution.
+
+Specifically you are allowed to:
 
 1. Use the Product in your design to create, simulate, implement, manufacture, and use a Silicon Device provided you don’t do so to make a profit
 2. Distribute the Product, provided the original disclaimer and copyright notice are retained and this Agreement is part of the distribution.
