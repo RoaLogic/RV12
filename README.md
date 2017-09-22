@@ -8,7 +8,7 @@ The RV12 implements a Harvard architecture for simultaneous instruction and data
 
 Optional features include Branch Prediction, Instruction Cache, Data Cache, and Debug Unit. Parameterised and configurable features include the instruction and data interfaces, the branch-prediction-unit configuration, and the cache size, associativity, and replacement algorithms. Providing the user with trade offs between performance, power, and area to optimize the core for the application
 
-![RV12 RISC-V Architecture](https://roalogic.com/wp-content/uploads/2017/02/RISC-V-Arch-Small.png)
+![RV12 RISC-V Architecture](docs/RV12Arch.png)
 
 ## Documentation
 
