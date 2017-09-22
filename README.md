@@ -31,8 +31,8 @@ Optional features include Branch Prediction, Instruction Cache, Data Cache, and 
 
 The RV12 is compatible with the following RISC-V Foundation  specifications:
 
-- User Mode Specifications 2.2
-- Privilege Mode Specifications 1.9.1
+- [User Mode Specifications v2.2](https://github.com/riscv/riscv-isa-manual/releases/download/riscv-user-2.2/riscv-spec-v2.2.pdf)
+- [Privilege Mode Specifications v1.9.1](https://people.eecs.berkeley.edu/~krste/papers/riscv-privileged-v1.9.1.pdf)
 
 ## Interfaces
 
