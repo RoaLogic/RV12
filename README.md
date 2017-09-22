@@ -13,7 +13,7 @@ Optional features include Branch Prediction, Instruction Cache, Data Cache, and 
 ## Documentation
 
 - [Product Brief]()
-- [RV12 Datasheet](https://roalogic.com/wp-content/licenses/Non-Commercial_License_Agreement.html)
+- [RV12 Datasheet]()
 - [User Guide]()
 
 ## Features
@@ -27,7 +27,6 @@ Optional features include Branch Prediction, Instruction Cache, Data Cache, and 
 - Optional/Parameterized branch-prediction-unit
 - Optional/Parameterized caches
 
-
 ## Compatibility
 
 The RV12 is compatible with the following RISC-V Foundation  specifications:
@@ -37,13 +36,15 @@ The RV12 is compatible with the following RISC-V Foundation  specifications:
 
 ## Interfaces
 
+- AHB3 Lite
+- Wishbone
 
 ## Parameters
 
 The following parameters control the feature set of a specific implementation of the RV12:
 
 | Parameter          | Type    | Default | Description                                                      |
-| ------------------ | ------- | :-----: | ---------------------------------------------------------------- |
+| :----------------- | :-----: | :-----: | :--------------------------------------------------------------- |
 | XLEN               | Integer | 32      | Datapath width                                                   |
 | PC_INIT            | Address | ‘h200   | Program Counter Initialisation Vector                            |
 | PHYS_ADDR_SIZE     | Integer | XLEN    | Physical Address Size                                            |
