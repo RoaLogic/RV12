@@ -33,6 +33,11 @@ a {
 /* Reduce left margin by 10px */
 header {
 	padding: 34px 25px 22px 40px;
+	background-color: #159957;
+	background-image: linear-gradient(120deg, #155799, #159957);
+	-webkit-border-radius: 4px;
+	-moz-border-radius: 4px;
+	border-radius: 4px;
 }
 
 footer {
