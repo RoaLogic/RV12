@@ -2,4 +2,5 @@ theme: jekyll-theme-dinky
 title: RV12 RISC-V CPU Core
 description: Single-issue, single-core RV32I, RV64I compliant RISC-V CPU
 show_downloads: true
+show_license: true
 license: Non-Commercial License
