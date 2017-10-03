@@ -14,6 +14,8 @@ Optional features include Branch Prediction, Instruction Cache, Data Cache, and 
 - [RV12 Datasheet]()
 - [User Guide]()
 
+> **Note:** Under development - will be uploaded when ready
+
 ## Features
 
 - Royalty Free Industry standard instruction set (www.riscv.org)
