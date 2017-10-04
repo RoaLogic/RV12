@@ -1,0 +1,68 @@
+\section{RV12 Execution Pipeline}
+
+\todo{add introduction to pipeline section}
+
+\subsection{Instruction Fetch (IF)}\label{instruction-fetch-if}
+
+\missingfigure{}
+
+Figure ‑: Instruction Fetch Stage Implementation
+
+The Instruction Fetch unit loads a new parcel from the program memory. A
+parcel is a code field that contains one or more instructions. The
+address of the parcel to load is held by the Program Counter (PC). The
+Program Counter is either 32 or 64bits wide, depending on the XLEN
+parameter. The Program Counter is updated whenever the Instruction
+Pipeline is not stalled.
+
+The Instruction Fetch unit translates 16-bit compressed instructions to
+base 32bit RISC-V instructions and then processes Program Counter
+modifying instructions. Jump-And-Link and Branch instructions modify the
+Program Counter in the Instruction Fetch unit. This avoids waiting for
+the Execute stage to trigger the update and removes the demand for
+pipeline flushes. The destination address for branches is predicted
+based on the data provided by the optional Branch Prediction unit or
+determined statically based on the offset.
+
+In case the pipeline must be flushed the Program Counter is restarted
+from the given address.
+
+\subsection{Pre-Decode (PD)}\label{pre-decode-pd}
+
+\missingfigure{}
+
+\subsection{Instruction Decode (ID)}\label{instruction-decode-id-1}
+
+\missingfigure{}
+
+Figure ‑: Instruction Decode Stage Implementation
+
+The Instruction Decode unit ensures the operands for the execution units
+are available. It reads the Register File values, calculates immediate
+values, and sets bypasses.
+
+The Instruction Decode unit stalls the pipeline when an operand value is
+not available. The RV12 only stalls when a value is loaded from data
+memory and is used in the instruction immediately after the load.
+
+\subsection{Execute (EX)}\label{execute-ex-1}
+
+\missingfigure{}
+
+Figure ‑: Execute/Memory Access Stage Implementation
+
+The Execute/Memory-Access stage performs the required operation on the
+data provided by the decode stage. It performs logical or arithmetic
+operations using the Arithmetic-Logical-Unit (ALU), calculates jump and
+branch addresses, performs Read-Modify-Write accesses to the CSRs, and
+starts memory accesses using the Memory Unit. Only one operation can be
+executed per clock cycle.
+
+\subsection{Write-Back (WB)}\label{write-back-wb-1}
+
+\missingfigure{}
+
+Figure ‑: Write-back Stage Implementation
+
+The Memory/Write-Back stage completes a pending memory access and writes
+the results from the ALU or the Memory Unit into the Register File.

@@ -1,0 +1,57 @@
+\section{RISC-V Platform}\label{risc-v-platform}
+
+\subsection{Introduction}\label{introduction-2}
+
+The RISC-V specification provides for multi-threading and multi-core
+implementations. A core is defined as an implementation with its own
+instruction fetch unit. A hardware thread, or \emph{hart}, is defined as
+a processing engine with its own state. A core may contain multiple
+hardware threads.
+
+The RV12 implements a single core with a single hardware thread, based
+on the User Instruction Set Architecture v2.2 and Supervisor Instruction
+Set Architecture v1.9.1 specifications. See
+\href{http://www.riscv.org}{www.riscv.org} for the
+specifications\footnote{Full reference details of the specifications are
+  documented in section 11}.
+
+\subsection{Privilege Levels}\label{privilege-levels}
+
+At any time, a hardware thread (\emph{hart}) is running at some
+privilege level. The current privilege level is encoded in one or more
+Control and Status Registers (CSRs). See section 7, ``Control \& Status
+Registers'', for more information.
+
+The RISC-V specification defines four privilege levels.
+
+\begin{longtable}[]{@{}llll@{}}
+\toprule
+Level & Encoding & Name & Abbreviation\tabularnewline
+\midrule
+\endhead
+0 & 00 & User/Application & U\tabularnewline
+1 & 01 & Supervisor & S\tabularnewline
+2 & 10 & Hypervisor & H\tabularnewline
+3 & 11 & Machine & M\tabularnewline
+\bottomrule
+\end{longtable}
+
+Table ‑: RISC-V Privilege Levels
+
+Each level provides its own protection and isolation.
+
+The highest privilege level is the Machine level. This is an inherent
+trusted level and has access to, and can alter, the whole machine.
+
+The lowest level is the User/Application level and is considered the
+least trusted level. It is used to protect the rest of the system from
+malicious applications.
+
+Supervisor mode is used to provide isolation between an operating system
+and the machine and user levels. Hypervisor mode is used to virtualize
+operating systems.
+
+The RV12 always implements Machine mode and optionally implements User
+mode
+an\protect\hypertarget{_Toc326677752}{}{\protect\hypertarget{_Ref326824571}{}{}}d
+parts of the Supervisor Mode.
