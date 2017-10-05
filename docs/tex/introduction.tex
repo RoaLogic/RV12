@@ -63,7 +63,7 @@ The RV12 pipeline is capable of executing one instruction per clock
 cycle by overlapping the execution stages. The figure below shows how 5
 instructions are being operated on at the same time; this is referred to
 as `being in flight'. Instruction A is the oldest instruction and it's
-in the Memory-Write Back (MEMWB) stage, whereas Instruction E is the
+in the Write Back (WB) stage, whereas Instruction E is the
 newest instruction and it's in the Instruction Fetch (IF) stage.
 
 \begin{figure}[hbt]
@@ -85,13 +85,12 @@ the bypass controls are determined.
 
 \subsubsection{Execute (EX)}\label{execute-ex}
 
-During the Execute/Memory Access stage the result is calculated for an
-ALU instruction and the memory accessed for a Load/Store instruction.
+During the Execute stage the result is calculated for an
+ALU, MUL, DIV instruction, the memory accessed for a Load/Store instruction, and branches and jumps are calculated and checked against their predicted outcomes.
 
 \subsubsection{Write Back (WB)}\label{write-back-wb}
 
-During the Memory Access/Write Back stage the result from the ALU or the
-memory access is written into the Register
+During the Write Back stage the result from the Execution stage is written into the Register
 File.
 
 \subsection{Branch Prediction Unit}\label{branch-prediction-unit}
@@ -165,7 +164,7 @@ non-natural boundary (e.g. a word access on address 0x003) causes a
 data-load trap.
 
 During a cache miss a complete block is written back to memory, if
-required, and a new block loaded.
+required, and a new block loaded is loaded into the cache.
 
 Setting \texttt{DCACHE\_SIZE} to zero disables the Data Cache. Memory locations
 are then directly access via the Data Interface.
@@ -187,11 +186,10 @@ then directly fetched from the memory via the Instruction Interface.
 
 \subsection{Integer Pipeline}\label{integer-pipeline}
 
-The RV12 has a single ALU that can execute one instruction per cycle.
-The ALU handles all logical, integer arithmetic, CSR access, and PC
+The RV12 has a single integer pipeline that can execute one instruction per cycle.
+The pipeline handles all logical, integer arithmetic, CSR access, and PC
 modifying instructions.
 
-The ALU also verifies predictions made for conditional branches.
 
 \subsection{Register File}\label{register-file}
 
