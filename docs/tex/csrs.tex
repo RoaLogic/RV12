@@ -102,76 +102,109 @@ Andrew Waterman and Krste Asanović, RISC-V Foundation, November 4, 2016,
 and released under the Creative Commons Attribution 4.0 International
 License
 
-\begin{longtable}[]{@{}l@{}}
+\begin{longtable}[]{@{}cccl@{}}
 \toprule
-Address\tabularnewline
+\textbf{Address} & \textbf{Privilege} & \textbf{Name} & \textbf{Description}\tabularnewline
+\midrule
+\endfirsthead
+\multicolumn{4}{c}{{(Continued from previous page)}} \\
+\toprule
+\textbf{Address} & \textbf{Privilege} & \textbf{Name} & \textbf{Description}\tabularnewline
 \midrule
 \endhead
-\emph{\textbf{Machine Information Registers}}\tabularnewline
-0xF11\tabularnewline
-0xF12\tabularnewline
-0xF13\tabularnewline
-0xF14\tabularnewline
-\emph{\textbf{Machine Trap Setup}}\tabularnewline
-0x300\tabularnewline
-0x301\tabularnewline
-0x302\tabularnewline
-0x303\tabularnewline
-0x304\tabularnewline
-0x305\tabularnewline
-0x7c0\tabularnewline
-\emph{\textbf{Machine Trap Handling}}\tabularnewline
-0x340\tabularnewline
-0x341\tabularnewline
-0x342\tabularnewline
-0x343\tabularnewline
-0x344\tabularnewline
-\emph{\textbf{Machine Counter/Timers}}\tabularnewline
-0xB00\tabularnewline
-0xB02\tabularnewline
-0xB80\tabularnewline
-0xB82\tabularnewline
+\midrule \multicolumn{4}{c}{{\tablename\ \thetable{} continued on next page\ldots}} \\
+\endfoot
+\endlastfoot
+
+\rowcolor{rltable}\multicolumn{4}{c}{\emph{\textbf{Machine Information Registers}}}\tabularnewline
+0xF11 & MRO & \texttt{mvendorid} & Vendor ID\tabularnewline
+0xF12 & MRO & \texttt{marchid}   & Architecture ID\tabularnewline
+0xF13 & MRO & \texttt{mimpid}    & Implementation ID\tabularnewline
+0xF14 & MRO & \texttt{mhartid}   & Hardware thread ID\tabularnewline
+
+\rowcolor{rltable}\multicolumn{4}{c}{\emph{\textbf{Machine Trap Setup}}}\tabularnewline
+0x300 & MRW & \texttt{mstatus} & Machine status register\tabularnewline
+0x301 & MRW & \texttt{misa}    & ISA and extensions\tabularnewline
+0x302 & MRW & \texttt{medeleg} & Machine exception delegation register\tabularnewline
+0x303 & MRW & \texttt{mideleg} & Machine interrupt delegation register\tabularnewline
+0x304 & MRW & \texttt{mie}     & Machine interrupt-enable register\tabularnewline
+0x305 & MRW & \texttt{mtvec}   & Machine trap-handler base address\tabularnewline
+0x7c0 & MRW & \texttt{mnmivec} & Machine non-maskable interrupt vector\tabularnewline
+
+\rowcolor{rltable}\multicolumn{4}{c}{\emph{\textbf{Machine Trap Handling}}}\tabularnewline
+0x340 & MRW & \texttt{mscratch} & Scratch register for machine trap handler\tabularnewline
+0x341 & MRW & \texttt{mepc}     & Machine exception program counter\tabularnewline
+0x342 & MRW & \texttt{mcause}   & Machine trap cause\tabularnewline
+0x343 & MRW & \texttt{mbadaddr} & Machine bad address\tabularnewline
+0x344 & MRW & \texttt{mip}      & Machine interrupt pending\tabularnewline
+
+\rowcolor{rltable}\multicolumn{4}{c}{\emph{\textbf{Machine Counter/Timers}}}\tabularnewline
+0xB00 & MRW & \texttt{mcycle}    & Machine cycle counter\tabularnewline
+0xB02 & MRW & \texttt{minstret}  & Machine instructions-retired counter\tabularnewline
+0xB80 & MRW & \texttt{mcycleh}   & Upper 32 bits of \texttt{mcycle}, RV32I only\tabularnewline
+0xB82 & MRW & \texttt{minstreth} & Upper 32 bits of \texttt{minstret}, RV32I only\tabularnewline
 \bottomrule
+\caption{Machine Mode CSRs}
+\label{tab:machine-csrs}
 \end{longtable}
 
-Table ‑: Machine Mode CSRs
 
-\begin{longtable}[]{@{}l@{}}
+\begin{longtable}[]{@{}cccl@{}}
 \toprule
-Address\tabularnewline
+\textbf{Address} & \textbf{Privilege} & \textbf{Name} & \textbf{Description}\tabularnewline
+\midrule
+\endfirsthead
+\multicolumn{4}{c}{{(Continued from previous page)}} \\
+\toprule
+\textbf{Address} & \textbf{Privilege} & \textbf{Name} & \textbf{Description}\tabularnewline
 \midrule
 \endhead
-\emph{Supervisor Trap Setup}\tabularnewline
-0x100\tabularnewline
-0x102\tabularnewline
-0x103\tabularnewline
-0x104\tabularnewline
-0x105\tabularnewline
-\emph{Supervisor Trap Handling}\tabularnewline
-0x140\tabularnewline
-0x141\tabularnewline
-0x142\tabularnewline
-0x143\tabularnewline
-0x144\tabularnewline
+\midrule \multicolumn{4}{c}{{\tablename\ \thetable{} continued on next page\ldots}} \\
+\endfoot
+\endlastfoot
+
+\multicolumn{4}{c}{\emph{\textbf{Supervisor Trap Handling}}}\tabularnewline
+0x100 & SRW & \texttt{sstatus} & Supervisor status register\tabularnewline
+0x102 & SRW & \texttt{sedeleg} & Supervisor exception delegation register\tabularnewline
+0x103 & SRW & \texttt{sideleg} & Supervisor interrupt delegation register\tabularnewline
+0x104 & SRW & \texttt{sie}     & Supervisor interrupt-enable register\tabularnewline
+0x105 & SRW & \texttt{stvec}   & Supervisor trap handler base address\tabularnewline
+
+\multicolumn{4}{c}{\emph{\textbf{Supervisor Trap Handling}}}\tabularnewline
+0x140 & SRW & \texttt{sscratch} & Scratch register for trap handler\tabularnewline
+0x141 & SRW & \texttt{sepc}     & Supervisor exception program counter\tabularnewline
+0x142 & SRO & \texttt{scause}   & Supervisor trap cause\tabularnewline
+0x143 & SRO & \texttt{sbadaddr} & Supervisor bad address\tabularnewline
+0x144 & SRW & \texttt{sip}      & Supervisor interrupt pending register\tabularnewline
 \bottomrule
+\caption{Supervisor Mode CSRs}
+\label{tab:supervisor-csrs}
 \end{longtable}
 
-Table ‑: Supervisor Mode CSRs
 
-\begin{longtable}[]{@{}l@{}}
+\begin{longtable}[]{@{}cccl@{}}
 \toprule
-Address\tabularnewline
+\textbf{Address} & \textbf{Privilege} & \textbf{Name} & \textbf{Description}\tabularnewline
+\midrule
+\endfirsthead
+\multicolumn{4}{c}{{(Continued from previous page)}} \\
+\toprule
+\textbf{Address} & \textbf{Privilege} & \textbf{Name} & \textbf{Description}\tabularnewline
 \midrule
 \endhead
-\emph{User Counter / Timers}\tabularnewline
-0xC00\tabularnewline
-0xC02\tabularnewline
-0xC80\tabularnewline
-0xC82\tabularnewline
-\bottomrule
-\end{longtable}
+\midrule \multicolumn{4}{c}{{\tablename\ \thetable{} continued on next page\ldots}} \\
+\endfoot
+\endlastfoot
 
-Table ‑: User Mode CSRs
+\multicolumn{4}{c}{\emph{\textbf{User Counter / Timers}}}\tabularnewline
+0xC00 & URO & \texttt{cycle} & Cycle counter for \texttt{RDCYCLE} instruction\tabularnewline
+0xC02 & URO & \texttt{instret} & Instruction-retire counter for \texttt{RDINSTRET}\tabularnewline
+0xC80 & URO & \texttt{cycleh} & Upper 32bits of \texttt{cycle}, RV32I only\tabularnewline
+0xC82 & URO & \texttt{instret} h& Upper 32bit of \texttt{instret}, RV32I only\tabularnewline
+\bottomrule
+\caption{User Mode CSRs}
+\label{tab:user-csrs}
+\end{longtable}
 
 \protect\hypertarget{_Toc326677757}{}{\protect\hypertarget{_Toc327108346}{}{}}
 
@@ -201,7 +234,7 @@ bit will be set for RV32E.
 The Base field encodes the native base integer ISA width as shown in
 Table 7‑5.
 
-\begin{longtable}[]{@{}ll@{}}
+\begin{longtable}[]{@{}cc@{}}
 \toprule
 Value & Description\tabularnewline
 \midrule
@@ -209,6 +242,8 @@ Value & Description\tabularnewline
 1 & 32\tabularnewline
 2 & 64\tabularnewline
 \bottomrule
+\caption{Supported misa values}
+\label{tab:misa-values}
 \end{longtable}
 
 \protect\hypertarget{_Ref367027661}{}{}Table ‑: Encoding of misa Base
@@ -484,13 +519,24 @@ center bits will read zero
 
 Figure ‑: Machine Cause Register
 
-Table 7‑8 lists the possible machine-level exception codes.
+Table \ref{tab:mcause-reg-values} below lists the possible machine-level exception codes.
 
-\begin{longtable}[]{@{}lll@{}}
+\begin{longtable}[]{@{}ccl@{}}
+\toprule
+Interrupt & Exception Code & Description\tabularnewline
+\midrule
+\endfirsthead
+\multicolumn{3}{c}{{(Continued from previous page)}} \\
+
 \toprule
 Interrupt & Exception Code & Description\tabularnewline
 \midrule
 \endhead
+
+\midrule \multicolumn{3}{c}{{\tablename\ \thetable{} continued on next page\ldots}} \\
+\endfoot
+
+\endlastfoot
 1 & 0 & User software interrupt\tabularnewline
 1 & 1 & Supervisor software interrupt\tabularnewline
 1 & 2 & \emph{Reserved}\tabularnewline
@@ -504,6 +550,7 @@ Interrupt & Exception Code & Description\tabularnewline
 1 & 10 & \emph{Reserved}\tabularnewline
 1 & 11 & Machine external interrupt\tabularnewline
 1 & $\geqslant$12 & Reserved\tabularnewline
+\midrule
 0 & 0 & Instruction address misaligned\tabularnewline
 0 & 1 & Instruction access fault\tabularnewline
 0 & 2 & Illegal Instruction\tabularnewline
@@ -518,10 +565,10 @@ Interrupt & Exception Code & Description\tabularnewline
 0 & 11 & Environment call from M-mode\tabularnewline
 0 & $\geqslant$12 & \emph{Reserved}\tabularnewline
 \bottomrule
+\caption{Machine Cause Register Values}
+\label{tab:mcause-reg-values}
 \end{longtable}
 
-\protect\hypertarget{_Ref326948235}{}{}Table ‑: Machine Cause Register
-Values
 
 \subsubsection{Machine Bad Address Register
 (mbadaddr)}\label{machine-bad-address-register-mbadaddr}
@@ -733,14 +780,25 @@ field contains a code identifying the last exception.
 
 Figure ‑: Supervisor-mode Cause Register
 
-Table 7‑8 lists the possible exception codes for the current supervisor
-ISAs.
+Table \ref{tab:scause-reg-values} below lists the possible exception codes for the current supervisor ISAs.
 
-\begin{longtable}[]{@{}lll@{}}
+\begin{longtable}[]{@{}ccl@{}}
+\toprule
+Interrupt & Exception Code & Description\tabularnewline
+\midrule
+\endfirsthead
+\multicolumn{3}{c}{{(Continued from previous page)}} \\
+
 \toprule
 Interrupt & Exception Code & Description\tabularnewline
 \midrule
 \endhead
+
+\midrule \multicolumn{3}{c}{{\tablename\ \thetable{} continued on next page\ldots}} \\
+\endfoot
+
+\endlastfoot
+
 1 & 0 & User software interrupt\tabularnewline
 1 & 1 & Supervisor software interrupt\tabularnewline
 1 & 2-3 & \emph{Reserved}\tabularnewline
@@ -750,6 +808,7 @@ Interrupt & Exception Code & Description\tabularnewline
 1 & 8 & User external interrupt\tabularnewline
 1 & 9 & Supervisor external interrupt\tabularnewline
 1 & $\leqslant$10 & \emph{Reserved}\tabularnewline
+\midrule
 0 & 0 & Instruction address misaligned\tabularnewline
 0 & 1 & Instruction access fault\tabularnewline
 0 & 2 & Illegal Instruction\tabularnewline
@@ -761,6 +820,8 @@ Interrupt & Exception Code & Description\tabularnewline
 0 & 8 & Environment call\tabularnewline
 0 & $\leqslant$9 & \emph{Reserved}\tabularnewline
 \bottomrule
+\caption{Supervisor Cause Register Values}
+\label{tab:scause-reg-values}
 \end{longtable}
 
 \protect\hypertarget{_Ref326948300}{}{}Table ‑: Supervisor Cause

@@ -26,6 +26,7 @@ Level & Encoding & Name & Abbreviation\tabularnewline
 3 & \texttt{11} & Machine & M\tabularnewline
 \bottomrule
 \caption{RISC-V Privilege Levels}
+\label{tab:riscv-priv-levels}
 \end{longtable}
 
 The highest privilege level is the Machine level. This is an inherent trusted level and has access to, and can alter, the whole machine. The lowest level is the User/Application level and is considered the least trusted level. It is used to protect the rest of the system from malicious applications.
@@ -40,7 +41,10 @@ The RV12 always implements Machine mode and optionally implements User mode and 
 
 The RV12 implements an optimizing 4-stage folded pipeline. The classic RISC pipeline consists of 5 stages; instruction fetch (IF), instruction decode (ID), execute (EX), memory access (MEM), and register write-back (WB).
 
-\missingfigure{}
+\begin{figure}[hbt]
+  \includegraphics{Pipeline-Reg}
+  \caption{Classic RISC Pipeline}
+\end{figure}
 
 The RV12 implements a modified form of the classic RISC pipeline where the
 Fetch stage takes 2 cycles to allow time to recode 16bit-compressed
@@ -50,7 +54,10 @@ instruction stream to allow CPU stalls, instruction execution, and
 memory accesses to overlap, thereby effectively hiding CPU stalls and
 improving the CPU's cycles per instruction CPI.
 
-\missingfigure{}
+\begin{figure}[hbt]
+  \includegraphics{Pipeline-RV12}
+  \caption{Modified RV12 Pipeline}
+\end{figure}
 
 The RV12 pipeline is capable of executing one instruction per clock
 cycle by overlapping the execution stages. The figure below shows how 5
@@ -59,9 +66,10 @@ as `being in flight'. Instruction A is the oldest instruction and it's
 in the Memory-Write Back (MEMWB) stage, whereas Instruction E is the
 newest instruction and it's in the Instruction Fetch (IF) stage.
 
-\missingfigure{}
-
-Figure ‑: Overlapping Execution Stages
+\begin{figure}[hbt]
+  \includegraphics{Pipeline-Overlap}
+  \caption{Overlapping Execution Stages}
+\end{figure}
 
 \subsubsection{Instruction Fetch/Pre-Decode
 (IF/PD)}\label{instruction-fetchpre-decode-ifpd}
@@ -84,10 +92,7 @@ ALU instruction and the memory accessed for a Load/Store instruction.
 
 During the Memory Access/Write Back stage the result from the ALU or the
 memory access is written into the Register
-File.\protect\hypertarget{_Toc326677721}{}{}
-
-
-\missingfigure{}
+File.
 
 \subsection{Branch Prediction Unit}\label{branch-prediction-unit}
 
@@ -117,21 +122,21 @@ branch executes.
 If no BPU is present, then all forward branches are predicted taken and
 all backward branches are predicted not-taken.
 
-The BPU has a number of parameters that determine its behavior. HAS\_BPU
-determines if a BPU is present, BPU\_LOCAL\_BITS determines how many of
-the program counter's LSB must be used and BPU\_GLOBAL\_BITS determines
+The BPU has a number of parameters that determine its behavior. \texttt{HAS\_BPU}
+determines if a BPU is present, \texttt{BPU\_LOCAL\_BITS} determines how many of
+the program counter's LSB must be used and  \texttt{BPU\_GLOBAL\_BITS}  determines
 how many history bits must be used.
 
-The combination of BPU\_GLOBAL\_BITS and BPU\_LOCAL\_BITS creates a
+The combination of \texttt{BPU\_GLOBAL\_BITS} and \texttt{BPU\_LOCAL\_BITS} creates a
 vector that is used to address the Branch-Prediction-Table. Increasing
-the BPU\_LOCAL\_BITS increases the number of program counter entries,
+the \texttt{BPU\_LOCAL\_BITS} increases the number of program counter entries,
 thereby reducing aliasing of the branch predictor at the expense of a
 larger Branch Prediction Table.
 
-Setting BPU\_GLOBAL\_BITS to zero creates a local-predictor. Setting
-BPU\_GLOBAL\_BITS to any non-zero value adds history (previous branch
+Setting \texttt{BPU\_GLOBAL\_BITS} to zero creates a local-predictor. Setting
+\texttt{BPU\_GLOBAL\_BITS} to any non-zero value adds history (previous branch
 prediction results) to the vector. This allows the branch predictor to
-handle nested branches. Increasing the number of BPU\_GLOBAL\_BITS adds
+handle nested branches. Increasing the number of \texttt{BPU\_GLOBAL\_BITS} adds
 more history to the vector at the expense of a larger Branch Prediction
 Table.
 
@@ -152,9 +157,9 @@ up to 8 Hardware Breakpoints.
 
 The Data Cache is used to speed up data memory accesses by buffering
 recently accessed memory locations. The data cache is capable of
-handling, byte, half-word, and word accesses when XLEN=32, as long as
+handling, byte, half-word, and word accesses when \texttt{XLEN=32}, as long as
 they are on their respective boundaries. It is capable of handling byte,
-half-word, word, and double-word accesses when XLEN=64, as long as they
+half-word, word, and double-word accesses when \texttt{XLEN=64}, as long as they
 are on their respective boundaries. Accessing a memory location on a
 non-natural boundary (e.g. a word access on address 0x003) causes a
 data-load trap.
@@ -162,7 +167,7 @@ data-load trap.
 During a cache miss a complete block is written back to memory, if
 required, and a new block loaded.
 
-Setting DCACHE\_SIZE to zero disables the Data Cache. Memory locations
+Setting \texttt{DCACHE\_SIZE} to zero disables the Data Cache. Memory locations
 are then directly access via the Data Interface.
 
 \subsection{Instruction Cache}\label{instruction-cache}
@@ -177,7 +182,7 @@ The Instruction Cache can be configured according to the user's needs.
 The cache size, block length, associativity, and replacement algorithm
 are configurable.
 
-Setting ICACHE\_SIZE to zero disables the Instruction Cache. Parcels are
+Setting \texttt{ICACHE\_SIZE} to zero disables the Instruction Cache. Parcels are
 then directly fetched from the memory via the Instruction Interface.
 
 \subsection{Integer Pipeline}\label{integer-pipeline}

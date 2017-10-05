@@ -43,6 +43,7 @@ Port & Size & Direction & Description\tabularnewline
 & & &\tabularnewline
 \bottomrule
 \caption{AMBA3 AHB-Lite Ports}
+\label{tab:ahb-ports}
 \end{longtable}
 
 \subsubsection{HRESETn}\label{hresetn}
@@ -82,7 +83,7 @@ The instruction transfer size is indicated by \texttt{IHSIZE}. Its value depends
 on the \texttt{XLEN} parameter and if the current transfer is a cache-line fill
 or non-cacheable instruction read.
 
-\begin{longtable}[]{@{}ccl@{}}
+\begin{longtable}[]{@{}ccp{7cm}@{}}
 \toprule
 \texttt{IHSIZE} & Type & Description\tabularnewline
 \midrule
@@ -93,6 +94,7 @@ or non-cacheable instruction read.
 cache parameters and \texttt{XLEN}\tabularnewline
 \bottomrule
 \caption{Supported IHSIZE Values}
+\label{tab:isize-values}
 \end{longtable}
 
 \subsubsection{IHBURST}\label{ihburst}
@@ -115,6 +117,7 @@ IHBURST & Type & Description\tabularnewline
 \texttt{111} & INCR16 & \emph{Not used}\tabularnewline
 \bottomrule
 \caption{Supported IHBURST Values}
+\label{tab:ihburst-values}
 \end{longtable}
 
 \subsubsection{IHPROT}\label{ihprot}
@@ -136,6 +139,7 @@ Bit\# & Value & Description\tabularnewline
 0 & 0 & Opcode fetch, always `0'\tabularnewline
 \bottomrule
 \caption{Supported IHPROT Values}
+\label{tab:ihprot-values}
 \end{longtable}
 
 
@@ -154,6 +158,7 @@ IHTRANS & Type & Description\tabularnewline
 \texttt{11} & SEQ & Remaining transfers of an instruction readburst\tabularnewline
 \bottomrule
 \caption{Supported IHTRANS Values}
+\label{tab:ihtrans-values}
 \end{longtable}
 
 \subsubsection{IHMASTLOCK}\label{ihmastlock}
@@ -219,6 +224,7 @@ DHSIZE & Type & Description\tabularnewline
 cache parameters and \texttt{XLEN}\tabularnewline
 \bottomrule
 \caption{Supported DHSIZE Values}
+\label{tab:dhsize-values}
 \end{longtable}
 
 \subsubsection{DHBURST}\label{dhburst}
@@ -226,7 +232,7 @@ cache parameters and \texttt{XLEN}\tabularnewline
 The instruction burst type indicates if the transfer is a single
 transfer or part of a burst.
 
-\begin{longtable}[]{@{}lll@{}}
+\begin{longtable}[]{@{}ccl@{}}
 \toprule
 DHBURST & Type & Description\tabularnewline
 \midrule
@@ -241,16 +247,17 @@ read/write\tabularnewline
 110 & WRAP16 & 16-bear wrapping burst\tabularnewline
 111 & INCR16 & \emph{Not used}\tabularnewline
 \bottomrule
+\caption{Supported DHBURST Values}
+\label{tab:dhburst-values}
 \end{longtable}
 
-\protect\hypertarget{_Toc326677785}{}{}Table ‑: Supported DHBURST Values
 
 \subsubsection{DHPROT}\label{dhprot}
 
 The data protection signals provide information about the bus transfer.
 They are intended to implement some level of protection.
 
-\begin{longtable}[]{@{}lll@{}}
+\begin{longtable}[]{@{}ccl@{}}
 \toprule
 Bit\# & Value & Description\tabularnewline
 \midrule
@@ -263,15 +270,15 @@ Bit\# & Value & Description\tabularnewline
 & 0 & User access. CPU is in User Mode\tabularnewline
 0 & 1 & Data transfer, always `1'\tabularnewline
 \bottomrule
+\caption{Supported DHPROT Values}
+\label{tab:dhprot-values}
 \end{longtable}
-
-Table ‑: Supported DHPROT Values
 
 \subsubsection{DHTRANS}\label{dhtrans}
 
-DHTRANS indicates the type of the current data transfer.
+\texttt{DHTRANS} indicates the type of the current data transfer.
 
-\begin{longtable}[]{@{}lll@{}}
+\begin{longtable}[]{@{}ccl@{}}
 \toprule
 DHTRANS & Type & Description\tabularnewline
 \midrule
@@ -281,9 +288,9 @@ DHTRANS & Type & Description\tabularnewline
 10 & NONSEQ & First transfer of an data burst\tabularnewline
 11 & SEQ & Remaining transfers of an data burst\tabularnewline
 \bottomrule
+\caption{Supported DHTRANS Values}
+\label{tab:dhtrans-values}
 \end{longtable}
-
-Table ‑: Supported DHTRANS Values
 
 \subsubsection{DHMASTLOCK}\label{dhmastlock}
 
@@ -293,15 +300,15 @@ master lock is always negated (`0').
 
 \subsubsection{DHREADY}\label{dhready}
 
-DHREADY indicates whether the addressed slave is ready to transfer data
-or not. When DHREADY is negated (`0') the slave is not ready, forcing
-wait states. When DHREADY is asserted (`0') the slave is ready and the
+\texttt{DHREADY} indicates whether the addressed slave is ready to transfer data
+or not. When \texttt{DHREADY} is negated (`0') the slave is not ready, forcing
+wait states. When \texttt{DHREADY} is asserted (`0') the slave is ready and the
 transfer completed.
 
 \subsubsection{DHRESP}\label{dhresp}
 
-DHRESP is the data transfer response; it can either be OKAY (`0') or
-ERROR (`1'). An error response causes a Bus Error exception.
+\texttt{DHRESP} is the data transfer response; it can either be \texttt{OKAY} (`0') or
+\texttt{ERROR} (`1'). An error response causes a Bus Error exception.
 
 \subsection{Interrupts}\label{interrupts}
 
@@ -315,7 +322,7 @@ then expects the Identifier of the Source Interrupt to be presented by
 the PLIC at the appropriate interrupt vector upon a claim of the
 interrupt.
 
-\begin{longtable}[]{@{}llll@{}}
+\begin{longtable}[]{@{}cccl@{}}
 \toprule
 Port & Size & Direction & Description\tabularnewline
 \midrule
@@ -325,46 +332,48 @@ EXT\_TINT & 1 & Input & Timer Interrupt\tabularnewline
 EXT\_SINT & 1 & Input & Software Interrupt\tabularnewline
 EXT\_INT & 4 & Input & External Interrupts\tabularnewline
 \bottomrule
+\caption{Interrupts Supported}
+\label{tab:int-support}
 \end{longtable}
 
 \subsubsection{EXT\_NMI}\label{ext_nmi}
 
 The RV12 supports a single external non-maskable interrupt, accessible
-in Machine Mode only. The interrupt vector for EXT\_NMI is defined as an
-RV12 core parameter MNMIVEC\_DEFAULT (see section 4.2.26)
+in Machine Mode only. The interrupt vector for \texttt{EXT\_NMI} is defined as an
+RV12 core parameter \texttt{MNMIVEC\_DEFAULT} (see section \ref{core-parameters} )
 
 \subsubsection{EXT\_TINT}\label{ext_tint}
 
-The RV12 supports a single Machine-Mode timer interrupt EXT\_TINT.
+The RV12 supports a single Machine-Mode timer interrupt \texttt{EXT\_TINT}.
 
 The interrupt may be delegated to other operating modes via software
-manipulation of mip and sip registers (See sections 7.6.8 and 7.7.3).
+manipulation of \texttt{mip} and \texttt{sip} registers (See sections 7.6.8 and 7.7.3).
 Alternatively, higher performance interrupt redirection may be
-implemented via use of the mideleg and sideleg configuration registers
-(See sections 7.6.7 and 7.7.2).
+implemented via use of the \texttt{mideleg} and \texttt{sideleg} configuration registers
+(See sections \ref{machine-exception-interrupt-delegation-registers-medeleg-mideleg} and \ref{supervisor-trap-delegation-registers-sedeleg-sideleg} ).
 
 The interrupt vector used to service the interrupt is determined based
-on the mode the interrupt is delegated to via the MTVEC\_DEFAULT,
-STVEC\_DEFAULT and UTVEC\_DEFAULT parameters.
+on the mode the interrupt is delegated to via the \texttt{MTVEC\_DEFAULT},
+\texttt{STVEC\_DEFAULT} and \texttt{UTVEC\_DEFAULT} parameters.
 
 \subsubsection{EXT\_SINT}\label{ext_sint}
 
-The RV12 supports a single Machine-Mode timer interrupt EXT\_SINT.
+The RV12 supports a single Machine-Mode timer interrupt \texttt{EXT\_SINT}.
 
 The interrupt may be delegated to other operating modes via software
-manipulation of mip and sip registers (See sections 7.6.8 and 7.7.3).
+manipulation of \texttt{mip} and \texttt{sip} registers (See sections 7.6.8 and 7.7.3).
 Alternatively, higher performance interrupt redirection may be
-implemented via use of the mideleg and sideleg configuration registers
-(See sections 7.6.7 and 7.7.2).
+implemented via use of the \texttt{mideleg} and \texttt{sideleg} configuration registers
+(See sections \ref{machine-exception-interrupt-delegation-registers-medeleg-mideleg} and \ref{supervisor-trap-delegation-registers-sedeleg-sideleg} ).
 
 The interrupt vector used to service the interrupt is determined based
-on the mode the interrupt is delegated to via the MTVEC\_DEFAULT,
-STVEC\_DEFAULT and UTVEC\_DEFAULT parameters.
+on the mode the interrupt is delegated to via the \texttt{MTVEC\_DEFAULT},
+\texttt{STVEC\_DEFAULT} and \texttt{UTVEC\_DEFAULT} parameters.
 
 \subsubsection{EXT\_INT}\label{ext_int}
 
 RV12 supports one general-purpose external interrupt input per operating
-mode, as defined in Table 8‑10:
+mode, as defined in Table \ref{tab:external-interrupt-inputs}:
 
 \begin{longtable}[]{@{}lll@{}}
 \toprule
@@ -376,10 +385,9 @@ EXT\_INT{[}2{]} & 2 & Reserved\tabularnewline
 EXT\_INT{[}1{]} & 1 & Supervisor Mode\tabularnewline
 EXT\_INT{[}0{]} & 0 & User Mode\tabularnewline
 \bottomrule
+\caption{External Interrupt Inputs}
+\label{tab:external-interrupt-inputs}
 \end{longtable}
-
-\protect\hypertarget{_Ref367447228}{}{}Table ‑: External Interrupt
-Inputs
 
 Each interrupt will be serviced by the operating mode it corresponds to,
 or alternatively a higher priority mode depending on the system
@@ -395,7 +403,7 @@ Notes:
 \item
   An external interrupt will never be serviced by a lower priority mode
   than that corresponding to the input pin. For example, an interrupt
-  presented to EXT\_INT{[}1{]} -- corresponding to supervisor mode --
+  presented to \texttt{EXT\_INT{[}1{]}} -- corresponding to supervisor mode --
   cannot be serviced by a user mode ISR.
 \item
   Conversely, Machine Mode may service interrupts arriving on any of the
