@@ -17,37 +17,26 @@
 \usepackage{graphicx,grffile} % Graphics support
 \usepackage{geometry}
 \usepackage{array}
-
 \usepackage{xcolor}
 \usepackage{placeins}
 \usepackage{multirow}
 \usepackage{float}
-
 \usepackage[shadow]{todonotes}
 \usepackage{lmodern} % Font Library
 \usepackage{amssymb,amsmath} % Math Fonts
 \usepackage{ifxetex,ifluatex}
-
 \usepackage{longtable} % Long table supprot
 \usepackage{vmargin} % Margin control  
 \usepackage{tabularx} % Table support
-
 \usepackage{booktabs} % For \toprule, \midrule and \bottomrule
 \usepackage{csvsimple} % Import CSV files
-
 \usepackage{layout} % Show summary of page layout
-\usepackage{hyperref} % Hyperlink support
-    
+\usepackage{hyperref} % Hyperlink support   
 \usepackage{titlesec} %Headings Styliser
-
 \usepackage{fancyhdr} % Header & Footer control
-\pagestyle{fancy}
-
 \usepackage{comment}
-
-% Package includes
-
 \usepackage[olditem,oldenum]{paralist}
+\usepackage{titling}
 
 % Setup margins & page style
 
@@ -58,15 +47,6 @@
 %\setlength{\textwidth}{6.5in}
 
 % Page Layout Control
-
-% Paragraph formatting
-%\setlength{\parindent}{1em}
-\setlength{\parskip}{0.5em}
-
-% Long table formatting
-\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}                  
-\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}                        
-\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
 
 % Hyperlink formatting
 \hypersetup{
@@ -83,6 +63,7 @@
 \renewcommand{\headlinecolor}{\color{rlcolor}}
 
 
+% Heading Formats
 \titleformat{\chapter}
    {\normalfont\Huge\bfseries\color{rlchapter}\sffamily}{\thechapter.}{1em}{}[{\titlerule[0.8pt]}]
    
@@ -102,25 +83,29 @@
 \titlespacing*{\paragraph}   {0pt}{1.25ex plus 1ex minus .2ex}{0.5em}
 \titlespacing*{\subparagraph} {\parindent}{3.25ex plus 1ex minus .2ex}{0.5em}
 
-% Pad All Table Rows
-\renewcommand{\arraystretch}{1.2}
+% Paragraph formatting
+%\setlength{\parindent}{1em}
+\setlength{\parskip}{0.5em}
 
-% Define think table lines
-\makeatletter
-\newcommand{\thickhline}{%
-	\noalign {\ifnum 0=`}\fi \hrule height 1pt
-	\futurelet \reserved@a \@xhline
-}
-\newcolumntype{"}{@{\hskip\tabcolsep\vrule width 1pt\hskip\tabcolsep}}
-\makeatother
+% Long table formatting
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}                  
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}                        
+\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
+
+% Pad All Table Rows
+% \renewcommand{\arraystretch}{1.2}
+
 
 % Center all Floats (Figs & Tables)
 \makeatletter
 \g@addto@macro\@floatboxreset\centering
 \makeatother
 
+%
+% Custom Commands
+%
+
 % Define ToDo Colours
 \presetkeys{todonotes}{color=blue!30, backgroundcolor=white, bordercolor=black, figcolor=white}{}
-\newcommand{\sph}[1]{\todo[color=red!40, bordercolor=red, backgroundcolor=white, author=SPH:]{#1}}
-\newcommand{\rh}[1]{\todo[color=green!40, bordercolor=green, backgroundcolor=white, author=RH:]{#1}}
+
 

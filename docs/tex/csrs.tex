@@ -48,7 +48,7 @@ Attempts to access a non-existing CSR raise an illegal-instruction
 exception. Attempts to access a privileged CSR or write a read-only CSR
 raise an illegal-instruction exception. Machine Mode can access all
 CSRs, whereas User Mode can only access a
-few.\protect\hypertarget{_Toc326677756}{}{}
+few.
 
 \section{Timers and Counters}\label{timers-and-counters}
 
@@ -206,8 +206,6 @@ License
 \label{tab:user-csrs}
 \end{longtable}
 
-\protect\hypertarget{_Toc326677757}{}{\protect\hypertarget{_Toc327108346}{}{}}
-
 \section{Machine Level CSRs}\label{machine-level-csrs}
 
 In addition to the machine-level CSRs described in this section, M-mode
@@ -247,9 +245,6 @@ Value & Description\tabularnewline
 \label{tab:misa-values}
 \end{longtable}
 
-\protect\hypertarget{_Ref367027661}{}{}Table ‑: Encoding of misa Base
-Field
-
 \subsection{Vendor ID Register
 (mvendorid)}\label{vendor-id-register-mvendorid}
 
@@ -277,9 +272,6 @@ in Figure 7‑5.
   \includegraphics[width=\textwidth]{marchid}
   \caption{Architecture ID Register}
 \end{figure}
-
-\protect\hypertarget{_Ref367028846}{}{}Figure ‑: Roa Logic RV12 marchid
-Definition
 
 Note: Open-source project architecture IDs are allocated globally by the
 RISC-V Foundation, and have non-zero architecture IDs with a zero
@@ -378,7 +370,7 @@ not written.
 
 \missingfigure{}
 
-\protect\hypertarget{_Ref367088718}{}{}Figure ‑: Machine Exception
+Figure ‑: Machine Exception
 Delegation Register
 
 medeleg has a bit position allocated for every synchronous exception
@@ -613,8 +605,6 @@ has 64-bit precision on all RV32 and RV64 systems.
 
 On RV32 only, reads of the minstret CSR returns the low 32 bits, while
 reads of the minstreth CSR returns bits 63--32.
-
-\protect\hypertarget{_Toc327108358}{}{}
 
 \section{Supervisor Mode CSRs}\label{supervisor-mode-csrs}
 

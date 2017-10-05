@@ -11,36 +11,33 @@ Interfaces.
 Port & Size & Direction & Description\tabularnewline
 \midrule
 \endhead
-\texttt{HRESETn} & 1 & Input & Asynchronous active low reset\tabularnewline
-\texttt{HCLK} & 1 & Input & System clock input\tabularnewline
-& & &\tabularnewline
-\texttt{IHSEL} & 1 & Output & Provided for AHB-Lite compatibility -- tied high
-(`1')\tabularnewline
-\texttt{IHADDR} & \texttt{XLEN} & Output & Instruction address\tabularnewline
-\texttt{IHRDATA} & 32 & Input & Instruction data\tabularnewline
-\texttt{IHWRITE} & 1 & Output & Instruction write\tabularnewline
-\texttt{IHSIZE} & 3 & Output & Transfer size\tabularnewline
-\texttt{IHBURST} & 3 & Output & Transfer burst size\tabularnewline
-\texttt{IHPROT} & 4 & Output & Transfer protection level\tabularnewline
-\texttt{IHTRANS} & 2 & Output & Transfer type\tabularnewline
+\texttt{HRESETn}    & 1 & Input & Asynchronous active low reset\tabularnewline
+\texttt{HCLK}       & 1 & Input & System clock input\tabularnewline
+\tabularnewline
+\texttt{IHSEL}      & 1 & Output & Provided for AHB-Lite compatibility -- tied high (`1')\tabularnewline
+\texttt{IHADDR}     & \texttt{XLEN} & Output & Instruction address\tabularnewline
+\texttt{IHRDATA}    & 32 & Input & Instruction data\tabularnewline
+\texttt{IHWRITE}    & 1 & Output & Instruction write\tabularnewline
+\texttt{IHSIZE}     & 3 & Output & Transfer size\tabularnewline
+\texttt{IHBURST}    & 3 & Output & Transfer burst size\tabularnewline
+\texttt{IHPROT}     & 4 & Output & Transfer protection level\tabularnewline
+\texttt{IHTRANS}    & 2 & Output & Transfer type\tabularnewline
 \texttt{IHMASTLOCK} & 1 & Output & Transfer master lock\tabularnewline
-\texttt{IHREADY} & 1 & Input & Slave Ready Indicator\tabularnewline
-\texttt{IHRESP} & 1 & Input & Instruction Transfer Response\tabularnewline
-& & &\tabularnewline
-\texttt{DHSEL} & 1 & Output & Provided for AHB-Lite compatibility -- tied high
-(`1')\tabularnewline
-\texttt{DHADDR} & \texttt{XLEN} & Output & Data address\tabularnewline
-\texttt{DHRDATA} & \texttt{XLEN} & Input & Data read data\tabularnewline
-\texttt{DHWDATA} & \texttt{XLEN} & Output & Data write data\tabularnewline
-\texttt{DHWRITE} & 1 & Output & Instruction write\tabularnewline
-\texttt{DHSIZE} & 3 & Output & Transfer size\tabularnewline
-\texttt{DHBURST} & 3 & Output & Transfer burst size\tabularnewline
-\texttt{DHPROT} & 4 & Output & Transfer protection level\tabularnewline
-\texttt{DHTRANS} & 2 & Output & Transfer type\tabularnewline
+\texttt{IHREADY}    & 1 & Input & Slave Ready Indicator\tabularnewline
+\texttt{IHRESP}     & 1 & Input & Instruction Transfer Response\tabularnewline
+\tabularnewline
+\texttt{DHSEL}      & 1 & Output & Provided for AHB-Lite compatibility -- tied high (`1')\tabularnewline
+\texttt{DHADDR}     & \texttt{XLEN} & Output & Data address\tabularnewline
+\texttt{DHRDATA}    & \texttt{XLEN} & Input & Data read data\tabularnewline
+\texttt{DHWDATA}    & \texttt{XLEN} & Output & Data write data\tabularnewline
+\texttt{DHWRITE}    & 1 & Output & Instruction write\tabularnewline
+\texttt{DHSIZE}     & 3 & Output & Transfer size\tabularnewline
+\texttt{DHBURST}    & 3 & Output & Transfer burst size\tabularnewline
+\texttt{DHPROT}     & 4 & Output & Transfer protection level\tabularnewline
+\texttt{DHTRANS}    & 2 & Output & Transfer type\tabularnewline
 \texttt{DHMASTLOCK} & 1 & Output & Transfer master lock\tabularnewline
-\texttt{DHREADY} & 1 & Input & Slave Ready Indicator\tabularnewline
-\texttt{DHRESP} & 1 & Input & Data Transfer Response\tabularnewline
-& & &\tabularnewline
+\texttt{DHREADY}    & 1 & Input & Slave Ready Indicator\tabularnewline
+\texttt{DHRESP}     & 1 & Input & Data Transfer Response\tabularnewline
 \bottomrule
 \caption{AMBA3 AHB-Lite Ports}
 \label{tab:ahb-ports}
@@ -88,10 +85,9 @@ or non-cacheable instruction read.
 \texttt{IHSIZE} & Type & Description\tabularnewline
 \midrule
 \endhead
-\texttt{010} & Word & Non-cacheable instruction read. \texttt{XLEN=32}\tabularnewline
-011 & Dword & Non-cacheable instruction read. \texttt{XLEN=64}\tabularnewline
-\texttt{1-\/-} & & Cache line fill. The actual size depends on the Instruction
-cache parameters and \texttt{XLEN}\tabularnewline
+\texttt{010}   & Word  & Non-cacheable instruction read. \texttt{XLEN=32}\tabularnewline
+\texttt{011}   & Dword & Non-cacheable instruction read. \texttt{XLEN=64}\tabularnewline
+\texttt{1-\/-} &       & Cache line fill. The actual size depends on the Instruction cache parameters and \texttt{XLEN}\tabularnewline
 \bottomrule
 \caption{Supported IHSIZE Values}
 \label{tab:isize-values}
@@ -108,11 +104,11 @@ IHBURST & Type & Description\tabularnewline
 \midrule
 \endhead
 \texttt{000} & Single & \emph{Not used}\tabularnewline
-\texttt{001} & INCR & Non-cacheable instruction reads\tabularnewline
-\texttt{010} & WRAP4 & 4-beat wrapping burst\tabularnewline
-\texttt{011} & INCR4 & \emph{Not used}\tabularnewline
-\texttt{100} & WRAP8 & 8-beat wrapping burst\tabularnewline
-\texttt{101} & INCR8 & \emph{Not used}\tabularnewline
+\texttt{001} & INCR   & Non-cacheable instruction reads\tabularnewline
+\texttt{010} & WRAP4  & 4-beat wrapping burst\tabularnewline
+\texttt{011} & INCR4  & \emph{Not used}\tabularnewline
+\texttt{100} & WRAP8  & 8-beat wrapping burst\tabularnewline
+\texttt{101} & INCR8  & \emph{Not used}\tabularnewline
 \texttt{110} & WRAP16 & 16-bear wrapping burst\tabularnewline
 \texttt{111} & INCR16 & \emph{Not used}\tabularnewline
 \bottomrule
@@ -131,11 +127,11 @@ Bit\# & Value & Description\tabularnewline
 \midrule
 \endhead
 3 & 1 & Cacheable region addressed\tabularnewline
-& 0 & Non-cacheable region addressed\tabularnewline
+  & 0 & Non-cacheable region addressed\tabularnewline
 2 & 1 & Bufferable\tabularnewline
-& 0 & Non-bufferable\tabularnewline
+  & 0 & Non-bufferable\tabularnewline
 1 & 1 & Privileged access. CPU is not in User Mode\tabularnewline
-& 0 & User access. CPU is in User Mode\tabularnewline
+  & 0 & User access. CPU is in User Mode\tabularnewline
 0 & 0 & Opcode fetch, always `0'\tabularnewline
 \bottomrule
 \caption{Supported IHPROT Values}
@@ -152,10 +148,10 @@ Bit\# & Value & Description\tabularnewline
 IHTRANS & Type & Description\tabularnewline
 \midrule
 \endhead
-\texttt{00} & IDLE & No transfer required\tabularnewline
-\texttt{01} & BUSY & CPU inserts wait states during instruction burst read\tabularnewline
+\texttt{00} & IDLE   & No transfer required\tabularnewline
+\texttt{01} & BUSY   & CPU inserts wait states during instruction burst read\tabularnewline
 \texttt{10} & NONSEQ & First transfer of an instruction read burst\tabularnewline
-\texttt{11} & SEQ & Remaining transfers of an instruction readburst\tabularnewline
+\texttt{11} & SEQ    & Remaining transfers of an instruction readburst\tabularnewline
 \bottomrule
 \caption{Supported IHTRANS Values}
 \label{tab:ihtrans-values}
@@ -216,12 +212,11 @@ fill/write-back or a non-cacheable data transfer.
 DHSIZE & Type & Description\tabularnewline
 \midrule
 \endhead
-\texttt{000} & Byte & Non-cacheable data transfer\tabularnewline
-\texttt{001} & Halfword & Non-cacheable data transfer\tabularnewline
-\texttt{010} & Word & Non-cacheable data transfer\tabularnewline
-\texttt{011} & Dword & Non-cacheable data transfer\tabularnewline
-\texttt{1-\/-} & & Cache line fill. The actual size depends on the Instruction
-cache parameters and \texttt{XLEN}\tabularnewline
+\texttt{000}   & Byte     & Non-cacheable data transfer\tabularnewline
+\texttt{001}   & Halfword & Non-cacheable data transfer\tabularnewline
+\texttt{010}   & Word     & Non-cacheable data transfer\tabularnewline
+\texttt{011}   & Dword    & Non-cacheable data transfer\tabularnewline
+\texttt{1-\/-} &          & Cache line fill. The actual size depends on the Instruction cache parameters and \texttt{XLEN}\tabularnewline
 \bottomrule
 \caption{Supported DHSIZE Values}
 \label{tab:dhsize-values}
@@ -239,11 +234,11 @@ DHBURST & Type & Description\tabularnewline
 \endhead
 000 & Single & Single transfer. E.g. non-cacheable
 read/write\tabularnewline
-001 & INCR & \emph{Not used}\tabularnewline
-010 & WRAP4 & 4-beat wrapping burst\tabularnewline
-011 & INCR4 & \emph{Not used}\tabularnewline
-100 & WRAP8 & 8-beat wrapping burst\tabularnewline
-101 & INCR8 & \emph{Not used}\tabularnewline
+001 & INCR   & \emph{Not used}\tabularnewline
+010 & WRAP4  & 4-beat wrapping burst\tabularnewline
+011 & INCR4  & \emph{Not used}\tabularnewline
+100 & WRAP8  & 8-beat wrapping burst\tabularnewline
+101 & INCR8  & \emph{Not used}\tabularnewline
 110 & WRAP16 & 16-bear wrapping burst\tabularnewline
 111 & INCR16 & \emph{Not used}\tabularnewline
 \bottomrule
@@ -263,11 +258,11 @@ Bit\# & Value & Description\tabularnewline
 \midrule
 \endhead
 3 & 1 & Cacheable region addressed\tabularnewline
-& 0 & Non-cacheable region addressed\tabularnewline
+  & 0 & Non-cacheable region addressed\tabularnewline
 2 & 1 & Bufferable\tabularnewline
-& 0 & Non-bufferable\tabularnewline
+  & 0 & Non-bufferable\tabularnewline
 1 & 1 & Privileged access. CPU is not in User Mode\tabularnewline
-& 0 & User access. CPU is in User Mode\tabularnewline
+  & 0 & User access. CPU is in User Mode\tabularnewline
 0 & 1 & Data transfer, always `1'\tabularnewline
 \bottomrule
 \caption{Supported DHPROT Values}
@@ -283,10 +278,10 @@ Bit\# & Value & Description\tabularnewline
 DHTRANS & Type & Description\tabularnewline
 \midrule
 \endhead
-00 & IDLE & No transfer required\tabularnewline
-01 & BUSY & \emph{Not used}\tabularnewline
+00 & IDLE   & No transfer required\tabularnewline
+01 & BUSY   & \emph{Not used}\tabularnewline
 10 & NONSEQ & First transfer of an data burst\tabularnewline
-11 & SEQ & Remaining transfers of an data burst\tabularnewline
+11 & SEQ    & Remaining transfers of an data burst\tabularnewline
 \bottomrule
 \caption{Supported DHTRANS Values}
 \label{tab:dhtrans-values}
@@ -327,10 +322,10 @@ interrupt.
 Port & Size & Direction & Description\tabularnewline
 \midrule
 \endhead
-EXT\_NMI & 1 & Input & Non-Maskable Interrupt\tabularnewline
+EXT\_NMI  & 1 & Input & Non-Maskable Interrupt\tabularnewline
 EXT\_TINT & 1 & Input & Timer Interrupt\tabularnewline
 EXT\_SINT & 1 & Input & Software Interrupt\tabularnewline
-EXT\_INT & 4 & Input & External Interrupts\tabularnewline
+EXT\_INT  & 4 & Input & External Interrupts\tabularnewline
 \bottomrule
 \caption{Interrupts Supported}
 \label{tab:int-support}

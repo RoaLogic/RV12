@@ -1,4 +1,4 @@
-\chapter{Introduction to the RV12}\label{introduction-to-the-rv12}
+\chapter{Introduction to the RV12} \label{introduction-to-the-rv12}
 
 The RISC-V specification provides for multi-threading and multi-core implementations. A core is defined as an implementation with its own instruction fetch unit. A hardware thread, or \emph{hart}, is defined as a processing engine with its own state. A core may contain multiple hardware threads. See \href{http://www.riscv.org}{www.riscv.org} for the specifications\footnote{Full reference details of the specifications are documented in section 11}.
 
@@ -66,29 +66,28 @@ newest instruction and it's in the Instruction Fetch (IF) stage.
   \caption{Overlapping Execution Stages}
 \end{figure}
 
-\subsection{Instruction Fetch/Pre-Decode
-(IF/PD)}\label{instruction-fetchpre-decode-ifpd}
+\subsection{Instruction Fetch/Pre-Decode(IF/PD)} \label{instruction-fetchpre-decode-ifpd}
 
 During the instruction fetch stage one instruction is read from the
 instruction memory, a 16bit-compressed instruction is decoded, and the
 program counter is updated to point to the next instruction.
 
-\subsection{Instruction Decode (ID)}\label{instruction-decode-id}
+\subsection{Instruction Decode (ID)} \label{instruction-decode-id}
 
 During the instruction decode stage the Register File is accessed and
 the bypass controls are determined.
 
-\subsection{Execute (EX)}\label{execute-ex}
+\subsection{Execute (EX)} \label{execute-ex}
 
 During the Execute stage the result is calculated for an
 ALU, MUL, DIV instruction, the memory accessed for a Load/Store instruction, and branches and jumps are calculated and checked against their predicted outcomes.
 
-\subsection{Write Back (WB)}\label{write-back-wb}
+\subsection{Write Back (WB)} \label{write-back-wb}
 
 During the Write Back stage the result from the Execution stage is written into the Register
 File.
 
-\section{Branch Prediction Unit}\label{branch-prediction-unit}
+\section{Branch Prediction Unit} \label{branch-prediction-unit}
 
 The RV12 can execute one instruction every clock cycle. However due to
 the pipeline architecture each instruction takes several clock cycles to
@@ -141,13 +140,13 @@ about the current state of the processor. See section 7, ``Control \&
 Status Registers'', for a description of the registers and their
 purpose.
 
-\section{Debug Unit}\label{debug-unit}
+\section{Debug Unit} \label{debug-unit}
 
 The Debug Unit allows the Debug Environment to stall and inspect the
 CPU. Provided features include Single Step Tracing, Branch Tracing, and
 up to 8 Hardware Breakpoints.
 
-\section{Data Cache}\label{data-cache}
+\section{Data Cache} \label{data-cache}
 
 The Data Cache is used to speed up data memory accesses by buffering
 recently accessed memory locations. The data cache is capable of
