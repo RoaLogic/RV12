@@ -1,6 +1,6 @@
-\section{Debug Unit}\label{debug-unit-1}
+\chapter{Debug Unit}\label{debug-unit-1}
 
-\subsection{Introduction}\label{introduction-4}
+\section{Introduction}\label{introduction-4}
 
 The Debug Unit is a separate unit in the CPU. It's not directly related
 to any instruction execution or support functions, like Cache or Branch
@@ -14,7 +14,7 @@ external Debug Tools. The Debug Unit does not stall the CPU, instead it
 relies on the external debug controller to stall the CPU when the Debug
 Unit requests it.
 
-\subsection{Debug Controller Interface
+\section{Debug Controller Interface
 }\label{debug-controller-interface}
 
 The Debug Unit has two interfaces; one to communicate with the CPU and
@@ -42,7 +42,7 @@ Port & Size & Direction & Description\tabularnewline
 \label{tab:debug-if-signals}
 \end{longtable}
 
-\subsubsection{dbg\_stall}\label{dbg_stall}
+\subsection{dbg\_stall}\label{dbg_stall}
 
 The CPU is halted when \texttt{dbg\_stall} is asserted (`1'). No new instructions
 are fed into the execution units. Any instructions already issued are
@@ -53,14 +53,14 @@ inspect the CPU's state and registers. The Debug Controller must assert
 \texttt{dbg\_stall} immediate (combinatorial) when the Debug Unit asserts
 \texttt{dbg\_bp}.
 
-\subsubsection{dbg\_strb}\label{dbg_strb}
+\subsection{dbg\_strb}\label{dbg_strb}
 
 The Debug Controller asserts (`1') the Access Strobe signal when it
 wants to read from or write to the Debug Unit or the CPU's registers. It
 must remain asserted until the Debug Unit acknowledges completion of the
 access by asserting (`1') \texttt{dbg\_ack}.
 
-\subsubsection{dbg\_we}\label{dbg_we}
+\subsection{dbg\_we}\label{dbg_we}
 
 The Debug Controller asserts (`1') the Write Enable signal when it wants
 to write to the Debug Unit or the CPU's registers. It must remain
@@ -68,22 +68,22 @@ asserted until the Debug Unit acknowledges completion of the access by
 asserting (`1') \texttt{dbg\_ack}. It is valid only when \texttt{dbg\_strb} is asserted as
 well.
 
-\subsubsection{dbg\_addr}\label{dbg_addr}
+\subsection{dbg\_addr}\label{dbg_addr}
 
 The address bus carries the register-address that is is read from or
 written to. See Register Map for the details.
 
-\subsubsection{dbg\_dati}\label{dbg_dati}
+\subsection{dbg\_dati}\label{dbg_dati}
 
 The write data bus carries the data to be written to the Debug Unit's or
 CPU's registers.
 
-\subsubsection{dbg\_dato}\label{dbg_dato}
+\subsection{dbg\_dato}\label{dbg_dato}
 
 The read data bus carries the data read from the Debug Unit's or CPU's
 registers.
 
-\subsubsection{dbg\_bp}\label{dbg_bp}
+\subsection{dbg\_bp}\label{dbg_bp}
 
 The Debug Unit asserts (`1') BreakPoint when a hardware breakpoint,
 single-step, branch-trace, or exception hit occurred. This is the CPU
@@ -91,7 +91,7 @@ stall request from the Debug Unit to the external debug controller. The
 Debug Controller must assert (`1') \texttt{dbg\_stall} immediately
 (combinatorial) upon detecting \texttt{dbg\_bp} asserted.
 
-\subsection{Register Map}\label{register-map}
+\section{Register Map}\label{register-map}
 
 The Debug Unit's address map provides access to the Debug Unit's
 internal registers, the Register Files, and the
@@ -151,13 +151,13 @@ Files and the CSRs can only be access when the CPU is stalled.
 \label{tab:debug-reg-map}
 \end{longtable}
 
-\subsection{Internal Register Map}\label{internal-register-map}
+\section{Internal Register Map}\label{internal-register-map}
 
 The Debug Unit's internal register map can be accessed when the CPU is
 stalled or running. These registers control the hardware breakpoints and
 conditions and report the reason why the Debug Unit stalled the CPU.
 
-\subsubsection{Debug Control Register
+\subsection{Debug Control Register
 DBG\_CTRL}\label{debug-control-register-dbg_ctrl}
 
 \missingfigure{}
@@ -200,7 +200,7 @@ is about to be executed.
 \end{longtable}
 
 
-\subsubsection{Debug Breakpoint Hit Register
+\subsection{Debug Breakpoint Hit Register
 DBG\_HIT}\label{debug-breakpoint-hit-register-dbg_hit}
 
 \missingfigure{}
@@ -225,7 +225,7 @@ one bit for each implemented hardware breakpoint. These are sticky bits.
 They are set by the Debug Unit, but must be cleared by the Debug
 Environment.
 
-\subsubsection{Debug Interrupt Enable Register
+\subsection{Debug Interrupt Enable Register
 DBG\_IE}\label{debug-interrupt-enable-register-dbg_ie}
 
 \missingfigure{}
@@ -284,7 +284,7 @@ to `1' causes the \texttt{BREAKPOINT} trap to assert \texttt{dbg\_bp} and hand o
 control to the debug controller. At least the \texttt{BREAKPOINT} exception must
 be set in the \texttt{dbg\_ie} register.
 
-\subsubsection{Debug Exception Cause Register
+\subsection{Debug Exception Cause Register
 DBG\_CAUSE}\label{debug-exception-cause-register-dbg_cause}
 
 \missingfigure{}
@@ -327,7 +327,7 @@ The debug controller's software layer must translate the value in the
 \texttt{DBG\_CAUSE} register to the debugger's control signal. The table below
 shows the basic mapping of the \texttt{DBG\_CAUSE} register to GDB Signals.
 
-\subsubsection{Debug Breakpoint Control Registers
+\subsection{Debug Breakpoint Control Registers
 DBG\_CTRLx}\label{debug-breakpoint-control-registers-dbg_ctrlx}
 
 \missingfigure{}
@@ -394,30 +394,30 @@ cc & Description\tabularnewline
 \caption{\texttt{DBG\_CTRLx} Breakpoint Condition Codes}
 \end{longtable} 
 
-\paragraph{Instruction Fetch}\label{instruction-fetch} ~\\
+\subsubsection{Instruction Fetch}\label{instruction-fetch}
 
 The hardware breakpoint will trigger a breakpoint exception when the CPU
 is about to execute the instruction at the address specified in the
 \texttt{DBG\_DATA} register.
 
-\paragraph{Data Load}\label{data-load} ~\\
+\subsubsection{Data Load}\label{data-load}
 
 The hardware breakpoint will trigger a breakpoint exception when the CPU
 reads from the address specified in the \texttt{DBG\_DATA} register.
 
-\paragraph{Data Store}\label{data-store} ~\\
+\subsubsection{Data Store}\label{data-store}
 
 The hardware breakpoint will trigger a breakpoint exception when the CPU
 writes to the address specified in the \texttt{DBG\_DATA} register.
 
-\paragraph{Data Access}\label{data-access} ~\\
+\subsubsection{Data Access}\label{data-access}
 
 The hardware breakpoint will trigger a breakpoint exception when the CPU
 accesses (either reads from or writes to) the address specified in the
 \texttt{DBG\_DATA} register.
 
-\subsubsection{Debug Breakpoint Data Registers
-DBG\_DATAx}\label{debug-breakpoint-data-registers-dbg_datax} ~\\
+\subsection{Debug Breakpoint Data Registers
+DBG\_DATAx}\label{debug-breakpoint-data-registers-dbg_datax}
 
 \missingfigure{}
 

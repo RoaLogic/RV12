@@ -1,7 +1,5 @@
 %define new document type
-\NeedsTeXFormat{LaTeX2e}
-\ProvidesClass{datasheet}[2017/10/01 Roa Logic Datasheet Class]
-\LoadClass[a4paper]{article} % Inherit std article class
+
 \usepackage[utf8]{inputenc}
 \usepackage[english]{babel}
 
@@ -11,16 +9,25 @@
 % Define Roa Logic Colour Scheme
 \usepackage[table]{xcolor}
 \newcommand{\headlinecolor}{\normalcolor}
-\definecolor{rlsection}{HTML}{3D5986}
-\definecolor{rlsubsection}{HTML}{5B80B8}
+\definecolor{rlchapter}{HTML}{3D5986}
+\definecolor{rlsection}{HTML}{5B80B8}
 \definecolor{rltable}{HTML}{D5DFED}
 
 % Load packages
+\usepackage{graphicx,grffile} % Graphics support
+\usepackage{geometry}
+\usepackage{array}
+
+\usepackage{xcolor}
+\usepackage{placeins}
+\usepackage{multirow}
+\usepackage{float}
+
 \usepackage[shadow]{todonotes}
 \usepackage{lmodern} % Font Library
 \usepackage{amssymb,amsmath} % Math Fonts
 \usepackage{ifxetex,ifluatex}
-\usepackage{graphicx,grffile} % Graphics support
+
 \usepackage{longtable} % Long table supprot
 \usepackage{vmargin} % Margin control  
 \usepackage{tabularx} % Table support
@@ -31,7 +38,7 @@
 \usepackage{layout} % Show summary of page layout
 \usepackage{hyperref} % Hyperlink support
     
-\usepackage{titlesec} %Headings Syliser
+\usepackage{titlesec} %Headings Styliser
 
 \usepackage{fancyhdr} % Header & Footer control
 \pagestyle{fancy}
@@ -40,25 +47,15 @@
 
 % Package includes
 
-\usepackage{graphicx}
-\usepackage{geometry}
-\usepackage{array}
-\usepackage{colortbl}
-\usepackage{hyperref}
-\usepackage{placeins}
-\usepackage{longtable}
-\usepackage{multirow}
-\usepackage{float}
-
 \usepackage[olditem,oldenum]{paralist}
 
-% Setup margins
+% Setup margins & page style
 
-\setlength{\topmargin}{-0.5in}
-\setlength{\textheight}{9in}
-\setlength{\oddsidemargin}{0in}
-\setlength{\evensidemargin}{0in}
-\setlength{\textwidth}{6.5in}
+%\setlength{\topmargin}{-0.5in}
+%\setlength{\textheight}{9in}
+%\setlength{\oddsidemargin}{0in}
+%\setlength{\evensidemargin}{0in}
+%\setlength{\textwidth}{6.5in}
 
 % Page Layout Control
 
@@ -81,36 +78,29 @@
  
 \urlstyle{same}
 
-
 % Font & Colour control
 \renewcommand{\familydefault}{\rmdefault}
- 
-\DeclareOption{green}{\renewcommand{\headlinecolor}{\color{green}}}
-\DeclareOption{blue}{\renewcommand{\headlinecolor}{\color{rlcolor}}}
-\DeclareOption*{\PassOptionsToClass{\CurrentOption}{article}}
-\ProcessOptions\relax
+\renewcommand{\headlinecolor}{\color{rlcolor}}
 
+
+\titleformat{\chapter}
+   {\normalfont\Huge\bfseries\color{rlchapter}\sffamily}{\thechapter.}{1em}{}[{\titlerule[0.8pt]}]
+   
 \titleformat{\section}
-  {\color{rlsection}\sffamily\Huge\bfseries}{\thesection}{1em}{}[{\titlerule[0.8pt]}]
+  {\color{rlsection}\sffamily\LARGE\bfseries}{\thesection}{1em}{}
 
 \titleformat{\subsection}
-  {\color{rlsubsection}\sffamily\LARGE\bfseries}{\thesubsection}{1em}{}
+  {\color{rlsection}\sffamily\large\bfseries}{\thesubsection}{1em}{}
   
 \titleformat{\subsubsection}
-  {\color{rlsubsection}\sffamily\large\bfseries}{\thesubsubsection}{1em}{}
+  {\color{rlsection}\sffamily\large\bfseries}{\thesubsubsection}{1em}{}
   
-\titlespacing*{\chapter}     {0pt}{50pt}{40pt}
+\titlespacing*{\chapter}     {0pt}{1.5ex plus 1ex minus .2ex}{2.3ex plus .2ex}
 \titlespacing*{\section}     {0pt}{1.5ex plus 1ex minus .2ex}{2.3ex plus .2ex}
 \titlespacing*{\subsection}   {0pt}{1.25ex plus 1ex minus .2ex}{1.5ex plus .2ex}
 \titlespacing*{\subsubsection}{0pt}{1.25ex plus 1ex minus .2ex}{1.5ex plus .2ex}
 \titlespacing*{\paragraph}   {0pt}{1.25ex plus 1ex minus .2ex}{0.5em}
 \titlespacing*{\subparagraph} {\parindent}{3.25ex plus 1ex minus .2ex}{0.5em}
-
-
-% Table & Figure Numbering
-\usepackage{amsmath}
-\numberwithin{figure}{section}
-\numberwithin{table}{section}
 
 % Pad All Table Rows
 \renewcommand{\arraystretch}{1.2}

@@ -1,13 +1,13 @@
-\section{Control \& Status Registers}\label{control-status-registers}
+\chapter{Control \& Status Registers}\label{control-status-registers}
 
-\subsection{Introduction}\label{introduction-3}
+\section{Introduction}\label{introduction-3}
 
 The state of the CPU is maintained by the Control \& Status Registers
 (CSRs). They determine the feature set, set interrupts and interrupt
 masks, and determine the privilege level. The CSRs are mapped into an
 internal 12bit address space and are accessible using special commands.
 
-\subsection{Accessing the CSRs}\label{accessing-the-csrs}
+\section{Accessing the CSRs}\label{accessing-the-csrs}
 
 \missingfigure{}
 
@@ -41,7 +41,7 @@ referencing a source register. The immediate value is obtained by
 zero-extending the 5bit \emph{zimm} field. If \emph{zimm{[}4:0{]}} is
 zero, then the CSR is not written to.
 
-\subsection{Illegal CSR accesses}\label{illegal-csr-accesses}
+\section{Illegal CSR accesses}\label{illegal-csr-accesses}
 
 Depending on the privilege level some CSRs may not be accessible.
 Attempts to access a non-existing CSR raise an illegal-instruction
@@ -50,7 +50,7 @@ raise an illegal-instruction exception. Machine Mode can access all
 CSRs, whereas User Mode can only access a
 few.\protect\hypertarget{_Toc326677756}{}{}
 
-\subsection{Timers and Counters}\label{timers-and-counters}
+\section{Timers and Counters}\label{timers-and-counters}
 
 \missingfigure{}
 
@@ -91,7 +91,7 @@ the full 64 bits of the cycle, time, and instret counters. Hence, the
 RDCYCLEH, RDTIMEH, and RDINSTRETH instructions are not necessary and are
 illegal in RV64I.
 
-\subsection{CSR Listing}\label{csr-listing}
+\section{CSR Listing}\label{csr-listing}
 
 The following sections describe each of the register functions as
 specifically implemented in RV12.
@@ -208,18 +208,19 @@ License
 
 \protect\hypertarget{_Toc326677757}{}{\protect\hypertarget{_Toc327108346}{}{}}
 
-\subsection{Machine Level CSRs}\label{machine-level-csrs}
+\section{Machine Level CSRs}\label{machine-level-csrs}
 
 In addition to the machine-level CSRs described in this section, M-mode
 can access all CSRs at lower privilege levels.
 
-\subsubsection{Machine ISA Register
+\subsection{Machine ISA Register
 (misa)}\label{machine-isa-register-misa}
 
 The misa register is an XLEN-bit WARL read-write register reporting the
 ISA supported by the hart.
 
 \missingfigure{}
+
 
 Figure ‑: Machine ISA Register Format
 
@@ -249,26 +250,33 @@ Value & Description\tabularnewline
 \protect\hypertarget{_Ref367027661}{}{}Table ‑: Encoding of misa Base
 Field
 
-\subsubsection{Vendor ID Register
+\subsection{Vendor ID Register
 (mvendorid)}\label{vendor-id-register-mvendorid}
 
 The mvendorid read-only register is an XLEN-bit register encoding the
 manufacturer of the device.
 
-\missingfigure{}
+\begin{figure}[hbt]
+  \includegraphics[width=\textwidth]{mvendorid}
+  \caption{Vendor ID Register}
+\end{figure}
+
 
 Figure ‑: Vendor ID Register
 
 Non-Zero vendor IDs will be allocated by the RISC-V Foundation.
 
-\subsubsection{Architecture ID Register
+\subsection{Architecture ID Register
 (marchid)}\label{architecture-id-register-marchid}
 
 The marched CSR is an XLEN-bit read-only register encoding the base
 microarchitecture of the hart. For the RV12 CPU this is defined as shown
 in Figure 7‑5.
 
-\missingfigure{}
+\begin{figure}[hbt]
+  \includegraphics[width=\textwidth]{marchid}
+  \caption{Architecture ID Register}
+\end{figure}
 
 \protect\hypertarget{_Ref367028846}{}{}Figure ‑: Roa Logic RV12 marchid
 Definition
@@ -278,22 +286,23 @@ RISC-V Foundation, and have non-zero architecture IDs with a zero
 most-significant-bit (MSB). Commercial architecture IDs are allocated by
 each commercial vendor independently and have the MSB set.
 
-\subsubsection{Implementation ID Register
+\subsection{Implementation ID Register
 (mimpid)}\label{implementation-id-register-mimpid}
 
 The mimpid read-only register provides hardware version information for
 the CPU. In the Roa Logic implementation, the 2 least significant bytes
 encode the major and minor code revisions.
 
-\missingfigure{}
-
-Figure ‑: Roa Logic mimpid Implementation
+\begin{figure}[hbt]
+  \includegraphics[width=\textwidth]{mimpid}
+  \caption{Roa Logic mimpid}
+\end{figure}
 
 The mimpid register is an XLEN size register, but the RV12 only
 implements the lower 32 bits. For an RV64 implementation the MSBs are
 zero extended.
 
-\subsubsection{Hardware Thread ID Register
+\subsection{Hardware Thread ID Register
 (mhartid)}\label{hardware-thread-id-register-mhartid}
 
 \missingfigure{}
@@ -304,13 +313,13 @@ The mhartid read-only register indicates the hardware thread that is
 running the code. The RV12 implements a single thread, therefore this
 register always reads zero.
 
-\subsubsection{Machine Status Register
+\subsection{Machine Status Register
 (mstatus)}\label{machine-status-register-mstatus}
 
 The mstatus register is an XLEN-bit read/write register that keeps track
 of and controls the \emph{hart's} current operating state.
 
-\paragraph{Privilege and Global Interrupt-Enable Stack in mstatus register}
+\subsubsection{Privilege and Global Interrupt-Enable Stack in mstatus register}
 
 Interrupt-enable bits, MIE, SIE, and UIE, are provided for each
 privilege mode. These bits are primarily used to guarantee atomicity
@@ -332,7 +341,7 @@ instruction, supposing \emph{x}PP holds the value \emph{y}, \emph{y}IE
 is set to \emph{x}PIE; the privilege mode is changed to \emph{y};
 \emph{x}PIE is set to 1; and \emph{x}PP is set to U.
 
-\paragraph{Memory Privilege in mstatus Register
+\subsubsection{Memory Privilege in mstatus Register
 }\label{memory-privilege-in-mstatus-register}
 
 The MPRV bit modifies the privilege level at which loads and stores
@@ -342,7 +351,7 @@ though PRV were set to the current value of the PRV1 field. Instruction
 address-translation and protection are unaffected. When an exception
 occurs, MPRV is reset to 0.
 
-\paragraph{Virtualization Management \& Context Extension Fields in
+\subsubsection{Virtualization Management \& Context Extension Fields in
 mstatus Register
 }\label{virtualization-management-context-extension-fields-in-mstatus-register}
 
@@ -350,9 +359,8 @@ Virtualization and Context Extensions are not supported by the RV12 v1.0
 implementation. The value of these fields will therefore be permanently
 set to 0.
 
-\subsubsection{Machine Exception / Interrupt Delegation Registers
-(medeleg \&
-mideleg)}\label{machine-exception-interrupt-delegation-registers-medeleg-mideleg}
+\subsection{Machine Delegation Registers
+(medeleg \& mideleg)} \label{machine-exception-interrupt-delegation-registers-medeleg-mideleg}
 
 Individual read/write bits within medeleg and mideleg registers indicate
 that lower privilege levels should directly process certain exceptions
@@ -388,7 +396,7 @@ mideleg holds trap delegation bits for individual interrupts, with the
 layout of bits matching those in the mip register (I.e. STIP interrupt
 delegation control is located in bit 5).
 
-\subsubsection{Machine Interrupt Registers (mie \&
+\subsection{Machine Interrupt Registers (mie \&
 mip)}\label{machine-interrupt-registers-mie-mip}
 
 The mip register is an XLEN-bit read/write register containing
@@ -456,7 +464,7 @@ are handled in the following decreasing priority order: external
 interrupts, software interrupts, timer interrupts, and then finally any
 synchronous traps.
 
-\subsubsection{Machine Trap-Handler Base Address Register
+\subsection{Machine Trap-Handler Base Address Register
 (mtvec)}\label{machine-trap-handler-base-address-register-mtvec}
 
 The mtvec register is an XLEN-bit read/write register that holds the
@@ -471,7 +479,7 @@ mtvec. Additional trap vector entry points can be defined by
 implementations to allow more rapid identification and service of
 certain trap causes.
 
-\subsubsection{Machine Non-Maskable Interrupt Vector
+\subsection{Machine Non-Maskable Interrupt Vector
 (mnmivec)}\label{machine-non-maskable-interrupt-vector-mnmivec}
 
 The mnmivec register is an XLEN-bit read/write register that holds the
@@ -482,7 +490,7 @@ exception occurs, the pc is set to mnmivec.
 
 Figure ‑: Machine Non-Maskable Interrupt Vector
 
-\subsubsection{Machine Trap Handler Scratch Register
+\subsection{Machine Trap Handler Scratch Register
 (mscratch)}\label{machine-trap-handler-scratch-register-mscratch}
 
 The mscratch register is an XLEN-bit read/write register dedicated for
@@ -494,7 +502,7 @@ an M-mode trap handler.
 
 Figure ‑: Machine-mode Scratch Register
 
-\subsubsection{Machine Exception Program Counter Register
+\subsection{Machine Exception Program Counter Register
 (mepc)}\label{machine-exception-program-counter-register-mepc}
 
 mepc is an XLEN-bit read/write register. The two low bits
@@ -507,7 +515,7 @@ Figure ‑: Machine Exception Program Counter Register
 When a trap is taken, mepc is written with the virtual address of the
 instruction that encountered the exception.
 
-\subsubsection{Machine Trap Cause Register
+\subsection{Machine Trap Cause Register
 (mcause)}\label{machine-trap-cause-register-mcause}
 
 The mcause register is an XLEN-bit read-write register. The Interrupt
@@ -570,7 +578,7 @@ Interrupt & Exception Code & Description\tabularnewline
 \end{longtable}
 
 
-\subsubsection{Machine Bad Address Register
+\subsection{Machine Bad Address Register
 (mbadaddr)}\label{machine-bad-address-register-mbadaddr}
 
 mbadaddr is an XLEN-bit read-write register. When a hardware breakpoint
@@ -586,7 +594,7 @@ For instruction-fetch access faults with variable-length instructions,
 mbadaddr will point to the portion of the instruction that caused the
 fault while mepc will point to the beginning of the instruction.
 
-\subsubsection{Machine Cycle Counter (mcycle,
+\subsection{Machine Cycle Counter (mcycle,
 mcycleh)}\label{machine-cycle-counter-mcycle-mcycleh}
 
 The mcycle CSR holds a count of the number of cycles the hart has
@@ -596,7 +604,7 @@ executed since some arbitrary time in the past. The mcycle register has
 On RV32 only, reads of the mcycle CSR returns the low 32 bits, while
 reads of the mcycleh CSR returns bits 63--32.
 
-\subsubsection{Machine Instructions-Retired counter (minstret,
+\subsection{Machine Instructions-Retired counter (minstret,
 minstreth)}\label{machine-instructions-retired-counter-minstret-minstreth}
 
 The minstret CSR holds a count of the number of instructions the hart
@@ -608,9 +616,9 @@ reads of the minstreth CSR returns bits 63--32.
 
 \protect\hypertarget{_Toc327108358}{}{}
 
-\subsection{Supervisor Mode CSRs}\label{supervisor-mode-csrs}
+\section{Supervisor Mode CSRs}\label{supervisor-mode-csrs}
 
-\subsubsection{Supervisor Status Register (sstatus)
+\subsection{Supervisor Status Register (sstatus)
 }\label{supervisor-status-register-sstatus}
 
 The sstatus register is an XLEN-bit read/write register formatted as
@@ -648,7 +656,7 @@ in user-mode. The UPIE bit indicates whether user-level interrupts were
 enabled prior to taking a user-level trap. When a URET instruction is
 executed, UIE is set to UPIE, and UPIE is set to 1.
 
-\paragraph{Memory Privilege in sstatus Register
+\subsubsection{Memory Privilege in sstatus Register
 }\label{memory-privilege-in-sstatus-register}
 
 The PUM (Protect User Memory) bit modifies the privilege with which
@@ -657,7 +665,7 @@ When PUM=0, translation and protection behave as normal. When PUM=1,
 S-mode memory accesses to pages that are accessible by U-mode (U=1 in
 Figure 4.13) will fault. PUM has no effect when executing in U-mode.
 
-\subsubsection{Supervisor Trap Delegation Registers (sedeleg,
+\subsection{Supervisor Trap Delegation Registers (sedeleg,
 sideleg)}\label{supervisor-trap-delegation-registers-sedeleg-sideleg}
 
 The machine exception delegation register (sedeleg) and machine
@@ -674,7 +682,7 @@ Figure ‑: Supervisor Interrupt Delegation Register
 
 See section 7.6.7 for additional information.
 
-\subsubsection{Supervisor Interrupt Registers (sip, sie)}
+\subsection{Supervisor Interrupt Registers (sip, sie)}
 
 The sip register is an XLEN-bit read/write register containing
 information on pending interrupts; sie is the corresponding XLEN-bit
@@ -729,7 +737,7 @@ A user-level external interrupt is pending if the UEIP bit in the sip
 register is set. User-level external interrupts are disabled when the
 UEIE bit in the sie register is clear.
 
-\subsubsection{Supervisor Trap Vector Register
+\subsection{Supervisor Trap Vector Register
 (stvec)}\label{supervisor-trap-vector-register-stvec}
 
 The stvec register is an XLEN-bit read/write register that holds the
@@ -741,7 +749,7 @@ boundary.
 
 Figure ‑: Supervisor Trap Vector Register
 
-\subsubsection{Supervisor Scratch Register (sscratch)
+\subsection{Supervisor Scratch Register (sscratch)
 }\label{supervisor-scratch-register-sscratch}
 
 The sscratch register is an XLEN-bit read/write register, dedicated for
@@ -754,7 +762,7 @@ register to provide an initial working register.
 
 Figure ‑: Supervisor-mode Scratch Register
 
-\subsubsection{Supervisor Exception Program Counter
+\subsection{Supervisor Exception Program Counter
 (sepc)}\label{supervisor-exception-program-counter-sepc}
 
 sepc is an XLEN-bit read/write register formatted as shown in Figure
@@ -769,7 +777,7 @@ address of the instruction that encountered the exception.
 \protect\hypertarget{_Ref367098363}{}{}Figure ‑: Supervisor Exception
 Program Counter Register
 
-\subsubsection{Supervisor Cause Register (scause)
+\subsection{Supervisor Cause Register (scause)
 }\label{supervisor-cause-register-scause}
 
 The scause register is an XLEN-bit read-only register. The Interrupt bit
@@ -827,7 +835,7 @@ Interrupt & Exception Code & Description\tabularnewline
 \protect\hypertarget{_Ref326948300}{}{}Table ‑: Supervisor Cause
 Register Values
 
-\subsubsection{Supervisor Bad Address Register
+\subsection{Supervisor Bad Address Register
 (sbadaddr)}\label{supervisor-bad-address-register-sbadaddr}
 
 sbadaddr is an XLEN-bit read/write register formatted as shown in Figure
@@ -848,9 +856,9 @@ of the instruction.
 
 \protect\hypertarget{_Toc327108372}{}{}
 
-\subsection{User Mode CSRs}\label{user-mode-csrs}
+\section{User Mode CSRs}\label{user-mode-csrs}
 
-\subsubsection{Cycle counter for RDCYCLE instruction
+\subsection{Cycle counter for RDCYCLE instruction
 (cycle)}\label{cycle-counter-for-rdcycle-instruction-cycle}
 
 \missingfigure{}
@@ -862,7 +870,7 @@ reads the low XLEN bits of the cycle CSR that holds a count of the
 number of clock cycles executed by the processor on which the hardware
 thread is running from an arbitrary start time in the past.
 
-\subsubsection{Instruction-retire counter for RDINSTRET instruction
+\subsection{Instruction-retire counter for RDINSTRET instruction
 (instret)}\label{instruction-retire-counter-for-rdinstret-instruction-instret}
 
 \missingfigure{}
@@ -874,7 +882,7 @@ pseudo-instruction reads the low XLEN bits of the instret CSR, which
 counts the number of instructions retired by this hardware thread from
 some arbitrary start point in the past.
 
-\subsubsection{Upper 32bits of cycle (cycleh - RV32I
+\subsection{Upper 32bits of cycle (cycleh - RV32I
 only)}\label{upper-32bits-of-cycle-cycleh---rv32i-only}
 
 \missingfigure{}
@@ -886,7 +894,7 @@ of the number of clock cycles executed by the processor.
 
 RDCYCLEH is an RV32I-only instruction providing access to this register.
 
-\subsubsection{Upper 32bit of instret (instreth - RV32I
+\subsection{Upper 32bit of instret (instreth - RV32I
 only)}\label{upper-32bit-of-instret-instreth---rv32i-only}
 
 \missingfigure{}

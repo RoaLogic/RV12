@@ -1,4 +1,4 @@
-\section{Introduction to the RV12}\label{introduction-to-the-rv12}
+\chapter{Introduction to the RV12}\label{introduction-to-the-rv12}
 
 The RISC-V specification provides for multi-threading and multi-core implementations. A core is defined as an implementation with its own instruction fetch unit. A hardware thread, or \emph{hart}, is defined as a processing engine with its own state. A core may contain multiple hardware threads. See \href{http://www.riscv.org}{www.riscv.org} for the specifications\footnote{Full reference details of the specifications are documented in section 11}.
 
@@ -6,12 +6,9 @@ The RV12 implements a single core 32/64bit Reduced Instruction Set Computing (RI
 
 See Chapter \ref{configurations} for a description of the configuration options and parameters.
 
-\subsection{Privilege Levels}\label{privilege-levels}
+\section{Privilege Levels}\label{privilege-levels}
 
-At any time, a hardware thread (\emph{hart}) is running at some
-privilege level. The current privilege level is encoded in one or more
-Control and Status Registers (CSRs). See section 7, ``Control \& Status
-Registers'', for more information.
+At any time, a hardware thread (\emph{hart}) is running at some privilege level. The current privilege level is encoded in one or more Control and Status Registers (CSRs). See section 7, ``Control \& Status Registers'', for more information.
 
 The RISC-V specification defines four privilege levels, where each level provides its own protection and isolation..
 
@@ -31,13 +28,11 @@ Level & Encoding & Name & Abbreviation\tabularnewline
 
 The highest privilege level is the Machine level. This is an inherent trusted level and has access to, and can alter, the whole machine. The lowest level is the User/Application level and is considered the least trusted level. It is used to protect the rest of the system from malicious applications.
 
-Supervisor mode is used to provide isolation between an operating system
-and the machine and user levels. Hypervisor mode is used to virtualize
-operating systems.
+Supervisor mode is used to provide isolation between an operating system and the machine and user levels. Hypervisor mode is used to virtualize operating systems.
 
 The RV12 always implements Machine mode and optionally implements User mode and parts of the Supervisor Mode.
 
-\subsection{Execution Pipeline}\label{execution-pipeline}
+\section{Execution Pipeline}\label{execution-pipeline}
 
 The RV12 implements an optimizing 4-stage folded pipeline. The classic RISC pipeline consists of 5 stages; instruction fetch (IF), instruction decode (ID), execute (EX), memory access (MEM), and register write-back (WB).
 
@@ -71,29 +66,29 @@ newest instruction and it's in the Instruction Fetch (IF) stage.
   \caption{Overlapping Execution Stages}
 \end{figure}
 
-\subsubsection{Instruction Fetch/Pre-Decode
+\subsection{Instruction Fetch/Pre-Decode
 (IF/PD)}\label{instruction-fetchpre-decode-ifpd}
 
 During the instruction fetch stage one instruction is read from the
 instruction memory, a 16bit-compressed instruction is decoded, and the
 program counter is updated to point to the next instruction.
 
-\subsubsection{Instruction Decode (ID)}\label{instruction-decode-id}
+\subsection{Instruction Decode (ID)}\label{instruction-decode-id}
 
 During the instruction decode stage the Register File is accessed and
 the bypass controls are determined.
 
-\subsubsection{Execute (EX)}\label{execute-ex}
+\subsection{Execute (EX)}\label{execute-ex}
 
 During the Execute stage the result is calculated for an
 ALU, MUL, DIV instruction, the memory accessed for a Load/Store instruction, and branches and jumps are calculated and checked against their predicted outcomes.
 
-\subsubsection{Write Back (WB)}\label{write-back-wb}
+\subsection{Write Back (WB)}\label{write-back-wb}
 
 During the Write Back stage the result from the Execution stage is written into the Register
 File.
 
-\subsection{Branch Prediction Unit}\label{branch-prediction-unit}
+\section{Branch Prediction Unit}\label{branch-prediction-unit}
 
 The RV12 can execute one instruction every clock cycle. However due to
 the pipeline architecture each instruction takes several clock cycles to
@@ -139,20 +134,20 @@ handle nested branches. Increasing the number of \texttt{BPU\_GLOBAL\_BITS} adds
 more history to the vector at the expense of a larger Branch Prediction
 Table.
 
-\subsection{Control \& Status Registers (CSRs)} \label{control-status-registers-csrs}
+\section{Control \& Status Registers (CSRs)} \label{control-status-registers-csrs}
 
 The Control \& Status Registers, or CSRs for short, provide information
 about the current state of the processor. See section 7, ``Control \&
 Status Registers'', for a description of the registers and their
 purpose.
 
-\subsection{Debug Unit}\label{debug-unit}
+\section{Debug Unit}\label{debug-unit}
 
 The Debug Unit allows the Debug Environment to stall and inspect the
 CPU. Provided features include Single Step Tracing, Branch Tracing, and
 up to 8 Hardware Breakpoints.
 
-\subsection{Data Cache}\label{data-cache}
+\section{Data Cache}\label{data-cache}
 
 The Data Cache is used to speed up data memory accesses by buffering
 recently accessed memory locations. The data cache is capable of
@@ -169,7 +164,7 @@ required, and a new block loaded is loaded into the cache.
 Setting \texttt{DCACHE\_SIZE} to zero disables the Data Cache. Memory locations
 are then directly access via the Data Interface.
 
-\subsection{Instruction Cache}\label{instruction-cache}
+\section{Instruction Cache}\label{instruction-cache}
 
 The Instruction Cache is used to speed up instruction fetching by
 buffering recently fetched instructions. The Instruction Cache is
@@ -184,14 +179,14 @@ are configurable.
 Setting \texttt{ICACHE\_SIZE} to zero disables the Instruction Cache. Parcels are
 then directly fetched from the memory via the Instruction Interface.
 
-\subsection{Integer Pipeline}\label{integer-pipeline}
+\section{Integer Pipeline}\label{integer-pipeline}
 
 The RV12 has a single integer pipeline that can execute one instruction per cycle.
 The pipeline handles all logical, integer arithmetic, CSR access, and PC
 modifying instructions.
 
 
-\subsection{Register File}\label{register-file}
+\section{Register File}\label{register-file}
 
 The Register File is made up of 32 register locations (X0-X31) each XLEN
 bits wide. Register X0 is always zero. The Register File has two read

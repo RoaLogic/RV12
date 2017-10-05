@@ -10,11 +10,11 @@
 \project{http://roalogic.github.io/plic}
 \author{Paul Hardy}
 
-% Headers & Footers
-\usepackage{fancyhdr}
-\pagestyle{fancyplain}
+ 
+\pagestyle{fancy}
 \fancyhf{}
-\lhead{ \fancyplain{}{ RV12 RISC-V CPU Core } } %bug? Can't use variable
-\lfoot{ \fancyplain{}{\today} }
-\cfoot{ \fancyplain{}{© Roa Logic, 2017} }
-\rfoot{ \fancyplain{}{\thepage} }
+\fancyhead[LE,RO]{\thepage}
+\fancyhead[RE,LO]{RV12 RISC-V CPU Core}
+\fancyfoot[CE,CO]{\textcircled{c} Roa Logic}
+
+% Page Layout Control

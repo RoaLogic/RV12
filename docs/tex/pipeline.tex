@@ -1,4 +1,4 @@
-\section{RV12 Execution Pipeline}
+\chapter{RV12 Execution Pipeline}
 
 The RV12 implements a 32/64bit Integer RISC pipeline. The pipeline consists of the Instruction Fetch, Pre-Decode, Instruction Decode, Execution, and Write Back stages.
  
@@ -10,7 +10,7 @@ The RV12 implements a 32/64bit Integer RISC pipeline. The pipeline consists of t
 
 \pagebreak
 
-\subsection{Instruction Fetch (IF)}\label{instruction-fetch-if}
+\section{Instruction Fetch (IF)}\label{instruction-fetch-if}
 
 \begin{figure}[h]
   \includegraphics{Pipeline-IF.eps}
@@ -24,7 +24,7 @@ In case the pipeline must be flushed the Program Counter is restarted from the g
 
 \pagebreak
 
-\subsection{Pre-Decode (PD)}\label{pre-decode-pd}
+\section{Pre-Decode (PD)}\label{pre-decode-pd}
 
 The Pre-Decode unti translates 16-bit compressed instructions to the base 32bit RISC-V instructions and then processes Program Counter modifying instructions. Jump-And-Link and Branch instructions modify the Program Counter in the Instruction Fetch stage. This avoids waiting for the Execution stage to trigger the update and reduces the demand for pipeline flushes.
 The destination address for branches is predicted based on the data provided by the optional Branch Prediction Unit or determined statically based on the offset.
@@ -37,7 +37,7 @@ The destination address for branches is predicted based on the data provided by 
 
 \pagebreak
 
-\subsection{Instruction Decode (ID)}\label{instruction-decode-id-1}
+\section{Instruction Decode (ID)}\label{instruction-decode-id-1}
 
 The Instruction Decode unit ensures the operands for the execution units
 are available. It accesses the Register File, calculates immediate
@@ -50,7 +50,7 @@ values, and sets bypasses.
 
 \pagebreak
 
-\subsection{Execute (EX)}\label{execute-ex-1}
+\section{Execute (EX)}\label{execute-ex-1}
 
 The Execute stage performs the required operation on the data provided by the Instruction Decode stage. The Execution stage has multiple execution units, each with a unique function;
 The ALU performs logical and arithmetic operations.
@@ -70,7 +70,7 @@ Most operations complete in one clock cycle, except for the divide instructions,
 
 \pagebreak
 
-\subsection{Write-Back (WB)}\label{write-back-wb-1}
+\section{Write-Back (WB)}\label{write-back-wb-1}
 
 The Write-Back stage writes the results from the Execution Unit into the Register File.
 
