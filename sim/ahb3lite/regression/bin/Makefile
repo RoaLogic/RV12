@@ -1,55 +1,47 @@
-#################################################################
-##                                                             ##
-##    ██████╗  ██████╗  █████╗                                 ##
-##    ██╔══██╗██╔═══██╗██╔══██╗                                ##
-##    ██████╔╝██║   ██║███████║                                ##
-##    ██╔══██╗██║   ██║██╔══██║                                ##
-##    ██║  ██║╚██████╔╝██║  ██║                                ##
-##    ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝                                ##
-##          ██╗      ██████╗  ██████╗ ██╗ ██████╗              ##
-##          ██║     ██╔═══██╗██╔════╝ ██║██╔════╝              ##
-##          ██║     ██║   ██║██║  ███╗██║██║                   ##
-##          ██║     ██║   ██║██║   ██║██║██║                   ##
-##          ███████╗╚██████╔╝╚██████╔╝██║╚██████╗              ##
-##          ╚══════╝ ╚═════╝  ╚═════╝ ╚═╝ ╚═════╝              ##
-##                                                             ##
-##    RISC-V Regression Suite Makefile                         ##
-##                                                             ##
-#################################################################
-##                                                             ##
-##     Copyright (C) 2015 ROA Logic BV                         ##
-##                                                             ##
-##   This confidential and proprietary software is provided    ##
-##  under license. It may only be used as authorised by a      ##
-##  licensing agreement from ROA Logic BV.                     ##
-##  No parts may be copied, reproduced, distributed, modified  ##
-##  or adapted in any form without prior written consent.      ##
-##  This entire notice must be reproduced on all authorised    ##
-##  copies.                                                    ##
-##                                                             ##
-##     THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY     ##
-##  EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED  ##
-##  TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS  ##
-##  FOR A PARTICULAR PURPOSE. IN NO EVENT SHALL THE AUTHOR     ##
-##  OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,        ##
-##  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES   ##
-##  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE  ##
-##  GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR       ##
-##  BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF ##
-##  LIABILITY, WHETHER IN  CONTRACT, STRICT LIABILITY, OR TORT ##
-##  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT ##
-##  OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE        ##
-##  POSSIBILITY OF SUCH DAMAGE.                                ##
-##                                                             ##
-#################################################################
+#####################################################################
+##   ,------.                    ,--.                ,--.          ##
+##   |  .--. ' ,---.  ,--,--.    |  |    ,---. ,---. `--' ,---.    ##
+##   |  '--'.'| .-. |' ,-.  |    |  |   | .-. | .-. |,--.| .--'    ##
+##   |  |\  \ ' '-' '\ '-'  |    |  '--.' '-' ' '-' ||  |\ `--.    ##
+##   `--' '--' `---'  `--`--'    `-----' `---' `-   /`--' `---'    ##
+##                                             `---'               ##
+##   Modelsim/Questasim Makefile                                   ##
+##                                                                 ##
+#####################################################################
+##                                                                 ##
+##             Copyright (C) 2014-2017 ROA Logic BV                ##
+##             www.roalogic.com                                    ##
+##                                                                 ##
+##   This source file may be used and distributed without          ##
+##   restriction provided that this copyright statement is not     ##
+##   removed from the file and that any derivative work contains   ##
+##   the original copyright notice and the associated disclaimer.  ##
+##                                                                 ##
+##      THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY        ##
+##   EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED     ##
+##   TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS     ##
+##   FOR A PARTICULAR PURPOSE. IN NO EVENT SHALL THE AUTHOR OR     ##
+##   CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,  ##
+##   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT  ##
+##   NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;  ##
+##   LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)      ##
+##   HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN     ##
+##   CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR  ##
+##   OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS          ##
+##   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  ##
+##                                                                 ##
+#####################################################################
 #
 # 2017-02-22: Update for new test naming
+# 2017-06-07: Added BPS support
+# 2017-10-06: Changed Header, Logo, and Copyright notice
+#             Added SIM variable
 #
 
 all: regression
 
-SIMULATORS = ncsim vcs silos icarus riviera
-LINTERS    = $(addsuffix _lint, $(SIMULATORS))
+SIMULATORS = ncsim vcs msim riviera
+SIM        = riviera_waves
 SIMWAVES   = $(addsuffix _waves, $(SIMULATORS))
 
 MS     = -s
@@ -65,11 +57,11 @@ TST_SRC_DIR=$(ROOT_DIR)/../bench/regression
 ##########################################################################
 #REGRESSION_MEM_LATENCY      = 0 1 2 3 4 5 7 8 15
 #REGRESSION_MEM_LATENCY      = 0 1 3 8
-REGRESSION_MEM_LATENCY     = 0 1 3
+REGRESSION_MEM_LATENCY     = 0
 #REGRESSION_XLEN             = 32 64
-REGRESSION_XLEN             = 32 64
+REGRESSION_XLEN             = 32
 #REGRESSION_WRITEBUFFER_SIZE = 0 2 8
-REGRESSION_WRITEBUFFER_SIZE = 0 2 8
+REGRESSION_WRITEBUFFER_SIZE = 0
 REGRESSION_ICACHE_SIZE = 0 4
 REGRESSION_DCACHE_SIZE = 0 4
 #REGRESSION_MULT_LATENCY = 3 2 1 0
@@ -86,7 +78,7 @@ HAS_RVC = 0
 HAS_U   = 1 
 HAS_S   = 1
 HAS_H   = 0
-HAS_AMO =
+HAS_AMO = 0
 HAS_FPU =
 HAS_MMU =
 HAS_MUL = 1
@@ -192,7 +184,7 @@ logs = $(call add_regression,DCACHE_SIZE,				\
 regression: $(logs)
 
 %.log:
-	$(MAKE) riviera LOG=./log/$(@F)						\
+	$(MAKE) $(SIM) LOG=./log/$(@F)						\
 	  PARAMS="DCACHE_SIZE=$(subst DCACHE_SIZE,,$(word 1,$(subst @, ,$*)))		\
 	          ICACHE_SIZE=$(subst ICACHE_SIZE,,$(word 2,$(subst @, ,$*)))		\
 	          MEM_LATENCY=$(subst MEM_LATENCY,,$(word 3,$(subst @, ,$*))) 		\
@@ -279,12 +271,12 @@ $(SIMWAVES): %_waves : %/Makefile $(TB_PREREQ)
 	TOP=$(TB_TOP)						\
 	LOG=$(LOG) PARAMS="$(PARAMS)"
 
-$(LINTERS): %_lint : %/Makefile $(TB_PREREQ)
-	@$(MAKE) $(MS) -C $(subst _lint,,$@) lint		\
+
+.PHONY: bps
+bps:
+	@$(MAKE) $(MS) -C $@ $@ 				\
 	VLOG="$(abspath $(RTL_VLOG))"				\
 	VHDL="$(abspath $(RTL_VHDL))"				\
-	INCDIRS="$(abspath $(INCDIRS))"				\
-	DEFINES="$(DEFINES)"					\
 	TOP=$(RTL_TOP)
 
 
@@ -311,7 +303,7 @@ Makefile.include:
 
 %/Makefile:
 	@mkdir -p $*
-	@cp ../bin/Makefile.$* $@
+	@cp ../bin/sims/Makefile.$* $@
 
 $(TB_PREREQ):
 	@cp ../bin/$@ $@
