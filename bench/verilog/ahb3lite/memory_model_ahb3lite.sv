@@ -1,50 +1,43 @@
-/////////////////////////////////////////////////////////////////
-//                                                             //
-//    ██████╗  ██████╗  █████╗                                 //
-//    ██╔══██╗██╔═══██╗██╔══██╗                                //
-//    ██████╔╝██║   ██║███████║                                //
-//    ██╔══██╗██║   ██║██╔══██║                                //
-//    ██║  ██║╚██████╔╝██║  ██║                                //
-//    ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝                                //
-//          ██╗      ██████╗  ██████╗ ██╗ ██████╗              //
-//          ██║     ██╔═══██╗██╔════╝ ██║██╔════╝              //
-//          ██║     ██║   ██║██║  ███╗██║██║                   //
-//          ██║     ██║   ██║██║   ██║██║██║                   //
-//          ███████╗╚██████╔╝╚██████╔╝██║╚██████╗              //
-//          ╚══════╝ ╚═════╝  ╚═════╝ ╚═╝ ╚═════╝              //
-//                                                             //
-//    RISC-V                                                   //
-//    AHB Memory Model                                         //
-//                                                             //
-/////////////////////////////////////////////////////////////////
-//                                                             //
-//     Copyright (C) 2014-2015 ROA Logic BV                    //
-//                                                             //
-//    This confidential and proprietary software is provided   //
-//  under license. It may only be used as authorised by a      //
-//  licensing agreement from ROA Logic BV.                     //
-//  No parts may be copied, reproduced, distributed, modified  //
-//  or adapted in any form without prior written consent.      //
-//  This entire notice must be reproduced on all authorised    //
-//  copies.                                                    //
-//                                                             //
-//    TO THE MAXIMUM EXTENT PERMITTED BY LAW, IN NO EVENT      //
-//  SHALL ROA LOGIC BE LIABLE FOR ANY INDIRECT, SPECIAL,       //
-//  CONSEQUENTIAL OR INCIDENTAL DAMAGES WHATSOEVER (INCLUDING, //
-//  BUT NOT LIMITED TO, DAMAGES FOR LOSS OF PROFIT, BUSINESS   //
-//  INTERRUPTIONS OR LOSS OF INFORMATION) ARISING OUT OF THE   //
-//  USE OR INABILITY TO USE THE PRODUCT WHETHER BASED ON A     //
-//  CLAIM UNDER CONTRACT, TORT OR OTHER LEGAL THEORY, EVEN IF  //
-//  ROA LOGIC WAS ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.  //
-//  IN NO EVENT WILL ROA LOGIC BE LIABLE TO ANY AGGREGATED     //
-//  CLAIMS MADE AGAINST ROA LOGIC GREATER THAN THE FEES PAID   //
-//  FOR THE PRODUCT                                            //
-//                                                             //
-/////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////
+//   ,------.                    ,--.                ,--.          //
+//   |  .--. ' ,---.  ,--,--.    |  |    ,---. ,---. `--' ,---.    //
+//   |  '--'.'| .-. |' ,-.  |    |  |   | .-. | .-. |,--.| .--'    //
+//   |  |\  \ ' '-' '\ '-'  |    |  '--.' '-' ' '-' ||  |\ `--.    //
+//   `--' '--' `---'  `--`--'    `-----' `---' `-   /`--' `---'    //
+//                                             `---'               //
+//   AHB Memory Model                                              //
+//                                                                 //
+/////////////////////////////////////////////////////////////////////
+//                                                                 //
+//             Copyright (C) 2015-2017 ROA Logic BV                //
+//             www.roalogic.com                                    //
+//                                                                 //
+//   This source file may be used and distributed without          //
+//   restriction provided that this copyright statement is not     //
+//   removed from the file and that any derivative work contains   //
+//   the original copyright notice and the associated disclaimer.  //
+//                                                                 //
+//      THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY        //
+//   EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED     //
+//   TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS     //
+//   FOR A PARTICULAR PURPOSE. IN NO EVENT SHALL THE AUTHOR OR     //
+//   CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,  //
+//   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT  //
+//   NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;  //
+//   LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)      //
+//   HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN     //
+//   CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR  //
+//   OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS          //
+//   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  //
+//                                                                 //
+/////////////////////////////////////////////////////////////////////
 
 // Change History:
 //   2017-02-22: Added BASE parameter
+//   2017-10-06: Changed header, logo, copyright notice
+//               Fixed some QuestaSim compilation errors
 //
+
 
 module memory_model_ahb3lite #(
   parameter ADDR_WIDTH = 16,
@@ -89,13 +82,40 @@ module memory_model_ahb3lite #(
 
   ////////////////////////////////////////////////////////////////
   //
+  // Variables
+  //
+  integer i,j;
+  genvar  p;
+
+  localparam RADRCNT_MSB = $clog2(BURST) + $clog2(DATA_WIDTH/8)-1;
+
+  data_type mem_array[addr_type];
+  logic [ADDR_WIDTH   -1:0] iaddr   [PORTS],
+                            raddr   [PORTS],
+                            waddr   [PORTS];
+  logic [RADRCNT_MSB    :0] radrcnt [PORTS];
+
+  logic                     wreq    [PORTS];
+  logic [DATA_WIDTH/8 -1:0] dbe     [PORTS];
+
+  logic [LATENCY        :1] ack_latency [PORTS];
+
+
+  logic [              1:0] dHTRANS [PORTS];
+  logic                     dHWRITE [PORTS];
+  logic [              2:0] dHSIZE  [PORTS];
+  logic [              3:0] dHBURST [PORTS];
+
+
+  ////////////////////////////////////////////////////////////////
+  //
   // Tasks
   //
 
   /*
    * Read Intel HEX
    */
-  task read_ihex;
+  task automatic read_ihex;
     input string file;
 
     integer i;
@@ -163,8 +183,8 @@ module memory_model_ahb3lite #(
                        for (i=0; i<byte_cnt; i++)
                        begin
                            mem_array[ base_addr+address+ (i & ~(DATA_WIDTH/8 -1)) ][ (i%(DATA_WIDTH/8))*8+:8 ] = data[i];
-//$display ("write %2h to %8h (base_addr=%8h, address=%4h, i=%2h)", data[i], base_addr+address+ (i & ~(DATA_WIDTH/8 -1)), base_addr, address, i);
-//$display ("(%8h)=%8h",base_addr+address+4*(i/4), mem_array[ base_addr+address+4*(i/4) ]);
+$display ("write %2h to %8h (base_addr=%8h, address=%4h, i=%2h)", data[i], base_addr+address+ (i & ~(DATA_WIDTH/8 -1)), base_addr, address, i);
+$display ("(%8h)=%8h",base_addr+address+4*(i/4), mem_array[ base_addr+address+4*(i/4) ]);
                        end
                    end
           8'h01  : eof = 1;
@@ -183,7 +203,7 @@ module memory_model_ahb3lite #(
   /*
    * Read HEX generated by RISC-V elf2hex
    */
-  task read_elf2hex;
+  task automatic read_elf2hex;
     input string file;
 
     integer fd,
@@ -223,31 +243,6 @@ module memory_model_ahb3lite #(
   endtask
 
 
-  ////////////////////////////////////////////////////////////////
-  //
-  // Variables
-  //
-  integer i,j;
-  genvar  p;
-
-  localparam RADRCNT_MSB = $clog2(BURST) + $clog2(DATA_WIDTH/8)-1;
-
-  data_type mem_array[addr_type];
-  logic [ADDR_WIDTH   -1:0] iaddr [PORTS],
-                            raddr [PORTS],
-                            waddr [PORTS];
-  logic [RADRCNT_MSB    :0] radrcnt [PORTS];
-
-  logic                     wreq  [PORTS];
-  logic [DATA_WIDTH/8 -1:0] dbe   [PORTS];
-
-  logic [LATENCY        :1] ack_latency [PORTS];
-
-
-  logic [              1:0] dHTRANS [PORTS];
-  logic                     dHWRITE [PORTS];
-  logic [              2:0] dHSIZE  [PORTS];
-  logic [              3:0] dHBURST [PORTS];
 
 
   ////////////////////////////////////////////////////////////////
