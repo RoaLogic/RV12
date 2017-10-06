@@ -24,7 +24,7 @@ is an internal interface and therefore not described here.
 The Debug Controller Interface is an SRAM like synchronous interface.
 The connected Debug Controller must use the same clock as the CPU.
 
-\begin{longtable}[]{@{}cccl@{}}
+\begin{longtable}[]{@{}lccl@{}}
 \toprule
 Port & Size & Direction & Description\tabularnewline
 \midrule
@@ -91,6 +91,8 @@ stall request from the Debug Unit to the external debug controller. The
 Debug Controller must assert (`1') \texttt{dbg\_stall} immediately
 (combinatorial) upon detecting \texttt{dbg\_bp} asserted.
 
+\pagebreak
+
 \section{Register Map}\label{register-map}
 
 The Debug Unit's address map provides access to the Debug Unit's
@@ -100,7 +102,7 @@ Control-and-Status-Registers.
 The internal registers can be always accessed, whereas the Register
 Files and the CSRs can only be access when the CPU is stalled.
 
-\begin{longtable}[]{@{}lcp{5cm}@{}}
+\begin{longtable}[]{@{}lcp{6cm}@{}}
 \toprule
 \textbf{addr{[}12:0{]}} & \textbf{Register} & \textbf{Description}\tabularnewline
 \midrule
@@ -157,15 +159,31 @@ The Debug Unit's internal register map can be accessed when the CPU is
 stalled or running. These registers control the hardware breakpoints and
 conditions and report the reason why the Debug Unit stalled the CPU.
 
-\subsection{Debug Control Register
-DBG\_CTRL}\label{debug-control-register-dbg_ctrl}
-
-\missingfigure{}
-
-Figure ‑: Debug Control Register
+\subsection{Debug Control Register {\tt DBG\_CTRL}} \label{debug-control-register-dbg_ctrl}
 
 The \texttt{XLEN} size \texttt{DBG\_CTRL} controls the single-step and branch-tracing
 functions.
+
+\begin{figure*}[h!]
+	{\footnotesize
+		\begin{center}
+			\begin{tabular}{@{}Ucc}
+				\instbitrange{XLEN-1}{2} &
+				\instbit{1} &
+				\instbit{0} \\
+				\hline
+				\multicolumn{1}{|c|}{Reserved} &
+				\multicolumn{1}{c|}{bte} &
+				\multicolumn{1}{c|}{sste} \\
+				\hline
+				XLEN-2 & 1 & 1 \\
+			\end{tabular}
+		\end{center}
+	}
+	\vspace{-0.1in}
+	\caption{Debug Control Register {\tt DBG\_CTRL}.}
+	\label{fig:dbgctrlreg}
+\end{figure*}
 
 When the Single-Step-Trace-Enable bit is `1' the Single-Step-Trace
 function is enabled. The CPU will assert (`1') \texttt{dbg\_bp} each time a
@@ -200,12 +218,48 @@ is about to be executed.
 \end{longtable}
 
 
-\subsection{Debug Breakpoint Hit Register
-DBG\_HIT}\label{debug-breakpoint-hit-register-dbg_hit}
+\subsection{Debug Breakpoint Hit Register {\tt DBG\_HIT}} \label{debug-breakpoint-hit-register-dbg_hit}
 
-\missingfigure{}
+\begin{figure*}[h!]
+	{\footnotesize
+		\begin{center}
+			\begin{tabular}{@{}YccccccccFcc}
+				\instbitrange{XLEN-1}{16} &
+				\instbit{15} &
+				\instbit{14} &
+				\instbit{13} &
+				\instbit{12} &
+				\instbit{11} &
+				\instbit{10} &
+				\instbit{9} &
+				\instbit{8} &
+				\instbitrange{7}{2} &
+				\instbit{1} &
+				\instbit{0} \\
+				\hline
+				\multicolumn{1}{|c|}{Reserved} &
+				\multicolumn{1}{c|}{bp7h} &
+				\multicolumn{1}{c|}{bp7h} &
+				\multicolumn{1}{c|}{bp7h} &
+				\multicolumn{1}{c|}{bp7h} &
+				\multicolumn{1}{c|}{bp7h} &
+				\multicolumn{1}{c|}{bp7h} &
+				\multicolumn{1}{c|}{bp7h} &
+				\multicolumn{1}{c|}{bp7h} &
+				\multicolumn{1}{c|}{6`h0} &
+				\multicolumn{1}{c|}{bth} &
+				\multicolumn{1}{c|}{sste} \\
+				\hline
+				XLEN-16 & 1 & 1 & 1 & 1 & 1 & 1 & 1 & 1 & 6 & 1 & 1\\
+				
+			\end{tabular}
+		\end{center}
+	}
+	\vspace{-0.1in}
+	\caption{Debug Breakpoint Hit Register}
+	\label{fig:dbghitreg}
+\end{figure*}
 
-Figure ‑: Debug Breakpoint Hit Register
 
 The Debug Breakpoint Hit register contains the reason(s) why the Debug
 Unit requested to stall the CPU.
@@ -225,12 +279,23 @@ one bit for each implemented hardware breakpoint. These are sticky bits.
 They are set by the Debug Unit, but must be cleared by the Debug
 Environment.
 
-\subsection{Debug Interrupt Enable Register
-DBG\_IE}\label{debug-interrupt-enable-register-dbg_ie}
+\subsection{Debug Interrupt Enable Register {\tt DBG\_IE}} \label{debug-interrupt-enable-register-dbg_ie}
 
-\missingfigure{}
-
-Figure ‑: Debug Interrupt Enable Register
+\begin{figure*}[h!]
+	{\footnotesize
+		\begin{center}
+			\begin{tabular}{@{}U}
+				\instbitrange{31}{0} \\
+				\hline
+				\multicolumn{1}{|c|}{ie}  \\
+				\hline
+			\end{tabular}
+		\end{center}
+	}
+	\vspace{-0.1in}
+	\caption{Debug Interrupt Enable Register {\tt DBGIE}.}
+	\label{fig:dbgiereg}
+\end{figure*}
 
 
 \begin{longtable}[]{@{}cl@{}}
@@ -285,11 +350,23 @@ control to the debug controller. At least the \texttt{BREAKPOINT} exception must
 be set in the \texttt{dbg\_ie} register.
 
 \subsection{Debug Exception Cause Register
-DBG\_CAUSE}\label{debug-exception-cause-register-dbg_cause}
+{\tt DBG\_CAUSE}}\label{debug-exception-cause-register-dbg_cause}
 
-\missingfigure{}
-
-Figure ‑: Debug Exception Cause Register
+\begin{figure*}[h!]
+	{\footnotesize
+		\begin{center}
+			\begin{tabular}{@{}U}
+				\instbitrange{31}{0} \\
+				\hline
+				\multicolumn{1}{|c|}{cause}  \\
+				\hline
+			\end{tabular}
+		\end{center}
+	}
+	\vspace{-0.1in}
+	\caption{Debug Exception Cause Register {\tt DBG\_CAUSE}.}
+	\label{fig:dbgcausereg}
+\end{figure*}
 
 The \texttt{DBG\_CAUSE} register contains the exception number that caused the
 CPU to hand over control to the external Debug Controller. See the
@@ -328,11 +405,32 @@ The debug controller's software layer must translate the value in the
 shows the basic mapping of the \texttt{DBG\_CAUSE} register to GDB Signals.
 
 \subsection{Debug Breakpoint Control Registers
-DBG\_CTRLx}\label{debug-breakpoint-control-registers-dbg_ctrlx}
+{\tt DBG\_CTRLx}}\label{debug-breakpoint-control-registers-dbg_ctrlx}
 
-\missingfigure{}
-
-Figure ‑: Debug Breakpoint Control Registers
+\begin{figure*}[h!]
+	{\footnotesize
+		\begin{center}
+			\begin{tabular}{@{}UFWcc}
+				\instbitrange{31}{7} &
+				\instbitrange{6}{4} &
+				\instbitrange{3}{2} &
+				\instbit{1} &
+				\instbit{0} \\
+				\hline
+				\multicolumn{1}{|c|}{reserved} &
+				\multicolumn{1}{|c|}{cc} &
+				\multicolumn{1}{|c|}{00} &
+				\multicolumn{1}{|c|}{ena} &
+				\multicolumn{1}{|c|}{impl} \\
+				\hline
+				25 & 3 & 2 & 1 & 1\\
+			\end{tabular}
+		\end{center}
+	}
+	\vspace{-0.1in}
+	\caption{Debug Breakpoint Control Registers {\tt DBG\_CTRLx}.}
+	\label{fig:dbgctrlreg}
+\end{figure*}
 
 The \texttt{DBG\_BPCTRL} registers control the functionality of the hardware
 breakpoints. There is a Breakpoint Control Register for each implemented
@@ -417,11 +515,23 @@ accesses (either reads from or writes to) the address specified in the
 \texttt{DBG\_DATA} register.
 
 \subsection{Debug Breakpoint Data Registers
-DBG\_DATAx}\label{debug-breakpoint-data-registers-dbg_datax}
+{\tt DBG\_DATAx}}\label{debug-breakpoint-data-registers-dbg_datax}
 
-\missingfigure{}
-
-Figure ‑: Debug Breakpoint Data Registers
+\begin{figure*}[h!]
+	{\footnotesize
+		\begin{center}
+			\begin{tabular}{@{}U}
+				\instbitrange{XLEN-1}{0} \\
+				\hline
+				\multicolumn{1}{|c|}{data}  \\
+				\hline
+			\end{tabular}
+		\end{center}
+	}
+	\vspace{-0.1in}
+	\caption{Debug Breakpoint Data Registers {\tt DBG\_DATA}.}
+	\label{fig:dbgdatareg}
+\end{figure*}
 
 The \texttt{DBG\_DATA} registers contain the data/value that trigger a breakpoint
 hit. There is a Breakpoint Data Register for each implemented hardware

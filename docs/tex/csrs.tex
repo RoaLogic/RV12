@@ -9,9 +9,34 @@ internal 12bit address space and are accessible using special commands.
 
 \section{Accessing the CSRs}\label{accessing-the-csrs}
 
-\missingfigure{}
 
-Figure ‑: CSR Instructions
+\begin{figure*}[h!]
+\begin{center}
+	\begin{tabular}{M@{}R@{}F@{}R@{}S}
+		\\
+		\instbitrange{31}{20} &
+		\instbitrange{19}{15} &
+		\instbitrange{14}{12} &
+		\instbitrange{11}{7} &
+		\instbitrange{6}{0} \\
+		\hline
+		\multicolumn{1}{|c|}{csr} &
+		\multicolumn{1}{c|}{rs1} &
+		\multicolumn{1}{c|}{funct3} &
+		\multicolumn{1}{c|}{rd} &
+		\multicolumn{1}{c|}{opcode} \\
+		\hline
+		12 & 5 & 3 & 5 & 7 \\
+		source/dest  & source & CSRRW  & dest & SYSTEM \\
+		source/dest  & source & CSRRS  & dest & SYSTEM \\
+		source/dest  & source & CSRRC  & dest & SYSTEM \\
+		source/dest  & zimm[4:0]   & CSRRWI & dest & SYSTEM \\
+		source/dest  & zimm[4:0]   & CSRRSI & dest & SYSTEM \\
+		source/dest  & zimm[4:0]   & CSRRCI & dest & SYSTEM \\
+	\end{tabular}
+\end{center}
+\caption{CSR Instructions}
+\end{figure*}
 
 The CSRRW (Atomic Read/Write CSR) instruction atomically swaps values in
 the CSRs and integer registers. CSRRW reads the old value of the CSR,
@@ -52,9 +77,30 @@ few.
 
 \section{Timers and Counters}\label{timers-and-counters}
 
-\missingfigure{}
-
-Table ‑: Time \& Counter Instructions
+\begin{figure*}
+	\begin{center}
+		\begin{tabular}{M@{}R@{}F@{}R@{}S}
+			\\
+			\instbitrange{31}{20} &
+			\instbitrange{19}{15} &
+			\instbitrange{14}{12} &
+			\instbitrange{11}{7} &
+			\instbitrange{6}{0} \\
+			\hline
+			\multicolumn{1}{|c|}{csr} &
+			\multicolumn{1}{c|}{rs1} &
+			\multicolumn{1}{c|}{funct3} &
+			\multicolumn{1}{c|}{rd} &
+			\multicolumn{1}{c|}{opcode} \\
+			\hline
+			12 & 5 & 3 & 5 & 7 \\
+			RDCYCLE[H]   & 0 & CSRRS  & dest & SYSTEM \\
+			RDTIME[H]    & 0 & CSRRS  & dest & SYSTEM \\
+			RDINSTRET[H] & 0 & CSRRS  & dest & SYSTEM \\
+		\end{tabular}
+	\end{center}
+	\caption{Time \& Counter Instructions}
+\end{figure*}
 
 The RV12 provides a number of 64-bit read-only user-level counters,
 which are mapped into the 12-bit CSR address space and accessed in
@@ -148,62 +194,128 @@ License
 \label{tab:machine-csrs}
 \end{longtable}
 
+%\begin{longtable}[]{@{}cccl@{}}
+%	\toprule
+%	\textbf{Address} & \textbf{Privilege} & \textbf{Name} & \textbf{Description}\tabularnewline
+%	\midrule
+%	
+%	0xF11 & MRO & \texttt{mvendorid} & Vendor ID\tabularnewline
+%	0xF12 & MRO & \texttt{marchid}   & Architecture ID\tabularnewline
+%	0xF13 & MRO & \texttt{mimpid}    & Implementation ID\tabularnewline
+%	0xF14 & MRO & \texttt{mhartid}   & Hardware thread ID\tabularnewline
+%	
+%	\bottomrule
+%	\caption{Machine Information Registers}
+%	\label{tab:machine-info-reg}
+%\end{longtable}
+%
+%\begin{longtable}[]{@{}cccl@{}}
+%	\toprule
+%	\textbf{Address} & \textbf{Privilege} & \textbf{Name} & \textbf{Description}\tabularnewline
+%	\midrule
+%	
+%	0x300 & MRW & \texttt{mstatus} & Machine status register\tabularnewline
+%	0x301 & MRW & \texttt{misa}    & ISA and extensions\tabularnewline
+%	0x302 & MRW & \texttt{medeleg} & Machine exception delegation register\tabularnewline
+%	0x303 & MRW & \texttt{mideleg} & Machine interrupt delegation register\tabularnewline
+%	0x304 & MRW & \texttt{mie}     & Machine interrupt-enable register\tabularnewline
+%	0x305 & MRW & \texttt{mtvec}   & Machine trap-handler base address\tabularnewline
+%	0x7c0 & MRW & \texttt{mnmivec} & Machine non-maskable interrupt vector\tabularnewline
+%	
+%	\bottomrule
+%	\caption{Machine Trap Setup}
+%	\label{tab:machine-trap-setup}
+%\end{longtable}
+%
+%\begin{longtable}[]{@{}cccl@{}}
+%	\toprule
+%	\textbf{Address} & \textbf{Privilege} & \textbf{Name} & \textbf{Description}\tabularnewline
+%	\midrule
+%	
+%	0x340 & MRW & \texttt{mscratch} & Scratch register for machine trap handler\tabularnewline
+%	0x341 & MRW & \texttt{mepc}     & Machine exception program counter\tabularnewline
+%	0x342 & MRW & \texttt{mcause}   & Machine trap cause\tabularnewline
+%	0x343 & MRW & \texttt{mbadaddr} & Machine bad address\tabularnewline
+%	0x344 & MRW & \texttt{mip}      & Machine interrupt pending\tabularnewline
+%	
+%	\bottomrule
+%	\caption{Machine Trap Handling}
+%	\label{tab:machine-trap-handling}
+%\end{longtable}
+%
+%\begin{longtable}[]{@{}cccl@{}}
+%	\toprule
+%	\textbf{Address} & \textbf{Privilege} & \textbf{Name} & \textbf{Description}\tabularnewline
+%	\midrule
+%
+%	0xB00 & MRW & \texttt{mcycle}    & Machine cycle counter\tabularnewline
+%	0xB02 & MRW & \texttt{minstret}  & Machine instructions-retired counter\tabularnewline
+%	0xB80 & MRW & \texttt{mcycleh}   & Upper 32 bits of \texttt{mcycle}, RV32I only\tabularnewline
+%	0xB82 & MRW & \texttt{minstreth} & Upper 32 bits of \texttt{minstret}, RV32I only\tabularnewline
+%	\bottomrule
+%
+%	\caption{Machine Counter/Timers}
+%	\label{tab:machine-counter-timer}
+%\end{longtable}
+
+
+
 
 \begin{longtable}[]{@{}cccl@{}}
-\toprule
-\textbf{Address} & \textbf{Privilege} & \textbf{Name} & \textbf{Description}\tabularnewline
-\midrule
-\endfirsthead
-\multicolumn{4}{c}{{(Continued from previous page)}} \\
-\toprule
-\textbf{Address} & \textbf{Privilege} & \textbf{Name} & \textbf{Description}\tabularnewline
-\midrule
-\endhead
-\midrule \multicolumn{4}{c}{{\tablename\ \thetable{} continued on next page\ldots}} \\
-\endfoot
-\endlastfoot
-
-\multicolumn{4}{c}{\emph{\textbf{Supervisor Trap Handling}}}\tabularnewline
-0x100 & SRW & \texttt{sstatus} & Supervisor status register\tabularnewline
-0x102 & SRW & \texttt{sedeleg} & Supervisor exception delegation register\tabularnewline
-0x103 & SRW & \texttt{sideleg} & Supervisor interrupt delegation register\tabularnewline
-0x104 & SRW & \texttt{sie}     & Supervisor interrupt-enable register\tabularnewline
-0x105 & SRW & \texttt{stvec}   & Supervisor trap handler base address\tabularnewline
-
-\multicolumn{4}{c}{\emph{\textbf{Supervisor Trap Handling}}}\tabularnewline
-0x140 & SRW & \texttt{sscratch} & Scratch register for trap handler\tabularnewline
-0x141 & SRW & \texttt{sepc}     & Supervisor exception program counter\tabularnewline
-0x142 & SRO & \texttt{scause}   & Supervisor trap cause\tabularnewline
-0x143 & SRO & \texttt{sbadaddr} & Supervisor bad address\tabularnewline
-0x144 & SRW & \texttt{sip}      & Supervisor interrupt pending register\tabularnewline
-\bottomrule
-\caption{Supervisor Mode CSRs}
-\label{tab:supervisor-csrs}
+	\toprule
+	\textbf{Address} & \textbf{Privilege} & \textbf{Name} & \textbf{Description}\tabularnewline
+	\midrule
+	\endfirsthead
+	\multicolumn{4}{c}{{(Continued from previous page)}} \\
+	\toprule
+	\textbf{Address} & \textbf{Privilege} & \textbf{Name} & \textbf{Description}\tabularnewline
+	\midrule
+	\endhead
+	\midrule \multicolumn{4}{c}{{\tablename\ \thetable{} continued on next page\ldots}} \\
+	\endfoot
+	\endlastfoot
+	
+	\rowcolor{rltable}\multicolumn{4}{c}{\emph{\textbf{Supervisor Trap Handling}}}\tabularnewline
+	0x100 & SRW & \texttt{sstatus} & Supervisor status register\tabularnewline
+	0x102 & SRW & \texttt{sedeleg} & Supervisor exception delegation register\tabularnewline
+	0x103 & SRW & \texttt{sideleg} & Supervisor interrupt delegation register\tabularnewline
+	0x104 & SRW & \texttt{sie}     & Supervisor interrupt-enable register\tabularnewline
+	0x105 & SRW & \texttt{stvec}   & Supervisor trap handler base address\tabularnewline
+	
+	\rowcolor{rltable}\multicolumn{4}{c}{\emph{\textbf{Supervisor Trap Handling}}}\tabularnewline
+	0x140 & SRW & \texttt{sscratch} & Scratch register for trap handler\tabularnewline
+	0x141 & SRW & \texttt{sepc}     & Supervisor exception program counter\tabularnewline
+	0x142 & SRO & \texttt{scause}   & Supervisor trap cause\tabularnewline
+	0x143 & SRO & \texttt{sbadaddr} & Supervisor bad address\tabularnewline
+	0x144 & SRW & \texttt{sip}      & Supervisor interrupt pending register\tabularnewline
+	\bottomrule
+	\caption{Supervisor Mode CSRs}
+	\label{tab:supervisor-csrs}
 \end{longtable}
 
 
 \begin{longtable}[]{@{}cccl@{}}
-\toprule
-\textbf{Address} & \textbf{Privilege} & \textbf{Name} & \textbf{Description}\tabularnewline
-\midrule
-\endfirsthead
-\multicolumn{4}{c}{{(Continued from previous page)}} \\
-\toprule
-\textbf{Address} & \textbf{Privilege} & \textbf{Name} & \textbf{Description}\tabularnewline
-\midrule
-\endhead
-\midrule \multicolumn{4}{c}{{\tablename\ \thetable{} continued on next page\ldots}} \\
-\endfoot
-\endlastfoot
-
-\multicolumn{4}{c}{\emph{\textbf{User Counter / Timers}}}\tabularnewline
-0xC00 & URO & \texttt{cycle} & Cycle counter for \texttt{RDCYCLE} instruction\tabularnewline
-0xC02 & URO & \texttt{instret} & Instruction-retire counter for \texttt{RDINSTRET}\tabularnewline
-0xC80 & URO & \texttt{cycleh} & Upper 32bits of \texttt{cycle}, RV32I only\tabularnewline
-0xC82 & URO & \texttt{instret} h& Upper 32bit of \texttt{instret}, RV32I only\tabularnewline
-\bottomrule
-\caption{User Mode CSRs}
-\label{tab:user-csrs}
+	\toprule
+	\textbf{Address} & \textbf{Privilege} & \textbf{Name} & \textbf{Description}\tabularnewline
+	\midrule
+	\endfirsthead
+	\multicolumn{4}{c}{{(Continued from previous page)}} \\
+	\toprule
+	\textbf{Address} & \textbf{Privilege} & \textbf{Name} & \textbf{Description}\tabularnewline
+	\midrule
+	\endhead
+	\midrule \multicolumn{4}{c}{{\tablename\ \thetable{} continued on next page\ldots}} \\
+	\endfoot
+	\endlastfoot
+	
+	\rowcolor{rltable}\multicolumn{4}{c}{\emph{\textbf{User Counter / Timers}}}\tabularnewline
+	0xC00 & URO & \texttt{cycle} & Cycle counter for \texttt{RDCYCLE} instruction\tabularnewline
+	0xC02 & URO & \texttt{instret} & Instruction-retire counter for \texttt{RDINSTRET}\tabularnewline
+	0xC80 & URO & \texttt{cycleh} & Upper 32bits of \texttt{cycle}, RV32I only\tabularnewline
+	0xC82 & URO & \texttt{instret} h& Upper 32bit of \texttt{instret}, RV32I only\tabularnewline
+	\bottomrule
+	\caption{User Mode CSRs}
+	\label{tab:user-csrs}
 \end{longtable}
 
 \section{Machine Level CSRs}\label{machine-level-csrs}
@@ -214,13 +326,29 @@ can access all CSRs at lower privilege levels.
 \subsection{Machine ISA Register
 (misa)}\label{machine-isa-register-misa}
 
-The misa register is an XLEN-bit WARL read-write register reporting the
+The {\tt misa} register is an XLEN-bit WARL read-write register reporting the
 ISA supported by the hart.
 
-\missingfigure{}
-
-
-Figure ‑: Machine ISA Register Format
+\begin{figure*}[h!]
+	{\footnotesize
+		\begin{center}
+			\begin{tabular}{c@{}c@{}J}
+				\instbitrange{XLEN-1}{XLEN-2} &
+				\instbitrange{XLEN-3}{26} &
+				\instbitrange{25}{0} \\
+				\hline
+				\multicolumn{1}{|c|}{Base (\warl)} &
+				\multicolumn{1}{c|}{\wiri} &
+				\multicolumn{1}{c|}{Extensions (\warl)} \\
+				\hline
+				2 & XLEN-28 & 26 \\
+			\end{tabular}
+		\end{center}
+	}
+	\vspace{-0.1in}
+	\caption{Machine ISA register ({\tt misa}).}
+	\label{fig:misareg}
+\end{figure*}
 
 The extensions field encodes the presence of the standard extensions,
 with a single bit per letter of the alphabet (bit 0 encodes the presence
@@ -230,8 +358,7 @@ through to bit 25 that encodes the presence of extension ``Z'').
 The ``I'' bit will be set for RV32I and RV64I base ISAs, and the ``E''
 bit will be set for RV32E.
 
-The Base field encodes the native base integer ISA width as shown in
-Table 7‑5.
+The Base field encodes the native base integer ISA width as shown:
 
 \begin{longtable}[]{@{}cc@{}}
 \toprule
@@ -241,37 +368,56 @@ Value & Description\tabularnewline
 1 & 32\tabularnewline
 2 & 64\tabularnewline
 \bottomrule
-\caption{Supported misa values}
+\caption{Supported {\tt misa} values}
 \label{tab:misa-values}
 \end{longtable}
 
-\subsection{Vendor ID Register
-(mvendorid)}\label{vendor-id-register-mvendorid}
+\subsection{Vendor ID Register ({\tt mvendorid})}\label{vendor-id-register-mvendorid}
 
-The mvendorid read-only register is an XLEN-bit register encoding the
+The {\tt mvendorid} read-only register is an XLEN-bit register encoding the
 manufacturer of the device.
 
-\begin{figure}[hbt]
-  \includegraphics[width=\textwidth]{mvendorid}
-  \caption{Vendor ID Register}
-\end{figure}
-
-
-Figure ‑: Vendor ID Register
+\begin{figure*}[h!]
+	{\footnotesize
+		\begin{center}
+			\begin{tabular}{J}
+				\instbitrange{XLEN-1}{0} \\
+				\hline
+				\multicolumn{1}{|c|}{Vendor} \\
+				\hline
+				XLEN \\
+			\end{tabular}
+		\end{center}
+	}
+	\vspace{-0.1in}
+	\caption{Vendor ID register ({\tt mvendorid}).}
+	\label{fig:mvendorreg}
+\end{figure*}
 
 Non-Zero vendor IDs will be allocated by the RISC-V Foundation.
 
 \subsection{Architecture ID Register
-(marchid)}\label{architecture-id-register-marchid}
+({\tt marchid})}\label{architecture-id-register-marchid}
 
-The marched CSR is an XLEN-bit read-only register encoding the base
-microarchitecture of the hart. For the RV12 CPU this is defined as shown
-in Figure 7‑5.
+The {\tt marched} CSR is an XLEN-bit read-only register encoding the base
+microarchitecture of the hart. For the RV12 CPU this is defined as:
 
-\begin{figure}[hbt]
-  \includegraphics[width=\textwidth]{marchid}
-  \caption{Architecture ID Register}
-\end{figure}
+\begin{figure*}[h!]
+	{\footnotesize
+		\begin{center}
+			\begin{tabular}{J}
+				\instbitrange{XLEN-1}{0} \\
+				\hline
+				\multicolumn{1}{|c|}{Architecture ID} \\
+				\hline
+				XLEN \\
+			\end{tabular}
+		\end{center}
+	}
+	\vspace{-0.1in}
+	\caption{Machine Architecture ID register ({\tt marchid}).}
+	\label{fig:marchreg}
+\end{figure*}
 
 Note: Open-source project architecture IDs are allocated globally by the
 RISC-V Foundation, and have non-zero architecture IDs with a zero
@@ -279,72 +425,160 @@ most-significant-bit (MSB). Commercial architecture IDs are allocated by
 each commercial vendor independently and have the MSB set.
 
 \subsection{Implementation ID Register
-(mimpid)}\label{implementation-id-register-mimpid}
+({\tt mimpid})}\label{implementation-id-register-mimpid}
 
-The mimpid read-only register provides hardware version information for
+The {\tt mimpid} read-only register provides hardware version information for
 the CPU. In the Roa Logic implementation, the 2 least significant bytes
 encode the major and minor code revisions.
 
-\begin{figure}[hbt]
-  \includegraphics[width=\textwidth]{mimpid}
-  \caption{Roa Logic mimpid}
-\end{figure}
+\begin{figure*}[h!]
+	{\footnotesize
+		\begin{center}
+			\begin{tabular}{J}
+				\instbitrange{XLEN-1}{0} \\
+				\hline
+				\multicolumn{1}{|c|}{Implementation}  \\
+				\hline
+				XLEN \\
+			\end{tabular}
+		\end{center}
+	}
+	\vspace{-0.1in}
+	\caption{Machine Implementation ID register ({\tt mimpid}).}
+	\label{fig:mimpidreg}
+\end{figure*}
 
-The mimpid register is an XLEN size register, but the RV12 only
+The {\tt mimpid} register is an XLEN size register, but the RV12 only
 implements the lower 32 bits. For an RV64 implementation the MSBs are
 zero extended.
 
 \subsection{Hardware Thread ID Register
-(mhartid)}\label{hardware-thread-id-register-mhartid}
+({\tt mhartid})}\label{hardware-thread-id-register-mhartid}
 
-\missingfigure{}
+\begin{figure*}[h!]
+	{\footnotesize
+		\begin{center}
+			\begin{tabular}{J}
+				\instbitrange{XLEN-1}{0} \\
+				\hline
+				\multicolumn{1}{|c|}{Hart ID}\\
+				\hline
+				XLEN \\
+			\end{tabular}
+		\end{center}
+	}
+	\vspace{-0.1in}
+	\caption{Hart ID register ({\tt mhartid}).}
+	\label{fig:mhartidreg}
+\end{figure*}
 
-Figure ‑: Hardware Thread ID Register
-
-The mhartid read-only register indicates the hardware thread that is
+The {\tt mhartid} read-only register indicates the hardware thread that is
 running the code. The RV12 implements a single thread, therefore this
 register always reads zero.
 
 \subsection{Machine Status Register
-(mstatus)}\label{machine-status-register-mstatus}
+(\texttt{mstatus})}\label{machine-status-register-mstatus}
 
-The mstatus register is an XLEN-bit read/write register that keeps track
+The {\tt mstatus} register is an \texttt{XLEN}-bit read/write register that keeps track
 of and controls the \emph{hart's} current operating state.
 
 \subsubsection{Privilege and Global Interrupt-Enable Stack in mstatus register}
 
-Interrupt-enable bits, MIE, SIE, and UIE, are provided for each
+Interrupt-enable bits, \texttt{MIE}, \texttt{SIE}, and \texttt{UIE}, are provided for each
 privilege mode. These bits are primarily used to guarantee atomicity
 with respect to interrupt handlers at the current privilege level. When
 a hart is executing in privilege mode \emph{x}, interrupts are enabled
-when \emph{x}IE=1. Interrupts for lower privilege modes are always
+when \texttt{\emph{x}IE=1}. Interrupts for lower privilege modes are always
 disabled, whereas interrupts for higher privilege modes are always
 enabled. Higher-privilege-level code can use separate per-interrupt
 enable bits to disable selected interrupts before ceding control to a
 lower privilege level.
 
-\missingfigure{}
+\begin{figure*}[h!]
+	{\footnotesize
+		\begin{center}
+			\setlength{\tabcolsep}{4pt}
+			\begin{tabular}{cEccccccc}
+				\\
+				\instbit{XLEN-1} &
+				\instbitrange{XLEN-2}{29} &
+				\instbitrange{28}{24} &
+				\instbitrange{23}{20} &
+				\instbit{19} &
+				\instbit{18} &
+				\instbit{17} &
+				\instbitrange{16}{15} &
+				\\
+				\hline
+				\multicolumn{1}{|c|}{SD} &
+				\multicolumn{1}{c|}{\wpri} &
+				\multicolumn{1}{c|}{VM[4:0]\,(\warl)} & 
+				\multicolumn{1}{c|}{\wpri} &
+				\multicolumn{1}{c|}{MXR} &
+				\multicolumn{1}{c|}{PUM} &
+				\multicolumn{1}{c|}{MPRV} &
+				\multicolumn{1}{c|}{XS[1:0]} &
+				\\
+				\hline
+				1 & XLEN-30 & 5 & 4 & 1 & 1 & 1 & 2 & \\
+			\end{tabular}
+			\begin{tabular}{ccccccccccccc}
+				\\
+				&
+				\instbitrange{14}{13} &
+				\instbitrange{12}{11} &
+				\instbitrange{10}{9} &
+				\instbit{8} &
+				\instbit{7} &
+				\instbit{6} &
+				\instbit{5} &
+				\instbit{4} &
+				\instbit{3} &
+				\instbit{2} &
+				\instbit{1} &
+				\instbit{0} \\
+				\hline
+				&
+				\multicolumn{1}{|c|}{FS[1:0]} &
+				\multicolumn{1}{c|}{MPP[1:0]} &
+				\multicolumn{1}{c|}{HPP[1:0]} &
+				\multicolumn{1}{c|}{SPP} &
+				\multicolumn{1}{c|}{MPIE} &
+				\multicolumn{1}{c|}{HPIE} &
+				\multicolumn{1}{c|}{SPIE} &
+				\multicolumn{1}{c|}{UPIE} &
+				\multicolumn{1}{c|}{MIE} &
+				\multicolumn{1}{c|}{HIE} &
+				\multicolumn{1}{c|}{SIE} &
+				\multicolumn{1}{c|}{UIE} \\
+				\hline
+				& 2 & 2 & 2 & 1 & 1 & 1 & 1 & 1 & 1 & 1 & 1 & 1 \\
+			\end{tabular}
+		\end{center}
+	}
+	\vspace{-0.1in}
+	\caption{Machine-mode status register ({\tt mstatus}).}
+	\label{fig:mstatusreg}
+\end{figure*}
 
-Figure ‑: Machine Mode Status Register
 
-The MRET, SRET, or URET instructions are used to return from traps in
-M-mode, S-mode, or U-mode respectively. When executing an \emph{x}RET
-instruction, supposing \emph{x}PP holds the value \emph{y}, \emph{y}IE
-is set to \emph{x}PIE; the privilege mode is changed to \emph{y};
-\emph{x}PIE is set to 1; and \emph{x}PP is set to U.
+The \texttt{MRET}, \texttt{SRET}, or \texttt{URET} instructions are used to return from traps in M-mode, S-mode, or U-mode respectively. When executing an \texttt{\emph{x}RET}
+instruction, supposing \texttt{\emph{x}PP} holds the value \texttt{\emph{y}}, \texttt{\emph{y}IE}
+is set to \texttt{\emph{x}PIE}; the privilege mode is changed to \texttt{\emph{y}};
+\texttt{\emph{x}PIE} is set to 1; and \texttt{\emph{x}PP} is set to U.
 
-\subsubsection{Memory Privilege in mstatus Register
+\subsubsection{Memory Privilege in \texttt{mstatus} Register
 }\label{memory-privilege-in-mstatus-register}
 
-The MPRV bit modifies the privilege level at which loads and stores
-execute. When MPRV='0', translation and protection behave as normal.
-When MPRV='1', data memory addresses are translated and protected as
-though PRV were set to the current value of the PRV1 field. Instruction
+The \texttt{MPRV} bit modifies the privilege level at which loads and stores
+execute. When \texttt{MPRV}='0', translation and protection behave as normal.
+When \texttt{MPRV}='1', data memory addresses are translated and protected as
+though \texttt{PRV} were set to the current value of the \texttt{PRV1} field. Instruction
 address-translation and protection are unaffected. When an exception
-occurs, MPRV is reset to 0.
+occurs, \texttt{MPRV} is reset to 0.
 
 \subsubsection{Virtualization Management \& Context Extension Fields in
-mstatus Register
+\texttt{mstatus} Register
 }\label{virtualization-management-context-extension-fields-in-mstatus-register}
 
 Virtualization and Context Extensions are not supported by the RV12 v1.0
@@ -352,104 +586,201 @@ implementation. The value of these fields will therefore be permanently
 set to 0.
 
 \subsection{Machine Delegation Registers
-(medeleg \& mideleg)} \label{machine-exception-interrupt-delegation-registers-medeleg-mideleg}
+(\texttt{medeleg} \& \texttt{mideleg})} \label{machine-exception-interrupt-delegation-registers-medeleg-mideleg}
 
-Individual read/write bits within medeleg and mideleg registers indicate
+Individual read/write bits within \texttt{medeleg} and \texttt{mideleg} registers indicate
 that lower privilege levels should directly process certain exceptions
 and interrupts.
 
-When a trap is delegated to a less-privileged mode \emph{x}, the
-\emph{x}cause register is written with the trap cause; the \emph{x}epc
+When a trap is delegated to a less-privileged mode \texttt{\emph{x}}, the
+\texttt{\emph{x}cause} register is written with the trap cause; the \texttt{\emph{x}epc}
 register is written with the virtual address of the instruction that
-took the trap; the \emph{x}PP field of mstatus is written with the
-active privilege mode at the time of the trap; the \emph{x}PIE field of
-mstatus is written with the value of the active interrupt-enable bit at
-the time of the trap; and the \emph{x}IE field of mstatus is cleared.
-The mcause and mepc registers and the MPP and MPIE fields of mstatus are
-not written.
+took the trap; the \texttt{\emph{x}PP} field of \texttt{mstatus} is written with the
+active privilege mode at the time of the trap; the \texttt{\emph{x}PIE} field of
+\texttt{mstatus} is written with the value of the active interrupt-enable bit at
+the time of the trap; and the \texttt{\emph{x}IE} field of \texttt{mstatus} is cleared.
+The \texttt{mcause} and \texttt{mepc} registers and the \texttt{MPP} and \texttt{MPIE} fields of \texttt{mstatus} are not written.
 
-\missingfigure{}
+\begin{figure}[h!]
+	{\footnotesize
+		\begin{center}
+			\begin{tabular}{@{}U}
+				\instbitrange{XLEN-1}{0} \\
+				\hline
+				\multicolumn{1}{|c|}{Synchronous Exceptions (\warl)} \\
+				\hline
+				XLEN \\
+			\end{tabular}
+		\end{center}
+	}
+	\vspace{-0.1in}
+	\caption{Machine Exception Delegation Register {\tt medeleg}.}
+	\label{fig:medelegreg}
+\end{figure}
 
-Figure ‑: Machine Exception
-Delegation Register
-
-medeleg has a bit position allocated for every synchronous exception
-shown in Table 7‑8, with the index of the bit position equal to the
-value returned in the mcause register (I.e. setting bit 8 allows
+\texttt{medeleg} has a bit position allocated for every synchronous exception with the index of the bit position equal to the
+value returned in the \texttt{mcause} register (I.e. setting bit 8 allows
 user-mode environment calls to be delegated to a lower-privilege trap
-handler). See section 7.6.13 for additional details.
+handler). 
 
-\missingfigure{}
+\begin{figure}[h!]
+	{\footnotesize
+		\begin{center}
+			\begin{tabular}{@{}U}
+				\instbitrange{XLEN-1}{0} \\
+				\hline
+				\multicolumn{1}{|c|}{Interrupts (\warl)} \\
+				\hline
+				XLEN \\
+			\end{tabular}
+		\end{center}
+	}
+	\vspace{-0.1in}
+	\caption{Machine Exception Delegation Register {\tt mideleg}.}
+	\label{fig:midelegreg}
+\end{figure}
 
-\protect\hypertarget{_Ref367088721}{}{}Figure ‑: Machine Interrupt
-Delegation Register
-
-mideleg holds trap delegation bits for individual interrupts, with the
-layout of bits matching those in the mip register (I.e. STIP interrupt
+\texttt{mideleg} holds trap delegation bits for individual interrupts, with the
+layout of bits matching those in the \texttt{mip} register (I.e. \texttt{STIP} interrupt
 delegation control is located in bit 5).
 
-\subsection{Machine Interrupt Registers (mie \&
-mip)}\label{machine-interrupt-registers-mie-mip}
+\subsection{Machine Interrupt Registers (\texttt{mie},
+\texttt{mip})}\label{machine-interrupt-registers-mie-mip}
 
-The mip register is an XLEN-bit read/write register containing
-information on pending interrupts, while mie is the corresponding
-XLEN-bit read/write register containing interrupt enable bits. Only the
-bits corresponding to lower-privilege software interrupts (USIP, SSIP)
-and timer interrupts (UTIP, STIP) in mip are writable through this CSR
-address; the remaining bits are read-only.
+The \texttt{mip} register is an \texttt{XLEN}-bit read/write register containing
+information on pending interrupts, while \texttt{mie} is the corresponding
+\texttt{XLEN}-bit read/write register containing interrupt enable bits. Only the
+bits corresponding to lower-privilege software interrupts (\texttt{USIP}, \texttt{SSIP})
+and timer interrupts (\texttt{UTIP}, \texttt{STIP}) in \texttt{mip} are writable through this CSR address; the remaining bits are read-only.
 
-Restricted views of the mip and mie registers appear as the sip/sie, and
-uip/uie registers in S-mode, and U-mode respectively. If an interrupt is
-delegated to privilege mode \emph{x} by setting a bit in the mideleg
-register, it becomes visible in the \emph{x}ip register and is maskable
-using the \emph{x}ie register. Otherwise, the corresponding bits in
-\emph{x}ip and \emph{x}ie appear to be hardwired to zero.
+Restricted views of the \texttt{mip} and \texttt{mie} registers appear as the \texttt{sip/sie}, and
+\texttt{uip/uie} registers in S-mode, and U-mode respectively. If an interrupt is
+delegated to privilege mode \texttt{\emph{x}} by setting a bit in the \texttt{mideleg}
+register, it becomes visible in the \texttt{\emph{x}ip} register and is maskable
+using the \texttt{\emph{x}ie}register. Otherwise, the corresponding bits in
+\texttt{\emph{x}ip} and \texttt{\emph{x}}ie appear to be hardwired to zero.
 
-\missingfigure{}
+\begin{figure*}[h!]
+	{\footnotesize
+		\begin{center}
+			\setlength{\tabcolsep}{4pt}
+			\begin{tabular}{Ycccccccccccc}
+				\instbitrange{XLEN-1}{12} &
+				\instbit{11} &
+				\instbit{10} &
+				\instbit{9} &
+				\instbit{8} &
+				\instbit{7} &
+				\instbit{6} &
+				\instbit{5} &
+				\instbit{4} &
+				\instbit{3} &
+				\instbit{2} &
+				\instbit{1} &
+				\instbit{0} \\
+				\hline
+				\multicolumn{1}{|c|}{\wiri} &
+				\multicolumn{1}{c|}{MEIP} &
+				\multicolumn{1}{c|}{HEIP} &
+				\multicolumn{1}{c|}{SEIP} &
+				\multicolumn{1}{c|}{UEIP} &
+				\multicolumn{1}{c|}{MTIP} &
+				\multicolumn{1}{c|}{HTIP} &
+				\multicolumn{1}{c|}{STIP} &
+				\multicolumn{1}{c|}{UTIP} &
+				\multicolumn{1}{c|}{MSIP} &
+				\multicolumn{1}{c|}{HSIP} &
+				\multicolumn{1}{c|}{SSIP} &
+				\multicolumn{1}{c|}{USIP} \\
+				\hline
+				XLEN-12 & 1 & 1 & 1 & 1 & 1 & 1 & 1 & 1 & 1 & 1 & 1 & 1 \\
+			\end{tabular}
+		\end{center}
+	}
+	\vspace{-0.1in}
+	\caption{Machine interrupt-pending register ({\tt mip}).}
+	\label{fig:mipreg}
+\end{figure*}
 
-Figure ‑: Machine Interrupt Pending Register
+\begin{figure*}[h!]
+	{\footnotesize
+		\begin{center}
+			\setlength{\tabcolsep}{4pt}
+			\begin{tabular}{Ycccccccccccc}
+				\instbitrange{XLEN-1}{12} &
+				\instbit{11} &
+				\instbit{10} &
+				\instbit{9} &
+				\instbit{8} &
+				\instbit{7} &
+				\instbit{6} &
+				\instbit{5} &
+				\instbit{4} &
+				\instbit{3} &
+				\instbit{2} &
+				\instbit{1} &
+				\instbit{0} \\
+				\hline
+				\multicolumn{1}{|c|}{\wpri} &
+				\multicolumn{1}{c|}{MEIE} &
+				\multicolumn{1}{c|}{HEIE} &
+				\multicolumn{1}{c|}{SEIE} &
+				\multicolumn{1}{c|}{UEIE} &
+				\multicolumn{1}{c|}{MTIE} &
+				\multicolumn{1}{c|}{HTIE} &
+				\multicolumn{1}{c|}{STIE} &
+				\multicolumn{1}{c|}{UTIE} &
+				\multicolumn{1}{c|}{MSIE} &
+				\multicolumn{1}{c|}{HSIE} &
+				\multicolumn{1}{c|}{SSIE} &
+				\multicolumn{1}{c|}{USIE} \\
+				\hline
+				XLEN-12 & 1 & 1 & 1 & 1 & 1 & 1 & 1 & 1 & 1 & 1 & 1 & 1 \\
+			\end{tabular}
+		\end{center}
+	}
+	\vspace{-0.1in}
+	\caption{Machine interrupt-enable register ({\tt mie}).}
+	\label{fig:miereg}
+\end{figure*}
 
-\missingfigure{}
-Figure ‑: Machine Interrupt Enable Register
-
-The MTIP, STIP, UTIP bits correspond to timer interrupt-pending bits for
-machine, supervisor, and user timer interrupts, respectively. The MTIP
+The \texttt{MTIP}, \texttt{STIP}, \texttt{UTIP} bits correspond to timer interrupt-pending bits for
+machine, supervisor, and user timer interrupts, respectively. The \texttt{MTIP}
 bit is read-only and is cleared by writing to the memory-mapped
-machine-mode timer compare register. The UTIP and STIP bits may be
+machine-mode timer compare register. The \texttt{UTIP} and \texttt{STIP} bits may be
 written by M-mode software to deliver timer interrupts to lower
-privilege levels. User and supervisor software may clear the UTIP and
-STIP bits with calls to the AEE or SEE respectively.
+privilege levels. User and supervisor software may clear the \texttt{UTIP} and
+\texttt{STIP} bits with calls to the AEE or SEE respectively.
 
-There is a separate timer interrupt-enable bit, named MTIE, STIE, and
-UTIE for M-mode, S-mode, and U-mode timer interrupts respectively.
+There is a separate timer interrupt-enable bit, named \texttt{MTIE}, \texttt{STIE}, and
+\texttt{UTIE} for M-mode, S-mode, and U-mode timer interrupts respectively.
 
 Each lower privilege level has a separate software interrupt-pending bit
-(SSIP, USIP), which can be both read and written by CSR accesses from
+(\texttt{SSIP}, \texttt{USIP}), which can be both read and written by CSR accesses from
 code running on the local hart at the associated or any higher privilege
-level. The machine-level MSIP bits are written by accesses to
+level. The machine-level \texttt{MSIP} bits are written by accesses to
 memory-mapped control registers, which are used by remote harts to
 provide machine-mode interprocessor interrupts. Interprocessor
 interrupts for lower privilege levels are implemented through ABI or SBI
 calls to the AEE or SEE respectively, which might ultimately result in a
-machine- mode write to the receiving hart's MSIP bit. A hart can write
-its own MSIP bit using the same memory-mapped control register.
+machine- mode write to the receiving hart's \texttt{MSIP} bit. A hart can write
+its own \texttt{MSIP} bit using the same memory-mapped control register.
 
-The MEIP, SEIP, UEIP bits correspond to external interrupt-pending bits
-for machine, supervisor, and user external interrupts, respectively.
-These bits are read-only and are set and cleared by a platform-specific
+The \texttt{MEIP}, \texttt{SEIP}, \texttt{UEIP} bits correspond to external interrupt-pending bits for machine, supervisor, and user external interrupts, 
+respectively. These bits are read-only and are set and cleared by a platform-specific
 interrupt controller. There is a separate external interrupt-enable bit,
-named MEIE, SEIE, and UEIE for M-mode, S-mode, and U-mode external
-interrupts respectively.
+named \texttt{MEIE}, \texttt{SEIE}, and \texttt{UEIE} for M-mode, S-mode, 
+and U-mode external interrupts respectively.
 
-An interrupt \emph{i} will be taken if bit \emph{i} is set in both mip
-and mie, and if interrupts are globally enabled. By default, M-mode
-interrupts are globally enabled if the hart's current privilege mode is
-less than M, or if the current privilege mode is M and the MIE bit in
-the mstatus register is set. If bit \emph{i} in mideleg is set, however,
-interrupts are considered to be globally enabled if the hart's current
+An interrupt\texttt{ \emph{i}} will be taken if bit \texttt{\emph{i}} is set in 
+both \texttt{mip} and \texttt{mie}, and if interrupts are globally enabled. By default,
+M-mode interrupts are globally enabled if the hart's current privilege mode is
+less than M, or if the current privilege mode is M and the \texttt{MIE} bit in
+the \texttt{mstatus} register is set. If bit \texttt{\emph{i}} in \texttt{mideleg} is 
+set, however, interrupts are considered to be globally enabled if the hart's current
 privilege mode equals the delegated privilege mode (S, or U) and that
-mode's interrupt enable bit (SIE or UIE in mstatus) is set, or if the
-current privilege mode is less than the delegated privilege mode.
+mode's interrupt enable bit (\texttt{SIE} or \texttt{UIE} in \texttt{mstatus}) is 
+set, or if the current privilege mode is less than the delegated privilege mode.
 
 Multiple simultaneous interrupts and traps at the same privilege level
 are handled in the following decreasing priority order: external
@@ -457,67 +788,139 @@ interrupts, software interrupts, timer interrupts, and then finally any
 synchronous traps.
 
 \subsection{Machine Trap-Handler Base Address Register
-(mtvec)}\label{machine-trap-handler-base-address-register-mtvec}
+(\texttt{mtvec})}\label{machine-trap-handler-base-address-register-mtvec}
 
 The mtvec register is an XLEN-bit read/write register that holds the
 base address of the M-mode trap vector.
 
-\missingfigure{}
-
-Figure ‑: Machine Trap-Handler Base Address Register
+\begin{figure*}[h!]
+	{\footnotesize
+		\begin{center}
+			\begin{tabular}{J@{}F}
+				\instbitrange{XLEN-1}{2} &
+				\instbitrange{1}{0} \\
+				\hline
+				\multicolumn{1}{|c|}{Trap-Vector Base Address (\warl)} & 
+				\multicolumn{1}{c|}{0} \\
+				\hline
+				XLEN-2 & 2 \\
+			\end{tabular}
+		\end{center}
+	}
+	\vspace{-0.1in}
+	\caption{Machine trap-vector base-address register ({\tt mtvec}).}
+	\label{fig:mtvecreg}
+\end{figure*}
 
 All traps into machine mode cause the pc to be set to the value in
-mtvec. Additional trap vector entry points can be defined by
+\texttt{mtvec}. Additional trap vector entry points can be defined by
 implementations to allow more rapid identification and service of
 certain trap causes.
 
 \subsection{Machine Non-Maskable Interrupt Vector
-(mnmivec)}\label{machine-non-maskable-interrupt-vector-mnmivec}
+(\texttt{mnmivec})}\label{machine-non-maskable-interrupt-vector-mnmivec}
 
 The mnmivec register is an XLEN-bit read/write register that holds the
 base address of the non-maskable interrupt trap vector. When an
 exception occurs, the pc is set to mnmivec.
 
-\missingfigure{}
+\begin{figure}[h!]
+	{\footnotesize
+		\begin{center}
+			\begin{tabular}{@{}J}
+				\instbitrange{XLEN-1}{0} \\
+				\hline
+				\multicolumn{1}{|c|}{\tt mnmivec} \\
+				\hline
+				XLEN \\
+			\end{tabular}
+		\end{center}
+	}
+	\vspace{-0.1in}
+	\caption{Machine Non-Maskable Interrupt Vector}
+	\label{fig:mnmivecreg}
+\end{figure}
 
-Figure ‑: Machine Non-Maskable Interrupt Vector
+
 
 \subsection{Machine Trap Handler Scratch Register
-(mscratch)}\label{machine-trap-handler-scratch-register-mscratch}
+({\tt mscratch})}\label{machine-trap-handler-scratch-register-mscratch}
 
-The mscratch register is an XLEN-bit read/write register dedicated for
+The {\tt mscratch} register is an XLEN-bit read/write register dedicated for
 use by machine mode. It is used to hold a pointer to a machine-mode
 hart-local context space and swapped with a user register upon entry to
 an M-mode trap handler.
 
-\missingfigure{}
-
-Figure ‑: Machine-mode Scratch Register
+\begin{figure}[h!]
+	{\footnotesize
+		\begin{center}
+			\begin{tabular}{@{}J}
+				\instbitrange{XLEN-1}{0} \\
+				\hline
+				\multicolumn{1}{|c|}{\tt mscratch} \\
+				\hline
+				XLEN \\
+			\end{tabular}
+		\end{center}
+	}
+	\vspace{-0.1in}
+	\caption{Machine-mode scratch register.}
+	\label{fig:mscratchreg}
+\end{figure}
 
 \subsection{Machine Exception Program Counter Register
-(mepc)}\label{machine-exception-program-counter-register-mepc}
+({\tt mepc})}\label{machine-exception-program-counter-register-mepc}
 
-mepc is an XLEN-bit read/write register. The two low bits
+{\tt mepc} is an XLEN-bit read/write register. The two low bits
 (mepc{[}1:0{]}) are always zero.
 
-\missingfigure{}
 
-Figure ‑: Machine Exception Program Counter Register
+\begin{figure}[h!]
+	{\footnotesize
+		\begin{center}
+			\begin{tabular}{@{}J}
+				\instbitrange{XLEN-1}{0} \\
+				\hline
+				\multicolumn{1}{|c|}{\tt mepc} \\
+				\hline
+				XLEN \\
+			\end{tabular}
+		\end{center}
+	}
+	\vspace{-0.1in}
+	\caption{Machine exception program counter register.}
+	\label{fig:mepcreg}
+\end{figure}
 
-When a trap is taken, mepc is written with the virtual address of the
+When a trap is taken, {\tt mepc} is written with the virtual address of the
 instruction that encountered the exception.
 
 \subsection{Machine Trap Cause Register
-(mcause)}\label{machine-trap-cause-register-mcause}
+({\tt mcause})}\label{machine-trap-cause-register-mcause}
 
-The mcause register is an XLEN-bit read-write register. The Interrupt
+The {\tt mcause} register is an XLEN-bit read-write register. The Interrupt
 bit is set if the exception was caused by an interrupt. The Exception
 Code field contains a code identifying the last exception. The remaining
 center bits will read zero
 
-\missingfigure{}
-
-Figure ‑: Machine Cause Register
+\begin{figure*}[h!]
+	{\footnotesize
+		\begin{center}
+			\begin{tabular}{c@{}U}
+				\instbit{XLEN-1} &
+				\instbitrange{XLEN-2}{0} \\
+				\hline
+				\multicolumn{1}{|c|}{Interrupt} &
+				\multicolumn{1}{c|}{Exception Code (\wlrl)} \\
+				\hline
+				1 & XLEN-1 \\
+			\end{tabular}
+		\end{center}
+	}
+	\vspace{-0.1in}
+	\caption{Machine Cause register {\tt mcause}.}
+	\label{fig:mcausereg}
+\end{figure*}
 
 Table \ref{tab:mcause-reg-values} below lists the possible machine-level exception codes.
 
@@ -571,40 +974,53 @@ Interrupt & Exception Code & Description\tabularnewline
 
 
 \subsection{Machine Bad Address Register
-(mbadaddr)}\label{machine-bad-address-register-mbadaddr}
+({\tt mbadaddr})}\label{machine-bad-address-register-mbadaddr}
 
-mbadaddr is an XLEN-bit read-write register. When a hardware breakpoint
+{\tt mbadaddr} is an XLEN-bit read-write register. When a hardware breakpoint
 is triggered, or an instruction-fetch, load, or store address-misaligned
-or access exception occurs, mbadaddr is written with the faulting
-address. mbadaddr is not modified for other exceptions.
+or access exception occurs, {\tt mbadaddr} is written with the faulting
+address. {\tt mbadaddr} is not modified for other exceptions.
 
-\missingfigure{}
-
-Figure ‑: Machine Bad Address Register
+\begin{figure}[h!]
+	{\footnotesize
+		\begin{center}
+			\begin{tabular}{@{}J}
+				\instbitrange{XLEN-1}{0} \\
+				\hline
+				\multicolumn{1}{|c|}{\tt mbadaddr} \\
+				\hline
+				XLEN \\
+			\end{tabular}
+		\end{center}
+	}
+	\vspace{-0.1in}
+	\caption{Machine bad address register.}
+	\label{fig:mbadaddrreg}
+\end{figure}
 
 For instruction-fetch access faults with variable-length instructions,
-mbadaddr will point to the portion of the instruction that caused the
-fault while mepc will point to the beginning of the instruction.
+{\tt mbadaddr} will point to the portion of the instruction that caused the
+fault while {\tt mepc} will point to the beginning of the instruction.
 
 \subsection{Machine Cycle Counter (mcycle,
-mcycleh)}\label{machine-cycle-counter-mcycle-mcycleh}
+{\tt mcycleh})}\label{machine-cycle-counter-mcycle-mcycleh}
 
-The mcycle CSR holds a count of the number of cycles the hart has
-executed since some arbitrary time in the past. The mcycle register has
+The {\tt mcycle} CSR holds a count of the number of cycles the hart has
+executed since some arbitrary time in the past. The {\tt mcycle} register has
 64-bit precision on all RV32 and RV64 systems.
 
-On RV32 only, reads of the mcycle CSR returns the low 32 bits, while
-reads of the mcycleh CSR returns bits 63--32.
+On RV32 only, reads of the {\tt mcycle} CSR returns the low 32 bits, while
+reads of the {\tt mcycleh} CSR returns bits 63--32.
 
 \subsection{Machine Instructions-Retired counter (minstret,
-minstreth)}\label{machine-instructions-retired-counter-minstret-minstreth}
+{\tt minstreth})}\label{machine-instructions-retired-counter-minstret-minstreth}
 
-The minstret CSR holds a count of the number of instructions the hart
-has retired since some arbitrary time in the past. The minstret register
+The {\tt minstret} CSR holds a count of the number of instructions the hart
+has retired since some arbitrary time in the past. The {\tt minstret} register
 has 64-bit precision on all RV32 and RV64 systems.
 
-On RV32 only, reads of the minstret CSR returns the low 32 bits, while
-reads of the minstreth CSR returns bits 63--32.
+On RV32 only, reads of the {\tt minstret} CSR returns the low 32 bits, while
+reads of the {\tt minstreth} CSR returns bits 63--32.
 
 \section{Supervisor Mode CSRs}\label{supervisor-mode-csrs}
 
@@ -615,168 +1031,313 @@ The sstatus register is an XLEN-bit read/write register formatted as
 shown in Figure 7‑19. The sstatus register keeps track of the
 processor's current operating state.
 
-\missingfigure{}
+\begin{figure*}[h!]
+	{\footnotesize
+		\begin{center}
+			\setlength{\tabcolsep}{4pt}
+			\begin{tabular}{cYccccWcWccWcc}
+				\\
+				\instbit{XLEN-1} &
+				\instbitrange{XLEN-2}{19} &
+				\instbit{18} &
+				\instbit{17} &
+				\instbitrange{16}{15} &
+				\instbitrange{14}{13} &
+				\instbitrange{12}{9} &
+				\instbit{8} &
+				\instbitrange{7}{6} &
+				\instbit{5} &
+				\instbit{4} &
+				\instbitrange{3}{2} &
+				\instbit{1} &
+				\instbit{0} \\
+				\hline
+				\multicolumn{1}{|c|}{SD} &
+				\multicolumn{1}{c|}{0} &
+				\multicolumn{1}{c|}{PUM} &
+				\multicolumn{1}{c|}{0} &
+				\multicolumn{1}{c|}{XS[1:0]} &
+				\multicolumn{1}{c|}{FS[1:0]} &
+				\multicolumn{1}{c|}{0} &
+				\multicolumn{1}{c|}{SPP} &
+				\multicolumn{1}{c|}{0} &
+				\multicolumn{1}{c|}{SPIE} &
+				\multicolumn{1}{c|}{UPIE} &
+				\multicolumn{1}{c|}{0} &
+				\multicolumn{1}{c|}{SIE}  &
+				\multicolumn{1}{c|}{UIE}
+				\\
+				\hline
+				1 & XLEN-20 & 1 & 1 & 2 & 2 & 4 & 1 & 2 & 1 & 1 & 2 & 1 & 1 \\
+			\end{tabular}
+		\end{center}
+	}
+	\vspace{-0.1in}
+	\caption{Supervisor-mode status Register.}
+	\label{fig:sstatusreg}
+\end{figure*}
 
-\protect\hypertarget{_Ref367096223}{}{}Figure ‑: Supervisor-mode Status
-Register
-
-The SPP bit indicates the privilege level at which a \emph{hart} was
-executing before entering supervisor mode. When a trap is taken, SPP is
+The {\tt SPP} bit indicates the privilege level at which a \emph{hart} was
+executing before entering supervisor mode. When a trap is taken, {\tt SPP} is
 set to 0 if the trap originated from user mode, or 1 otherwise. When an
-SRET instruction is executed to return from the trap handler, the
-privilege level is set to user mode if the SPP bit is 0, or supervisor
-mode if the SPP bit is 1; SPP is then set to 0.
+{\tt SRET} instruction is executed to return from the trap handler, the
+privilege level is set to user mode if the {\tt SPP} bit is 0, or supervisor
+mode if the {\tt SPP} bit is 1; {\tt SPP} is then set to 0.
 
-The SIE bit enables or disables all interrupts in supervisor mode. When
-SIE is clear, interrupts are not taken while in supervisor mode. When
-the \emph{hart} is running in user-mode, the value in SIE is ignored,
+The {\tt SIE} bit enables or disables all interrupts in supervisor mode. When
+{\tt SIE} is clear, interrupts are not taken while in supervisor mode. When
+the \emph{hart} is running in user-mode, the value in {\tt SIE} is ignored,
 and supervisor-level interrupts are enabled. The supervisor can disable
-indivdual interrupt sources using the sie register.
+indivdual interrupt sources using the {\tt sie} register.
 
-The SPIE bit indicates whether interrupts were enabled before entering
-supervisor mode. When a trap is taken into supervisor mode, SPIE is set
-to either SIE or UIE depending on whether the trap was taken in
-supervisor or user mode respectively, and SIE is set to 0. When an SRET
-instruction is executed, if SPP=S, then SIE is set to SPIE; or if SPP=U,
-then UIE is set to SPIE. In either case, SPIE is then set to 1.
+The {\tt SPIE} bit indicates whether interrupts were enabled before entering
+supervisor mode. When a trap is taken into supervisor mode, {\tt SPIE} is set
+to either {\tt SIE} or {\tt UIE} depending on whether the trap was taken in
+supervisor or user mode respectively, and {\tt SIE} is set to 0. When an {\tt SRET}
+instruction is executed, if {\tt SPP=S}, then {\tt SIE} is set to {\tt SPIE}; or if {\tt SPP=U},
+then {\tt UIE} is set to {\tt SPIE}. In either case, {\tt SPIE} is then set to 1.
 
-The UIE bit enables or disables user-mode interrupts. User-level
-interrupts are enabled only if UIE is set and the \emph{hart} is running
-in user-mode. The UPIE bit indicates whether user-level interrupts were
-enabled prior to taking a user-level trap. When a URET instruction is
-executed, UIE is set to UPIE, and UPIE is set to 1.
+The {\tt UIE} bit enables or disables user-mode interrupts. User-level
+interrupts are enabled only if {\tt UIE} is set and the \emph{hart} is running
+in user-mode. The {\tt UPIE} bit indicates whether user-level interrupts were
+enabled prior to taking a user-level trap. When a {\tt URET} instruction is
+executed, {\tt UIE} is set to {\tt UPIE}, and {\tt UPIE} is set to 1.
 
-\subsubsection{Memory Privilege in sstatus Register
+\subsubsection{Memory Privilege in {\tt sstatus} Register
 }\label{memory-privilege-in-sstatus-register}
 
-The PUM (Protect User Memory) bit modifies the privilege with which
+The {\tt PUM} (Protect User Memory) bit modifies the privilege with which
 S-mode loads, stores, and instruction fetches access virtual memory.
-When PUM=0, translation and protection behave as normal. When PUM=1,
-S-mode memory accesses to pages that are accessible by U-mode (U=1 in
-Figure 4.13) will fault. PUM has no effect when executing in U-mode.
+When {\tt PUM=0}, translation and protection behave as normal. When {\tt PUM=1},
+S-mode memory accesses to pages that are accessible by U-mode will fault. {\tt PUM} has no effect when executing in U-mode.
 
-\subsection{Supervisor Trap Delegation Registers (sedeleg,
-sideleg)}\label{supervisor-trap-delegation-registers-sedeleg-sideleg}
+\subsection{Supervisor Trap Delegation Registers ({\tt sedeleg},
+{\tt sideleg})}\label{supervisor-trap-delegation-registers-sedeleg-sideleg}
 
-The machine exception delegation register (sedeleg) and machine
-interrupt delegation register (sideleg) are XLEN-bit read/write
+The machine exception delegation register ({\tt sedeleg}) and machine
+interrupt delegation register ({\tt sideleg}) are XLEN-bit read/write
 registers.
-
-\missingfigure{}
-
-Figure ‑: Supervisor Exception Delegation Register
-
-\missingfigure{}
-
-Figure ‑: Supervisor Interrupt Delegation Register
-
-See section 7.6.7 for additional information.
 
 \subsection{Supervisor Interrupt Registers (sip, sie)}
 
-The sip register is an XLEN-bit read/write register containing
-information on pending interrupts; sie is the corresponding XLEN-bit
+The {\tt sip} register is an XLEN-bit read/write register containing
+information on pending interrupts; {\tt sie} is the corresponding XLEN-bit
 read/write register containing interrupt enable bits.
 
-\missingfigure{}
+\begin{figure*}[h!]
+	{\footnotesize
+		\begin{center}
+			\setlength{\tabcolsep}{4pt}
+			\begin{tabular}{EccFccFcc}
+				\instbitrange{XLEN-1}{10} &
+				\instbit{9} &
+				\instbit{8} &
+				\instbitrange{7}{6} &
+				\instbit{5} &
+				\instbit{4} &
+				\instbitrange{3}{2} &
+				\instbit{1} &
+				\instbit{0} \\
+				\hline
+				\multicolumn{1}{|c|}{0} &
+				\multicolumn{1}{c|}{SEIP} &
+				\multicolumn{1}{c|}{UEIP} &
+				\multicolumn{1}{c|}{0} &
+				\multicolumn{1}{c|}{STIP} &
+				\multicolumn{1}{c|}{UTIP} &
+				\multicolumn{1}{c|}{0} &
+				\multicolumn{1}{c|}{SSIP} &
+				\multicolumn{1}{c|}{USIP} \\
+				\hline
+				XLEN-10 & 1 & 1 & 2 & 1 & 1 & 2 & 1 & 1 \\
+			\end{tabular}
+		\end{center}
+	}
+	\vspace{-0.1in}
+	\caption{Supervisor interrupt-pending register ({\tt sip}).}
+	\label{fig:sipreg}
+\end{figure*}
 
-Figure ‑: Supervisor Interrupt Pending Register
-
-\missingfigure{}
-
-Figure ‑: Supervisor Interrupt Enable Register
+\begin{figure*}[h!]
+	{\footnotesize
+		\begin{center}
+			\setlength{\tabcolsep}{4pt}
+			\begin{tabular}{EccFccFcc}
+				\instbitrange{XLEN-1}{10} &
+				\instbit{9} &
+				\instbit{8} &
+				\instbitrange{7}{6} &
+				\instbit{5} &
+				\instbit{4} &
+				\instbitrange{3}{2} &
+				\instbit{1} &
+				\instbit{0} \\
+				\hline
+				\multicolumn{1}{|c|}{0} &
+				\multicolumn{1}{c|}{SEIE} &
+				\multicolumn{1}{c|}{UEIE} &
+				\multicolumn{1}{c|}{0} &
+				\multicolumn{1}{c|}{STIE} &
+				\multicolumn{1}{c|}{UTIE} &
+				\multicolumn{1}{c|}{0} &
+				\multicolumn{1}{c|}{SSIE} &
+				\multicolumn{1}{c|}{USIE} \\
+				\hline
+				XLEN-10 & 1 & 1 & 2 & 1 & 1 & 2 & 1 & 1 \\
+			\end{tabular}
+		\end{center}
+	}
+	\vspace{-0.1in}
+	\caption{Supervisor interrupt-enable register ({\tt sie}).}
+	\label{fig:siereg}
+\end{figure*}
 
 Three types of interrupts are defined: software interrupts, timer
 interrupts, and external interrupts. A supervisor-level software
 interrupt is triggered on the current \emph{hart} by writing 1 to its
-supervisor software interrupt-pending (SSIP) bit in the sip register. A
+supervisor software interrupt-pending ({\tt SSIP}) bit in the {\tt sip} register. A
 pending supervisor-level software interrupt can be cleared by writing 0
-to the SSIP bit in sip. Supervisor-level software interrupts are
-disabled when the SSIE bit in the sie register is clear.
+to the {\tt SSIP} bit in {\tt sip}. Supervisor-level software interrupts are
+disabled when the {\tt SSIE} bit in the {\tt sie} register is clear.
 
 Interprocessor interrupts are sent to other harts by means of \emph{SBI}
-calls, which will ultimately cause the SSIP bit to be set in the
-recipient \emph{hart's} sip register.
+calls, which will ultimately cause the {\tt SSIP} bit to be set in the
+recipient \emph{hart's} {\tt sip} register.
 
 A user-level software interrupt is triggered on the current \emph{hart}
-by writing 1 to its user software interrupt-pending (USIP) bit in the
+by writing 1 to its user software interrupt-pending ({\tt USIP}) bit in the
 sip register. A pending user-level software interrupt can be cleared by
-writing 0 to the USIP bit in sip. User-level software interrupts are
-disabled when the USIE bit in the sie register is clear.
+writing 0 to the {\tt USIP} bit in {\tt sip}. User-level software interrupts are
+disabled when the {\tt USIE} bit in the {\tt sie} register is clear.
 
-All bits besides SSIP and USIP in the sip register are read-only.
+All bits besides {\tt SSIP} and {\tt USIP} in the {\tt sip} register are read-only.
 
-A supervisor-level timer interrupt is pending if the STIP bit in the sip
+A supervisor-level timer interrupt is pending if the {\tt STIP} bit in the {\tt sip}
 register is set. Supervisor-level timer interrupts are disabled when the
-STIE bit in the sie register is clear. An \emph{SBI} call to the SEE may
+{\tt STIE} bit in the {\tt sie} register is clear. An \emph{SBI} call to the SEE may
 be used to clear the pending timer interrupt.
 
-A user-level timer interrupt is pending if the UTIP bit in the sip
-register is set. User-level timer interrupts are disabled when the UTIE
-bit in the sie register is clear. If user-level interrupts are
+A user-level timer interrupt is pending if the {\tt UTIP} bit in the {\tt sip}
+register is set. User-level timer interrupts are disabled when the {\tt UTIE}
+bit in the {\tt sie} register is clear. If user-level interrupts are
 supported, the \emph{ABI} should provide a facility for scheduling timer
 interrupts in terms of real-time counter values.
 
-A supervisor-level external interrupt is pending if the SEIP bit in the
-sip register is set. Supervisor-level external interrupts are disabled
-when the SEIE bit in the sie register is clear. The \emph{SBI} should
+A supervisor-level external interrupt is pending if the {\tt SEIP} bit in the
+{\tt sip} register is set. Supervisor-level external interrupts are disabled
+when the {\tt SEIE} bit in the {\tt sie} register is clear. The \emph{SBI} should
 provide facilities to mask, unmask, and query the cause of external
 interrupts.
 
-A user-level external interrupt is pending if the UEIP bit in the sip
+A user-level external interrupt is pending if the {\tt UEIP} bit in the {\tt sip}
 register is set. User-level external interrupts are disabled when the
-UEIE bit in the sie register is clear.
+UEIE bit in the {\tt sie} register is clear.
 
 \subsection{Supervisor Trap Vector Register
-(stvec)}\label{supervisor-trap-vector-register-stvec}
+({\tt stvec})}\label{supervisor-trap-vector-register-stvec}
 
-The stvec register is an XLEN-bit read/write register that holds the
+The {\tt stvec} register is an XLEN-bit read/write register that holds the
 base address of the S-mode trap vector. When an exception occurs, the pc
-is set to stvec. The stvec register is always aligned to a 4-byte
+is set to {\tt stvec}. The {\tt stvec} register is always aligned to a 4-byte
 boundary.
 
-\missingfigure{}
+\begin{figure*}[h!]
+	{\footnotesize
+		\begin{center}
+			\begin{tabular}{J@{}F}
+				\instbitrange{XLEN-1}{2} &
+				\instbitrange{1}{0} \\
+				\hline
+				\multicolumn{1}{|c|}{Trap-Vector Base Address (\warl)} & 
+				\multicolumn{1}{c|}{0} \\
+				\hline
+				XLEN-2 & 2 \\
+			\end{tabular}
+		\end{center}
+	}
+	\vspace{-0.1in}
+	\caption{Supervisor trap-vector base-address register ({\tt mtvec}).}
+	\label{fig:stvecreg}
+\end{figure*}
 
-Figure ‑: Supervisor Trap Vector Register
-
-\subsection{Supervisor Scratch Register (sscratch)
+\subsection{Supervisor Scratch Register ({\tt sscratch})
 }\label{supervisor-scratch-register-sscratch}
 
-The sscratch register is an XLEN-bit read/write register, dedicated for
-use by the supervisor. Typically, sscratch is used to hold a pointer to
+The {\tt sscratch} register is an XLEN-bit read/write register, dedicated for
+use by the supervisor. Typically, {\tt sscratch} is used to hold a pointer to
 the hart-local supervisor context while the hart is executing user code.
-At the beginning of a trap handler, sscratch is swapped with a user
+At the beginning of a trap handler, {\tt sscratch} is swapped with a user
 register to provide an initial working register.
 
-\missingfigure{}
-
-Figure ‑: Supervisor-mode Scratch Register
+\begin{figure}[h!]
+	{\footnotesize
+		\begin{center}
+			\begin{tabular}{@{}J}
+				\instbitrange{XLEN-1}{0} \\
+				\hline
+				\multicolumn{1}{|c|}{\tt sscratch} \\
+				\hline
+				XLEN \\
+			\end{tabular}
+		\end{center}
+	}
+	\vspace{-0.1in}
+	\caption{Supervisor Scratch Register.}
+	\label{fig:sscratchreg}
+\end{figure}
 
 \subsection{Supervisor Exception Program Counter
-(sepc)}\label{supervisor-exception-program-counter-sepc}
+({\tt sepc})}\label{supervisor-exception-program-counter-sepc}
 
-sepc is an XLEN-bit read/write register formatted as shown in Figure
-7‑24. The low bit of sepc (sepc{[}0{]}) is always zero. On
+{\tt sepc} is an XLEN-bit read/write register formatted as shown in Figure
+7‑24. The low bit of {\tt sepc} ({\tt sepc{[}0{]}}) is always zero. On
 implementations that do not support instruction-set extensions with
-16-bit instruction alignment, the two low bits (sepc{[}1:0{]}) are
-always zero. When a trap is taken, sepc is written with the virtual
+16-bit instruction alignment, the two low bits ({\tt sepc{[}1:0{]}}) are
+always zero. When a trap is taken, {\tt sepc} is written with the virtual
 address of the instruction that encountered the exception.
 
-\missingfigure{}
+\begin{figure}[h!]
+	{\footnotesize
+		\begin{center}
+			\begin{tabular}{@{}J}
+				\instbitrange{XLEN-1}{0} \\
+				\hline
+				\multicolumn{1}{|c|}{\tt sepc} \\
+				\hline
+				XLEN \\
+			\end{tabular}
+		\end{center}
+	}
+	\vspace{-0.1in}
+	\caption{Supervisor exception program counter register.}
+	\label{epcreg}
+\end{figure}
 
-\protect\hypertarget{_Ref367098363}{}{}Figure ‑: Supervisor Exception
-Program Counter Register
-
-\subsection{Supervisor Cause Register (scause)
+\subsection{Supervisor Cause Register ({\tt scause})
 }\label{supervisor-cause-register-scause}
 
-The scause register is an XLEN-bit read-only register. The Interrupt bit
+The {\tt scause} register is an XLEN-bit read-only register. The Interrupt bit
 is set if the exception was caused by an interrupt. The Exception Code
 field contains a code identifying the last exception.
 
-\missingfigure{}
-
-Figure ‑: Supervisor-mode Cause Register
+\begin{figure*}[h!]
+	{\footnotesize
+		\begin{center}
+			\begin{tabular}{c@{}U}
+				\instbit{XLEN-1} &
+				\instbitrange{XLEN-2}{0} \\
+				\hline
+				\multicolumn{1}{|c|}{Interrupt} &
+				\multicolumn{1}{c|}{Exception Code (\wlrl)} \\
+				\hline
+				1 & XLEN-1 \\
+			\end{tabular}
+		\end{center}
+	}
+	\vspace{-0.1in}
+	\caption{Supervisor Cause register {\tt scause}.}
+	\label{scausereg}
+\end{figure*}
 
 Table \ref{tab:scause-reg-values} below lists the possible exception codes for the current supervisor ISAs.
 
@@ -822,77 +1383,69 @@ Interrupt & Exception Code & Description\tabularnewline
 \label{tab:scause-reg-values}
 \end{longtable}
 
-\protect\hypertarget{_Ref326948300}{}{}Table ‑: Supervisor Cause
-Register Values
-
 \subsection{Supervisor Bad Address Register
-(sbadaddr)}\label{supervisor-bad-address-register-sbadaddr}
+({\tt sbadaddr})}\label{supervisor-bad-address-register-sbadaddr}
 
-sbadaddr is an XLEN-bit read/write register formatted as shown in Figure
-7‑26. When a hardware breakpoint is triggered, or an instruction-fetch,
+{\tt sbadaddr} is an XLEN-bit read/write register. When a hardware breakpoint is triggered, or an instruction-fetch,
 load, or store access exception occurs, or an instruction-fetch or AMO
-address-misaligned exception occurs, sbadaddr is written with the
-faulting address. sbadaddr is not modified for other exceptions.
+address-misaligned exception occurs, {\tt sbadaddr} is written with the
+faulting address. {\tt sbadaddr} is not modified for other exceptions.
 
-\missingfigure{}
-
-\protect\hypertarget{_Ref367099017}{}{}Figure ‑: Supervisor Bad Address
-Register
+\begin{figure}[h!]
+	{\footnotesize
+		\begin{center}
+			\begin{tabular}{@{}J}
+				\instbitrange{XLEN-1}{0} \\
+				\hline
+				\multicolumn{1}{|c|}{\tt sbadaddr} \\
+				\hline
+				XLEN \\
+			\end{tabular}
+		\end{center}
+	}
+	\vspace{-0.1in}
+	\caption{Supervisor bad address register.}
+	\label{badvaddrreg}
+\end{figure}
 
 For instruction fetch access faults on RISC-V systems with
-variable-length instructions, sbadaddr will point to the portion of the
-instruction that caused the fault while sepc will point to the beginning
+variable-length instructions, {\tt sbadaddr} will point to the portion of the
+instruction that caused the fault while {\tt sepc} will point to the beginning
 of the instruction.
 
-\protect\hypertarget{_Toc327108372}{}{}
+\pagebreak
 
 \section{User Mode CSRs}\label{user-mode-csrs}
 
 \subsection{Cycle counter for RDCYCLE instruction
-(cycle)}\label{cycle-counter-for-rdcycle-instruction-cycle}
+({\tt cycle})}\label{cycle-counter-for-rdcycle-instruction-cycle}
 
-\missingfigure{}
-
-Figure ‑: Cycle Counter Register
-
-cycle is an XLEN-bit read-only register. The RDCYCLE pseudo-instruction
-reads the low XLEN bits of the cycle CSR that holds a count of the
+{\tt cycle} is an XLEN-bit read-only register. The {\tt RDCYCLE} pseudo-instruction
+reads the low XLEN bits of the {\tt cycle} CSR that holds a count of the
 number of clock cycles executed by the processor on which the hardware
 thread is running from an arbitrary start time in the past.
 
 \subsection{Instruction-retire counter for RDINSTRET instruction
-(instret)}\label{instruction-retire-counter-for-rdinstret-instruction-instret}
+({\tt instret})}\label{instruction-retire-counter-for-rdinstret-instruction-instret}
 
-\missingfigure{}
-
-Figure ‑: Instruction-retire counter
-
-instret is an XLEN-bit read-only register. The RDINSTRET
-pseudo-instruction reads the low XLEN bits of the instret CSR, which
+{\tt instret} is an XLEN-bit read-only register. The RDINSTRET
+pseudo-instruction reads the low XLEN bits of the {\tt instret} CSR, which
 counts the number of instructions retired by this hardware thread from
 some arbitrary start point in the past.
 
-\subsection{Upper 32bits of cycle (cycleh - RV32I
+\subsection{Upper 32bits of cycle ({\tt cycleh} - RV32I
 only)}\label{upper-32bits-of-cycle-cycleh---rv32i-only}
 
-\missingfigure{}
-
-Figure ‑: Upper word of cycle counter
-
-cycleh is a read-only register that contains bits 63-32 of the counter
+{\tt cycleh} is a read-only register that contains bits 63-32 of the counter
 of the number of clock cycles executed by the processor.
 
-RDCYCLEH is an RV32I-only instruction providing access to this register.
+{\tt RDCYCLEH} is an RV32I-only instruction providing access to this register.
 
-\subsection{Upper 32bit of instret (instreth - RV32I
+\subsection{Upper 32bit of instret ({\tt instreth} - RV32I
 only)}\label{upper-32bit-of-instret-instreth---rv32i-only}
 
-\missingfigure{}
-
-Figure ‑: Upper word of instret counter
-
-Instreth is a read-only register that contains bits 63-32 of the
+{\tt instreth} is a read-only register that contains bits 63-32 of the
 instruction counter.
 
-RDINSTRETH is an RV32I-only instruction providing access to this
+{\tt RDINSTRETH} is an RV32I-only instruction providing access to this
 register

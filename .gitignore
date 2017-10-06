@@ -1,2 +1,10 @@
 
 docs/.texpadtmp
+*.toc
+*.gz
+*.out
+*.log
+*.blg
+*.bbl
+*.aux
+*.txss

@@ -1,6 +1,6 @@
 \chapter{RV12 Execution Pipeline}
 
-The RV12 implements a 32/64bit Integer RISC pipeline. The pipeline consists of the Instruction Fetch, Pre-Decode, Instruction Decode, Execution, and Write Back stages.
+The RV12 implements a 32/64bit Integer modified form of the classic RISC pipeline. The pipeline consists of the Instruction Fetch, Pre-Decode, Instruction Decode, Execution, and Write Back stages as highlighted in the figure below.
  
 
 \begin{figure}[h]
@@ -13,7 +13,7 @@ The RV12 implements a 32/64bit Integer RISC pipeline. The pipeline consists of t
 \section{Instruction Fetch (IF)}\label{instruction-fetch-if}
 
 \begin{figure}[h]
-  \includegraphics{Pipeline-IF.eps}
+  \includegraphics{Pipeline-IF.png}
   \caption{Instruction Fetch Stage Implementation}
 \end{figure}
 
@@ -21,6 +21,37 @@ The Instruction Fetch unit loads a new parcel from the program memory.
 A parcel is a code field that contains one or more instructions. The address of the parcel to load is held by the Program Counter (PC). The Program Counter is either 32 or 64bits wide, depending on the XLEN parameter. The Program Counter is updated whenever the Instruction Pipeline is not stalled.
 
 In case the pipeline must be flushed the Program Counter is restarted from the given address.
+
+\begin{longtable}[]{@{}lccl@{}}
+	\toprule
+	\textbf{Signal} & \textbf{Direction} & \textbf{To/From} & \textbf{Description}\tabularnewline
+	\midrule
+	\endfirsthead
+	\multicolumn{4}{c}{{(Continued from previous page)}} \\
+	\toprule
+	\textbf{Signal} & \textbf{Direction} & \textbf{To/From} & \textbf{Description}\tabularnewline
+	\midrule
+	\endhead
+	\midrule \multicolumn{4}{c}{{\tablename\ \thetable{} continued on next page\ldots}} \\
+	\endfoot
+	\endlastfoot
+
+	if\_nxt\_pc &	to	& Bus Interface	& Next address to fetch parcel from\\
+	parcel\_pc &	from &	Bus Interface &	Fetch parcel's address\\
+	parcel\_valid &	from &	Bus Interface &	Valid indicators for parcel\\
+	parcel	& from &	Bus Interface &	Fetched parcel\\
+	\\		
+	Flush &	from &	EX/State &	When asserted flushes the pipe\\
+	Stall &	from &	PD &	When asserted stalls the pipe\\
+	pd\_branch\_pc &	from &	PD	& New program counter for a branch instruction\\
+	if\_pc &	to & PD	 & Instruction Fetch program counter\\
+	if\_instr &	to	& PD &	Instruction Fetch instruction\\
+	if\_bubble &	to & PD	& Instruction Fetch bubble\\
+		
+	\bottomrule
+\caption{IF Signals}
+\label{tab:if-signals}
+\end{longtable}
 
 \pagebreak
 
@@ -31,9 +62,38 @@ The destination address for branches is predicted based on the data provided by 
 
 
 \begin{figure}[th]
-  \includegraphics{Pipeline-PD.eps}
+  \includegraphics{Pipeline-PD.png}
   \caption{Instruction Pre-Decode Stage}
 \end{figure}
+
+\begin{longtable}[]{@{}lccl@{}}
+	\toprule
+	\textbf{Signal} & \textbf{Direction} & \textbf{To/From} & \textbf{Description}\tabularnewline
+	\midrule
+	\endfirsthead
+	\multicolumn{4}{c}{{(Continued from previous page)}} \\
+	\toprule
+	\textbf{Signal} & \textbf{Direction} & \textbf{To/From} & \textbf{Description}\tabularnewline
+	\midrule
+	\endhead
+	\midrule \multicolumn{4}{c}{{\tablename\ \thetable{} continued on next page\ldots}} \\
+	\endfoot
+	\endlastfoot
+	
+	if\_pc         & from &	IF	& Instruction\_fetch program counter\\
+	if\_instr	   & from &	IF	& Instruction\_fetch instruction\\
+	if\_bubble	   & from &	IF	& Instruction\_fetch bubble\\
+	pd\_branch\_pc & to	  & IF	& New PC (for a branch instruction)\\
+	\\
+	bu\_predict	   & from &	BP	& Branch prediction from Branch Prediction Unit\\
+	pd\_predict	   & to	  & ID	& Forwarded branch prediction\\
+	pd\_pc	       & to	  & ID  & Pre-Decode program counter\\
+	pd\_instr	   & to	  & ID	& Pre-Decode instruction\\
+	pd\_bubble	   & to	  & ID	& Pre-Decode bubble	\\
+	\bottomrule
+	\caption{PD Signals}
+	\label{tab:pd-signals}
+\end{longtable}
 
 \pagebreak
 
@@ -44,9 +104,42 @@ are available. It accesses the Register File, calculates immediate
 values, and sets bypasses.
 
 \begin{figure}[h]
-  \includegraphics{Pipeline-ID.eps}
+  \includegraphics{Pipeline-ID.png}
   \caption{Instruction Decode Stage Implementation}
 \end{figure}
+
+\begin{longtable}[]{@{}lccl@{}}
+	\toprule
+	\textbf{Signal} & \textbf{Direction} & \textbf{To/From} & \textbf{Description}\tabularnewline
+	\midrule
+	\endfirsthead
+	\multicolumn{4}{c}{{(Continued from previous page)}} \\
+	\toprule
+	\textbf{Signal} & \textbf{Direction} & \textbf{To/From} & \textbf{Description}\tabularnewline
+	\midrule
+	\endhead
+	\midrule \multicolumn{4}{c}{{\tablename\ \thetable{} continued on next page\ldots}} \\
+	\endfoot
+	\endlastfoot
+	
+		pd\_pc	    & from & PD & Pre-Decode program counter\\
+		pd\_instr   & from & PD & Pre-Decode instruction\\
+		pd\_bubble  & from & PD & Pre-Decode bubble\\
+		\\
+		src1        & to   & RF & Source Register1 index\\
+		src2        & to   & RF & Source Register2 Index\\
+		\\			
+		id\_bypassA & to   & EX & Bypass signals for srcA\\
+		id\_bypassB & to   & EX & Bypass signals for srcB\\
+		id\_opA     & to   & EX & Calculated operandA\\
+		id\_opB     & to   & EX & Calculated operandB\\
+		id\_pc      & to   & EX & Instruction Decode program counter\\
+		id\_instr   & to   & EX & Instruction Decode instruction\\
+		id\_bubble  & to   & EX & Instruction Decode bubble\\	
+	\bottomrule
+	\caption{ID Signals}
+	\label{tab:id-signals}
+\end{longtable}
 
 \pagebreak
 
@@ -64,9 +157,45 @@ Most operations complete in one clock cycle, except for the divide instructions,
 
 
 \begin{figure}[h]
-  \includegraphics{Pipeline-EX.eps}
+  \includegraphics{Pipeline-EX.png}
   \caption{Execute Stage Implementation}
 \end{figure}
+
+\begin{longtable}[]{@{}lccl@{}}
+	\toprule
+	\textbf{Signal} & \textbf{Direction} & \textbf{To/From} & \textbf{Description}\tabularnewline
+	\midrule
+	\endfirsthead
+	\multicolumn{4}{c}{{(Continued from previous page)}} \\
+	\toprule
+	\textbf{Signal} & \textbf{Direction} & \textbf{To/From} & \textbf{Description}\tabularnewline
+	\midrule
+	\endhead
+	\midrule \multicolumn{4}{c}{{\tablename\ \thetable{} continued on next page\ldots}} \\
+	\endfoot
+	\endlastfoot
+	
+		id\_pc & from & ID & Instruction Decode program counter\\
+		id\_instr & from & ID & Instruction Decode instruction\\
+		id\_bubble & from & ID & Instruction Decode bubble\\
+		 &  &  & \\
+		opA & from & RF & Source Register1 value\\
+		opB & from & RF & Source Register2 value\\
+		 &  &  & \\
+		id\_bypassA & from & ID & Bypass signals for srcA\\
+		id\_bypassB & from & ID & Bypass signals for srcB\\
+		id\_opA & from & ID & Calculated operandA\\
+		id\_opB & from & ID & Calculated operandB\\
+		ex\_stall & to & ID & Stall ID (and higher) stages\\
+		ex\_flush & to & ID/PD/IF & Flush ID (and higher) pipe stages\\
+		ex\_r & to & WB & Result from execution units\\
+		ex\_pc & to & WB & Execute program counter\\
+		ex\_instr & to & WB & Execute instruction\\
+		ex\_bubble & to & WB & Execute bubble\\
+	\bottomrule
+	\caption{EX Signals}
+	\label{tab:ex-signals}
+\end{longtable}
 
 \pagebreak
 
@@ -75,6 +204,38 @@ Most operations complete in one clock cycle, except for the divide instructions,
 The Write-Back stage writes the results from the Execution Unit into the Register File.
 
 \begin{figure}[h]
-  \includegraphics{Pipeline-WB.eps}
+  \includegraphics{Pipeline-WB.png}
   \caption{Write-back Stage Implementation}
 \end{figure}
+
+\begin{longtable}[]{@{}lccl@{}}
+	\toprule
+	\textbf{Signal} & \textbf{Direction} & \textbf{To/From} & \textbf{Description}\tabularnewline
+	\midrule
+	\endfirsthead
+	\multicolumn{4}{c}{{(Continued from previous page)}} \\
+	\toprule
+	\textbf{Signal} & \textbf{Direction} & \textbf{To/From} & \textbf{Description}\tabularnewline
+	\midrule
+	\endhead
+	\midrule \multicolumn{4}{c}{{\tablename\ \thetable{} continued on next page\ldots}} \\
+	\endfoot
+	\endlastfoot
+	
+		ex\_pc & from & EX & Execute program counter\\
+		ex\_instr & from & EX & Execute instruction\\
+		ex\_bubble & from & EX & Execute bubble\\
+		ex\_r & from  & EX & Result from execution units\\
+		 &  &  & \\
+		wb\_r & to & RF & Result to be written to RF\\
+		wb\_dst & to & RF & Destination register index\\
+		wb\_we & to & RF & Write enable\\
+		wb\_pc & to & WB & WriteBack program counter\\
+		wb\_instr & to & WB & WriteBack instruction\\
+
+	\bottomrule
+	\caption{EWBSignals}
+	\label{tab:wb-signals}
+\end{longtable}
+
+
