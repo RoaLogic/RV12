@@ -37,7 +37,7 @@ The RV12 always implements Machine mode and optionally implements User mode and 
 The RV12 implements an optimizing 4-stage folded pipeline. The classic RISC pipeline consists of 5 stages; instruction fetch (IF), instruction decode (ID), execute (EX), memory access (MEM), and register write-back (WB).
 
 \begin{figure}[hbt]
-  \includegraphics{Pipeline-Reg}
+  \includegraphics{assets/img/Pipeline-Reg.png}
   \caption{Classic RISC Pipeline}
 \end{figure}
 
@@ -50,7 +50,7 @@ memory accesses to overlap, thereby effectively hiding CPU stalls and
 improving the CPU's cycles per instruction CPI.
 
 \begin{figure}[hbt]
-  \includegraphics{Pipeline-RV12}
+  \includegraphics{assets/img/Pipeline-RV12.png}
   \caption{Modified RV12 Pipeline}
 \end{figure}
 
@@ -62,7 +62,7 @@ in the Write Back (WB) stage, whereas Instruction E is the
 newest instruction and it's in the Instruction Fetch (IF) stage.
 
 \begin{figure}[hbt]
-  \includegraphics{Pipeline-Overlap}
+  \includegraphics{assets/img/Pipeline-Overlap.png}
   \caption{Overlapping Execution Stages}
 \end{figure}
 

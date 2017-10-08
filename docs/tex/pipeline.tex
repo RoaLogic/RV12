@@ -4,7 +4,7 @@ The RV12 implements a 32/64bit Integer modified form of the classic RISC pipelin
  
 
 \begin{figure}[h]
-  \includegraphics{Pipeline-Overview}
+  \includegraphics{assets/img/Pipeline-Overview.png}
   \caption{RV12 Execution Pipeline}
 \end{figure}
 
@@ -13,7 +13,7 @@ The RV12 implements a 32/64bit Integer modified form of the classic RISC pipelin
 \section{Instruction Fetch (IF)}\label{instruction-fetch-if}
 
 \begin{figure}[h]
-  \includegraphics{Pipeline-IF.png}
+  \includegraphics{assets/img/Pipeline-IF.png}
   \caption{Instruction Fetch Stage Implementation}
 \end{figure}
 
@@ -62,7 +62,7 @@ The destination address for branches is predicted based on the data provided by 
 
 
 \begin{figure}[th]
-  \includegraphics{Pipeline-PD.png}
+  \includegraphics{assets/img/Pipeline-PD.png}
   \caption{Instruction Pre-Decode Stage}
 \end{figure}
 
@@ -104,7 +104,7 @@ are available. It accesses the Register File, calculates immediate
 values, and sets bypasses.
 
 \begin{figure}[h]
-  \includegraphics{Pipeline-ID.png}
+  \includegraphics{assets/img/Pipeline-ID.png}
   \caption{Instruction Decode Stage Implementation}
 \end{figure}
 
@@ -157,7 +157,7 @@ Most operations complete in one clock cycle, except for the divide instructions,
 
 
 \begin{figure}[h]
-  \includegraphics{Pipeline-EX.png}
+  \includegraphics{assets/img/Pipeline-EX.png}
   \caption{Execute Stage Implementation}
 \end{figure}
 
@@ -204,7 +204,7 @@ Most operations complete in one clock cycle, except for the divide instructions,
 The Write-Back stage writes the results from the Execution Unit into the Register File.
 
 \begin{figure}[h]
-  \includegraphics{Pipeline-WB.png}
+  \includegraphics{assets/img/Pipeline-WB.png}
   \caption{Write-back Stage Implementation}
 \end{figure}
 
