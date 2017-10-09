@@ -8,36 +8,36 @@ Interfaces.
 
 \begin{longtable}[]{@{}lccl@{}}
 	\toprule
-	Port & Size & Direction & Description\tabularnewline
+	Port                & Size          & Direction & Description\tabularnewline
 	\midrule
 	\endhead
-	\texttt{HRESETn}    & 1 & Input & Asynchronous active low reset\tabularnewline
-	\texttt{HCLK}       & 1 & Input & System clock input\tabularnewline
-	\tabularnewline
-	\texttt{IHSEL}      & 1 & Output & Provided for AHB-Lite compatibility -- tied high (`1')\tabularnewline
-	\texttt{IHADDR}     & \texttt{XLEN} & Output & Instruction address\tabularnewline
-	\texttt{IHRDATA}    & 32 & Input & Instruction data\tabularnewline
-	\texttt{IHWRITE}    & 1 & Output & Instruction write\tabularnewline
-	\texttt{IHSIZE}     & 3 & Output & Transfer size\tabularnewline
-	\texttt{IHBURST}    & 3 & Output & Transfer burst size\tabularnewline
-	\texttt{IHPROT}     & 4 & Output & Transfer protection level\tabularnewline
-	\texttt{IHTRANS}    & 2 & Output & Transfer type\tabularnewline
-	\texttt{IHMASTLOCK} & 1 & Output & Transfer master lock\tabularnewline
-	\texttt{IHREADY}    & 1 & Input & Slave Ready Indicator\tabularnewline
-	\texttt{IHRESP}     & 1 & Input & Instruction Transfer Response\tabularnewline
-	\tabularnewline
-	\texttt{DHSEL}      & 1 & Output & Provided for AHB-Lite compatibility -- tied high (`1')\tabularnewline
-	\texttt{DHADDR}     & \texttt{XLEN} & Output & Data address\tabularnewline
-	\texttt{DHRDATA}    & \texttt{XLEN} & Input & Data read data\tabularnewline
-	\texttt{DHWDATA}    & \texttt{XLEN} & Output & Data write data\tabularnewline
-	\texttt{DHWRITE}    & 1 & Output & Instruction write\tabularnewline
-	\texttt{DHSIZE}     & 3 & Output & Transfer size\tabularnewline
-	\texttt{DHBURST}    & 3 & Output & Transfer burst size\tabularnewline
-	\texttt{DHPROT}     & 4 & Output & Transfer protection level\tabularnewline
-	\texttt{DHTRANS}    & 2 & Output & Transfer type\tabularnewline
-	\texttt{DHMASTLOCK} & 1 & Output & Transfer master lock\tabularnewline
-	\texttt{DHREADY}    & 1 & Input & Slave Ready Indicator\tabularnewline
-	\texttt{DHRESP}     & 1 & Input & Data Transfer Response\tabularnewline
+	\texttt{HRESETn}    & 1             & Input     & Asynchronous active low reset\tabularnewline
+	\texttt{HCLK}       & 1             & Input     & System clock input\tabularnewline
+	                    &               &           & \tabularnewline
+	\texttt{IHSEL}      & 1             & Output    & Provided for AHB-Lite compatibility -- tied high (`1')\tabularnewline
+	\texttt{IHADDR}     & \texttt{XLEN} & Output    & Instruction address\tabularnewline
+	\texttt{IHRDATA}    & 32            & Input     & Instruction data\tabularnewline
+	\texttt{IHWRITE}    & 1             & Output    & Instruction write\tabularnewline
+	\texttt{IHSIZE}     & 3             & Output    & Transfer size\tabularnewline
+	\texttt{IHBURST}    & 3             & Output    & Transfer burst size\tabularnewline
+	\texttt{IHPROT}     & 4             & Output    & Transfer protection level\tabularnewline
+	\texttt{IHTRANS}    & 2             & Output    & Transfer type\tabularnewline
+	\texttt{IHMASTLOCK} & 1             & Output    & Transfer master lock\tabularnewline
+	\texttt{IHREADY}    & 1             & Input     & Slave Ready Indicator\tabularnewline
+	\texttt{IHRESP}     & 1             & Input     & Instruction Transfer Response\tabularnewline
+	                    &               &           & \tabularnewline
+	\texttt{DHSEL}      & 1             & Output    & Provided for AHB-Lite compatibility -- tied high (`1')\tabularnewline
+	\texttt{DHADDR}     & \texttt{XLEN} & Output    & Data address\tabularnewline
+	\texttt{DHRDATA}    & \texttt{XLEN} & Input     & Data read data\tabularnewline
+	\texttt{DHWDATA}    & \texttt{XLEN} & Output    & Data write data\tabularnewline
+	\texttt{DHWRITE}    & 1             & Output    & Instruction write\tabularnewline
+	\texttt{DHSIZE}     & 3             & Output    & Transfer size\tabularnewline
+	\texttt{DHBURST}    & 3             & Output    & Transfer burst size\tabularnewline
+	\texttt{DHPROT}     & 4             & Output    & Transfer protection level\tabularnewline
+	\texttt{DHTRANS}    & 2             & Output    & Transfer type\tabularnewline
+	\texttt{DHMASTLOCK} & 1             & Output    & Transfer master lock\tabularnewline
+	\texttt{DHREADY}    & 1             & Input     & Slave Ready Indicator\tabularnewline
+	\texttt{DHRESP}     & 1             & Input     & Data Transfer Response\tabularnewline
 	\bottomrule
 	\caption{AMBA3 AHB-Lite Ports}
 	\label{tab:ahb-ports}
@@ -100,7 +100,7 @@ transfer or part of a burst.
 
 \begin{longtable}[]{@{}cll@{}}
 	\toprule
-	{\tt IHBURST} & Type & Description\tabularnewline
+	\texttt{IHBURST} & Type & Description\tabularnewline
 	\midrule
 	\endhead
 	\texttt{000} & Single & \emph{Not used}\tabularnewline
@@ -145,7 +145,7 @@ Bit\# & Value & Description\tabularnewline
 
 \begin{longtable}[]{@{}cll@{}}
 \toprule
-{\tt IHTRANS} & Type & Description\tabularnewline
+\texttt{IHTRANS} & Type & Description\tabularnewline
 \midrule
 \endhead
 \texttt{00} & IDLE   & No transfer required\tabularnewline
@@ -209,7 +209,7 @@ fill/write-back or a non-cacheable data transfer.
 
 \begin{longtable}[]{@{}clp{7.5cm}@{}}
 \toprule
-{\tt DHSIZE} & Type & Description\tabularnewline
+\texttt{DHSIZE} & Type & Description\tabularnewline
 \midrule
 \endhead
 \texttt{000}   & Byte     & Non-cacheable data transfer\tabularnewline
@@ -229,7 +229,7 @@ transfer or part of a burst.
 
 \begin{longtable}[]{@{}ccl@{}}
 \toprule
-{\tt DHBURST} & Type & Description\tabularnewline
+\texttt{DHBURST} & Type & Description\tabularnewline
 \midrule
 \endhead
 000 & Single & Single transfer. E.g. non-cacheable
@@ -275,7 +275,7 @@ Bit\# & Value & Description\tabularnewline
 
 \begin{longtable}[]{@{}ccl@{}}
 \toprule
-{\tt DHTRANS} & Type & Description\tabularnewline
+\texttt{DHTRANS} & Type & Description\tabularnewline
 \midrule
 \endhead
 00 & IDLE   & No transfer required\tabularnewline
@@ -342,10 +342,15 @@ RV12 core parameter \texttt{MNMIVEC\_DEFAULT} (see section \ref{core-parameters}
 The RV12 supports a single Machine-Mode timer interrupt \texttt{EXT\_TINT}.
 
 The interrupt may be delegated to other operating modes via software
-manipulation of \texttt{mip} and \texttt{sip} registers (See sections 7.6.8 and 7.7.3).
+manipulation of \texttt{mip} and \texttt{sip} registers.
 Alternatively, higher performance interrupt redirection may be
 implemented via use of the \texttt{mideleg} and \texttt{sideleg} configuration registers
+
+\ifdefined\MARKDOWN
+% Skip Row
+\else
 (See sections \ref{machine-exception-interrupt-delegation-registers-medeleg-mideleg} and \ref{supervisor-trap-delegation-registers-sedeleg-sideleg} ).
+\fi
 
 The interrupt vector used to service the interrupt is determined based
 on the mode the interrupt is delegated to via the \texttt{MTVEC\_DEFAULT},
@@ -356,10 +361,15 @@ on the mode the interrupt is delegated to via the \texttt{MTVEC\_DEFAULT},
 The RV12 supports a single Machine-Mode timer interrupt \texttt{EXT\_SINT}.
 
 The interrupt may be delegated to other operating modes via software
-manipulation of \texttt{mip} and \texttt{sip} registers (See sections 7.6.8 and 7.7.3).
+manipulation of \texttt{mip} and \texttt{sip} registers.
 Alternatively, higher performance interrupt redirection may be
 implemented via use of the \texttt{mideleg} and \texttt{sideleg} configuration registers
+
+\ifdefined\MARKDOWN
+% Skip Row
+\else
 (See sections \ref{machine-exception-interrupt-delegation-registers-medeleg-mideleg} and \ref{supervisor-trap-delegation-registers-sedeleg-sideleg} ).
+\fi
 
 The interrupt vector used to service the interrupt is determined based
 on the mode the interrupt is delegated to via the \texttt{MTVEC\_DEFAULT},
@@ -375,10 +385,10 @@ mode, as defined in Table \ref{tab:external-interrupt-inputs}:
 Interrupt & Priority & Mode Supported\tabularnewline
 \midrule
 \endhead
-EXT\_INT{[}3{]} & 3 & Machine Mode\tabularnewline
-EXT\_INT{[}2{]} & 2 & Reserved\tabularnewline
-EXT\_INT{[}1{]} & 1 & Supervisor Mode\tabularnewline
-EXT\_INT{[}0{]} & 0 & User Mode\tabularnewline
+EXT\_INT[3] & 3 & Machine Mode\tabularnewline
+EXT\_INT[2] & 2 & Reserved\tabularnewline
+EXT\_INT[1] & 1 & Supervisor Mode\tabularnewline
+EXT\_INT[0] & 0 & User Mode\tabularnewline
 \bottomrule
 \caption{External Interrupt Inputs}
 \label{tab:external-interrupt-inputs}

@@ -22,11 +22,12 @@
 
 % Overload \maketitle with new layout
 \renewcommand*{\maketitle}{%
+\hypersetup{pageanchor=false}
 \begin{titlepage}
 \par
 \vspace{3cm}
 {\raggedleft%
-	\includegraphics[width=12cm]{assets/img/Tagged_Logo_50}\par
+	\includegraphics[width=12cm]{assets/img/RoaLogic_Tagged_Logo}\par
 }\vspace{1cm}
 	\centering
 {\huge\bfseries\@title\unskip\strut\par}
@@ -42,5 +43,6 @@
 \vfill
 
 \end{titlepage}
+\hypersetup{pageanchor=true}
 }
 \endinput

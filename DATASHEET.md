@@ -72,14 +72,12 @@ The RISC-V specification provides for multi-threading and multi-core implementat
 
 The RV12 implements a single core 32/64bit Reduced Instruction Set Computing (RISC) Central Processing Unit (CPU) with a single hardware thread, based on the RISC-V User Instruction Set Architecture v2.2 and Supervisor Instruction Set Architecture v1.9.1 specifications. The core is highly configurable, providing the user with a trade-off between area, power, and performance, thus allowing it to be optimized for the intended task.
 
-See Chapter \[configurations\] for a description of the configuration options and parameters.
+See Configurations section for a description of the configuration options and parameters.
 
 Privilege Levels
 ----------------
 
-At any time, a hardware thread (*hart*) is running at some privilege level. The current privilege level is encoded in one or more Control and Status Registers (CSRs). See section 7, “Control & Status Registers”, for more information.
-
-The RISC-V specification defines four privilege levels, where each level provides its own protection and isolation..
+At any time, a hardware thread (*hart*) is running at some privilege level. The current privilege level is encoded in one or more Control and Status Registers (CSRs). The RISC-V specification defines four privilege levels, where each level provides its own protection and isolation..
 
 | Level | Encoding | Name             | Abbreviation |
 |:-----:|:--------:|:-----------------|:------------:|
@@ -128,15 +126,11 @@ During the Write Back stage the result from the Execution stage is written into 
 Branch Prediction Unit
 ----------------------
 
-The RV12 can execute one instruction every clock cycle. However due to the pipeline architecture each instruction takes several clock cycles to complete. When a branch instruction is decoded its conditions and outcome are not known. Waiting for the branch outcome before continuing fetching new instructions would cause excessive processor stalls, affecting the processor’s performance.
+The RV12 can execute one instruction every clock cycle. However due to the pipeline architecture each instruction takes several clock cycles to complete. When a branch instruction is decoded its conditions and outcome are not known and waiting for the branch outcome before continuing fetching new instructions would cause excessive processor stalls, affecting the processor’s performance.
 
-Instead of waiting the processor predicts the branch’s outcome and continues fetching instructions from the predicted address.
-
-When a branch is predicted wrong, the processor must flush its pipeline and restart fetching from the calculated branch address. The processor’s state is not affected because the pipeline is flushed and therefore none of the incorrectly fetched instructions is actually executed. However the branch prediction may have forced the Instruction Cache to load new instructions. The Instruction Cache state is NOT restored, meaning the predicted instructions remain in the Instruction Cache.
+Instead of waiting the processor predicts the branch’s outcome and continues fetching instructions from the predicted address. When a branch is predicted wrong, the processor must flush its pipeline and restart fetching from the calculated branch address. The processor’s state is not affected because the pipeline is flushed and therefore none of the incorrectly fetched instructions is actually executed. However the branch prediction may have forced the Instruction Cache to load new instructions. The Instruction Cache state is NOT restored, meaning the predicted instructions remain in the Instruction Cache.
 
 The RV12 has an optional Branch Prediction Unit (BPU) that stores historical data to guide the processor in deciding if a particular branch is taken or not-taken. The BPU data is updated as soon as the branch executes.
-
-If no BPU is present, then all forward branches are predicted taken and all backward branches are predicted not-taken.
 
 The BPU has a number of parameters that determine its behavior. `HAS_BPU` determines if a BPU is present, `BPU_LOCAL_BITS` determines how many of the program counter’s LSB must be used and `BPU_GLOBAL_BITS` determines how many history bits must be used.
 
@@ -144,10 +138,12 @@ The combination of `BPU_GLOBAL_BITS` and `BPU_LOCAL_BITS` creates a vector that 
 
 Setting `BPU_GLOBAL_BITS` to zero creates a local-predictor. Setting `BPU_GLOBAL_BITS` to any non-zero value adds history (previous branch prediction results) to the vector. This allows the branch predictor to handle nested branches. Increasing the number of `BPU_GLOBAL_BITS` adds more history to the vector at the expense of a larger Branch Prediction Table.
 
+If no BPU is present, then all forward branches are predicted taken and all backward branches are predicted not-taken.
+
 Control & Status Registers (CSRs)
 ---------------------------------
 
-The Control & Status Registers, or CSRs for short, provide information about the current state of the processor. See section 7, “Control & Status Registers”, for a description of the registers and their purpose.
+The Control & Status Registers, or CSRs for short, provide information about the current state of the processor. See section “Control & Status Registers”, for a description of the registers and their purpose.
 
 Debug Unit
 ----------
@@ -159,9 +155,7 @@ Data Cache
 
 The Data Cache is used to speed up data memory accesses by buffering recently accessed memory locations. The data cache is capable of handling, byte, half-word, and word accesses when `XLEN=32`, as long as they are on their respective boundaries. It is capable of handling byte, half-word, word, and double-word accesses when `XLEN=64`, as long as they are on their respective boundaries. Accessing a memory location on a non-natural boundary (e.g. a word access on address 0x003) causes a data-load trap.
 
-During a cache miss a complete block is written back to memory, if required, and a new block loaded is loaded into the cache.
-
-Setting `DCACHE_SIZE` to zero disables the Data Cache. Memory locations are then directly access via the Data Interface.
+During a cache miss a complete block is written back to memory, if required, and a new block loaded is loaded into the cache. Setting `DCACHE_SIZE` to zero disables the Data Cache. Memory locations are then directly access via the Data Interface.
 
 Instruction Cache
 -----------------
@@ -198,19 +192,19 @@ The Instruction Fetch unit loads a new parcel from the program memory. A parcel 
 
 In case the pipeline must be flushed the Program Counter is restarted from the given address.
 
-<span>@lccl@</span> **Signal** & **Direction** & **To/From** & **Description**
-**Signal** & **Direction** & **To/From** & **Description**
-
-if\_nxt\_pc & to & Bus Interface & Next address to fetch parcel from
-parcel\_pc & from & Bus Interface & Fetch parcel’s address
-parcel\_valid & from & Bus Interface & Valid indicators for parcel
-parcel & from & Bus Interface & Fetched parcel
-Flush & from & EX/State & When asserted flushes the pipe
-Stall & from & PD & When asserted stalls the pipe
-pd\_branch\_pc & from & PD & New program counter for a branch instruction
-if\_pc & to & PD & Instruction Fetch program counter
-if\_instr & to & PD & Instruction Fetch instruction
-if\_bubble & to & PD & Instruction Fetch bubble
+| **Signal**     | **Direction** |  **To/From**  | **Description**                              |
+|:---------------|:-------------:|:-------------:|:---------------------------------------------|
+| `if_nxt_pc`    |       to      | Bus Interface | Next address to fetch parcel from            |
+| `parcel_pc`    |      from     | Bus Interface | Fetch parcel’s address                       |
+| `parcel_valid` |      from     | Bus Interface | Valid indicators for parcel                  |
+| `parcel`       |      from     | Bus Interface | Fetched parcel                               |
+|                |               |               |                                              |
+| `Flush`        |      from     |    EX/State   | When asserted flushes the pipe               |
+| `Stall`        |      from     |       PD      | When asserted stalls the pipe                |
+| `pd_branch_pc` |      from     |       PD      | New program counter for a branch instruction |
+| `if_pc`        |       to      |       PD      | Instruction Fetch program counter            |
+| `if_instr`     |       to      |       PD      | Instruction Fetch instruction                |
+| `if_bubble`    |       to      |       PD      | Instruction Fetch bubble                     |
 
 Pre-Decode (PD)
 ---------------
@@ -219,18 +213,18 @@ The Pre-Decode unti translates 16-bit compressed instructions to the base 32bit 
 
 ![Instruction Pre-Decode Stage](assets/img/Pipeline-PD.png)
 
-<span>@lccl@</span> **Signal** & **Direction** & **To/From** & **Description**
-**Signal** & **Direction** & **To/From** & **Description**
-
-if\_pc & from & IF & Instruction\_fetch program counter
-if\_instr & from & IF & Instruction\_fetch instruction
-if\_bubble & from & IF & Instruction\_fetch bubble
-pd\_branch\_pc & to & IF & New PC (for a branch instruction)
-bu\_predict & from & BP & Branch prediction from Branch Prediction Unit
-pd\_predict & to & ID & Forwarded branch prediction
-pd\_pc & to & ID & Pre-Decode program counter
-pd\_instr & to & ID & Pre-Decode instruction
-pd\_bubble & to & ID & Pre-Decode bubble
+| **Signal**     | **Direction** | **To/From** | **Description**                               |
+|:---------------|:-------------:|:-----------:|:----------------------------------------------|
+| `if_pc`        |      from     |      IF     | Instruction\_fetch program counter            |
+| `if_instr`     |      from     |      IF     | Instruction\_fetch instruction                |
+| `if_bubble`    |      from     |      IF     | Instruction\_fetch bubble                     |
+| `pd_branch_pc` |       to      |      IF     | New PC (for a branch instruction)             |
+|                |               |             |                                               |
+| `bu_predict`   |      from     |      BP     | Branch prediction from Branch Prediction Unit |
+| `pd_predict `  |       to      |      ID     | Forwarded branch prediction                   |
+| `pd_pc`        |       to      |      ID     | Pre-Decode program counter                    |
+| `pd_instr`     |       to      |      ID     | Pre-Decode instruction                        |
+| `pd_bubble`    |       to      |      ID     | Pre-Decode bubble                             |
 
 Instruction Decode (ID)
 -----------------------
@@ -239,51 +233,51 @@ The Instruction Decode unit ensures the operands for the execution units are ava
 
 ![Instruction Decode Stage Implementation](assets/img/Pipeline-ID.png)
 
-<span>@lccl@</span> **Signal** & **Direction** & **To/From** & **Description**
-**Signal** & **Direction** & **To/From** & **Description**
-
-pd\_pc & from & PD & Pre-Decode program counter
-pd\_instr & from & PD & Pre-Decode instruction
-pd\_bubble & from & PD & Pre-Decode bubble
-src1 & to & RF & Source Register1 index
-src2 & to & RF & Source Register2 Index
-id\_bypassA & to & EX & Bypass signals for srcA
-id\_bypassB & to & EX & Bypass signals for srcB
-id\_opA & to & EX & Calculated operandA
-id\_opB & to & EX & Calculated operandB
-id\_pc & to & EX & Instruction Decode program counter
-id\_instr & to & EX & Instruction Decode instruction
-id\_bubble & to & EX & Instruction Decode bubble
+| **Signal**   | **Direction** | **To/From** | **Description**                    |
+|:-------------|:-------------:|:-----------:|:-----------------------------------|
+| `pd_pc`      |      from     |      PD     | Pre-Decode program counter         |
+| `pd_instr`   |      from     |      PD     | Pre-Decode instruction             |
+| `pd_bubble`  |      from     |      PD     | Pre-Decode bubble                  |
+|              |               |             |                                    |
+| `src1`       |       to      |      RF     | Source Register1 index             |
+| `src2`       |       to      |      RF     | Source Register2 Index             |
+|              |               |             |                                    |
+| `id_bypassA` |       to      |      EX     | Bypass signals for srcA            |
+| `id_bypassB` |       to      |      EX     | Bypass signals for srcB            |
+| `id_opA`     |       to      |      EX     | Calculated operandA                |
+| `id_opB`     |       to      |      EX     | Calculated operandB                |
+| `id_pc`      |       to      |      EX     | Instruction Decode program counter |
+| `id_instr`   |       to      |      EX     | Instruction Decode instruction     |
+| `id_bubble`  |       to      |      EX     | Instruction Decode bubble          |
 
 Execute (EX)
 ------------
 
-The Execute stage performs the required operation on the data provided by the Instruction Decode stage. The Execution stage has multiple execution units, each with a unique function; The ALU performs logical and arithmetic operations. The Multiplier unit calculates signed/unsigned multiplications. The Divider unit calculates signed/unsigned division and remainder. The Load-Store Unit accesses the data memory. The Branch Unit calculates jump and branch addresses and validates the predicted branches.
+The Execute stage performs the required operation on the data provided by the Instruction Decode stage. The Execution stage has multiple execution units, each with a unique function. The ALU performs logical and arithmetic operations. The Multiplier unit calculates signed/unsigned multiplications. The Divider unit calculates signed/unsigned division and remainder. The Load-Store Unit accesses the data memory. The Branch Unit calculates jump and branch addresses and validates the predicted branches.
 
 Only one operation can be executed per clock cycle. Most operations complete in one clock cycle, except for the divide instructions, which always take multiple clock cycles to complete. The multiplier supports configurable latencies, to improve performance.
 
 ![Execute Stage Implementation](assets/img/Pipeline-EX.png)
 
-<span>@lccl@</span> **Signal** & **Direction** & **To/From** & **Description**
-**Signal** & **Direction** & **To/From** & **Description**
-
-id\_pc & from & ID & Instruction Decode program counter
-id\_instr & from & ID & Instruction Decode instruction
-id\_bubble & from & ID & Instruction Decode bubble
-& & &
-opA & from & RF & Source Register1 value
-opB & from & RF & Source Register2 value
-& & &
-id\_bypassA & from & ID & Bypass signals for srcA
-id\_bypassB & from & ID & Bypass signals for srcB
-id\_opA & from & ID & Calculated operandA
-id\_opB & from & ID & Calculated operandB
-ex\_stall & to & ID & Stall ID (and higher) stages
-ex\_flush & to & ID/PD/IF & Flush ID (and higher) pipe stages
-ex\_r & to & WB & Result from execution units
-ex\_pc & to & WB & Execute program counter
-ex\_instr & to & WB & Execute instruction
-ex\_bubble & to & WB & Execute bubble
+| **Signal**  | **Direction** | **To/From** | **Description**                    |
+|:------------|:-------------:|:-----------:|:-----------------------------------|
+| id\_pc      |      from     |      ID     | Instruction Decode program counter |
+| id\_instr   |      from     |      ID     | Instruction Decode instruction     |
+| id\_bubble  |      from     |      ID     | Instruction Decode bubble          |
+|             |               |             |                                    |
+| opA         |      from     |      RF     | Source Register1 value             |
+| opB         |      from     |      RF     | Source Register2 value             |
+|             |               |             |                                    |
+| id\_bypassA |      from     |      ID     | Bypass signals for srcA            |
+| id\_bypassB |      from     |      ID     | Bypass signals for srcB            |
+| id\_opA     |      from     |      ID     | Calculated operandA                |
+| id\_opB     |      from     |      ID     | Calculated operandB                |
+| ex\_stall   |       to      |      ID     | Stall ID (and higher) stages       |
+| ex\_flush   |       to      |   ID/PD/IF  | Flush ID (and higher) pipe stages  |
+| ex\_r       |       to      |      WB     | Result from execution units        |
+| ex\_pc      |       to      |      WB     | Execute program counter            |
+| ex\_instr   |       to      |      WB     | Execute instruction                |
+| ex\_bubble  |       to      |      WB     | Execute bubble                     |
 
 Write-Back (WB)
 ---------------
@@ -292,216 +286,18 @@ The Write-Back stage writes the results from the Execution Unit into the Registe
 
 ![Write-back Stage Implementation](assets/img/Pipeline-WB.png)
 
-<span>@lccl@</span> **Signal** & **Direction** & **To/From** & **Description**
-**Signal** & **Direction** & **To/From** & **Description**
-
-ex\_pc & from & EX & Execute program counter
-ex\_instr & from & EX & Execute instruction
-ex\_bubble & from & EX & Execute bubble
-ex\_r & from & EX & Result from execution units
-& & &
-wb\_r & to & RF & Result to be written to RF
-wb\_dst & to & RF & Destination register index
-wb\_we & to & RF & Write enable
-wb\_pc & to & WB & WriteBack program counter
-wb\_instr & to & WB & WriteBack instruction
-
-Configurations
-==============
-
-Introduction
-------------
-
-The RV12 is a highly configurable 32 or 64bit RISC CPU. The core parameters and configuration options are described in this section.
-
-Core Parameters
----------------
-
-<span>@cccp<span>7cm</span>@</span> Parameter & Type & Default & Description
-
-Parameter & Type & Default & Description
-
-`XLEN` & Integer & 32 & Datapath width`PC_INIT` & Address & ‘h200 & Program Counter Initialisation Vector`PHYS_ADDR_SIZE` & Integer & `XLEN` & Physical Address Size`HAS_USER` & Integer & 0 & User Mode Enable`HAS_SUPER` & Integer & 0 & Supervisor Mode Enable`HAS_HYPER` & Integer & 0 & Hypervisor Mode Enable`HAS_MULDIV` & Integer & 0 & “M” Extension Enable`HAS_AMO` & Integer & 0 & “A” Extension Enable`HAS_RVC` & Integer & 0 & “C” Extension Enable`HAS_BPU` & Integer & 1 & Branch Prediction Unit Control Enable`IS_RV32E` & Integer & 0 & RV32E Base Integer Instruction Set Enable`MULT_LATENCY` & Integer & 0 & Hardware Multiplier Latency (if “M” Extension enabled)`BP_LOCAL_BITS` & Integer & 10 & Number of local predictor bits`BP_GLOBAL_BITS` & Integer & 2 & Number of global predictor bits`HARTID` & Integer & 0 & Hart Identifier`ICACHE_SIZE` & Integer & 16 & Instruction Cache size in Kbytes`ICACHE_BLOCK_SIZE` & Integer & 32 & Instruction Cache block length in bytes`ICACHE_WAYS` & Integer & 2 & Instruction Cache associativity`ICACHE_REPLACE_ALG` & Integer & 0 & Instruction Cache replacement algorithm 0: Random 1: FIFO 2: LRU`DCACHE_SIZE` & Integer & 16 & Data Cache size in Kbytes`DCACHE_BLOCK_SIZE` & Integer & 32 & Data Cache block length in bytes`DCACHE_WAYS` & Integer & 2 & Data Cache associativity`DCACHE_REPLACE_ALG` & Integer & 0 & Data Cache replacement algorithm 0: Random 1: FIFO 2: LRU`BREAKPOINTS` & Integer & 3 & Number of hardware breakpoints`TECHNOLOGY` & String & `GENERIC` & Target Silicon Technology`MNMIVEC_DEFAULT` & Address & `PC_INIT-‘h004` & Machine Mode Non-Maskable Interrupt vector address`MTVEC_DEFAULT` & Address & `PC_INIT-‘h040` & Machine Mode Interrupt vector address`HTVEC_DEFAULT` & Address & `PC_INIT-‘h080` & Hypervisor Mode Interrupt vector address`STVEC_DEFAULT` & Address & `PC_INIT-‘h0C0` & Supervisor Mode Interrupt vector address`UTVEC_DEFAULT` & Address & `PC_INIT-‘h100` & User Mode Interrupt vector address
-
-### XLEN
-
-The `XLEN` parameter specifies the width of the data path. Allowed values are either 32 or 64, for a 32bit or 64bit CPU respectively.
-
-### PC\_INIT
-
-The `PC_INIT` parameter specifies the initialization vector of the Program Counter; i.e. the boot address, which by default is defined as address ‘h200
-
-### PHYS\_ADDR\_SIZE
-
-The `PHYS_ADDR_SIZE` parameter specifies the physical address space the CPU can address. This parameter must be equal or less than XLEN. Using fewer bits for the physical address reduces internal and external resources. Internally the CPU still uses `XLEN`, but only the `PHYS_ADDR_SIZE` LSBs are used to address the caches and the external buses.
-
-### HAS\_USER
-
-The `HAS_USER` parameter defines if User Privilege Level is enabled (‘1’) or disabled (‘0’). The default value is disabled (‘0’).
-
-### HAS\_SUPER
-
-The `HAS_SUPER` parameter defines if Supervisor Privilege Level is enabled (‘1’) or disabled (‘0’). The default value is disabled (‘0’).
-
-### HAS\_HYPER
-
-The `HAS_HYPER` parameter defines if Hypervisor Privilege Level is enabled (‘1’) or disabled (‘0’). The default value is disabled (‘0’).
-
-### HAS\_MULDIV
-
-The `HAS_MULDIV` parameter defines if the “M” Standard Extension for Integer Multiplication and Division is enabled (‘1’) or disabled (‘0’). The default value is disabled (‘0’).
-
-### HAS\_AMO
-
-The `HAS_AMO` parameter defines if the “A” Standard Extension for Atomic Memory Instructions is enabled (‘1’) or disabled (‘0’). The default value is disabled (‘0’).
-
-### HAS\_RVC
-
-The `HAS_RVC` parameter defines if the “C” Standard Extension for Compressed Instructions is enabled (‘1’) or disabled (‘0’). The default value is disabled (‘0’).
-
-### HAS\_BPU
-
-The CPU has an optional Branch Prediction Unit that can reduce the branch penalty considerably by prediction if a branch is taken or not taken. The `HAS_BPU` parameter specifies if the core should generate a branch-predictor. Setting this parameter to 0 prevents the core from generating a branch-predictor. Setting this parameter to 1 instructs the core to generate a branch-predictor. The type and size of the branch-predictor is determined by the `BP_GLOBAL_BITS` and `BP_LOCAL_BITS` parameters.
-
-See section \[branch-prediction-unit\] for more details.
-
-### IS\_RV12E
-
-RV12 supports the RV32E Base Integer Instruction Set, Version 1.9. RV32E is a reduced version of RV32I designed for embedded systems, reducing the number of integer registers to 16. The `IS_RV12E` parameter determines if this feature is enabled (‘1’) or disabled (‘0’). The default value is disabled (‘0’).
-
-### MULT\_LATENCY
-
-If the “M” Standard Extension for Integer Multiplication and Division is enabled via the `HAS_MULDIV` parameter (`HAS_MULDIV=1` See section 4.2.7), a hardware multiplier will be generated to support these instructions. By default (i.e. when `MULT_LATENCY=0`) the generated multiplier will be built as a purely combinatorial function.
-
-The performance of the hardware multiplier may be improved at the expense of increased latency of 1, 2 or 3 clock cycles by defining `MULT_LATENCY` to 1, 2 or 3 respectively.
-
-If the “M” Standard Extension is *not* enabled (`HAS_MULDIV=0`) then the MULT\_LATENCY parameter has no effect on the RV12 implementation.
-
-### BPU\_LOCAL\_BITS
-
-The CPU has an optional Branch Prediction Unit that can reduce the branch penalty considerably by prediction if a branch is taken or not taken. The `BPU_LOCAL_BITS` parameter specifies how many bits from the program counter should be used for the prediction.
-
-This parameter only has an effect if `HAS_BPU=1`.
-
-See section \[branch-prediction-unit\] for more details.
-
-### BPU\_GLOBAL\_BITS
-
-The CPU has an optional Branch Prediction Unit that can reduce the branch penalty considerably by prediction if a branch is taken or not-taken. The `BPU_GLOBAL_BITS` parameter specifies how many history bits should be used for the prediction.
-
-This parameter only has an effect if `HAS_BPU=1`.
-
-See section \[branch-prediction-unit\] for more details.
-
-### HARTID
-
-The RV12 is a single thread CPU, for which each instantiation requires a hart identifier (`HARTID`), which must be unique within the overall system. The default `HARTID` is 0, but may be set to any integer.
-
-### ICACHE\_SIZE
-
-The CPU has an optional instruction cache. The `ICACHE_SIZE` parameter specifies the size of the instruction cache in Kbytes. Setting this parameter to 0 prevents the core from generating an instruction cache.
-
-See section \[instruction-cache\] for more details.
-
-### ICACHE\_BLOCK\_LENGTH
-
-The CPU has an optional instruction cache. The `ICACHE_BLOCK_LENGTH` parameter specifies the number of bytes in one cache block.
-
-See section \[instruction-cache\] for more details.
-
-### ICACHE\_WAYS
-
-The CPU has an optional instruction cache. The `ICACHE_WAYS` parameter specifies the associativity of the cache. Setting this parameter to 1 generates a direct mapped cache, setting it to 2 generates a 2-way set associative cache, setting it to 4 generates a 4-way set associative cache, etc.
-
-See section \[instruction-cache\] for more details.
-
-### ICACHE\_REPLACE\_ALG
-
-The CPU has an optional instruction cache. The `ICACHE_REPLACE_ALG` parameter specifies the algorithm used to select which block will be replaced during a block-fill.
-
-See section \[instruction-cache\] for more details.
-
-### DCACHE\_SIZE
-
-The CPU has an optional data cache. The DCACHE\_SIZE parameter specifies the size of the instruction cache in Kbytes. Setting this parameter to ‘0’ prevents the core from generating a data cache.
-
-See section \[data-cache\] for more details.
-
-### DCACHE\_BLOCK\_LENGTH
-
-The CPU has an optional data cache. `The DCACHE_BLOCK_LENGTH` parameter specifies the number of bytes in one cache block.
-
-See section \[data-cache\] for more details.
-
-### DCACHE\_WAYS
-
-The CPU has an optional data cache. The `DCACHE_WAYS` parameter specifies the associativity of the cache. Setting this parameter to 1 generates a direct mapped cache, setting it to 2 generates a 2-way set associative cache, setting it to 4 generates a 4-way set associative cache, etc.
-
-See section \[data-cache\] for more details.
-
-### DCACHE\_REPLACE\_ALG
-
-The CPU has an optional instruction cache. The `DCACHE_REPLACE_ALG` parameter specifies the algorithm used to select which block will be replaced during a block-fill.
-
-See section \[data-cache\] for more details.
-
-### BREAKPOINTS
-
-The CPU has a debug unit that connects to an external debug controller. The `BREAKPOINTS` parameter specifies the number of implemented hardware breakpoints. The maximum is 8.
-
-### TECHNOLOGY
-
-The `TECHNOLOGY` parameter defines the target silicon technology and may be one of the following values:
-
-| Parameter Value | Description                       |
-|:---------------:|:----------------------------------|
-|    `GENERIC`    | Behavioural Implementation        |
-|      `N3X`      | eASIC Nextreme-3 Structured ASIC  |
-|      `N3XS`     | eASIC Nextreme-3S Structured ASIC |
-
-Note: the parameter value is not case-sensitive.
-
-### MNMIVEC\_DEFAULT
-
-The `MNMIVEC_DEFAULT` parameter defines the Machine Mode non-maskable interrupt vector address. The default vector is defined relative to the Program Counter Initialisation vector `PC_INIT` as follows:
-
-`MNMIVEC_DEFAULT = PC_INIT - ’h004`
-
-### MTVEC\_DEFAULT
-
-The `MTVEC_DEFAULT` parameter defines the interrupt vector address for the Machine Privilege Level. The default vector is defined relative to the Program Counter Initialisation vector `PC_INIT` as follows:
-
-`MTVEC_DEFAULT = PC_INIT - ’h040`
-
-### HTVEC\_DEFAULT
-
-The `HTVEC_DEFAULT` parameter defines the interrupt vector address for the Hypervisor Privilege Level. The default vector is defined relative to the Program Counter Initialisation vector `PC_INIT` as follows:
-
-`HTVEC_DEFAULT = PC_INIT - ’h080`
-
-### STVEC\_DEFAULT
-
-The `STVEC_DEFAULT` parameter defines the interrupt vector address for the Supervisor Privilege Level. The default vector is defined relative to the Program Counter Initialisation vector `PC_INIT` as follows:
-
-`STVEC_DEFAULT = PC_INIT - ’h0C0`
-
-### UTVEC\_DEFAULT
-
-The `UTVEC_DEFAULT` parameter defines the interrupt vector address for the User Privilege Level. The default vector is defined relative to the Program Counter Initialisation vector `PC_INIT` as follows:
-
-`UTVEC_DEFAULT = PC_INIT - ’h100`
-
-Non User-Modifiable Parameters
-------------------------------
-
-The RV12 features a number of parameters that are not intended to be modified in a user design. For completeness these parameters and their defined values are specified below:
-
-| Parameter  | Type        |       Value      | Description                |
-|:-----------|:------------|:----------------:|:---------------------------|
-| `VENDORID` | Vector (16) |     16’H0001     | Roa Logic Vendor ID        |
-| `ARCHID`   | Vector (16) | 1&lt;&lt;XLEN 12 | RV12 Architecture ID       |
-| `REVMAJOR` | Vector (4)  |       4’h0       | RV12 Major Revision Number |
-| `REVMINOR` | Vector (4)  |       4’h0       | RV12 Minor Revision Number |
+| **Signal**  | **Direction** | **To/From** | **Description**             |
+|:------------|:-------------:|:-----------:|:----------------------------|
+| `ex_pc`     |      from     |      EX     | Execute program counter     |
+| `ex_instr`  |      from     |      EX     | Execute instruction         |
+| `ex_bubble` |      from     |      EX     | Execute bubble              |
+| `ex_r`      |      from     |      EX     | Result from execution units |
+|             |               |             |                             |
+| `wb_r`      |       to      |      RF     | Result to be written to RF  |
+| `wb_dst`    |       to      |      RF     | Destination register index  |
+| `wb_we`     |       to      |      RF     | Write enable                |
+| `wb_pc`     |       to      |      WB     | WriteBack program counter   |
+| `wb_instr`  |       to      |      WB     | WriteBack instruction       |
 
 Control & Status Registers
 ==========================
@@ -514,17 +310,6 @@ The state of the CPU is maintained by the Control & Status Registers (CSRs). The
 Accessing the CSRs
 ------------------
 
-<span>M@R@F@R@S</span>
-<span>   </span> & <span>   </span> & <span>   </span> & <span>   </span> & <span>   </span>
-& & & &
-12 & 5 & 3 & 5 & 7
-source/dest & source & CSRRW & dest & SYSTEM
-source/dest & source & CSRRS & dest & SYSTEM
-source/dest & source & CSRRC & dest & SYSTEM
-source/dest & zimm\[4:0\] & CSRRWI & dest & SYSTEM
-source/dest & zimm\[4:0\] & CSRRSI & dest & SYSTEM
-source/dest & zimm\[4:0\] & CSRRCI & dest & SYSTEM
-
 The CSRRW (Atomic Read/Write CSR) instruction atomically swaps values in the CSRs and integer registers. CSRRW reads the old value of the CSR, zero-extends the value to XLEN bits, and writes it to register *rd*. The initial value in register *rs1* is written to the CSR.
 
 The CSRRS (Atomic Read and Set CSR) instruction reads the old value of the CSR, zero-extends the value to XLEN bits, and writes it to register *rd*. The initial value in register *rs1* specifies the bit positions to be set in the CSR. Any bit that is high in *rs1* will be set in the CSR, assuming that bit can be set. The effect is a logic OR between the old value in the CSR and the new value in *rs1*.
@@ -533,7 +318,7 @@ If *rs1*=X0, then the CSR is not written to.
 
 The CSRRC (Atomic Read and Clear CSR) instruction reads the old value of the CSR, zero-extends the value to XLEN bits, and writes it to register *rd*. The initial value in register *rs1* specifies the bit positions to be cleared in the CSR. Any bit that is high in *rs1* will be cleared in the CSR, assuming that bit can be cleared. If *rs1*=X0, then the CSR is not written to.
 
-The CSRRWI, CSRRSI, and CSRRCI commands are similar in behavior. Except that they update the CSR using an immediate value, instead of referencing a source register. The immediate value is obtained by zero-extending the 5bit *zimm* field. If *zimm<span>\[</span>4:0<span>\]</span>* is zero, then the CSR is not written to.
+The CSRRWI, CSRRSI, and CSRRCI commands are similar in behavior. Except that they update the CSR using an immediate value, instead of referencing a source register. The immediate value is obtained by zero-extending the 5bit *zimm* field. If *zimm\[4:0\]* is zero, then the CSR is not written to.
 
 Illegal CSR accesses
 --------------------
@@ -542,14 +327,6 @@ Depending on the privilege level some CSRs may not be accessible. Attempts to ac
 
 Timers and Counters
 -------------------
-
-<span>M@R@F@R@S</span>
-<span>   </span> & <span>   </span> & <span>   </span> & <span>   </span> & <span>   </span>
-& & & &
-12 & 5 & 3 & 5 & 7
-RDCYCLE\[H\] & 0 & CSRRS & dest & SYSTEM
-RDTIME\[H\] & 0 & CSRRS & dest & SYSTEM
-RDINSTRET\[H\] & 0 & CSRRS & dest & SYSTEM
 
 The RV12 provides a number of 64-bit read-only user-level counters, which are mapped into the 12-bit CSR address space and accessed in 32-bit pieces using CSRRS instructions.
 
@@ -568,41 +345,57 @@ The following sections describe each of the register functions as specifically i
 
 Note: These descriptions are derived from “The RISC-V Instruction Set Manual, Volume II: Privileged Architecture, Version 1.9.1", Editors Andrew Waterman and Krste Asanović, RISC-V Foundation, November 4, 2016, and released under the Creative Commons Attribution 4.0 International License
 
-<span>@cccl@</span> **Address** & **Privilege** & **Name** & **Description**
-**Address** & **Privilege** & **Name** & **Description**
+| **Address** | **Privilege** |   **Name**  | **Description**                           |
+|:-----------:|:-------------:|:-----------:|:------------------------------------------|
+|    0xF11    |      MRO      | `mvendorid` | Vendor ID                                 |
+|    0xF12    |      MRO      |  `marchid`  | Architecture ID                           |
+|    0xF13    |      MRO      |   `mimpid`  | Implementation ID                         |
+|    0xF14    |      MRO      |  `mhartid`  | Hardware thread ID                        |
+|    0x300    |      MRW      |  `mstatus`  | Machine status register                   |
+|    0x301    |      MRW      |    `misa`   | ISA and extensions                        |
+|    0x302    |      MRW      |  `medeleg`  | Machine exception delegation register     |
+|    0x303    |      MRW      |  `mideleg`  | Machine interrupt delegation register     |
+|    0x304    |      MRW      |    `mie`    | Machine interrupt-enable register         |
+|    0x305    |      MRW      |   `mtvec`   | Machine trap-handler base address         |
+|    0x7c0    |      MRW      |  `mnmivec`  | Machine non-maskable interrupt vector     |
+|    0x340    |      MRW      |  `mscratch` | Scratch register for machine trap handler |
+|    0x341    |      MRW      |    `mepc`   | Machine exception program counter         |
+|    0x342    |      MRW      |   `mcause`  | Machine trap cause                        |
+|    0x343    |      MRW      |  `mbadaddr` | Machine bad address                       |
+|    0x344    |      MRW      |    `mip`    | Machine interrupt pending                 |
+|    0xB00    |      MRW      |   `mcycle`  | Machine cycle counter                     |
+|    0xB02    |      MRW      |  `minstret` | Machine instructions-retired counter      |
+|    0xB80    |      MRW      |  `mcycleh`  | Upper 32 bits of `mcycle`, RV32I only     |
+|    0xB82    |      MRW      | `minstreth` | Upper 32 bits of `minstret`, RV32I only   |
 
-0xF11 & MRO & `mvendorid` & Vendor ID0xF12 & MRO & `marchid` & Architecture ID0xF13 & MRO & `mimpid` & Implementation ID0xF14 & MRO & `mhartid` & Hardware thread ID
+| **Address** | **Privilege** |  **Name**  | **Description**                          |
+|:-----------:|:-------------:|:----------:|:-----------------------------------------|
+|    0x100    |      SRW      |  `sstatus` | Supervisor status register               |
+|    0x102    |      SRW      |  `sedeleg` | Supervisor exception delegation register |
+|    0x103    |      SRW      |  `sideleg` | Supervisor interrupt delegation register |
+|    0x104    |      SRW      |    `sie`   | Supervisor interrupt-enable register     |
+|    0x105    |      SRW      |   `stvec`  | Supervisor trap handler base address     |
+|    0x140    |      SRW      | `sscratch` | Scratch register for trap handler        |
+|    0x141    |      SRW      |   `sepc`   | Supervisor exception program counter     |
+|    0x142    |      SRO      |  `scause`  | Supervisor trap cause                    |
+|    0x143    |      SRO      | `sbadaddr` | Supervisor bad address                   |
+|    0x144    |      SRW      |    `sip`   | Supervisor interrupt pending register    |
 
-0x300 & MRW & `mstatus` & Machine status register0x301 & MRW & `misa` & ISA and extensions0x302 & MRW & `medeleg` & Machine exception delegation register0x303 & MRW & `mideleg` & Machine interrupt delegation register0x304 & MRW & `mie` & Machine interrupt-enable register0x305 & MRW & `mtvec` & Machine trap-handler base address0x7c0 & MRW & `mnmivec` & Machine non-maskable interrupt vector
-
-0x340 & MRW & `mscratch` & Scratch register for machine trap handler0x341 & MRW & `mepc` & Machine exception program counter0x342 & MRW & `mcause` & Machine trap cause0x343 & MRW & `mbadaddr` & Machine bad address0x344 & MRW & `mip` & Machine interrupt pending
-
-0xB00 & MRW & `mcycle` & Machine cycle counter0xB02 & MRW & `minstret` & Machine instructions-retired counter0xB80 & MRW & `mcycleh` & Upper 32 bits of `mcycle`, RV32I only0xB82 & MRW & `minstreth` & Upper 32 bits of `minstret`, RV32I only
-
-<span>@cccl@</span> **Address** & **Privilege** & **Name** & **Description**
-**Address** & **Privilege** & **Name** & **Description**
-
-0x100 & SRW & `sstatus` & Supervisor status register 0x102 & SRW & `sedeleg` & Supervisor exception delegation register 0x103 & SRW & `sideleg` & Supervisor interrupt delegation register 0x104 & SRW & `sie` & Supervisor interrupt-enable register 0x105 & SRW & `stvec` & Supervisor trap handler base address
-
-0x140 & SRW & `sscratch` & Scratch register for trap handler 0x141 & SRW & `sepc` & Supervisor exception program counter 0x142 & SRO & `scause` & Supervisor trap cause 0x143 & SRO & `sbadaddr` & Supervisor bad address 0x144 & SRW & `sip` & Supervisor interrupt pending register
-
-<span>@cccl@</span> **Address** & **Privilege** & **Name** & **Description**
-**Address** & **Privilege** & **Name** & **Description**
-
-0xC00 & URO & `cycle` & Cycle counter for `RDCYCLE` instruction 0xC02 & URO & `instret` & Instruction-retire counter for `RDINSTRET` 0xC80 & URO & `cycleh` & Upper 32bits of `cycle`, RV32I only 0xC82 & URO & `instret` h& Upper 32bit of `instret`, RV32I only
+| **Address** | **Privilege** |   **Name**  | **Description**                            |
+|:-----------:|:-------------:|:-----------:|:-------------------------------------------|
+|    0xC00    |      URO      |   `cycle`   | Cycle counter for `RDCYCLE` instruction    |
+|    0xC02    |      URO      |  `instret`  | Instruction-retire counter for `RDINSTRET` |
+|    0xC80    |      URO      |   `cycleh`  | Upper 32bits of `cycle`, RV32I only        |
+|    0xC82    |      URO      | `instret` h | Upper 32bit of `instret`, RV32I only       |
 
 Machine Level CSRs
 ------------------
 
 In addition to the machine-level CSRs described in this section, M-mode can access all CSRs at lower privilege levels.
 
-### Machine ISA Register (misa)
+### Machine ISA Register (`misa`)
 
-The <span>misa</span> register is an XLEN-bit WARL read-write register reporting the ISA supported by the hart.
-
-<span>c@c@J</span> <span>   </span> & <span>   </span> & <span>   </span>
-& &
-2 & XLEN-28 & 26
+The `misa` register is an XLEN-bit WARL read-write register reporting the ISA supported by the hart.
 
 The extensions field encodes the presence of the standard extensions, with a single bit per letter of the alphabet (bit 0 encodes the presence of extension “A”, bit 1 encodes the presence of extension “B”, through to bit 25 that encodes the presence of extension “Z”).
 
@@ -615,57 +408,35 @@ The Base field encodes the native base integer ISA width as shown:
 |   1   |      32     |
 |   2   |      64     |
 
-### Vendor ID Register (<span>mvendorid</span>)
+### Vendor ID Register (`mvendorid`)
 
-The <span>mvendorid</span> read-only register is an XLEN-bit register encoding the manufacturer of the device.
-
-<span>J</span> <span>   </span>
-XLEN
+The `mvendorid` read-only register is an XLEN-bit register encoding the manufacturer of the device.
 
 Non-Zero vendor IDs will be allocated by the RISC-V Foundation.
 
-### Architecture ID Register (<span>marchid</span>)
+### Architecture ID Register (`marchid`)
 
-The <span>marched</span> CSR is an XLEN-bit read-only register encoding the base microarchitecture of the hart. For the RV12 CPU this is defined as:
-
-<span>J</span> <span>   </span>
-XLEN
+The `marched` CSR is an XLEN-bit read-only register encoding the base microarchitecture of the hart. For the RV12 CPU this is defined as:
 
 Note: Open-source project architecture IDs are allocated globally by the RISC-V Foundation, and have non-zero architecture IDs with a zero most-significant-bit (MSB). Commercial architecture IDs are allocated by each commercial vendor independently and have the MSB set.
 
-### Implementation ID Register (<span>mimpid</span>)
+### Implementation ID Register (`mimpid`)
 
-The <span>mimpid</span> read-only register provides hardware version information for the CPU. In the Roa Logic implementation, the 2 least significant bytes encode the major and minor code revisions.
+The `mimpid` read-only register provides hardware version information for the CPU. In the Roa Logic implementation, the 2 least significant bytes encode the major and minor code revisions.
 
-<span>J</span> <span>   </span>
-XLEN
+The `mimpid` register is an XLEN size register, but the RV12 only implements the lower 32 bits. For an RV64 implementation the MSBs are zero extended.
 
-The <span>mimpid</span> register is an XLEN size register, but the RV12 only implements the lower 32 bits. For an RV64 implementation the MSBs are zero extended.
+### Hardware Thread ID Register (`mhartid`)
 
-### Hardware Thread ID Register (<span>mhartid</span>)
-
-<span>J</span> <span>   </span>
-XLEN
-
-The <span>mhartid</span> read-only register indicates the hardware thread that is running the code. The RV12 implements a single thread, therefore this register always reads zero.
+The `mhartid` read-only register indicates the hardware thread that is running the code. The RV12 implements a single thread, therefore this register always reads zero.
 
 ### Machine Status Register (`mstatus`)
 
-The <span>mstatus</span> register is an `XLEN`-bit read/write register that keeps track of and controls the *hart’s* current operating state.
+The `mstatus` register is an `XLEN`-bit read/write register that keeps track of and controls the *hart’s* current operating state.
 
 #### Privilege and Global Interrupt-Enable Stack in mstatus register
 
 Interrupt-enable bits, `MIE`, `SIE`, and `UIE`, are provided for each privilege mode. These bits are primarily used to guarantee atomicity with respect to interrupt handlers at the current privilege level. When a hart is executing in privilege mode *x*, interrupts are enabled when `xIE=1`. Interrupts for lower privilege modes are always disabled, whereas interrupts for higher privilege modes are always enabled. Higher-privilege-level code can use separate per-interrupt enable bits to disable selected interrupts before ceding control to a lower privilege level.
-
-<span>cEccccccc</span>
-& <span>   </span> & <span>   </span> & <span>   </span> & & & & <span>   </span> &
-& & & & & & & &
-1 & XLEN-30 & 5 & 4 & 1 & 1 & 1 & 2 &
-
-|     | <span>   </span> | <span>   </span> | <span>   </span> |     |     |     |     |     |     |     |     |     |
-|:---:|:----------------:|:----------------:|:----------------:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-|     |                  |                  |                  |     |     |     |     |     |     |     |     |     |
-|     |         2        |         2        |         2        |  1  |  1  |  1  |  1  |  1  |  1  |  1  |  1  |  1  |
 
 The `MRET`, `SRET`, or `URET` instructions are used to return from traps in M-mode, S-mode, or U-mode respectively. When executing an `xRET` instruction, supposing `xPP` holds the value `y`, `yIE` is set to `xPIE`; the privilege mode is changed to `y`; `xPIE` is set to 1; and `xPP` is set to U.
 
@@ -683,13 +454,7 @@ Individual read/write bits within `medeleg` and `mideleg` registers indicate tha
 
 When a trap is delegated to a less-privileged mode `x`, the `xcause` register is written with the trap cause; the `xepc` register is written with the virtual address of the instruction that took the trap; the `xPP` field of `mstatus` is written with the active privilege mode at the time of the trap; the `xPIE` field of `mstatus` is written with the value of the active interrupt-enable bit at the time of the trap; and the `xIE` field of `mstatus` is cleared. The `mcause` and `mepc` registers and the `MPP` and `MPIE` fields of `mstatus` are not written.
 
-<span>@U</span> <span>   </span>
-XLEN
-
 `medeleg` has a bit position allocated for every synchronous exception with the index of the bit position equal to the value returned in the `mcause` register (I.e. setting bit 8 allows user-mode environment calls to be delegated to a lower-privilege trap handler).
-
-<span>@U</span> <span>   </span>
-XLEN
 
 `mideleg` holds trap delegation bits for individual interrupts, with the layout of bits matching those in the `mip` register (I.e. `STIP` interrupt delegation control is located in bit 5).
 
@@ -698,14 +463,6 @@ XLEN
 The `mip` register is an `XLEN`-bit read/write register containing information on pending interrupts, while `mie` is the corresponding `XLEN`-bit read/write register containing interrupt enable bits. Only the bits corresponding to lower-privilege software interrupts (`USIP`, `SSIP`) and timer interrupts (`UTIP`, `STIP`) in `mip` are writable through this CSR address; the remaining bits are read-only.
 
 Restricted views of the `mip` and `mie` registers appear as the `sip/sie`, and `uip/uie` registers in S-mode, and U-mode respectively. If an interrupt is delegated to privilege mode `x` by setting a bit in the `mideleg` register, it becomes visible in the `xip` register and is maskable using the `xie`register. Otherwise, the corresponding bits in `xip` and `x`ie appear to be hardwired to zero.
-
-<span>Ycccccccccccc</span> <span>   </span> & & & & & & & & & & & &
-& & & & & & & & & & & &
-XLEN-12 & 1 & 1 & 1 & 1 & 1 & 1 & 1 & 1 & 1 & 1 & 1 & 1
-
-<span>Ycccccccccccc</span> <span>   </span> & & & & & & & & & & & &
-& & & & & & & & & & & &
-XLEN-12 & 1 & 1 & 1 & 1 & 1 & 1 & 1 & 1 & 1 & 1 & 1 & 1
 
 The `MTIP`, `STIP`, `UTIP` bits correspond to timer interrupt-pending bits for machine, supervisor, and user timer interrupts, respectively. The `MTIP` bit is read-only and is cleared by writing to the memory-mapped machine-mode timer compare register. The `UTIP` and `STIP` bits may be written by M-mode software to deliver timer interrupts to lower privilege levels. User and supervisor software may clear the `UTIP` and `STIP` bits with calls to the AEE or SEE respectively.
 
@@ -723,195 +480,155 @@ Multiple simultaneous interrupts and traps at the same privilege level are handl
 
 The mtvec register is an XLEN-bit read/write register that holds the base address of the M-mode trap vector.
 
-<span>J@F</span> <span>   </span> & <span>   </span>
-&
-XLEN-2 & 2
-
 All traps into machine mode cause the pc to be set to the value in `mtvec`. Additional trap vector entry points can be defined by implementations to allow more rapid identification and service of certain trap causes.
 
 ### Machine Non-Maskable Interrupt Vector (`mnmivec`)
 
 The mnmivec register is an XLEN-bit read/write register that holds the base address of the non-maskable interrupt trap vector. When an exception occurs, the pc is set to mnmivec.
 
-<span>@J</span> <span>   </span>
-XLEN
+### Machine Trap Handler Scratch Register (`mscratch`)
 
-### Machine Trap Handler Scratch Register (<span>mscratch</span>)
+The `mscratch` register is an XLEN-bit read/write register dedicated for use by machine mode. It is used to hold a pointer to a machine-mode hart-local context space and swapped with a user register upon entry to an M-mode trap handler.
 
-The <span>mscratch</span> register is an XLEN-bit read/write register dedicated for use by machine mode. It is used to hold a pointer to a machine-mode hart-local context space and swapped with a user register upon entry to an M-mode trap handler.
+### Machine Exception Program Counter Register (`mepc`)
 
-<span>@J</span> <span>   </span>
-XLEN
+`mepc` is an XLEN-bit read/write register. The two low bits (mepc\[1:0\]) are always zero.
 
-### Machine Exception Program Counter Register (<span>mepc</span>)
+When a trap is taken, `mepc` is written with the virtual address of the instruction that encountered the exception.
 
-<span>mepc</span> is an XLEN-bit read/write register. The two low bits (mepc<span>\[</span>1:0<span>\]</span>) are always zero.
+### Machine Trap Cause Register (`mcause`)
 
-<span>@J</span> <span>   </span>
-XLEN
+The `mcause` register is an XLEN-bit read-write register. The Interrupt bit is set if the exception was caused by an interrupt. The Exception Code field contains a code identifying the last exception. The remaining center bits will read zero
 
-When a trap is taken, <span>mepc</span> is written with the virtual address of the instruction that encountered the exception.
+See PDF Datasheet for further details
 
-### Machine Trap Cause Register (<span>mcause</span>)
+### Machine Bad Address Register (`mbadaddr`)
 
-The <span>mcause</span> register is an XLEN-bit read-write register. The Interrupt bit is set if the exception was caused by an interrupt. The Exception Code field contains a code identifying the last exception. The remaining center bits will read zero
+`mbadaddr` is an XLEN-bit read-write register. When a hardware breakpoint is triggered, or an instruction-fetch, load, or store address-misaligned or access exception occurs, `mbadaddr` is written with the faulting address. `mbadaddr` is not modified for other exceptions.
 
-<span>c@U</span> & <span>   </span>
-&
-1 & XLEN-1
+For instruction-fetch access faults with variable-length instructions, `mbadaddr` will point to the portion of the instruction that caused the fault while `mepc` will point to the beginning of the instruction.
 
-Table \[tab:mcause-reg-values\] below lists the possible machine-level exception codes.
+### Machine Cycle Counter (mcycle, `mcycleh`)
 
-<span>@ccl@</span> Interrupt & Exception Code & Description
-Interrupt & Exception Code & Description
+The `mcycle` CSR holds a count of the number of cycles the hart has executed since some arbitrary time in the past. The `mcycle` register has 64-bit precision on all RV32 and RV64 systems.
 
-1 & 0 & User software interrupt1 & 1 & Supervisor software interrupt1 & 2 & *Reserved*1 & 3 & Machine software interrupt1 & 4 & User timer interrupt1 & 5 & Supervisor timer interrupt1 & 6 & *Reserved*1 & 7 & Machine timer interrupt1 & 8 & User external interrupt1 & 9 & Supervisor external interrupt1 & 10 & *Reserved*1 & 11 & Machine external interrupt1 & ≥12 & Reserved0 & 0 & Instruction address misaligned0 & 1 & Instruction access fault0 & 2 & Illegal Instruction0 & 3 & Breakpoint0 & 4 & Load address misaligned0 & 5 & Load access fault0 & 6 & Store/AMO address misaligned0 & 7 & Store/AMO access fault0 & 8 & Environment call from U-mode0 & 9 & Environment call from S-mode0 & 10 & *Reserved*0 & 11 & Environment call from M-mode0 & ≥12 & *Reserved*
+On RV32 only, reads of the `mcycle` CSR returns the low 32 bits, while reads of the `mcycleh` CSR returns bits 63–32.
 
-### Machine Bad Address Register (<span>mbadaddr</span>)
+### Machine Instructions-Retired counter (minstret, `minstreth`)
 
-<span>mbadaddr</span> is an XLEN-bit read-write register. When a hardware breakpoint is triggered, or an instruction-fetch, load, or store address-misaligned or access exception occurs, <span>mbadaddr</span> is written with the faulting address. <span>mbadaddr</span> is not modified for other exceptions.
+The `minstret` CSR holds a count of the number of instructions the hart has retired since some arbitrary time in the past. The `minstret` register has 64-bit precision on all RV32 and RV64 systems.
 
-<span>@J</span> <span>   </span>
-XLEN
-
-For instruction-fetch access faults with variable-length instructions, <span>mbadaddr</span> will point to the portion of the instruction that caused the fault while <span>mepc</span> will point to the beginning of the instruction.
-
-### Machine Cycle Counter (mcycle, <span>mcycleh</span>)
-
-The <span>mcycle</span> CSR holds a count of the number of cycles the hart has executed since some arbitrary time in the past. The <span>mcycle</span> register has 64-bit precision on all RV32 and RV64 systems.
-
-On RV32 only, reads of the <span>mcycle</span> CSR returns the low 32 bits, while reads of the <span>mcycleh</span> CSR returns bits 63–32.
-
-### Machine Instructions-Retired counter (minstret, <span>minstreth</span>)
-
-The <span>minstret</span> CSR holds a count of the number of instructions the hart has retired since some arbitrary time in the past. The <span>minstret</span> register has 64-bit precision on all RV32 and RV64 systems.
-
-On RV32 only, reads of the <span>minstret</span> CSR returns the low 32 bits, while reads of the <span>minstreth</span> CSR returns bits 63–32.
+On RV32 only, reads of the `minstret` CSR returns the low 32 bits, while reads of the `minstreth` CSR returns bits 63–32.
 
 Supervisor Mode CSRs
 --------------------
 
 ### Supervisor Status Register (sstatus) 
 
-The sstatus register is an XLEN-bit read/write register formatted as shown in Figure 7‑19. The sstatus register keeps track of the processor’s current operating state.
+The sstatus register is an XLEN-bit read/write register. The sstatus register keeps track of the processor’s current operating state.
 
-<span>cYccccWcWccWcc</span>
-& <span>   </span> & & & <span>   </span> & <span>   </span> & <span>   </span> & & <span>   </span> & & & <span>   </span> & &
-& & & & & & & & & & & & &
-1 & XLEN-20 & 1 & 1 & 2 & 2 & 4 & 1 & 2 & 1 & 1 & 2 & 1 & 1
+The `SPP` bit indicates the privilege level at which a *hart* was executing before entering supervisor mode. When a trap is taken, `SPP` is set to 0 if the trap originated from user mode, or 1 otherwise. When an `SRET` instruction is executed to return from the trap handler, the privilege level is set to user mode if the `SPP` bit is 0, or supervisor mode if the `SPP` bit is 1; `SPP` is then set to 0.
 
-The <span>SPP</span> bit indicates the privilege level at which a *hart* was executing before entering supervisor mode. When a trap is taken, <span>SPP</span> is set to 0 if the trap originated from user mode, or 1 otherwise. When an <span>SRET</span> instruction is executed to return from the trap handler, the privilege level is set to user mode if the <span>SPP</span> bit is 0, or supervisor mode if the <span>SPP</span> bit is 1; <span>SPP</span> is then set to 0.
+The `SIE` bit enables or disables all interrupts in supervisor mode. When `SIE` is clear, interrupts are not taken while in supervisor mode. When the *hart* is running in user-mode, the value in `SIE` is ignored, and supervisor-level interrupts are enabled. The supervisor can disable indivdual interrupt sources using the `sie` register.
 
-The <span>SIE</span> bit enables or disables all interrupts in supervisor mode. When <span>SIE</span> is clear, interrupts are not taken while in supervisor mode. When the *hart* is running in user-mode, the value in <span>SIE</span> is ignored, and supervisor-level interrupts are enabled. The supervisor can disable indivdual interrupt sources using the <span>sie</span> register.
+The `SPIE` bit indicates whether interrupts were enabled before entering supervisor mode. When a trap is taken into supervisor mode, `SPIE` is set to either `SIE` or `UIE` depending on whether the trap was taken in supervisor or user mode respectively, and `SIE` is set to 0. When an `SRET` instruction is executed, if `SPP=S`, then `SIE` is set to `SPIE`; or if `SPP=U`, then `UIE` is set to `SPIE`. In either case, `SPIE` is then set to 1.
 
-The <span>SPIE</span> bit indicates whether interrupts were enabled before entering supervisor mode. When a trap is taken into supervisor mode, <span>SPIE</span> is set to either <span>SIE</span> or <span>UIE</span> depending on whether the trap was taken in supervisor or user mode respectively, and <span>SIE</span> is set to 0. When an <span>SRET</span> instruction is executed, if <span>SPP=S</span>, then <span>SIE</span> is set to <span>SPIE</span>; or if <span>SPP=U</span>, then <span>UIE</span> is set to <span>SPIE</span>. In either case, <span>SPIE</span> is then set to 1.
+The `UIE` bit enables or disables user-mode interrupts. User-level interrupts are enabled only if `UIE` is set and the *hart* is running in user-mode. The `UPIE` bit indicates whether user-level interrupts were enabled prior to taking a user-level trap. When a `URET` instruction is executed, `UIE` is set to `UPIE`, and `UPIE` is set to 1.
 
-The <span>UIE</span> bit enables or disables user-mode interrupts. User-level interrupts are enabled only if <span>UIE</span> is set and the *hart* is running in user-mode. The <span>UPIE</span> bit indicates whether user-level interrupts were enabled prior to taking a user-level trap. When a <span>URET</span> instruction is executed, <span>UIE</span> is set to <span>UPIE</span>, and <span>UPIE</span> is set to 1.
+#### Memory Privilege in `sstatus` Register 
 
-#### Memory Privilege in <span>sstatus</span> Register 
+The `PUM` (Protect User Memory) bit modifies the privilege with which S-mode loads, stores, and instruction fetches access virtual memory. When `PUM=0`, translation and protection behave as normal. When `PUM=1`, S-mode memory accesses to pages that are accessible by U-mode will fault. `PUM` has no effect when executing in U-mode.
 
-The <span>PUM</span> (Protect User Memory) bit modifies the privilege with which S-mode loads, stores, and instruction fetches access virtual memory. When <span>PUM=0</span>, translation and protection behave as normal. When <span>PUM=1</span>, S-mode memory accesses to pages that are accessible by U-mode will fault. <span>PUM</span> has no effect when executing in U-mode.
+### Supervisor Trap Delegation Registers (`sedeleg`, `sideleg`)
 
-### Supervisor Trap Delegation Registers (<span>sedeleg</span>, <span>sideleg</span>)
-
-The machine exception delegation register (<span>sedeleg</span>) and machine interrupt delegation register (<span>sideleg</span>) are XLEN-bit read/write registers.
+The machine exception delegation register (`sedeleg`) and machine interrupt delegation register (`sideleg`) are XLEN-bit read/write registers.
 
 ### Supervisor Interrupt Registers (sip, sie)
 
-The <span>sip</span> register is an XLEN-bit read/write register containing information on pending interrupts; <span>sie</span> is the corresponding XLEN-bit read/write register containing interrupt enable bits.
+The `sip` register is an XLEN-bit read/write register containing information on pending interrupts; `sie` is the corresponding XLEN-bit read/write register containing interrupt enable bits.
 
-<span>EccFccFcc</span> <span>   </span> & & & <span>   </span> & & & <span>   </span> & &
-& & & & & & & &
-XLEN-10 & 1 & 1 & 2 & 1 & 1 & 2 & 1 & 1
+Three types of interrupts are defined: software interrupts, timer interrupts, and external interrupts. A supervisor-level software interrupt is triggered on the current *hart* by writing 1 to its supervisor software interrupt-pending (`SSIP`) bit in the `sip` register. A pending supervisor-level software interrupt can be cleared by writing 0 to the `SSIP` bit in `sip`. Supervisor-level software interrupts are disabled when the `SSIE` bit in the `sie` register is clear.
 
-<span>EccFccFcc</span> <span>   </span> & & & <span>   </span> & & & <span>   </span> & &
-& & & & & & & &
-XLEN-10 & 1 & 1 & 2 & 1 & 1 & 2 & 1 & 1
+Interprocessor interrupts are sent to other harts by means of *SBI* calls, which will ultimately cause the `SSIP` bit to be set in the recipient *hart’s* `sip` register.
 
-Three types of interrupts are defined: software interrupts, timer interrupts, and external interrupts. A supervisor-level software interrupt is triggered on the current *hart* by writing 1 to its supervisor software interrupt-pending (<span>SSIP</span>) bit in the <span>sip</span> register. A pending supervisor-level software interrupt can be cleared by writing 0 to the <span>SSIP</span> bit in <span>sip</span>. Supervisor-level software interrupts are disabled when the <span>SSIE</span> bit in the <span>sie</span> register is clear.
+A user-level software interrupt is triggered on the current *hart* by writing 1 to its user software interrupt-pending (`USIP`) bit in the sip register. A pending user-level software interrupt can be cleared by writing 0 to the `USIP` bit in `sip`. User-level software interrupts are disabled when the `USIE` bit in the `sie` register is clear.
 
-Interprocessor interrupts are sent to other harts by means of *SBI* calls, which will ultimately cause the <span>SSIP</span> bit to be set in the recipient *hart’s* <span>sip</span> register.
+All bits besides `SSIP` and `USIP` in the `sip` register are read-only.
 
-A user-level software interrupt is triggered on the current *hart* by writing 1 to its user software interrupt-pending (<span>USIP</span>) bit in the sip register. A pending user-level software interrupt can be cleared by writing 0 to the <span>USIP</span> bit in <span>sip</span>. User-level software interrupts are disabled when the <span>USIE</span> bit in the <span>sie</span> register is clear.
+A supervisor-level timer interrupt is pending if the `STIP` bit in the `sip` register is set. Supervisor-level timer interrupts are disabled when the `STIE` bit in the `sie` register is clear. An *SBI* call to the SEE may be used to clear the pending timer interrupt.
 
-All bits besides <span>SSIP</span> and <span>USIP</span> in the <span>sip</span> register are read-only.
+A user-level timer interrupt is pending if the `UTIP` bit in the `sip` register is set. User-level timer interrupts are disabled when the `UTIE` bit in the `sie` register is clear. If user-level interrupts are supported, the *ABI* should provide a facility for scheduling timer interrupts in terms of real-time counter values.
 
-A supervisor-level timer interrupt is pending if the <span>STIP</span> bit in the <span>sip</span> register is set. Supervisor-level timer interrupts are disabled when the <span>STIE</span> bit in the <span>sie</span> register is clear. An *SBI* call to the SEE may be used to clear the pending timer interrupt.
+A supervisor-level external interrupt is pending if the `SEIP` bit in the `sip` register is set. Supervisor-level external interrupts are disabled when the `SEIE` bit in the `sie` register is clear. The *SBI* should provide facilities to mask, unmask, and query the cause of external interrupts.
 
-A user-level timer interrupt is pending if the <span>UTIP</span> bit in the <span>sip</span> register is set. User-level timer interrupts are disabled when the <span>UTIE</span> bit in the <span>sie</span> register is clear. If user-level interrupts are supported, the *ABI* should provide a facility for scheduling timer interrupts in terms of real-time counter values.
+A user-level external interrupt is pending if the `UEIP` bit in the `sip` register is set. User-level external interrupts are disabled when the UEIE bit in the `sie` register is clear.
 
-A supervisor-level external interrupt is pending if the <span>SEIP</span> bit in the <span>sip</span> register is set. Supervisor-level external interrupts are disabled when the <span>SEIE</span> bit in the <span>sie</span> register is clear. The *SBI* should provide facilities to mask, unmask, and query the cause of external interrupts.
+### Supervisor Trap Vector Register (`stvec`)
 
-A user-level external interrupt is pending if the <span>UEIP</span> bit in the <span>sip</span> register is set. User-level external interrupts are disabled when the UEIE bit in the <span>sie</span> register is clear.
+The `stvec` register is an XLEN-bit read/write register that holds the base address of the S-mode trap vector. When an exception occurs, the pc is set to `stvec`. The `stvec` register is always aligned to a 4-byte boundary.
 
-### Supervisor Trap Vector Register (<span>stvec</span>)
+### Supervisor Scratch Register (`sscratch`) 
 
-The <span>stvec</span> register is an XLEN-bit read/write register that holds the base address of the S-mode trap vector. When an exception occurs, the pc is set to <span>stvec</span>. The <span>stvec</span> register is always aligned to a 4-byte boundary.
+The `sscratch` register is an XLEN-bit read/write register, dedicated for use by the supervisor. Typically, `sscratch` is used to hold a pointer to the hart-local supervisor context while the hart is executing user code. At the beginning of a trap handler, `sscratch` is swapped with a user register to provide an initial working register.
 
-<span>J@F</span> <span>   </span> & <span>   </span>
-&
-XLEN-2 & 2
+### Supervisor Exception Program Counter (`sepc`)
 
-### Supervisor Scratch Register (<span>sscratch</span>) 
+`sepc` is an XLEN-bit read/write register formatted as shown in Figure 7‑24. The low bit of `sepc` (`sepc[0]`) is always zero. On implementations that do not support instruction-set extensions with 16-bit instruction alignment, the two low bits (`sepc[1:0]`) are always zero. When a trap is taken, `sepc` is written with the virtual address of the instruction that encountered the exception.
 
-The <span>sscratch</span> register is an XLEN-bit read/write register, dedicated for use by the supervisor. Typically, <span>sscratch</span> is used to hold a pointer to the hart-local supervisor context while the hart is executing user code. At the beginning of a trap handler, <span>sscratch</span> is swapped with a user register to provide an initial working register.
+### Supervisor Cause Register (`scause`) 
 
-<span>@J</span> <span>   </span>
-XLEN
+The `scause` register is an XLEN-bit read-only register. The Interrupt bit is set if the exception was caused by an interrupt. The Exception Code field contains a code identifying the last exception.
 
-### Supervisor Exception Program Counter (<span>sepc</span>)
+| Interrupt | Exception Code | Description                    |
+|:---------:|:--------------:|:-------------------------------|
+|     1     |        0       | User software interrupt        |
+|     1     |        1       | Supervisor software interrupt  |
+|     1     |       2-3      | *Reserved*                     |
+|     1     |        4       | User timer interrupt           |
+|     1     |        5       | Supervisor timer interrupt     |
+|     1     |       6-7      | *Reserved*                     |
+|     1     |        8       | User external interrupt        |
+|     1     |        9       | Supervisor external interrupt  |
+|     1     |       ≤10      | *Reserved*                     |
+|     0     |        0       | Instruction address misaligned |
+|     0     |        1       | Instruction access fault       |
+|     0     |        2       | Illegal Instruction            |
+|     0     |        3       | Breakpoint                     |
+|     0     |        4       | *Reserved*                     |
+|     0     |        5       | Load access fault              |
+|     0     |        6       | AMO address misaligned         |
+|     0     |        7       | Store/AMO access fault         |
+|     0     |        8       | Environment call               |
+|     0     |       ≤9       | *Reserved*                     |
 
-<span>sepc</span> is an XLEN-bit read/write register formatted as shown in Figure 7‑24. The low bit of <span>sepc</span> (<span>sepc<span>\[</span>0<span>\]</span></span>) is always zero. On implementations that do not support instruction-set extensions with 16-bit instruction alignment, the two low bits (<span>sepc<span>\[</span>1:0<span>\]</span></span>) are always zero. When a trap is taken, <span>sepc</span> is written with the virtual address of the instruction that encountered the exception.
+### Supervisor Bad Address Register (`sbadaddr`)
 
-<span>@J</span> <span>   </span>
-XLEN
+`sbadaddr` is an XLEN-bit read/write register. When a hardware breakpoint is triggered, or an instruction-fetch, load, or store access exception occurs, or an instruction-fetch or AMO address-misaligned exception occurs, `sbadaddr` is written with the faulting address. `sbadaddr` is not modified for other exceptions.
 
-### Supervisor Cause Register (<span>scause</span>) 
-
-The <span>scause</span> register is an XLEN-bit read-only register. The Interrupt bit is set if the exception was caused by an interrupt. The Exception Code field contains a code identifying the last exception.
-
-<span>c@U</span> & <span>   </span>
-&
-1 & XLEN-1
-
-Table \[tab:scause-reg-values\] below lists the possible exception codes for the current supervisor ISAs.
-
-<span>@ccl@</span> Interrupt & Exception Code & Description
-Interrupt & Exception Code & Description
-
-1 & 0 & User software interrupt1 & 1 & Supervisor software interrupt1 & 2-3 & *Reserved*1 & 4 & User timer interrupt1 & 5 & Supervisor timer interrupt1 & 6-7 & *Reserved*1 & 8 & User external interrupt1 & 9 & Supervisor external interrupt1 & ≤10 & *Reserved*0 & 0 & Instruction address misaligned0 & 1 & Instruction access fault0 & 2 & Illegal Instruction0 & 3 & Breakpoint0 & 4 & *Reserved*0 & 5 & Load access fault0 & 6 & AMO address misaligned0 & 7 & Store/AMO access fault0 & 8 & Environment call0 & ≤9 & *Reserved*
-
-### Supervisor Bad Address Register (<span>sbadaddr</span>)
-
-<span>sbadaddr</span> is an XLEN-bit read/write register. When a hardware breakpoint is triggered, or an instruction-fetch, load, or store access exception occurs, or an instruction-fetch or AMO address-misaligned exception occurs, <span>sbadaddr</span> is written with the faulting address. <span>sbadaddr</span> is not modified for other exceptions.
-
-<span>@J</span> <span>   </span>
-XLEN
-
-For instruction fetch access faults on RISC-V systems with variable-length instructions, <span>sbadaddr</span> will point to the portion of the instruction that caused the fault while <span>sepc</span> will point to the beginning of the instruction.
+For instruction fetch access faults on RISC-V systems with variable-length instructions, `sbadaddr` will point to the portion of the instruction that caused the fault while `sepc` will point to the beginning of the instruction.
 
 User Mode CSRs
 --------------
 
-### Cycle counter for RDCYCLE instruction (<span>cycle</span>)
+### Cycle counter for RDCYCLE instruction (`cycle`)
 
-<span>cycle</span> is an XLEN-bit read-only register. The <span>RDCYCLE</span> pseudo-instruction reads the low XLEN bits of the <span>cycle</span> CSR that holds a count of the number of clock cycles executed by the processor on which the hardware thread is running from an arbitrary start time in the past.
+`cycle` is an XLEN-bit read-only register. The `RDCYCLE` pseudo-instruction reads the low XLEN bits of the `cycle` CSR that holds a count of the number of clock cycles executed by the processor on which the hardware thread is running from an arbitrary start time in the past.
 
-### Instruction-retire counter for RDINSTRET instruction (<span>instret</span>)
+### Instruction-retire counter for RDINSTRET instruction (`instret`)
 
-<span>instret</span> is an XLEN-bit read-only register. The RDINSTRET pseudo-instruction reads the low XLEN bits of the <span>instret</span> CSR, which counts the number of instructions retired by this hardware thread from some arbitrary start point in the past.
+`instret` is an XLEN-bit read-only register. The RDINSTRET pseudo-instruction reads the low XLEN bits of the `instret` CSR, which counts the number of instructions retired by this hardware thread from some arbitrary start point in the past.
 
-### Upper 32bits of cycle (<span>cycleh</span> - RV32I only)
+### Upper 32bits of cycle (`cycleh` - RV32I only)
 
-<span>cycleh</span> is a read-only register that contains bits 63-32 of the counter of the number of clock cycles executed by the processor.
+`cycleh` is a read-only register that contains bits 63-32 of the counter of the number of clock cycles executed by the processor.
 
-<span>RDCYCLEH</span> is an RV32I-only instruction providing access to this register.
+`RDCYCLEH` is an RV32I-only instruction providing access to this register.
 
-### Upper 32bit of instret (<span>instreth</span> - RV32I only)
+### Upper 32bit of instret (`instreth` - RV32I only)
 
-<span>instreth</span> is a read-only register that contains bits 63-32 of the instruction counter.
+`instreth` is a read-only register that contains bits 63-32 of the instruction counter.
 
-<span>RDINSTRETH</span> is an RV32I-only instruction providing access to this register
+`RDINSTRETH` is an RV32I-only instruction providing access to this register
 
 External Interfaces
 ===================
@@ -921,7 +638,35 @@ The RV12 CPU is designed to support a variety of external bus interfaces. The fo
 AMBA3 AHB-Lite
 --------------
 
-<span>@lccl@</span> Port & Size & Direction & Description `HRESETn` & 1 & Input & Asynchronous active low reset `HCLK` & 1 & Input & System clock input `IHSEL` & 1 & Output & Provided for AHB-Lite compatibility – tied high (‘1’) `IHADDR` & `XLEN` & Output & Instruction address `IHRDATA` & 32 & Input & Instruction data `IHWRITE` & 1 & Output & Instruction write `IHSIZE` & 3 & Output & Transfer size `IHBURST` & 3 & Output & Transfer burst size `IHPROT` & 4 & Output & Transfer protection level `IHTRANS` & 2 & Output & Transfer type `IHMASTLOCK` & 1 & Output & Transfer master lock `IHREADY` & 1 & Input & Slave Ready Indicator `IHRESP` & 1 & Input & Instruction Transfer Response `DHSEL` & 1 & Output & Provided for AHB-Lite compatibility – tied high (‘1’) `DHADDR` & `XLEN` & Output & Data address `DHRDATA` & `XLEN` & Input & Data read data `DHWDATA` & `XLEN` & Output & Data write data `DHWRITE` & 1 & Output & Instruction write `DHSIZE` & 3 & Output & Transfer size `DHBURST` & 3 & Output & Transfer burst size `DHPROT` & 4 & Output & Transfer protection level `DHTRANS` & 2 & Output & Transfer type `DHMASTLOCK` & 1 & Output & Transfer master lock `DHREADY` & 1 & Input & Slave Ready Indicator `DHRESP` & 1 & Input & Data Transfer Response
+| Port         |  Size  | Direction | Description                                           |
+|:-------------|:------:|:---------:|:------------------------------------------------------|
+| `HRESETn`    |    1   |   Input   | Asynchronous active low reset                         |
+| `HCLK`       |    1   |   Input   | System clock input                                    |
+|              |        |           |                                                       |
+| `IHSEL`      |    1   |   Output  | Provided for AHB-Lite compatibility – tied high (‘1’) |
+| `IHADDR`     | `XLEN` |   Output  | Instruction address                                   |
+| `IHRDATA`    |   32   |   Input   | Instruction data                                      |
+| `IHWRITE`    |    1   |   Output  | Instruction write                                     |
+| `IHSIZE`     |    3   |   Output  | Transfer size                                         |
+| `IHBURST`    |    3   |   Output  | Transfer burst size                                   |
+| `IHPROT`     |    4   |   Output  | Transfer protection level                             |
+| `IHTRANS`    |    2   |   Output  | Transfer type                                         |
+| `IHMASTLOCK` |    1   |   Output  | Transfer master lock                                  |
+| `IHREADY`    |    1   |   Input   | Slave Ready Indicator                                 |
+| `IHRESP`     |    1   |   Input   | Instruction Transfer Response                         |
+|              |        |           |                                                       |
+| `DHSEL`      |    1   |   Output  | Provided for AHB-Lite compatibility – tied high (‘1’) |
+| `DHADDR`     | `XLEN` |   Output  | Data address                                          |
+| `DHRDATA`    | `XLEN` |   Input   | Data read data                                        |
+| `DHWDATA`    | `XLEN` |   Output  | Data write data                                       |
+| `DHWRITE`    |    1   |   Output  | Instruction write                                     |
+| `DHSIZE`     |    3   |   Output  | Transfer size                                         |
+| `DHBURST`    |    3   |   Output  | Transfer burst size                                   |
+| `DHPROT`     |    4   |   Output  | Transfer protection level                             |
+| `DHTRANS`    |    2   |   Output  | Transfer type                                         |
+| `DHMASTLOCK` |    1   |   Output  | Transfer master lock                                  |
+| `DHREADY`    |    1   |   Input   | Slave Ready Indicator                                 |
+| `DHRESP`     |    1   |   Input   | Data Transfer Response                                |
 
 ### HRESETn
 
@@ -961,16 +706,16 @@ The instruction transfer size is indicated by `IHSIZE`. Its value depends on the
 
 The instruction burst type indicates if the transfer is a single transfer or part of a burst.
 
-| <span>IHBURST</span> | Type   | Description                     |
-|:--------------------:|:-------|:--------------------------------|
-|         `000`        | Single | *Not used*                      |
-|         `001`        | INCR   | Non-cacheable instruction reads |
-|         `010`        | WRAP4  | 4-beat wrapping burst           |
-|         `011`        | INCR4  | *Not used*                      |
-|         `100`        | WRAP8  | 8-beat wrapping burst           |
-|         `101`        | INCR8  | *Not used*                      |
-|         `110`        | WRAP16 | 16-bear wrapping burst          |
-|         `111`        | INCR16 | *Not used*                      |
+| `IHBURST` | Type   | Description                     |
+|:---------:|:-------|:--------------------------------|
+|   `000`   | Single | *Not used*                      |
+|   `001`   | INCR   | Non-cacheable instruction reads |
+|   `010`   | WRAP4  | 4-beat wrapping burst           |
+|   `011`   | INCR4  | *Not used*                      |
+|   `100`   | WRAP8  | 8-beat wrapping burst           |
+|   `101`   | INCR8  | *Not used*                      |
+|   `110`   | WRAP16 | 16-bear wrapping burst          |
+|   `111`   | INCR16 | *Not used*                      |
 
 ### IHPROT
 
@@ -990,12 +735,12 @@ The instruction protection signals provide information about the bus transfer. T
 
 `IHTRANS` indicates the type of the current instruction transfer.
 
-| <span>IHTRANS</span> | Type   | Description                                           |
-|:--------------------:|:-------|:------------------------------------------------------|
-|         `00`         | IDLE   | No transfer required                                  |
-|         `01`         | BUSY   | CPU inserts wait states during instruction burst read |
-|         `10`         | NONSEQ | First transfer of an instruction read burst           |
-|         `11`         | SEQ    | Remaining transfers of an instruction readburst       |
+| `IHTRANS` | Type   | Description                                           |
+|:---------:|:-------|:------------------------------------------------------|
+|    `00`   | IDLE   | No transfer required                                  |
+|    `01`   | BUSY   | CPU inserts wait states during instruction burst read |
+|    `10`   | NONSEQ | First transfer of an instruction read burst           |
+|    `11`   | SEQ    | Remaining transfers of an instruction readburst       |
 
 ### IHMASTLOCK
 
@@ -1033,28 +778,28 @@ The instruction master lock signal indicates if the current transfer is part of 
 
 The data transfer size is indicated by DHSIZE. Its value depends on the `XLEN` parameter and if the current transfer is a cache-line fill/write-back or a non-cacheable data transfer.
 
-| <span>DHSIZE</span> | Type     | Description                                                                             |
-|:-------------------:|:---------|:----------------------------------------------------------------------------------------|
-|        `000`        | Byte     | Non-cacheable data transfer                                                             |
-|        `001`        | Halfword | Non-cacheable data transfer                                                             |
-|        `010`        | Word     | Non-cacheable data transfer                                                             |
-|        `011`        | Dword    | Non-cacheable data transfer                                                             |
-|        `1--`        |          | Cache line fill. The actual size depends on the Instruction cache parameters and `XLEN` |
+| `DHSIZE` | Type     | Description                                                                             |
+|:--------:|:---------|:----------------------------------------------------------------------------------------|
+|   `000`  | Byte     | Non-cacheable data transfer                                                             |
+|   `001`  | Halfword | Non-cacheable data transfer                                                             |
+|   `010`  | Word     | Non-cacheable data transfer                                                             |
+|   `011`  | Dword    | Non-cacheable data transfer                                                             |
+|   `1--`  |          | Cache line fill. The actual size depends on the Instruction cache parameters and `XLEN` |
 
 ### DHBURST
 
 The instruction burst type indicates if the transfer is a single transfer or part of a burst.
 
-| <span>DHBURST</span> |  Type  | Description                                    |
-|:--------------------:|:------:|:-----------------------------------------------|
-|          000         | Single | Single transfer. E.g. non-cacheable read/write |
-|          001         |  INCR  | *Not used*                                     |
-|          010         |  WRAP4 | 4-beat wrapping burst                          |
-|          011         |  INCR4 | *Not used*                                     |
-|          100         |  WRAP8 | 8-beat wrapping burst                          |
-|          101         |  INCR8 | *Not used*                                     |
-|          110         | WRAP16 | 16-bear wrapping burst                         |
-|          111         | INCR16 | *Not used*                                     |
+| `DHBURST` |  Type  | Description                                    |
+|:---------:|:------:|:-----------------------------------------------|
+|    000    | Single | Single transfer. E.g. non-cacheable read/write |
+|    001    |  INCR  | *Not used*                                     |
+|    010    |  WRAP4 | 4-beat wrapping burst                          |
+|    011    |  INCR4 | *Not used*                                     |
+|    100    |  WRAP8 | 8-beat wrapping burst                          |
+|    101    |  INCR8 | *Not used*                                     |
+|    110    | WRAP16 | 16-bear wrapping burst                         |
+|    111    | INCR16 | *Not used*                                     |
 
 ### DHPROT
 
@@ -1074,12 +819,12 @@ The data protection signals provide information about the bus transfer. They are
 
 `DHTRANS` indicates the type of the current data transfer.
 
-| <span>DHTRANS</span> |  Type  | Description                          |
-|:--------------------:|:------:|:-------------------------------------|
-|          00          |  IDLE  | No transfer required                 |
-|          01          |  BUSY  | *Not used*                           |
-|          10          | NONSEQ | First transfer of an data burst      |
-|          11          |   SEQ  | Remaining transfers of an data burst |
+| `DHTRANS` |  Type  | Description                          |
+|:---------:|:------:|:-------------------------------------|
+|     00    |  IDLE  | No transfer required                 |
+|     01    |  BUSY  | *Not used*                           |
+|     10    | NONSEQ | First transfer of an data burst      |
+|     11    |   SEQ  | Remaining transfers of an data burst |
 
 ### DHMASTLOCK
 
@@ -1115,7 +860,7 @@ The RV12 supports a single external non-maskable interrupt, accessible in Machin
 
 The RV12 supports a single Machine-Mode timer interrupt `EXT_TINT`.
 
-The interrupt may be delegated to other operating modes via software manipulation of `mip` and `sip` registers (See sections 7.6.8 and 7.7.3). Alternatively, higher performance interrupt redirection may be implemented via use of the `mideleg` and `sideleg` configuration registers (See sections \[machine-exception-interrupt-delegation-registers-medeleg-mideleg\] and \[supervisor-trap-delegation-registers-sedeleg-sideleg\] ).
+The interrupt may be delegated to other operating modes via software manipulation of `mip` and `sip` registers. Alternatively, higher performance interrupt redirection may be implemented via use of the `mideleg` and `sideleg` configuration registers
 
 The interrupt vector used to service the interrupt is determined based on the mode the interrupt is delegated to via the `MTVEC_DEFAULT`, `STVEC_DEFAULT` and `UTVEC_DEFAULT` parameters.
 
@@ -1123,7 +868,7 @@ The interrupt vector used to service the interrupt is determined based on the mo
 
 The RV12 supports a single Machine-Mode timer interrupt `EXT_SINT`.
 
-The interrupt may be delegated to other operating modes via software manipulation of `mip` and `sip` registers (See sections 7.6.8 and 7.7.3). Alternatively, higher performance interrupt redirection may be implemented via use of the `mideleg` and `sideleg` configuration registers (See sections \[machine-exception-interrupt-delegation-registers-medeleg-mideleg\] and \[supervisor-trap-delegation-registers-sedeleg-sideleg\] ).
+The interrupt may be delegated to other operating modes via software manipulation of `mip` and `sip` registers. Alternatively, higher performance interrupt redirection may be implemented via use of the `mideleg` and `sideleg` configuration registers
 
 The interrupt vector used to service the interrupt is determined based on the mode the interrupt is delegated to via the `MTVEC_DEFAULT`, `STVEC_DEFAULT` and `UTVEC_DEFAULT` parameters.
 
@@ -1131,12 +876,12 @@ The interrupt vector used to service the interrupt is determined based on the mo
 
 RV12 supports one general-purpose external interrupt input per operating mode, as defined in Table \[tab:external-interrupt-inputs\]:
 
-| Interrupt                               | Priority | Mode Supported  |
-|:----------------------------------------|:--------:|:----------------|
-| EXT\_INT<span>\[</span>3<span>\]</span> |     3    | Machine Mode    |
-| EXT\_INT<span>\[</span>2<span>\]</span> |     2    | Reserved        |
-| EXT\_INT<span>\[</span>1<span>\]</span> |     1    | Supervisor Mode |
-| EXT\_INT<span>\[</span>0<span>\]</span> |     0    | User Mode       |
+| Interrupt     | Priority | Mode Supported  |
+|:--------------|:--------:|:----------------|
+| EXT\_INT\[3\] |     3    | Machine Mode    |
+| EXT\_INT\[2\] |     2    | Reserved        |
+| EXT\_INT\[1\] |     1    | Supervisor Mode |
+| EXT\_INT\[0\] |     0    | User Mode       |
 
 Each interrupt will be serviced by the operating mode it corresponds to, or alternatively a higher priority mode depending on the system configuration and specific operating conditions at the time the interrupt is handled. This includes if interrupt delegation is enabled, if a specific is implemented, or the specific operating mode at the time of servicing for example.
 
@@ -1211,23 +956,48 @@ The Debug Unit’s address map provides access to the Debug Unit’s internal re
 
 The internal registers can be always accessed, whereas the Register Files and the CSRs can only be access when the CPU is stalled.
 
-<span>@lcp<span>6cm</span>@</span> **addr<span>\[</span>12:0<span>\]</span>** & **Register** & **Description**
-**addr<span>\[</span>12:0<span>\]</span>** & **Register** & **Description**
-
-0x0000 & `DBG_CTRL` & Debug Control0x0001 & `DBG_HIT` & Debug Hit0x0002 & `DBG_IE` & Debug Interrupt Enable0x0003 & `DBG_CAUSE` & Debug Interrupt Cause0x0004-0x000F & & *Reserved*0x0010 & `DBG_BPCTRL0` & Hardware Breakpoint0 Control0x0011 & `DBG_BPDATA0` & Hardware Breakpoint0 Data0x0012 & `DBG_BPCTRL1` & Hardware Breakpoint1 Control0x0013 & `DBG_BPDATA1` & Hardware Breakpoint1 Data0x0014 & `DBG_BPCTRL2` & Hardware Breakpoint2 Control0x0015 & `DBG_BPDATA2` & Hardware Breakpoint2 Data0x0016 & `DBG_BPCTRL3` & Hardware Breakpoint3 Control0x0017 & `DBG_BPDATA3` & Hardware Breakpoint3 Data0x0018 & `DBG_BPCTRL4` & Hardware Breakpoint4 Control0x0019 & `DBG_BPDATA4` & Hardware Breakpoint4 Data0x001A & `DBG_BPCTRL5` & Hardware Breakpoint5 Control0x001B & `DBG_BPDATA5` & Hardware Breakpoint5 Data0x001C & `DBG_BPCTRL6` & Hardware Breakpoint6 Control0x001D & `DBG_BPDATA6` & Hardware Breakpoint6 Data0x001E & `DBG_BPCTRL7` & Hardware Breakpoint7 Control0x001F & `DBG_BPDATA7` & Hardware Breakpoint7 Data0x0020-0x00FF & & *Reserved*0x0100-0x011F & `RF` & Integer Register File0x0120-0x03FF & & *Reserved*0x0140-0x051F & `FRF` & Floating Point Register File0x0160-0x071F & `FRF` (MSBs) & MSBs of the Floating Point Register, for 64bit `FRF` with 32bit `XLEN`0x0180-0x07FF & & *Reserved*0x0800 & `NPC` & Next Program Counter0x0801 & `PPC` & Current Program Counter0x0802-0x0FFF & & *Reserved*0x1000-0x1FFF & CSR & CPU Control & Status
+| **addr\[12:0\]** |  **Register** | **Description**                                                        |
+|:-----------------|:-------------:|:-----------------------------------------------------------------------|
+| 0x0000           |   `DBG_CTRL`  | Debug Control                                                          |
+| 0x0001           |   `DBG_HIT`   | Debug Hit                                                              |
+| 0x0002           |    `DBG_IE`   | Debug Interrupt Enable                                                 |
+| 0x0003           |  `DBG_CAUSE`  | Debug Interrupt Cause                                                  |
+| 0x0004-0x000F    |               | *Reserved*                                                             |
+| 0x0010           | `DBG_BPCTRL0` | Hardware Breakpoint0 Control                                           |
+| 0x0011           | `DBG_BPDATA0` | Hardware Breakpoint0 Data                                              |
+| 0x0012           | `DBG_BPCTRL1` | Hardware Breakpoint1 Control                                           |
+| 0x0013           | `DBG_BPDATA1` | Hardware Breakpoint1 Data                                              |
+| 0x0014           | `DBG_BPCTRL2` | Hardware Breakpoint2 Control                                           |
+| 0x0015           | `DBG_BPDATA2` | Hardware Breakpoint2 Data                                              |
+| 0x0016           | `DBG_BPCTRL3` | Hardware Breakpoint3 Control                                           |
+| 0x0017           | `DBG_BPDATA3` | Hardware Breakpoint3 Data                                              |
+| 0x0018           | `DBG_BPCTRL4` | Hardware Breakpoint4 Control                                           |
+| 0x0019           | `DBG_BPDATA4` | Hardware Breakpoint4 Data                                              |
+| 0x001A           | `DBG_BPCTRL5` | Hardware Breakpoint5 Control                                           |
+| 0x001B           | `DBG_BPDATA5` | Hardware Breakpoint5 Data                                              |
+| 0x001C           | `DBG_BPCTRL6` | Hardware Breakpoint6 Control                                           |
+| 0x001D           | `DBG_BPDATA6` | Hardware Breakpoint6 Data                                              |
+| 0x001E           | `DBG_BPCTRL7` | Hardware Breakpoint7 Control                                           |
+| 0x001F           | `DBG_BPDATA7` | Hardware Breakpoint7 Data                                              |
+| 0x0020-0x00FF    |               | *Reserved*                                                             |
+| 0x0100-0x011F    |      `RF`     | Integer Register File                                                  |
+| 0x0120-0x03FF    |               | *Reserved*                                                             |
+| 0x0140-0x051F    |     `FRF`     | Floating Point Register File                                           |
+| 0x0160-0x071F    |  `FRF` (MSBs) | MSBs of the Floating Point Register, for 64bit `FRF` with 32bit `XLEN` |
+| 0x0180-0x07FF    |               | *Reserved*                                                             |
+| 0x0800           |     `NPC`     | Next Program Counter                                                   |
+| 0x0801           |     `PPC`     | Current Program Counter                                                |
+| 0x0802-0x0FFF    |               | *Reserved*                                                             |
+| 0x1000-0x1FFF    |      CSR      | CPU Control and Status                                                 |
 
 Internal Register Map
 ---------------------
 
 The Debug Unit’s internal register map can be accessed when the CPU is stalled or running. These registers control the hardware breakpoints and conditions and report the reason why the Debug Unit stalled the CPU.
 
-### Debug Control Register <span>DBG\_CTRL</span>
+### Debug Control Register `DBG_CTRL`
 
 The `XLEN` size `DBG_CTRL` controls the single-step and branch-tracing functions.
-
-<span>@Ucc</span> <span>   </span> & &
-& &
-XLEN-2 & 1 & 1
 
 When the Single-Step-Trace-Enable bit is ‘1’ the Single-Step-Trace function is enabled. The CPU will assert (‘1’) `dbg_bp` each time a non-NOP instruction is about to be executed.
 
@@ -1243,11 +1013,7 @@ When the Branch-Trace-Enable bit is ‘1’ the Branch-Step-Trace function is en
 |    0    | Branch-Step-Trace disabled |
 |    1    | Branch-Step-Trace enabled  |
 
-### Debug Breakpoint Hit Register <span>DBG\_HIT</span>
-
-<span>@YccccccccFcc</span> <span>   </span> & & & & & & & & & <span>   </span> & &
-& & & & & & & & & & &
-XLEN-16 & 1 & 1 & 1 & 1 & 1 & 1 & 1 & 1 & 6 & 1 & 1
+### Debug Breakpoint Hit Register `DBG_HIT`
 
 The Debug Breakpoint Hit register contains the reason(s) why the Debug Unit requested to stall the CPU.
 
@@ -1257,13 +1023,25 @@ The Branch-Trace-Hit field is asserted (‘1’) when the Branch-Trace function 
 
 The Breakpoint-Hit fields are asserted (‘1’) when the respective hardware breakpoint triggered and requests to stall the CPU. There is one bit for each implemented hardware breakpoint. These are sticky bits. They are set by the Debug Unit, but must be cleared by the Debug Environment.
 
-### Debug Interrupt Enable Register <span>DBG\_IE</span>
+### Debug Interrupt Enable Register `DBG_IE`
 
-<span>@U</span> <span>   </span>
-
-<span>@cl@</span> **Bit\#** & **Description**
-**Bit\#** & **Description**
-31-18 & External Interrupts17 & Timer Interrupt16 & Software Interrupt11 & Environment call from Machine Mode10 & Environment call from Hypervisor Mode9 & Environment call from Supervisor Mode8 & Environment call from User Mode7 & Store Access Fault6 & Store Address Misaligned5 & Load Access Fault4 & Load Address Misaligned3 & Breakpoint2 & Illegal Instruction1 & Instruction Access Fault0 & Instruction Address Misaligned
+| **Bit\#** | **Description**                       |
+|:---------:|:--------------------------------------|
+|   31-18   | External Interrupts                   |
+|     17    | Timer Interrupt                       |
+|     16    | Software Interrupt                    |
+|     11    | Environment call from Machine Mode    |
+|     10    | Environment call from Hypervisor Mode |
+|     9     | Environment call from Supervisor Mode |
+|     8     | Environment call from User Mode       |
+|     7     | Store Access Fault                    |
+|     6     | Store Address Misaligned              |
+|     5     | Load Access Fault                     |
+|     4     | Load Address Misaligned               |
+|     3     | Breakpoint                            |
+|     2     | Illegal Instruction                   |
+|     1     | Instruction Access Fault              |
+|     0     | Instruction Address Misaligned        |
 
 The `dbg_ie` register determines what exceptions cause the Debug Unit to assert `dbg_bp`. Normally an exception causes the CPU to load the trap-vector and enter the trap routine, but if the applicable bit in the `dbg_ie` bit is set, then the CPU does not load the trap-vector, does not change `mcause` and `mepc`, and does not enter the trap vector routine when that exception is triggered. Instead the CPU sets `DBG_CAUSE` and asserts `dbg_bp`, thereby handing over control to the external debug controller.
 
@@ -1271,9 +1049,7 @@ The lower 16bits of the register represent the trap causes as defined in the `mc
 
 Logic ‘1’ indicates the CPU hands over execution to the debug controller when the corresponding exception is triggered. For example setting bit-2 to ‘1’ causes the `BREAKPOINT` trap to assert `dbg_bp` and hand over control to the debug controller. At least the `BREAKPOINT` exception must be set in the `dbg_ie` register.
 
-### Debug Exception Cause Register <span>DBG\_CAUSE</span>
-
-<span>@U</span> <span>   </span>
+### Debug Exception Cause Register `DBG_CAUSE`
 
 The `DBG_CAUSE` register contains the exception number that caused the CPU to hand over control to the external Debug Controller. See the `mcause` register description for a description of all exceptions.
 
@@ -1298,11 +1074,7 @@ Because the RISC-V defines the cause register as an integer value, there is no e
 
 The debug controller’s software layer must translate the value in the `DBG_CAUSE` register to the debugger’s control signal. The table below shows the basic mapping of the `DBG_CAUSE` register to GDB Signals.
 
-### Debug Breakpoint Control Registers <span>DBG\_CTRLx</span>
-
-<span>@UFWcc</span> <span>   </span> & <span>   </span> & <span>   </span> & &
-& & & &
-25 & 3 & 2 & 1 & 1
+### Debug Breakpoint Control Registers `DBG_CTRLx`
 
 The `DBG_BPCTRL` registers control the functionality of the hardware breakpoints. There is a Breakpoint Control Register for each implemented hardware breakpoint. The `BREAKPOINTS` parameter defines the amount of hardware breakpoints that are implemented.
 
@@ -1346,9 +1118,7 @@ The hardware breakpoint will trigger a breakpoint exception when the CPU writes 
 
 The hardware breakpoint will trigger a breakpoint exception when the CPU accesses (either reads from or writes to) the address specified in the `DBG_DATA` register.
 
-### Debug Breakpoint Data Registers <span>DBG\_DATAx</span>
-
-<span>@U</span> <span>   </span>
+### Debug Breakpoint Data Registers `DBG_DATAx`
 
 The `DBG_DATA` registers contain the data/value that trigger a breakpoint hit. There is a Breakpoint Data Register for each implemented hardware breakpoint. The meaning of the `DBG_DATA` register depends on the condition code set in the associated `DBG_BPCTRL` register. See the `DBG_CTRL` register for the meaning of the `DBG_DATA` register.
 
@@ -1364,8 +1134,8 @@ Below are some example implementations for various platforms. All implementation
 |          |     |             |        |                   |
 |          |     |             |        |                   |
 
- Acknowledgements
-=================
+Acknowledgements
+================
 
 The RV12 CPU is designed to be compliant with the specifications listed below. This datasheet also includes documentation derived from these specifications as permitted under the Creative Commons Attribution 4.0 International License:
 

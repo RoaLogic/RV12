@@ -81,14 +81,17 @@
 \titlespacing*{\paragraph}    {0pt}{1.25ex plus 1ex minus .2ex}{0.5em}
 \titlespacing*{\subparagraph} {\parindent}{3.25ex plus 1ex minus .2ex}{0.5em}
 
+\setlength{\headheight}{13.6pt} % Fix spurious build warnings
+
+
 % Paragraph formatting
 %\setlength{\parindent}{1em}
 \setlength{\parskip}{0.5em}
 
 % Long table formatting
-\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}                  
-\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}                        
-\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
+% \newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}                  
+% \newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}                        
+% \newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
 
 % Pad All Table Rows
 % \renewcommand{\arraystretch}{1.2}

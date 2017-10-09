@@ -7,56 +7,60 @@ parameters and configuration options are described in this section.
 
 \section{Core Parameters}\label{core-parameters}
 
-\begin{longtable}[]{@{}cccp{7cm}@{}}
+\begin{longtable}[]{@{}lccp{6cm}@{}}
 \toprule
-Parameter & Type & Default & Description\tabularnewline
+	Parameter & Type & Default & Description\tabularnewline
 \midrule
-\endfirsthead
+
+\ifdefined\MARKDOWN
+	\endhead
+\else
+	\endfirsthead
+
+	\multicolumn{4}{c}{{(Continued from previous page)}} \\
+	\toprule
+		Parameter & Type & Default & Description\tabularnewline
+	\midrule
+	\endhead
+
+	\midrule \multicolumn{4}{c}{{\tablename\ \thetable{} continued on next page\ldots}} \\
+	\endfoot
+	\endlastfoot
+\fi
 
 
-\multicolumn{4}{c}{{(Continued from previous page)}} \\
-\toprule
-Parameter & Type & Default & Description\tabularnewline
-\midrule
-\endhead
 
-\midrule \multicolumn{4}{c}{{\tablename\ \thetable{} continued on next page\ldots}} \\
-\endfoot
-
-\endlastfoot
-
-\texttt{XLEN} & Integer & 32 & Datapath width\tabularnewline
-\texttt{PC\_INIT} & Address & `h200 & Program Counter Initialisation
-Vector\tabularnewline
-\texttt{PHYS\_ADDR\_SIZE}     & Integer & \texttt{XLEN} & Physical Address Size\tabularnewline
-\texttt{HAS\_USER}            & Integer & 0 & User Mode Enable\tabularnewline
-\texttt{HAS\_SUPER}           & Integer & 0 & Supervisor Mode Enable\tabularnewline
-\texttt{HAS\_HYPER}           & Integer & 0 & Hypervisor Mode Enable\tabularnewline
-\texttt{HAS\_MULDIV}          & Integer & 0 & ``M'' Extension Enable\tabularnewline
-\texttt{HAS\_AMO}             & Integer & 0 & ``A'' Extension Enable\tabularnewline
-\texttt{HAS\_RVC}             & Integer & 0 & ``C'' Extension Enable\tabularnewline
-\texttt{HAS\_BPU}             & Integer & 1 & Branch Prediction Unit Control Enable\tabularnewline
-\texttt{IS\_RV32E}            & Integer & 0 & RV32E Base Integer Instruction Set Enable\tabularnewline
-\texttt{MULT\_LATENCY}        & Integer & 0 & Hardware Multiplier Latency (if ``M'' Extension enabled)\tabularnewline
-\texttt{BP\_LOCAL\_BITS}      & Integer & 10 & Number of local predictor bits\tabularnewline
-\texttt{BP\_GLOBAL\_BITS}     & Integer & 2 & Number of global predictor bits\tabularnewline
-\texttt{HARTID}               & Integer & 0 & Hart Identifier\tabularnewline
-\texttt{ICACHE\_SIZE}         & Integer & 16 & Instruction Cache size in Kbytes\tabularnewline
-\texttt{ICACHE\_BLOCK\_SIZE}  & Integer & 32 & Instruction Cache block length in bytes\tabularnewline
-\texttt{ICACHE\_WAYS}         & Integer & 2 & Instruction Cache associativity\tabularnewline
-\texttt{ICACHE\_REPLACE\_ALG} & Integer & 0 & Instruction Cache replacement algorithm
+\texttt{XLEN}                 & Integer & 32                      & Datapath width\tabularnewline
+\texttt{PC\_INIT}             & Address & \texttt{h200}           & Program Counter Initialisation Vector\tabularnewline
+\texttt{PHYS\_ADDR\_SIZE}     & Integer & \texttt{XLEN}           & Physical Address Size\tabularnewline
+\texttt{HAS\_USER}            & Integer & 0                       & User Mode Enable\tabularnewline
+\texttt{HAS\_SUPER}           & Integer & 0                       & Supervisor Mode Enable\tabularnewline
+\texttt{HAS\_HYPER}           & Integer & 0                       & Hypervisor Mode Enable\tabularnewline
+\texttt{HAS\_MULDIV}          & Integer & 0                       & ``M'' Extension Enable\tabularnewline
+\texttt{HAS\_AMO}             & Integer & 0                       & ``A'' Extension Enable\tabularnewline
+\texttt{HAS\_RVC}             & Integer & 0                       & ``C'' Extension Enable\tabularnewline
+\texttt{HAS\_BPU}             & Integer & 1                       & Branch Prediction Unit Control Enable\tabularnewline
+\texttt{IS\_RV32E}            & Integer & 0                       & RV32E Base Integer Instruction Set Enable\tabularnewline
+\texttt{MULT\_LATENCY}        & Integer & 0                       & Hardware Multiplier Latency (if ``M'' Extension enabled)\tabularnewline
+\texttt{BP\_LOCAL\_BITS}      & Integer & 10                      & Number of local predictor bits\tabularnewline
+\texttt{BP\_GLOBAL\_BITS}     & Integer & 2                       & Number of global predictor bits\tabularnewline
+\texttt{HARTID}               & Integer & 0                       & Hart Identifier\tabularnewline
+\texttt{ICACHE\_SIZE}         & Integer & 16                      & Instruction Cache size in Kbytes\tabularnewline
+\texttt{ICACHE\_BLOCK\_SIZE}  & Integer & 32                      & Instruction Cache block length in bytes\tabularnewline
+\texttt{ICACHE\_WAYS}         & Integer & 2                       & Instruction Cache associativity\tabularnewline
+\texttt{ICACHE\_REPLACE\_ALG} & Integer & 0                       & Instruction Cache replacement algorithm
 \newline0: Random
 \newline1: FIFO
 \newline2: LRU\tabularnewline
-\texttt{DCACHE\_SIZE}         & Integer & 16 & Data Cache size in Kbytes\tabularnewline
-\texttt{DCACHE\_BLOCK\_SIZE}  & Integer & 32 & Data Cache block length in bytes\tabularnewline
-\texttt{DCACHE\_WAYS}         & Integer & 2 & Data Cache associativity\tabularnewline
-\texttt{DCACHE\_REPLACE\_ALG} & Integer & 0 & Data Cache replacement algorithm
+\texttt{DCACHE\_SIZE}         & Integer & 16                      & Data Cache size in Kbytes\tabularnewline
+\texttt{DCACHE\_BLOCK\_SIZE}  & Integer & 32                      & Data Cache block length in bytes\tabularnewline
+\texttt{DCACHE\_WAYS}         & Integer & 2                       & Data Cache associativity\tabularnewline
+\texttt{DCACHE\_REPLACE\_ALG} & Integer & 0                       & Data Cache replacement algorithm
 \newline0: Random
 \newline1: FIFO
 \newline2: LRU\tabularnewline
-\texttt{BREAKPOINTS}          & Integer & 3 & Number of hardware breakpoints\tabularnewline
-\texttt{TECHNOLOGY}           & String  & \texttt{GENERIC} & Target Silicon Technology\tabularnewline
+\texttt{BREAKPOINTS}          & Integer & 3                       & Number of hardware breakpoints\tabularnewline
+\texttt{TECHNOLOGY}           & String  & \texttt{GENERIC}        & Target Silicon Technology\tabularnewline
 \texttt{MNMIVEC\_DEFAULT}     & Address & \texttt{PC\_INIT-`h004} & Machine Mode Non-Maskable Interrupt vector address\tabularnewline
 \texttt{MTVEC\_DEFAULT}       & Address & \texttt{PC\_INIT-`h040} & Machine Mode Interrupt vector address\tabularnewline
 \texttt{HTVEC\_DEFAULT}       & Address & \texttt{PC\_INIT-`h080} & Hypervisor Mode Interrupt vector address\tabularnewline
@@ -132,7 +136,11 @@ core to generate a branch-predictor. The type and size of the
 branch-predictor is determined by the \texttt{BP\_GLOBAL\_BITS} and
 \texttt{BP\_LOCAL\_BITS} parameters.
 
+\ifdefined\MARKDOWN
+See branch prediction unit section for more details.
+\else
 See section \ref{branch-prediction-unit} \nameref{branch-prediction-unit} for more details.
+\fi
 
 \subsection{IS\_RV12E}\label{is_rv12e}
 
@@ -167,7 +175,11 @@ program counter should be used for the prediction.
 
 This parameter only has an effect if \texttt{HAS\_BPU=1}.
 
+\ifdefined\MARKDOWN
+See branch prediction unit section for more details.
+\else
 See section \ref{branch-prediction-unit} \nameref{branch-prediction-unit} for more details.
+\fi
 
 \subsection{BPU\_GLOBAL\_BITS}\label{bpu_global_bits}
 
@@ -178,7 +190,11 @@ bits should be used for the prediction.
 
 This parameter only has an effect if \texttt{HAS\_BPU=1}.
 
+\ifdefined\MARKDOWN
+See branch prediction unit section for more details.
+\else
 See section \ref{branch-prediction-unit} \nameref{branch-prediction-unit} for more details.
+\fi
 
 \subsection{HARTID}\label{hartid}
 
@@ -192,14 +208,23 @@ The CPU has an optional instruction cache. The \texttt{ICACHE\_SIZE} parameter
 specifies the size of the instruction cache in Kbytes. Setting this
 parameter to 0 prevents the core from generating an instruction cache.
 
+\ifdefined\MARKDOWN
+See instruction cache section for more details.
+\else
 See section \ref{instruction-cache} \nameref{instruction-cache} for more details.
+\fi
+
 
 \subsection{ICACHE\_BLOCK\_LENGTH}\label{icache_block_length}
 
 The CPU has an optional instruction cache. The \texttt{ICACHE\_BLOCK\_LENGTH}
 parameter specifies the number of bytes in one cache block.
 
+\ifdefined\MARKDOWN
+See instruction cache section for more details.
+\else
 See section \ref{instruction-cache} \nameref{instruction-cache} for more details.
+\fi
 
 \subsection{ICACHE\_WAYS}\label{icache_ways}
 
@@ -209,6 +234,11 @@ generates a direct mapped cache, setting it to 2 generates a 2-way set
 associative cache, setting it to 4 generates a 4-way set associative
 cache, etc.
 
+\ifdefined\MARKDOWN
+See instruction cache section for more details.
+\else
+See section \ref{instruction-cache} \nameref{instruction-cache} for more details.
+\fi
 See section \ref{instruction-cache} \nameref{instruction-cache} for more details.
 
 \subsection{ICACHE\_REPLACE\_ALG}\label{icache_replace_alg}
@@ -217,6 +247,11 @@ The CPU has an optional instruction cache. The \texttt{ICACHE\_REPLACE\_ALG}
 parameter specifies the algorithm used to select which block will be
 replaced during a block-fill.
 
+\ifdefined\MARKDOWN
+See instruction cache section for more details.
+\else
+See section \ref{instruction-cache} \nameref{instruction-cache} for more details.
+\fi
 See section \ref{instruction-cache} \nameref{instruction-cache} for more details.
 
 \subsection{DCACHE\_SIZE}\label{dcache_size}
@@ -225,14 +260,22 @@ The CPU has an optional data cache. The DCACHE\_SIZE parameter specifies
 the size of the instruction cache in Kbytes. Setting this parameter to
 `0' prevents the core from generating a data cache.
 
+\ifdefined\MARKDOWN
+See data cache section for more details.
+\else
 See section \ref{data-cache} \nameref{data-cache} for more details.
+\fi
 
 \subsection{DCACHE\_BLOCK\_LENGTH}\label{dcache_block_length}
 
 The CPU has an optional data cache. \texttt{The DCACHE\_BLOCK\_LENGTH} parameter
 specifies the number of bytes in one cache block.
 
+\ifdefined\MARKDOWN
+See data cache section for more details.
+\else
 See section \ref{data-cache} \nameref{data-cache} for more details.
+\fi
 
 \subsection{DCACHE\_WAYS}\label{dcache_ways}
 
@@ -241,7 +284,11 @@ the associativity of the cache. Setting this parameter to 1 generates a
 direct mapped cache, setting it to 2 generates a 2-way set associative
 cache, setting it to 4 generates a 4-way set associative cache, etc.
 
+\ifdefined\MARKDOWN
+See data cache section for more details.
+\else
 See section \ref{data-cache} \nameref{data-cache} for more details.
+\fi
 
 \subsection{DCACHE\_REPLACE\_ALG}\label{dcache_replace_alg}
 
@@ -249,7 +296,11 @@ The CPU has an optional instruction cache. The \texttt{DCACHE\_REPLACE\_ALG}
 parameter specifies the algorithm used to select which block will be
 replaced during a block-fill.
 
+\ifdefined\MARKDOWN
+See data cache section for more details.
+\else
 See section \ref{data-cache} \nameref{data-cache} for more details.
+\fi
 
 \subsection{BREAKPOINTS}\label{breakpoints}
 

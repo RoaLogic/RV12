@@ -1,10 +1,11 @@
 \chapter{RV12 Execution Pipeline}
 
-The RV12 implements a 32/64bit Integer modified form of the classic RISC pipeline. The pipeline consists of the Instruction Fetch, Pre-Decode, Instruction Decode, Execution, and Write Back stages as highlighted in the figure below.
+The RV12 implements a 32/64bit Integer modified form of the classic RISC pipeline. 
+The pipeline consists of the Instruction Fetch, Pre-Decode, Instruction Decode, Execution, and Write Back stages as highlighted in the figure below.
  
 
 \begin{figure}[h]
-  \includegraphics{assets/img/Pipeline-Overview.png}
+  \includegraphics{assets/img/Pipeline-Overview}
   \caption{RV12 Execution Pipeline}
 \end{figure}
 
@@ -13,12 +14,15 @@ The RV12 implements a 32/64bit Integer modified form of the classic RISC pipelin
 \section{Instruction Fetch (IF)}\label{instruction-fetch-if}
 
 \begin{figure}[h]
-  \includegraphics{assets/img/Pipeline-IF.png}
+  \includegraphics{assets/img/Pipeline-IF}
   \caption{Instruction Fetch Stage Implementation}
 \end{figure}
 
 The Instruction Fetch unit loads a new parcel from the program memory.
-A parcel is a code field that contains one or more instructions. The address of the parcel to load is held by the Program Counter (PC). The Program Counter is either 32 or 64bits wide, depending on the XLEN parameter. The Program Counter is updated whenever the Instruction Pipeline is not stalled.
+A parcel is a code field that contains one or more instructions. 
+The address of the parcel to load is held by the Program Counter (PC). 
+The Program Counter is either 32 or 64bits wide, depending on the XLEN parameter. 
+The Program Counter is updated whenever the Instruction Pipeline is not stalled.
 
 In case the pipeline must be flushed the Program Counter is restarted from the given address.
 
@@ -26,6 +30,12 @@ In case the pipeline must be flushed the Program Counter is restarted from the g
 	\toprule
 	\textbf{Signal} & \textbf{Direction} & \textbf{To/From} & \textbf{Description}\tabularnewline
 	\midrule
+
+\ifdefined\MARKDOWN
+	\endhead
+
+\else
+
 	\endfirsthead
 	\multicolumn{4}{c}{{(Continued from previous page)}} \\
 	\toprule
@@ -36,17 +46,19 @@ In case the pipeline must be flushed the Program Counter is restarted from the g
 	\endfoot
 	\endlastfoot
 
-	if\_nxt\_pc &	to	& Bus Interface	& Next address to fetch parcel from\\
-	parcel\_pc &	from &	Bus Interface &	Fetch parcel's address\\
-	parcel\_valid &	from &	Bus Interface &	Valid indicators for parcel\\
-	parcel	& from &	Bus Interface &	Fetched parcel\\
-	\\		
-	Flush &	from &	EX/State &	When asserted flushes the pipe\\
-	Stall &	from &	PD &	When asserted stalls the pipe\\
-	pd\_branch\_pc &	from &	PD	& New program counter for a branch instruction\\
-	if\_pc &	to & PD	 & Instruction Fetch program counter\\
-	if\_instr &	to	& PD &	Instruction Fetch instruction\\
-	if\_bubble &	to & PD	& Instruction Fetch bubble\\
+\fi
+
+	\texttt{if\_nxt\_pc}    & to   & Bus Interface & Next address to fetch parcel from\\
+	\texttt{parcel\_pc}     & from & Bus Interface & Fetch parcel's address\\
+	\texttt{parcel\_valid}  & from & Bus Interface & Valid indicators for parcel\\
+	\texttt{parcel}         & from & Bus Interface & Fetched parcel\\
+	& & &\\
+	\texttt{Flush}          & from & EX/State      & When asserted flushes the pipe\\
+	\texttt{Stall}          & from & PD            & When asserted stalls the pipe\\
+	\texttt{pd\_branch\_pc} & from & PD            & New program counter for a branch instruction\\
+	\texttt{if\_pc}         & to   & PD            & Instruction Fetch program counter\\
+	\texttt{if\_instr}      & to   & PD            & Instruction Fetch instruction\\
+	\texttt{if\_bubble}     & to   & PD            & Instruction Fetch bubble\\
 		
 	\bottomrule
 \caption{IF Signals}
@@ -57,12 +69,14 @@ In case the pipeline must be flushed the Program Counter is restarted from the g
 
 \section{Pre-Decode (PD)}\label{pre-decode-pd}
 
-The Pre-Decode unti translates 16-bit compressed instructions to the base 32bit RISC-V instructions and then processes Program Counter modifying instructions. Jump-And-Link and Branch instructions modify the Program Counter in the Instruction Fetch stage. This avoids waiting for the Execution stage to trigger the update and reduces the demand for pipeline flushes.
+The Pre-Decode unti translates 16-bit compressed instructions to the base 32bit RISC-V instructions and then processes Program Counter modifying instructions. 
+Jump-And-Link and Branch instructions modify the Program Counter in the Instruction Fetch stage. 
+This avoids waiting for the Execution stage to trigger the update and reduces the demand for pipeline flushes.
 The destination address for branches is predicted based on the data provided by the optional Branch Prediction Unit or determined statically based on the offset.
 
 
 \begin{figure}[th]
-  \includegraphics{assets/img/Pipeline-PD.png}
+  \includegraphics{assets/img/Pipeline-PD}
   \caption{Instruction Pre-Decode Stage}
 \end{figure}
 
@@ -70,6 +84,10 @@ The destination address for branches is predicted based on the data provided by 
 	\toprule
 	\textbf{Signal} & \textbf{Direction} & \textbf{To/From} & \textbf{Description}\tabularnewline
 	\midrule
+
+\ifdefined\MARKDOWN
+	\endhead
+\else
 	\endfirsthead
 	\multicolumn{4}{c}{{(Continued from previous page)}} \\
 	\toprule
@@ -79,17 +97,19 @@ The destination address for branches is predicted based on the data provided by 
 	\midrule \multicolumn{4}{c}{{\tablename\ \thetable{} continued on next page\ldots}} \\
 	\endfoot
 	\endlastfoot
+
+\fi
 	
-	if\_pc         & from &	IF	& Instruction\_fetch program counter\\
-	if\_instr	   & from &	IF	& Instruction\_fetch instruction\\
-	if\_bubble	   & from &	IF	& Instruction\_fetch bubble\\
-	pd\_branch\_pc & to	  & IF	& New PC (for a branch instruction)\\
-	\\
-	bu\_predict	   & from &	BP	& Branch prediction from Branch Prediction Unit\\
-	pd\_predict	   & to	  & ID	& Forwarded branch prediction\\
-	pd\_pc	       & to	  & ID  & Pre-Decode program counter\\
-	pd\_instr	   & to	  & ID	& Pre-Decode instruction\\
-	pd\_bubble	   & to	  & ID	& Pre-Decode bubble	\\
+	\texttt{if\_pc}         & from & IF & Instruction\_fetch program counter\\
+	\texttt{if\_instr}      & from & IF & Instruction\_fetch instruction\\
+	\texttt{if\_bubble}     & from & IF & Instruction\_fetch bubble\\
+	\texttt{pd\_branch\_pc} & to   & IF & New PC (for a branch instruction)\\
+	& & &\\
+	\texttt{bu\_predict}    & from & BP & Branch prediction from Branch Prediction Unit\\
+	\texttt{pd\_predict }   & to   & ID & Forwarded branch prediction\\
+	\texttt{pd\_pc}         & to   & ID & Pre-Decode program counter\\
+	\texttt{pd\_instr}      & to   & ID & Pre-Decode instruction\\
+	\texttt{pd\_bubble}     & to   & ID & Pre-Decode bubble\\
 	\bottomrule
 	\caption{PD Signals}
 	\label{tab:pd-signals}
@@ -99,12 +119,11 @@ The destination address for branches is predicted based on the data provided by 
 
 \section{Instruction Decode (ID)}\label{instruction-decode-id-1}
 
-The Instruction Decode unit ensures the operands for the execution units
-are available. It accesses the Register File, calculates immediate
-values, and sets bypasses.
+The Instruction Decode unit ensures the operands for the execution units are available. 
+It accesses the Register File, calculates immediate values, and sets bypasses.
 
 \begin{figure}[h]
-  \includegraphics{assets/img/Pipeline-ID.png}
+  \includegraphics{assets/img/Pipeline-ID}
   \caption{Instruction Decode Stage Implementation}
 \end{figure}
 
@@ -112,6 +131,10 @@ values, and sets bypasses.
 	\toprule
 	\textbf{Signal} & \textbf{Direction} & \textbf{To/From} & \textbf{Description}\tabularnewline
 	\midrule
+
+\ifdefined\MARKDOWN
+	\endhead
+\else
 	\endfirsthead
 	\multicolumn{4}{c}{{(Continued from previous page)}} \\
 	\toprule
@@ -121,21 +144,22 @@ values, and sets bypasses.
 	\midrule \multicolumn{4}{c}{{\tablename\ \thetable{} continued on next page\ldots}} \\
 	\endfoot
 	\endlastfoot
+\fi
 	
-		pd\_pc	    & from & PD & Pre-Decode program counter\\
-		pd\_instr   & from & PD & Pre-Decode instruction\\
-		pd\_bubble  & from & PD & Pre-Decode bubble\\
-		\\
-		src1        & to   & RF & Source Register1 index\\
-		src2        & to   & RF & Source Register2 Index\\
-		\\			
-		id\_bypassA & to   & EX & Bypass signals for srcA\\
-		id\_bypassB & to   & EX & Bypass signals for srcB\\
-		id\_opA     & to   & EX & Calculated operandA\\
-		id\_opB     & to   & EX & Calculated operandB\\
-		id\_pc      & to   & EX & Instruction Decode program counter\\
-		id\_instr   & to   & EX & Instruction Decode instruction\\
-		id\_bubble  & to   & EX & Instruction Decode bubble\\	
+		\texttt{pd\_pc}	     & from & PD & Pre-Decode program counter\\
+		\texttt{pd\_instr}   & from & PD & Pre-Decode instruction\\
+		\texttt{pd\_bubble}  & from & PD & Pre-Decode bubble\\
+		& & &\\
+		\texttt{src1}        & to   & RF & Source Register1 index\\
+		\texttt{src2}        & to   & RF & Source Register2 Index\\
+		& & &\\			
+		\texttt{id\_bypassA} & to   & EX & Bypass signals for srcA\\
+		\texttt{id\_bypassB} & to   & EX & Bypass signals for srcB\\
+		\texttt{id\_opA}     & to   & EX & Calculated operandA\\
+		\texttt{id\_opB}     & to   & EX & Calculated operandB\\
+		\texttt{id\_pc}      & to   & EX & Instruction Decode program counter\\
+		\texttt{id\_instr}   & to   & EX & Instruction Decode instruction\\
+		\texttt{id\_bubble}  & to   & EX & Instruction Decode bubble\\	
 	\bottomrule
 	\caption{ID Signals}
 	\label{tab:id-signals}
@@ -145,7 +169,8 @@ values, and sets bypasses.
 
 \section{Execute (EX)}\label{execute-ex-1}
 
-The Execute stage performs the required operation on the data provided by the Instruction Decode stage. The Execution stage has multiple execution units, each with a unique function;
+The Execute stage performs the required operation on the data provided by the Instruction Decode stage. 
+The Execution stage has multiple execution units, each with a unique function.
 The ALU performs logical and arithmetic operations.
 The Multiplier unit calculates signed/unsigned multiplications.
 The Divider unit calculates signed/unsigned division and remainder.
@@ -153,11 +178,12 @@ The Load-Store Unit accesses the data memory.
 The Branch Unit calculates jump and branch addresses and validates the predicted branches.
 
 Only one operation can be executed per clock cycle.
-Most operations complete in one clock cycle, except for the divide instructions, which always take multiple clock cycles to complete. The multiplier supports configurable latencies, to improve performance.
+Most operations complete in one clock cycle, except for the divide instructions, which always take multiple clock cycles to complete. 
+The multiplier supports configurable latencies, to improve performance.
 
 
 \begin{figure}[h]
-  \includegraphics{assets/img/Pipeline-EX.png}
+  \includegraphics{assets/img/Pipeline-EX}
   \caption{Execute Stage Implementation}
 \end{figure}
 
@@ -165,6 +191,10 @@ Most operations complete in one clock cycle, except for the divide instructions,
 	\toprule
 	\textbf{Signal} & \textbf{Direction} & \textbf{To/From} & \textbf{Description}\tabularnewline
 	\midrule
+
+\ifdefined\MARKDOWN
+	\endhead
+\else
 	\endfirsthead
 	\multicolumn{4}{c}{{(Continued from previous page)}} \\
 	\toprule
@@ -174,24 +204,24 @@ Most operations complete in one clock cycle, except for the divide instructions,
 	\midrule \multicolumn{4}{c}{{\tablename\ \thetable{} continued on next page\ldots}} \\
 	\endfoot
 	\endlastfoot
-	
-		id\_pc & from & ID & Instruction Decode program counter\\
-		id\_instr & from & ID & Instruction Decode instruction\\
-		id\_bubble & from & ID & Instruction Decode bubble\\
-		 &  &  & \\
-		opA & from & RF & Source Register1 value\\
-		opB & from & RF & Source Register2 value\\
-		 &  &  & \\
-		id\_bypassA & from & ID & Bypass signals for srcA\\
-		id\_bypassB & from & ID & Bypass signals for srcB\\
-		id\_opA & from & ID & Calculated operandA\\
-		id\_opB & from & ID & Calculated operandB\\
-		ex\_stall & to & ID & Stall ID (and higher) stages\\
-		ex\_flush & to & ID/PD/IF & Flush ID (and higher) pipe stages\\
-		ex\_r & to & WB & Result from execution units\\
-		ex\_pc & to & WB & Execute program counter\\
-		ex\_instr & to & WB & Execute instruction\\
-		ex\_bubble & to & WB & Execute bubble\\
+\fi	
+		id\_pc      & from & ID       & Instruction Decode program counter\\
+		id\_instr   & from & ID       & Instruction Decode instruction\\
+		id\_bubble  & from & ID       & Instruction Decode bubble\\
+		            &      &          & \\
+		opA         & from & RF       & Source Register1 value\\
+		opB         & from & RF       & Source Register2 value\\
+		            &      &          & \\
+		id\_bypassA & from & ID       & Bypass signals for srcA\\
+		id\_bypassB & from & ID       & Bypass signals for srcB\\
+		id\_opA     & from & ID       & Calculated operandA\\
+		id\_opB     & from & ID       & Calculated operandB\\
+		ex\_stall   & to   & ID       & Stall ID (and higher) stages\\
+		ex\_flush   & to   & ID/PD/IF & Flush ID (and higher) pipe stages\\
+		ex\_r       & to   & WB       & Result from execution units\\
+		ex\_pc      & to   & WB       & Execute program counter\\
+		ex\_instr   & to   & WB       & Execute instruction\\
+		ex\_bubble  & to   & WB       & Execute bubble\\
 	\bottomrule
 	\caption{EX Signals}
 	\label{tab:ex-signals}
@@ -204,7 +234,7 @@ Most operations complete in one clock cycle, except for the divide instructions,
 The Write-Back stage writes the results from the Execution Unit into the Register File.
 
 \begin{figure}[h]
-  \includegraphics{assets/img/Pipeline-WB.png}
+  \includegraphics{assets/img/Pipeline-WB}
   \caption{Write-back Stage Implementation}
 \end{figure}
 
@@ -212,6 +242,9 @@ The Write-Back stage writes the results from the Execution Unit into the Registe
 	\toprule
 	\textbf{Signal} & \textbf{Direction} & \textbf{To/From} & \textbf{Description}\tabularnewline
 	\midrule
+\ifdefined\MARKDOWN
+	\endhead
+\else
 	\endfirsthead
 	\multicolumn{4}{c}{{(Continued from previous page)}} \\
 	\toprule
@@ -221,17 +254,17 @@ The Write-Back stage writes the results from the Execution Unit into the Registe
 	\midrule \multicolumn{4}{c}{{\tablename\ \thetable{} continued on next page\ldots}} \\
 	\endfoot
 	\endlastfoot
-	
-		ex\_pc & from & EX & Execute program counter\\
-		ex\_instr & from & EX & Execute instruction\\
-		ex\_bubble & from & EX & Execute bubble\\
-		ex\_r & from  & EX & Result from execution units\\
-		 &  &  & \\
-		wb\_r & to & RF & Result to be written to RF\\
-		wb\_dst & to & RF & Destination register index\\
-		wb\_we & to & RF & Write enable\\
-		wb\_pc & to & WB & WriteBack program counter\\
-		wb\_instr & to & WB & WriteBack instruction\\
+\fi	
+		\texttt{ex\_pc}     & from & EX & Execute program counter\\
+		\texttt{ex\_instr}  & from & EX & Execute instruction\\
+		\texttt{ex\_bubble} & from & EX & Execute bubble\\
+		\texttt{ex\_r}      & from & EX & Result from execution units\\
+		                    &      &    & \\
+		\texttt{wb\_r}      & to   & RF & Result to be written to RF\\
+		\texttt{wb\_dst}    & to   & RF & Destination register index\\
+		\texttt{wb\_we}     & to   & RF & Write enable\\
+		\texttt{wb\_pc}     & to   & WB & WriteBack program counter\\
+		\texttt{wb\_instr}  & to   & WB & WriteBack instruction\\
 
 	\bottomrule
 	\caption{EWBSignals}

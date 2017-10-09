@@ -8,3 +8,6 @@ docs/.texpadtmp
 *.bbl
 *.aux
 *.txss
+*.sublime-project
+*.sublime-workspace
+docs/build

@@ -103,54 +103,60 @@ The internal registers can be always accessed, whereas the Register
 Files and the CSRs can only be access when the CPU is stalled.
 
 \begin{longtable}[]{@{}lcp{6cm}@{}}
-\toprule
-\textbf{addr{[}12:0{]}} & \textbf{Register} & \textbf{Description}\tabularnewline
-\midrule
-\endfirsthead
-\multicolumn{3}{c}{{(Continued from previous page)}} \\
-\toprule
-\textbf{addr{[}12:0{]}} & \textbf{Register} & \textbf{Description}\tabularnewline
-\midrule
-\endhead
-\midrule \multicolumn{3}{c}{{\tablename\ \thetable{} continued on next page\ldots}} \\
-\endfoot
-\endlastfoot
+	\toprule
+	\textbf{addr[12:0]} & \textbf{Register} & \textbf{Description}\tabularnewline
+	\midrule
 
-0x0000        & \texttt{DBG\_CTRL} & Debug Control\tabularnewline
-0x0001        & \texttt{DBG\_HIT} & Debug Hit\tabularnewline
-0x0002        & \texttt{DBG\_IE} & Debug Interrupt Enable\tabularnewline
-0x0003        & \texttt{DBG\_CAUSE} & Debug Interrupt Cause\tabularnewline
-0x0004-0x000F & & \emph{Reserved}\tabularnewline
-0x0010        & \texttt{DBG\_BPCTRL0} & Hardware Breakpoint0 Control\tabularnewline
-0x0011        & \texttt{DBG\_BPDATA0} & Hardware Breakpoint0 Data\tabularnewline
-0x0012        & \texttt{DBG\_BPCTRL1} & Hardware Breakpoint1 Control\tabularnewline
-0x0013        & \texttt{DBG\_BPDATA1} & Hardware Breakpoint1 Data\tabularnewline
-0x0014        & \texttt{DBG\_BPCTRL2} & Hardware Breakpoint2 Control\tabularnewline
-0x0015        & \texttt{DBG\_BPDATA2} & Hardware Breakpoint2 Data\tabularnewline
-0x0016        & \texttt{DBG\_BPCTRL3} & Hardware Breakpoint3 Control\tabularnewline
-0x0017        & \texttt{DBG\_BPDATA3} & Hardware Breakpoint3 Data\tabularnewline
-0x0018        & \texttt{DBG\_BPCTRL4} & Hardware Breakpoint4 Control\tabularnewline
-0x0019        & \texttt{DBG\_BPDATA4} & Hardware Breakpoint4 Data\tabularnewline
-0x001A        & \texttt{DBG\_BPCTRL5} & Hardware Breakpoint5 Control\tabularnewline
-0x001B        & \texttt{DBG\_BPDATA5} & Hardware Breakpoint5 Data\tabularnewline
-0x001C        & \texttt{DBG\_BPCTRL6} & Hardware Breakpoint6 Control\tabularnewline
-0x001D        & \texttt{DBG\_BPDATA6} & Hardware Breakpoint6 Data\tabularnewline
-0x001E        & \texttt{DBG\_BPCTRL7} & Hardware Breakpoint7 Control\tabularnewline
-0x001F        & \texttt{DBG\_BPDATA7} & Hardware Breakpoint7 Data\tabularnewline
-0x0020-0x00FF & & \emph{Reserved}\tabularnewline
-0x0100-0x011F & \texttt{RF} & Integer Register File\tabularnewline
-0x0120-0x03FF & & \emph{Reserved}\tabularnewline
-0x0140-0x051F & \texttt{FRF} & Floating Point Register File\tabularnewline
-0x0160-0x071F & \texttt{FRF} (MSBs) & MSBs of the Floating Point Register, for
-64bit \texttt{FRF} with 32bit \texttt{XLEN}\tabularnewline
-0x0180-0x07FF & & \emph{Reserved}\tabularnewline
-0x0800        & \texttt{NPC}  & Next Program Counter\tabularnewline
-0x0801        & \texttt{PPC}  & Current Program Counter\tabularnewline
-0x0802-0x0FFF & & \emph{Reserved}\tabularnewline
-0x1000-0x1FFF & CSR & CPU Control \& Status\tabularnewline
-\bottomrule
-\caption{Debug Unit Register Map}
-\label{tab:debug-reg-map}
+\ifdefined\MARKDOWN
+	\endhead
+\else
+	\endfirsthead
+	\multicolumn{3}{c}{{(Continued from previous page)}} \\
+	\toprule
+	\textbf{addr{[}12:0{]}} & \textbf{Register} & \textbf{Description}\tabularnewline
+	\midrule
+	\endhead
+	\midrule \multicolumn{3}{c}{{\tablename\ \thetable{} continued on next page\ldots}} \\
+	\endfoot
+	\endlastfoot
+
+\fi
+
+	0x0000        & \texttt{DBG\_CTRL}    & Debug Control\tabularnewline
+	0x0001        & \texttt{DBG\_HIT}     & Debug Hit\tabularnewline
+	0x0002        & \texttt{DBG\_IE}      & Debug Interrupt Enable\tabularnewline
+	0x0003        & \texttt{DBG\_CAUSE}   & Debug Interrupt Cause\tabularnewline
+	0x0004-0x000F &                       & \emph{Reserved}\tabularnewline
+	0x0010        & \texttt{DBG\_BPCTRL0} & Hardware Breakpoint0 Control\tabularnewline
+	0x0011        & \texttt{DBG\_BPDATA0} & Hardware Breakpoint0 Data\tabularnewline
+	0x0012        & \texttt{DBG\_BPCTRL1} & Hardware Breakpoint1 Control\tabularnewline
+	0x0013        & \texttt{DBG\_BPDATA1} & Hardware Breakpoint1 Data\tabularnewline
+	0x0014        & \texttt{DBG\_BPCTRL2} & Hardware Breakpoint2 Control\tabularnewline
+	0x0015        & \texttt{DBG\_BPDATA2} & Hardware Breakpoint2 Data\tabularnewline
+	0x0016        & \texttt{DBG\_BPCTRL3} & Hardware Breakpoint3 Control\tabularnewline
+	0x0017        & \texttt{DBG\_BPDATA3} & Hardware Breakpoint3 Data\tabularnewline
+	0x0018        & \texttt{DBG\_BPCTRL4} & Hardware Breakpoint4 Control\tabularnewline
+	0x0019        & \texttt{DBG\_BPDATA4} & Hardware Breakpoint4 Data\tabularnewline
+	0x001A        & \texttt{DBG\_BPCTRL5} & Hardware Breakpoint5 Control\tabularnewline
+	0x001B        & \texttt{DBG\_BPDATA5} & Hardware Breakpoint5 Data\tabularnewline
+	0x001C        & \texttt{DBG\_BPCTRL6} & Hardware Breakpoint6 Control\tabularnewline
+	0x001D        & \texttt{DBG\_BPDATA6} & Hardware Breakpoint6 Data\tabularnewline
+	0x001E        & \texttt{DBG\_BPCTRL7} & Hardware Breakpoint7 Control\tabularnewline
+	0x001F        & \texttt{DBG\_BPDATA7} & Hardware Breakpoint7 Data\tabularnewline
+	0x0020-0x00FF &                       & \emph{Reserved}\tabularnewline
+	0x0100-0x011F & \texttt{RF}           & Integer Register File\tabularnewline
+	0x0120-0x03FF &                       & \emph{Reserved}\tabularnewline
+	0x0140-0x051F & \texttt{FRF}          & Floating Point Register File\tabularnewline
+	0x0160-0x071F & \texttt{FRF} (MSBs)   & MSBs of the Floating Point Register, for
+	64bit \texttt{FRF} with 32bit \texttt{XLEN}\tabularnewline
+	0x0180-0x07FF &                       & \emph{Reserved}\tabularnewline
+	0x0800        & \texttt{NPC}          & Next Program Counter\tabularnewline
+	0x0801        & \texttt{PPC}          & Current Program Counter\tabularnewline
+	0x0802-0x0FFF &                       & \emph{Reserved}\tabularnewline
+	0x1000-0x1FFF & CSR                   & CPU Control and Status\tabularnewline
+	\bottomrule
+	\caption{Debug Unit Register Map}
+	\label{tab:debug-reg-map}
 \end{longtable}
 
 \section{Internal Register Map}\label{internal-register-map}
@@ -159,10 +165,14 @@ The Debug Unit's internal register map can be accessed when the CPU is
 stalled or running. These registers control the hardware breakpoints and
 conditions and report the reason why the Debug Unit stalled the CPU.
 
-\subsection{Debug Control Register {\tt DBG\_CTRL}} \label{debug-control-register-dbg_ctrl}
+\subsection{Debug Control Register \texttt{DBG\_CTRL}} \label{debug-control-register-dbg_ctrl}
 
 The \texttt{XLEN} size \texttt{DBG\_CTRL} controls the single-step and branch-tracing
 functions.
+
+\ifdefined\MARKDOWN
+% Skip 
+\else
 
 \begin{figure*}[h!]
 	{\footnotesize
@@ -181,9 +191,11 @@ functions.
 		\end{center}
 	}
 	\vspace{-0.1in}
-	\caption{Debug Control Register {\tt DBG\_CTRL}.}
+	\caption{Debug Control Register \texttt{DBG\_CTRL}.}
 	\label{fig:dbgctrlreg}
 \end{figure*}
+
+\fi
 
 When the Single-Step-Trace-Enable bit is `1' the Single-Step-Trace
 function is enabled. The CPU will assert (`1') \texttt{dbg\_bp} each time a
@@ -218,7 +230,11 @@ is about to be executed.
 \end{longtable}
 
 
-\subsection{Debug Breakpoint Hit Register {\tt DBG\_HIT}} \label{debug-breakpoint-hit-register-dbg_hit}
+\subsection{Debug Breakpoint Hit Register \texttt{DBG\_HIT}} \label{debug-breakpoint-hit-register-dbg_hit}
+
+\ifdefined\MARKDOWN
+% Skip 
+\else
 
 \begin{figure*}[h!]
 	{\footnotesize
@@ -260,6 +276,7 @@ is about to be executed.
 	\label{fig:dbghitreg}
 \end{figure*}
 
+\fi
 
 The Debug Breakpoint Hit register contains the reason(s) why the Debug
 Unit requested to stall the CPU.
@@ -279,7 +296,11 @@ one bit for each implemented hardware breakpoint. These are sticky bits.
 They are set by the Debug Unit, but must be cleared by the Debug
 Environment.
 
-\subsection{Debug Interrupt Enable Register {\tt DBG\_IE}} \label{debug-interrupt-enable-register-dbg_ie}
+\subsection{Debug Interrupt Enable Register \texttt{DBG\_IE}} \label{debug-interrupt-enable-register-dbg_ie}
+
+\ifdefined\MARKDOWN
+% Skip 
+\else
 
 \begin{figure*}[h!]
 	{\footnotesize
@@ -293,42 +314,49 @@ Environment.
 		\end{center}
 	}
 	\vspace{-0.1in}
-	\caption{Debug Interrupt Enable Register {\tt DBGIE}.}
+	\caption{Debug Interrupt Enable Register \texttt{DBGIE}.}
 	\label{fig:dbgiereg}
 \end{figure*}
 
+\fi
 
 \begin{longtable}[]{@{}cl@{}}
-\toprule
-\textbf{Bit\#} & \textbf{Description}\tabularnewline
-\midrule
-\endfirsthead
-\multicolumn{2}{c}{{(Continued from previous page)}} \\
-\toprule
-\textbf{Bit\#} & \textbf{Description}\tabularnewline
-\midrule
-\endhead
-\midrule \multicolumn{2}{c}{{\tablename\ \thetable{} continued on next page\ldots}} \\
-\endfoot
-\endlastfoot
-31-18 & External Interrupts\tabularnewline
-17 & Timer Interrupt\tabularnewline
-16 & Software Interrupt\tabularnewline
-11 & Environment call from Machine Mode\tabularnewline
-10 & Environment call from Hypervisor Mode\tabularnewline
-9 & Environment call from Supervisor Mode\tabularnewline
-8 & Environment call from User Mode\tabularnewline
-7 & Store Access Fault\tabularnewline
-6 & Store Address Misaligned\tabularnewline
-5 & Load Access Fault\tabularnewline
-4 & Load Address Misaligned\tabularnewline
-3 & Breakpoint\tabularnewline
-2 & Illegal Instruction\tabularnewline
-1 & Instruction Access Fault\tabularnewline
-0 & Instruction Address Misaligned\tabularnewline
-\bottomrule
-\caption{\texttt{DBG\_IE} Register Bit Descriptions}
-\label{tab:dbg-ie-reg-bits}
+	\toprule
+	\textbf{Bit\#} & \textbf{Description}\tabularnewline
+	\midrule
+
+\ifdefined\MARKDOWN
+	\endhead
+\else
+	\endfirsthead
+	\multicolumn{2}{c}{{(Continued from previous page)}} \\
+	\toprule
+	\textbf{Bit\#} & \textbf{Description}\tabularnewline
+	\midrule
+	\endhead
+	\midrule \multicolumn{2}{c}{{\tablename\ \thetable{} continued on next page\ldots}} \\
+	\endfoot
+	\endlastfoot
+
+\fi
+	31-18 & External Interrupts\tabularnewline
+	17 & Timer Interrupt\tabularnewline
+	16 & Software Interrupt\tabularnewline
+	11 & Environment call from Machine Mode\tabularnewline
+	10 & Environment call from Hypervisor Mode\tabularnewline
+	9 & Environment call from Supervisor Mode\tabularnewline
+	8 & Environment call from User Mode\tabularnewline
+	7 & Store Access Fault\tabularnewline
+	6 & Store Address Misaligned\tabularnewline
+	5 & Load Access Fault\tabularnewline
+	4 & Load Address Misaligned\tabularnewline
+	3 & Breakpoint\tabularnewline
+	2 & Illegal Instruction\tabularnewline
+	1 & Instruction Access Fault\tabularnewline
+	0 & Instruction Address Misaligned\tabularnewline
+	\bottomrule
+	\caption{\texttt{DBG\_IE} Register Bit Descriptions}
+	\label{tab:dbg-ie-reg-bits}
 \end{longtable}
 
 The \texttt{dbg\_ie} register determines what exceptions cause the Debug Unit to
@@ -350,7 +378,11 @@ control to the debug controller. At least the \texttt{BREAKPOINT} exception must
 be set in the \texttt{dbg\_ie} register.
 
 \subsection{Debug Exception Cause Register
-{\tt DBG\_CAUSE}}\label{debug-exception-cause-register-dbg_cause}
+\texttt{DBG\_CAUSE}}\label{debug-exception-cause-register-dbg_cause}
+
+\ifdefined\MARKDOWN
+% Skip 
+\else
 
 \begin{figure*}[h!]
 	{\footnotesize
@@ -364,35 +396,37 @@ be set in the \texttt{dbg\_ie} register.
 		\end{center}
 	}
 	\vspace{-0.1in}
-	\caption{Debug Exception Cause Register {\tt DBG\_CAUSE}.}
+	\caption{Debug Exception Cause Register \texttt{DBG\_CAUSE}.}
 	\label{fig:dbgcausereg}
 \end{figure*}
+
+\fi
 
 The \texttt{DBG\_CAUSE} register contains the exception number that caused the
 CPU to hand over control to the external Debug Controller. See the
 \texttt{mcause} register description for a description of all exceptions.
 
 \begin{longtable}[]{@{}clc@{}}
-\toprule
-\textbf{DBG\_CAUSE} & \textbf{Description} & \textbf{GDB Sigval}\tabularnewline
-\midrule
-\endhead
-\textgreater{}15 & Interrupts & INT\tabularnewline
-& Timer Interrupt & ALRM\tabularnewline
-11 & ECALL from Machine Mode & TRAP\tabularnewline
-10 & ECALL from Hypervisor Mode & TRAP\tabularnewline
-9 & ECALL from Supervisor Mode & TRAP\tabularnewline
-8 & ECALL from User Mode & TRAP\tabularnewline
-7 & Store Access Fault & SEGV\tabularnewline
-6 & Store Address Misaligned & BUS\tabularnewline
-5 & Load Access Fault & SEGV\tabularnewline
-4 & Load Address Misaligned & BUS\tabularnewline
-3 & Breakpoint & TRAP\tabularnewline
-2 & Illegal Instruction & ILL\tabularnewline
-1 & Instruction Access Fault & SEGV\tabularnewline
-0 & Instruction Address Misaligned & BUS\tabularnewline
-\bottomrule
-\caption{DBG\_CAUSE Register Values}
+	\toprule
+	\textbf{DBG\_CAUSE} & \textbf{Description}           & \textbf{GDB Sigval}\tabularnewline
+	\midrule
+	\endhead
+	\textgreater{}15    & Interrupts                     & INT\tabularnewline
+	                    & Timer Interrupt                & ALRM\tabularnewline
+	11                  & ECALL from Machine Mode        & TRAP\tabularnewline
+	10                  & ECALL from Hypervisor Mode     & TRAP\tabularnewline
+	9                   & ECALL from Supervisor Mode     & TRAP\tabularnewline
+	8                   & ECALL from User Mode           & TRAP\tabularnewline
+	7                   & Store Access Fault             & SEGV\tabularnewline
+	6                   & Store Address Misaligned       & BUS\tabularnewline
+	5                   & Load Access Fault              & SEGV\tabularnewline
+	4                   & Load Address Misaligned        & BUS\tabularnewline
+	3                   & Breakpoint                     & TRAP\tabularnewline
+	2                   & Illegal Instruction            & ILL\tabularnewline
+	1                   & Instruction Access Fault       & SEGV\tabularnewline
+	0                   & Instruction Address Misaligned & BUS\tabularnewline
+	\bottomrule
+	\caption{DBG\_CAUSE Register Values}
 \end{longtable}
 
 Because the RISC-V defines the cause register as an integer value, there
@@ -405,7 +439,11 @@ The debug controller's software layer must translate the value in the
 shows the basic mapping of the \texttt{DBG\_CAUSE} register to GDB Signals.
 
 \subsection{Debug Breakpoint Control Registers
-{\tt DBG\_CTRLx}}\label{debug-breakpoint-control-registers-dbg_ctrlx}
+\texttt{DBG\_CTRLx}}\label{debug-breakpoint-control-registers-dbg_ctrlx}
+
+\ifdefined\MARKDOWN
+% Skip 
+\else
 
 \begin{figure*}[h!]
 	{\footnotesize
@@ -428,9 +466,11 @@ shows the basic mapping of the \texttt{DBG\_CAUSE} register to GDB Signals.
 		\end{center}
 	}
 	\vspace{-0.1in}
-	\caption{Debug Breakpoint Control Registers {\tt DBG\_CTRLx}.}
-	\label{fig:dbgctrlreg}
+	\caption{Debug Breakpoint Control Registers \texttt{DBG\_CTRLx}.}
+	\label{fig:dbgctrlxreg}
 \end{figure*}
+
+\fi
 
 The \texttt{DBG\_BPCTRL} registers control the functionality of the hardware
 breakpoints. There is a Breakpoint Control Register for each implemented
@@ -515,7 +555,11 @@ accesses (either reads from or writes to) the address specified in the
 \texttt{DBG\_DATA} register.
 
 \subsection{Debug Breakpoint Data Registers
-{\tt DBG\_DATAx}}\label{debug-breakpoint-data-registers-dbg_datax}
+\texttt{DBG\_DATAx}}\label{debug-breakpoint-data-registers-dbg_datax}
+
+\ifdefined\MARKDOWN
+% Skip 
+\else
 
 \begin{figure*}[h!]
 	{\footnotesize
@@ -529,9 +573,11 @@ accesses (either reads from or writes to) the address specified in the
 		\end{center}
 	}
 	\vspace{-0.1in}
-	\caption{Debug Breakpoint Data Registers {\tt DBG\_DATA}.}
+	\caption{Debug Breakpoint Data Registers \texttt{DBG\_DATA}.}
 	\label{fig:dbgdatareg}
 \end{figure*}
+
+\fi
 
 The \texttt{DBG\_DATA} registers contain the data/value that trigger a breakpoint
 hit. There is a Breakpoint Data Register for each implemented hardware
