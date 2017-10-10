@@ -1,3 +1,7 @@
+---
+title: RV12 RISC-V 32/64-bit CPU Core
+---
+
 Product Brief
 =============
 
@@ -298,6 +302,230 @@ The Write-Back stage writes the results from the Execution Unit into the Registe
 | `wb_we`     |       to      |      RF     | Write enable                |
 | `wb_pc`     |       to      |      WB     | WriteBack program counter   |
 | `wb_instr`  |       to      |      WB     | WriteBack instruction       |
+
+Configurations
+==============
+
+Introduction
+------------
+
+The RV12 is a highly configurable 32 or 64bit RISC CPU. The core parameters and configuration options are described in this section.
+
+Core Parameters
+---------------
+
+| Parameter            |   Type  |     Default     | Description                                                      |
+|:---------------------|:-------:|:---------------:|:-----------------------------------------------------------------|
+| `XLEN`               | Integer |        32       | Datapath width                                                   |
+| `PC_INIT`            | Address |      `h200`     | Program Counter Initialisation Vector                            |
+| `PHYS_ADDR_SIZE`     | Integer |      `XLEN`     | Physical Address Size                                            |
+| `HAS_USER`           | Integer |        0        | User Mode Enable                                                 |
+| `HAS_SUPER`          | Integer |        0        | Supervisor Mode Enable                                           |
+| `HAS_HYPER`          | Integer |        0        | Hypervisor Mode Enable                                           |
+| `HAS_MULDIV`         | Integer |        0        | “M” Extension Enable                                             |
+| `HAS_AMO`            | Integer |        0        | “A” Extension Enable                                             |
+| `HAS_RVC`            | Integer |        0        | “C” Extension Enable                                             |
+| `HAS_BPU`            | Integer |        1        | Branch Prediction Unit Control Enable                            |
+| `IS_RV32E`           | Integer |        0        | RV32E Base Integer Instruction Set Enable                        |
+| `MULT_LATENCY`       | Integer |        0        | Hardware Multiplier Latency (if “M” Extension enabled)           |
+| `BP_LOCAL_BITS`      | Integer |        10       | Number of local predictor bits                                   |
+| `BP_GLOBAL_BITS`     | Integer |        2        | Number of global predictor bits                                  |
+| `HARTID`             | Integer |        0        | Hart Identifier                                                  |
+| `ICACHE_SIZE`        | Integer |        16       | Instruction Cache size in Kbytes                                 |
+| `ICACHE_BLOCK_SIZE`  | Integer |        32       | Instruction Cache block length in bytes                          |
+| `ICACHE_WAYS`        | Integer |        2        | Instruction Cache associativity                                  |
+| `ICACHE_REPLACE_ALG` | Integer |        0        | Instruction Cache replacement algorithm 0: Random 1: FIFO 2: LRU |
+| `DCACHE_SIZE`        | Integer |        16       | Data Cache size in Kbytes                                        |
+| `DCACHE_BLOCK_SIZE`  | Integer |        32       | Data Cache block length in bytes                                 |
+| `DCACHE_WAYS`        | Integer |        2        | Data Cache associativity                                         |
+| `DCACHE_REPLACE_ALG` | Integer |        0        | Data Cache replacement algorithm 0: Random 1: FIFO 2: LRU        |
+| `BREAKPOINTS`        | Integer |        3        | Number of hardware breakpoints                                   |
+| `TECHNOLOGY`         |  String |    `GENERIC`    | Target Silicon Technology                                        |
+| `MNMIVEC_DEFAULT`    | Address | `PC_INIT-‘h004` | Machine Mode Non-Maskable Interrupt vector address               |
+| `MTVEC_DEFAULT`      | Address | `PC_INIT-‘h040` | Machine Mode Interrupt vector address                            |
+| `HTVEC_DEFAULT`      | Address | `PC_INIT-‘h080` | Hypervisor Mode Interrupt vector address                         |
+| `STVEC_DEFAULT`      | Address | `PC_INIT-‘h0C0` | Supervisor Mode Interrupt vector address                         |
+| `UTVEC_DEFAULT`      | Address | `PC_INIT-‘h100` | User Mode Interrupt vector address                               |
+
+### XLEN
+
+The `XLEN` parameter specifies the width of the data path. Allowed values are either 32 or 64, for a 32bit or 64bit CPU respectively.
+
+### PC\_INIT
+
+The `PC_INIT` parameter specifies the initialization vector of the Program Counter; i.e. the boot address, which by default is defined as address ‘h200
+
+### PHYS\_ADDR\_SIZE
+
+The `PHYS_ADDR_SIZE` parameter specifies the physical address space the CPU can address. This parameter must be equal or less than XLEN. Using fewer bits for the physical address reduces internal and external resources. Internally the CPU still uses `XLEN`, but only the `PHYS_ADDR_SIZE` LSBs are used to address the caches and the external buses.
+
+### HAS\_USER
+
+The `HAS_USER` parameter defines if User Privilege Level is enabled (‘1’) or disabled (‘0’). The default value is disabled (‘0’).
+
+### HAS\_SUPER
+
+The `HAS_SUPER` parameter defines if Supervisor Privilege Level is enabled (‘1’) or disabled (‘0’). The default value is disabled (‘0’).
+
+### HAS\_HYPER
+
+The `HAS_HYPER` parameter defines if Hypervisor Privilege Level is enabled (‘1’) or disabled (‘0’). The default value is disabled (‘0’).
+
+### HAS\_MULDIV
+
+The `HAS_MULDIV` parameter defines if the “M” Standard Extension for Integer Multiplication and Division is enabled (‘1’) or disabled (‘0’). The default value is disabled (‘0’).
+
+### HAS\_AMO
+
+The `HAS_AMO` parameter defines if the “A” Standard Extension for Atomic Memory Instructions is enabled (‘1’) or disabled (‘0’). The default value is disabled (‘0’).
+
+### HAS\_RVC
+
+The `HAS_RVC` parameter defines if the “C” Standard Extension for Compressed Instructions is enabled (‘1’) or disabled (‘0’). The default value is disabled (‘0’).
+
+### HAS\_BPU
+
+The CPU has an optional Branch Prediction Unit that can reduce the branch penalty considerably by prediction if a branch is taken or not taken. The `HAS_BPU` parameter specifies if the core should generate a branch-predictor. Setting this parameter to 0 prevents the core from generating a branch-predictor. Setting this parameter to 1 instructs the core to generate a branch-predictor. The type and size of the branch-predictor is determined by the `BP_GLOBAL_BITS` and `BP_LOCAL_BITS` parameters.
+
+See branch prediction unit section for more details.
+
+### IS\_RV12E
+
+RV12 supports the RV32E Base Integer Instruction Set, Version 1.9. RV32E is a reduced version of RV32I designed for embedded systems, reducing the number of integer registers to 16. The `IS_RV12E` parameter determines if this feature is enabled (‘1’) or disabled (‘0’). The default value is disabled (‘0’).
+
+### MULT\_LATENCY
+
+If the “M” Standard Extension for Integer Multiplication and Division is enabled via the `HAS_MULDIV` parameter (`HAS_MULDIV=1` See section 4.2.7), a hardware multiplier will be generated to support these instructions. By default (i.e. when `MULT_LATENCY=0`) the generated multiplier will be built as a purely combinatorial function.
+
+The performance of the hardware multiplier may be improved at the expense of increased latency of 1, 2 or 3 clock cycles by defining `MULT_LATENCY` to 1, 2 or 3 respectively.
+
+If the “M” Standard Extension is *not* enabled (`HAS_MULDIV=0`) then the MULT\_LATENCY parameter has no effect on the RV12 implementation.
+
+### BPU\_LOCAL\_BITS
+
+The CPU has an optional Branch Prediction Unit that can reduce the branch penalty considerably by prediction if a branch is taken or not taken. The `BPU_LOCAL_BITS` parameter specifies how many bits from the program counter should be used for the prediction.
+
+This parameter only has an effect if `HAS_BPU=1`.
+
+See branch prediction unit section for more details.
+
+### BPU\_GLOBAL\_BITS
+
+The CPU has an optional Branch Prediction Unit that can reduce the branch penalty considerably by prediction if a branch is taken or not-taken. The `BPU_GLOBAL_BITS` parameter specifies how many history bits should be used for the prediction.
+
+This parameter only has an effect if `HAS_BPU=1`.
+
+See branch prediction unit section for more details.
+
+### HARTID
+
+The RV12 is a single thread CPU, for which each instantiation requires a hart identifier (`HARTID`), which must be unique within the overall system. The default `HARTID` is 0, but may be set to any integer.
+
+### ICACHE\_SIZE
+
+The CPU has an optional instruction cache. The `ICACHE_SIZE` parameter specifies the size of the instruction cache in Kbytes. Setting this parameter to 0 prevents the core from generating an instruction cache.
+
+See instruction cache section for more details.
+
+### ICACHE\_BLOCK\_LENGTH
+
+The CPU has an optional instruction cache. The `ICACHE_BLOCK_LENGTH` parameter specifies the number of bytes in one cache block.
+
+See instruction cache section for more details.
+
+### ICACHE\_WAYS
+
+The CPU has an optional instruction cache. The `ICACHE_WAYS` parameter specifies the associativity of the cache. Setting this parameter to 1 generates a direct mapped cache, setting it to 2 generates a 2-way set associative cache, setting it to 4 generates a 4-way set associative cache, etc.
+
+See instruction cache section for more details. See section \[instruction-cache\] for more details.
+
+### ICACHE\_REPLACE\_ALG
+
+The CPU has an optional instruction cache. The `ICACHE_REPLACE_ALG` parameter specifies the algorithm used to select which block will be replaced during a block-fill.
+
+See instruction cache section for more details. See section \[instruction-cache\] for more details.
+
+### DCACHE\_SIZE
+
+The CPU has an optional data cache. The DCACHE\_SIZE parameter specifies the size of the instruction cache in Kbytes. Setting this parameter to ‘0’ prevents the core from generating a data cache.
+
+See data cache section for more details.
+
+### DCACHE\_BLOCK\_LENGTH
+
+The CPU has an optional data cache. `The DCACHE_BLOCK_LENGTH` parameter specifies the number of bytes in one cache block.
+
+See data cache section for more details.
+
+### DCACHE\_WAYS
+
+The CPU has an optional data cache. The `DCACHE_WAYS` parameter specifies the associativity of the cache. Setting this parameter to 1 generates a direct mapped cache, setting it to 2 generates a 2-way set associative cache, setting it to 4 generates a 4-way set associative cache, etc.
+
+See data cache section for more details.
+
+### DCACHE\_REPLACE\_ALG
+
+The CPU has an optional instruction cache. The `DCACHE_REPLACE_ALG` parameter specifies the algorithm used to select which block will be replaced during a block-fill.
+
+See data cache section for more details.
+
+### BREAKPOINTS
+
+The CPU has a debug unit that connects to an external debug controller. The `BREAKPOINTS` parameter specifies the number of implemented hardware breakpoints. The maximum is 8.
+
+### TECHNOLOGY
+
+The `TECHNOLOGY` parameter defines the target silicon technology and may be one of the following values:
+
+| Parameter Value | Description                       |
+|:---------------:|:----------------------------------|
+|    `GENERIC`    | Behavioural Implementation        |
+|      `N3X`      | eASIC Nextreme-3 Structured ASIC  |
+|      `N3XS`     | eASIC Nextreme-3S Structured ASIC |
+
+Note: the parameter value is not case-sensitive.
+
+### MNMIVEC\_DEFAULT
+
+The `MNMIVEC_DEFAULT` parameter defines the Machine Mode non-maskable interrupt vector address. The default vector is defined relative to the Program Counter Initialisation vector `PC_INIT` as follows:
+
+`MNMIVEC_DEFAULT = PC_INIT - ’h004`
+
+### MTVEC\_DEFAULT
+
+The `MTVEC_DEFAULT` parameter defines the interrupt vector address for the Machine Privilege Level. The default vector is defined relative to the Program Counter Initialisation vector `PC_INIT` as follows:
+
+`MTVEC_DEFAULT = PC_INIT - ’h040`
+
+### HTVEC\_DEFAULT
+
+The `HTVEC_DEFAULT` parameter defines the interrupt vector address for the Hypervisor Privilege Level. The default vector is defined relative to the Program Counter Initialisation vector `PC_INIT` as follows:
+
+`HTVEC_DEFAULT = PC_INIT - ’h080`
+
+### STVEC\_DEFAULT
+
+The `STVEC_DEFAULT` parameter defines the interrupt vector address for the Supervisor Privilege Level. The default vector is defined relative to the Program Counter Initialisation vector `PC_INIT` as follows:
+
+`STVEC_DEFAULT = PC_INIT - ’h0C0`
+
+### UTVEC\_DEFAULT
+
+The `UTVEC_DEFAULT` parameter defines the interrupt vector address for the User Privilege Level. The default vector is defined relative to the Program Counter Initialisation vector `PC_INIT` as follows:
+
+`UTVEC_DEFAULT = PC_INIT - ’h100`
+
+Non User-Modifiable Parameters
+------------------------------
+
+The RV12 features a number of parameters that are not intended to be modified in a user design. For completeness these parameters and their defined values are specified below:
+
+| Parameter  | Type        |       Value      | Description                |
+|:-----------|:------------|:----------------:|:---------------------------|
+| `VENDORID` | Vector (16) |     16’H0001     | Roa Logic Vendor ID        |
+| `ARCHID`   | Vector (16) | 1&lt;&lt;XLEN 12 | RV12 Architecture ID       |
+| `REVMAJOR` | Vector (4)  |       4’h0       | RV12 Major Revision Number |
+| `REVMINOR` | Vector (4)  |       4’h0       | RV12 Minor Revision Number |
 
 Control & Status Registers
 ==========================
