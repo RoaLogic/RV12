@@ -1,5 +1,7 @@
 ---
-title: RV12 RISC-V 32/64-bit CPU Core
+Title: RV12 RISC-V 32/64-bit CPU Core
+Category: Datasheet
+Author: Roa Logic
 ---
 
 Product Brief
@@ -84,11 +86,11 @@ Privilege Levels
 At any time, a hardware thread (*hart*) is running at some privilege level. The current privilege level is encoded in one or more Control and Status Registers (CSRs). The RISC-V specification defines four privilege levels, where each level provides its own protection and isolation..
 
 | Level | Encoding | Name             | Abbreviation |
-|:-----:|:--------:|:-----------------|:------------:|
-|   0   |   `00`   | User/Application |       U      |
-|   1   |   `01`   | Supervisor       |       S      |
-|   2   |   `10`   | Hypervisor       |       H      |
-|   3   |   `11`   | Machine          |       M      |
+| :---: | :------: | :--------------- | :----------: |
+|   0   |   `00`   | User/Application |      U       |
+|   1   |   `01`   | Supervisor       |      S       |
+|   2   |   `10`   | Hypervisor       |      H       |
+|   3   |   `11`   | Machine          |      M       |
 
 The highest privilege level is the Machine level. This is an inherent trusted level and has access to, and can alter, the whole machine. The lowest level is the User/Application level and is considered the least trusted level. It is used to protect the rest of the system from malicious applications.
 
@@ -196,19 +198,19 @@ The Instruction Fetch unit loads a new parcel from the program memory. A parcel 
 
 In case the pipeline must be flushed the Program Counter is restarted from the given address.
 
-| **Signal**     | **Direction** |  **To/From**  | **Description**                              |
-|:---------------|:-------------:|:-------------:|:---------------------------------------------|
-| `if_nxt_pc`    |       to      | Bus Interface | Next address to fetch parcel from            |
-| `parcel_pc`    |      from     | Bus Interface | Fetch parcel’s address                       |
-| `parcel_valid` |      from     | Bus Interface | Valid indicators for parcel                  |
-| `parcel`       |      from     | Bus Interface | Fetched parcel                               |
-|                |               |               |                                              |
-| `Flush`        |      from     |    EX/State   | When asserted flushes the pipe               |
-| `Stall`        |      from     |       PD      | When asserted stalls the pipe                |
-| `pd_branch_pc` |      from     |       PD      | New program counter for a branch instruction |
-| `if_pc`        |       to      |       PD      | Instruction Fetch program counter            |
-| `if_instr`     |       to      |       PD      | Instruction Fetch instruction                |
-| `if_bubble`    |       to      |       PD      | Instruction Fetch bubble                     |
+| **Signal**     | **Direction** |  **To/From**  | **Description**                          |
+| :------------- | :-----------: | :-----------: | :--------------------------------------- |
+| `if_nxt_pc`    |      to       | Bus Interface | Next address to fetch parcel from        |
+| `parcel_pc`    |     from      | Bus Interface | Fetch parcel’s address                   |
+| `parcel_valid` |     from      | Bus Interface | Valid indicators for parcel              |
+| `parcel`       |     from      | Bus Interface | Fetched parcel                           |
+|                |               |               |                                          |
+| `Flush`        |     from      |   EX/State    | When asserted flushes the pipe           |
+| `Stall`        |     from      |      PD       | When asserted stalls the pipe            |
+| `pd_branch_pc` |     from      |      PD       | New program counter for a branch instruction |
+| `if_pc`        |      to       |      PD       | Instruction Fetch program counter        |
+| `if_instr`     |      to       |      PD       | Instruction Fetch instruction            |
+| `if_bubble`    |      to       |      PD       | Instruction Fetch bubble                 |
 
 Pre-Decode (PD)
 ---------------
@@ -217,18 +219,18 @@ The Pre-Decode unti translates 16-bit compressed instructions to the base 32bit 
 
 ![Instruction Pre-Decode Stage](assets/img/Pipeline-PD.png)
 
-| **Signal**     | **Direction** | **To/From** | **Description**                               |
-|:---------------|:-------------:|:-----------:|:----------------------------------------------|
-| `if_pc`        |      from     |      IF     | Instruction\_fetch program counter            |
-| `if_instr`     |      from     |      IF     | Instruction\_fetch instruction                |
-| `if_bubble`    |      from     |      IF     | Instruction\_fetch bubble                     |
-| `pd_branch_pc` |       to      |      IF     | New PC (for a branch instruction)             |
-|                |               |             |                                               |
-| `bu_predict`   |      from     |      BP     | Branch prediction from Branch Prediction Unit |
-| `pd_predict `  |       to      |      ID     | Forwarded branch prediction                   |
-| `pd_pc`        |       to      |      ID     | Pre-Decode program counter                    |
-| `pd_instr`     |       to      |      ID     | Pre-Decode instruction                        |
-| `pd_bubble`    |       to      |      ID     | Pre-Decode bubble                             |
+| **Signal**     | **Direction** | **To/From** | **Description**                          |
+| :------------- | :-----------: | :---------: | :--------------------------------------- |
+| `if_pc`        |     from      |     IF      | Instruction\_fetch program counter       |
+| `if_instr`     |     from      |     IF      | Instruction\_fetch instruction           |
+| `if_bubble`    |     from      |     IF      | Instruction\_fetch bubble                |
+| `pd_branch_pc` |      to       |     IF      | New PC (for a branch instruction)        |
+|                |               |             |                                          |
+| `bu_predict`   |     from      |     BP      | Branch prediction from Branch Prediction Unit |
+| `pd_predict `  |      to       |     ID      | Forwarded branch prediction              |
+| `pd_pc`        |      to       |     ID      | Pre-Decode program counter               |
+| `pd_instr`     |      to       |     ID      | Pre-Decode instruction                   |
+| `pd_bubble`    |      to       |     ID      | Pre-Decode bubble                        |
 
 Instruction Decode (ID)
 -----------------------
@@ -238,21 +240,21 @@ The Instruction Decode unit ensures the operands for the execution units are ava
 ![Instruction Decode Stage Implementation](assets/img/Pipeline-ID.png)
 
 | **Signal**   | **Direction** | **To/From** | **Description**                    |
-|:-------------|:-------------:|:-----------:|:-----------------------------------|
-| `pd_pc`      |      from     |      PD     | Pre-Decode program counter         |
-| `pd_instr`   |      from     |      PD     | Pre-Decode instruction             |
-| `pd_bubble`  |      from     |      PD     | Pre-Decode bubble                  |
+| :----------- | :-----------: | :---------: | :--------------------------------- |
+| `pd_pc`      |     from      |     PD      | Pre-Decode program counter         |
+| `pd_instr`   |     from      |     PD      | Pre-Decode instruction             |
+| `pd_bubble`  |     from      |     PD      | Pre-Decode bubble                  |
 |              |               |             |                                    |
-| `src1`       |       to      |      RF     | Source Register1 index             |
-| `src2`       |       to      |      RF     | Source Register2 Index             |
+| `src1`       |      to       |     RF      | Source Register1 index             |
+| `src2`       |      to       |     RF      | Source Register2 Index             |
 |              |               |             |                                    |
-| `id_bypassA` |       to      |      EX     | Bypass signals for srcA            |
-| `id_bypassB` |       to      |      EX     | Bypass signals for srcB            |
-| `id_opA`     |       to      |      EX     | Calculated operandA                |
-| `id_opB`     |       to      |      EX     | Calculated operandB                |
-| `id_pc`      |       to      |      EX     | Instruction Decode program counter |
-| `id_instr`   |       to      |      EX     | Instruction Decode instruction     |
-| `id_bubble`  |       to      |      EX     | Instruction Decode bubble          |
+| `id_bypassA` |      to       |     EX      | Bypass signals for srcA            |
+| `id_bypassB` |      to       |     EX      | Bypass signals for srcB            |
+| `id_opA`     |      to       |     EX      | Calculated operandA                |
+| `id_opB`     |      to       |     EX      | Calculated operandB                |
+| `id_pc`      |      to       |     EX      | Instruction Decode program counter |
+| `id_instr`   |      to       |     EX      | Instruction Decode instruction     |
+| `id_bubble`  |      to       |     EX      | Instruction Decode bubble          |
 
 Execute (EX)
 ------------
@@ -264,24 +266,24 @@ Only one operation can be executed per clock cycle. Most operations complete in 
 ![Execute Stage Implementation](assets/img/Pipeline-EX.png)
 
 | **Signal**  | **Direction** | **To/From** | **Description**                    |
-|:------------|:-------------:|:-----------:|:-----------------------------------|
-| id\_pc      |      from     |      ID     | Instruction Decode program counter |
-| id\_instr   |      from     |      ID     | Instruction Decode instruction     |
-| id\_bubble  |      from     |      ID     | Instruction Decode bubble          |
+| :---------- | :-----------: | :---------: | :--------------------------------- |
+| id\_pc      |     from      |     ID      | Instruction Decode program counter |
+| id\_instr   |     from      |     ID      | Instruction Decode instruction     |
+| id\_bubble  |     from      |     ID      | Instruction Decode bubble          |
 |             |               |             |                                    |
-| opA         |      from     |      RF     | Source Register1 value             |
-| opB         |      from     |      RF     | Source Register2 value             |
+| opA         |     from      |     RF      | Source Register1 value             |
+| opB         |     from      |     RF      | Source Register2 value             |
 |             |               |             |                                    |
-| id\_bypassA |      from     |      ID     | Bypass signals for srcA            |
-| id\_bypassB |      from     |      ID     | Bypass signals for srcB            |
-| id\_opA     |      from     |      ID     | Calculated operandA                |
-| id\_opB     |      from     |      ID     | Calculated operandB                |
-| ex\_stall   |       to      |      ID     | Stall ID (and higher) stages       |
-| ex\_flush   |       to      |   ID/PD/IF  | Flush ID (and higher) pipe stages  |
-| ex\_r       |       to      |      WB     | Result from execution units        |
-| ex\_pc      |       to      |      WB     | Execute program counter            |
-| ex\_instr   |       to      |      WB     | Execute instruction                |
-| ex\_bubble  |       to      |      WB     | Execute bubble                     |
+| id\_bypassA |     from      |     ID      | Bypass signals for srcA            |
+| id\_bypassB |     from      |     ID      | Bypass signals for srcB            |
+| id\_opA     |     from      |     ID      | Calculated operandA                |
+| id\_opB     |     from      |     ID      | Calculated operandB                |
+| ex\_stall   |      to       |     ID      | Stall ID (and higher) stages       |
+| ex\_flush   |      to       |  ID/PD/IF   | Flush ID (and higher) pipe stages  |
+| ex\_r       |      to       |     WB      | Result from execution units        |
+| ex\_pc      |      to       |     WB      | Execute program counter            |
+| ex\_instr   |      to       |     WB      | Execute instruction                |
+| ex\_bubble  |      to       |     WB      | Execute bubble                     |
 
 Write-Back (WB)
 ---------------
@@ -291,17 +293,17 @@ The Write-Back stage writes the results from the Execution Unit into the Registe
 ![Write-back Stage Implementation](assets/img/Pipeline-WB.png)
 
 | **Signal**  | **Direction** | **To/From** | **Description**             |
-|:------------|:-------------:|:-----------:|:----------------------------|
-| `ex_pc`     |      from     |      EX     | Execute program counter     |
-| `ex_instr`  |      from     |      EX     | Execute instruction         |
-| `ex_bubble` |      from     |      EX     | Execute bubble              |
-| `ex_r`      |      from     |      EX     | Result from execution units |
+| :---------- | :-----------: | :---------: | :-------------------------- |
+| `ex_pc`     |     from      |     EX      | Execute program counter     |
+| `ex_instr`  |     from      |     EX      | Execute instruction         |
+| `ex_bubble` |     from      |     EX      | Execute bubble              |
+| `ex_r`      |     from      |     EX      | Result from execution units |
 |             |               |             |                             |
-| `wb_r`      |       to      |      RF     | Result to be written to RF  |
-| `wb_dst`    |       to      |      RF     | Destination register index  |
-| `wb_we`     |       to      |      RF     | Write enable                |
-| `wb_pc`     |       to      |      WB     | WriteBack program counter   |
-| `wb_instr`  |       to      |      WB     | WriteBack instruction       |
+| `wb_r`      |      to       |     RF      | Result to be written to RF  |
+| `wb_dst`    |      to       |     RF      | Destination register index  |
+| `wb_we`     |      to       |     RF      | Write enable                |
+| `wb_pc`     |      to       |     WB      | WriteBack program counter   |
+| `wb_instr`  |      to       |     WB      | WriteBack instruction       |
 
 Configurations
 ==============
@@ -314,38 +316,38 @@ The RV12 is a highly configurable 32 or 64bit RISC CPU. The core parameters and 
 Core Parameters
 ---------------
 
-| Parameter            |   Type  |     Default     | Description                                                      |
-|:---------------------|:-------:|:---------------:|:-----------------------------------------------------------------|
-| `XLEN`               | Integer |        32       | Datapath width                                                   |
-| `PC_INIT`            | Address |      `h200`     | Program Counter Initialisation Vector                            |
-| `PHYS_ADDR_SIZE`     | Integer |      `XLEN`     | Physical Address Size                                            |
-| `HAS_USER`           | Integer |        0        | User Mode Enable                                                 |
-| `HAS_SUPER`          | Integer |        0        | Supervisor Mode Enable                                           |
-| `HAS_HYPER`          | Integer |        0        | Hypervisor Mode Enable                                           |
-| `HAS_MULDIV`         | Integer |        0        | “M” Extension Enable                                             |
-| `HAS_AMO`            | Integer |        0        | “A” Extension Enable                                             |
-| `HAS_RVC`            | Integer |        0        | “C” Extension Enable                                             |
-| `HAS_BPU`            | Integer |        1        | Branch Prediction Unit Control Enable                            |
-| `IS_RV32E`           | Integer |        0        | RV32E Base Integer Instruction Set Enable                        |
-| `MULT_LATENCY`       | Integer |        0        | Hardware Multiplier Latency (if “M” Extension enabled)           |
-| `BP_LOCAL_BITS`      | Integer |        10       | Number of local predictor bits                                   |
-| `BP_GLOBAL_BITS`     | Integer |        2        | Number of global predictor bits                                  |
-| `HARTID`             | Integer |        0        | Hart Identifier                                                  |
-| `ICACHE_SIZE`        | Integer |        16       | Instruction Cache size in Kbytes                                 |
-| `ICACHE_BLOCK_SIZE`  | Integer |        32       | Instruction Cache block length in bytes                          |
-| `ICACHE_WAYS`        | Integer |        2        | Instruction Cache associativity                                  |
+| Parameter            |  Type   |     Default     | Description                              |
+| :------------------- | :-----: | :-------------: | :--------------------------------------- |
+| `XLEN`               | Integer |       32        | Datapath width                           |
+| `PC_INIT`            | Address |     `h200`      | Program Counter Initialisation Vector    |
+| `PHYS_ADDR_SIZE`     | Integer |     `XLEN`      | Physical Address Size                    |
+| `HAS_USER`           | Integer |        0        | User Mode Enable                         |
+| `HAS_SUPER`          | Integer |        0        | Supervisor Mode Enable                   |
+| `HAS_HYPER`          | Integer |        0        | Hypervisor Mode Enable                   |
+| `HAS_MULDIV`         | Integer |        0        | “M” Extension Enable                     |
+| `HAS_AMO`            | Integer |        0        | “A” Extension Enable                     |
+| `HAS_RVC`            | Integer |        0        | “C” Extension Enable                     |
+| `HAS_BPU`            | Integer |        1        | Branch Prediction Unit Control Enable    |
+| `IS_RV32E`           | Integer |        0        | RV32E Base Integer Instruction Set Enable |
+| `MULT_LATENCY`       | Integer |        0        | Hardware Multiplier Latency (if “M” Extension enabled) |
+| `BP_LOCAL_BITS`      | Integer |       10        | Number of local predictor bits           |
+| `BP_GLOBAL_BITS`     | Integer |        2        | Number of global predictor bits          |
+| `HARTID`             | Integer |        0        | Hart Identifier                          |
+| `ICACHE_SIZE`        | Integer |       16        | Instruction Cache size in Kbytes         |
+| `ICACHE_BLOCK_SIZE`  | Integer |       32        | Instruction Cache block length in bytes  |
+| `ICACHE_WAYS`        | Integer |        2        | Instruction Cache associativity          |
 | `ICACHE_REPLACE_ALG` | Integer |        0        | Instruction Cache replacement algorithm 0: Random 1: FIFO 2: LRU |
-| `DCACHE_SIZE`        | Integer |        16       | Data Cache size in Kbytes                                        |
-| `DCACHE_BLOCK_SIZE`  | Integer |        32       | Data Cache block length in bytes                                 |
-| `DCACHE_WAYS`        | Integer |        2        | Data Cache associativity                                         |
-| `DCACHE_REPLACE_ALG` | Integer |        0        | Data Cache replacement algorithm 0: Random 1: FIFO 2: LRU        |
-| `BREAKPOINTS`        | Integer |        3        | Number of hardware breakpoints                                   |
-| `TECHNOLOGY`         |  String |    `GENERIC`    | Target Silicon Technology                                        |
-| `MNMIVEC_DEFAULT`    | Address | `PC_INIT-‘h004` | Machine Mode Non-Maskable Interrupt vector address               |
-| `MTVEC_DEFAULT`      | Address | `PC_INIT-‘h040` | Machine Mode Interrupt vector address                            |
-| `HTVEC_DEFAULT`      | Address | `PC_INIT-‘h080` | Hypervisor Mode Interrupt vector address                         |
-| `STVEC_DEFAULT`      | Address | `PC_INIT-‘h0C0` | Supervisor Mode Interrupt vector address                         |
-| `UTVEC_DEFAULT`      | Address | `PC_INIT-‘h100` | User Mode Interrupt vector address                               |
+| `DCACHE_SIZE`        | Integer |       16        | Data Cache size in Kbytes                |
+| `DCACHE_BLOCK_SIZE`  | Integer |       32        | Data Cache block length in bytes         |
+| `DCACHE_WAYS`        | Integer |        2        | Data Cache associativity                 |
+| `DCACHE_REPLACE_ALG` | Integer |        0        | Data Cache replacement algorithm 0: Random 1: FIFO 2: LRU |
+| `BREAKPOINTS`        | Integer |        3        | Number of hardware breakpoints           |
+| `TECHNOLOGY`         | String  |    `GENERIC`    | Target Silicon Technology                |
+| `MNMIVEC_DEFAULT`    | Address | `PC_INIT-‘h004` | Machine Mode Non-Maskable Interrupt vector address |
+| `MTVEC_DEFAULT`      | Address | `PC_INIT-‘h040` | Machine Mode Interrupt vector address    |
+| `HTVEC_DEFAULT`      | Address | `PC_INIT-‘h080` | Hypervisor Mode Interrupt vector address |
+| `STVEC_DEFAULT`      | Address | `PC_INIT-‘h0C0` | Supervisor Mode Interrupt vector address |
+| `UTVEC_DEFAULT`      | Address | `PC_INIT-‘h100` | User Mode Interrupt vector address       |
 
 ### XLEN
 
@@ -478,10 +480,10 @@ The CPU has a debug unit that connects to an external debug controller. The `BRE
 The `TECHNOLOGY` parameter defines the target silicon technology and may be one of the following values:
 
 | Parameter Value | Description                       |
-|:---------------:|:----------------------------------|
+| :-------------: | :-------------------------------- |
 |    `GENERIC`    | Behavioural Implementation        |
 |      `N3X`      | eASIC Nextreme-3 Structured ASIC  |
-|      `N3XS`     | eASIC Nextreme-3S Structured ASIC |
+|     `N3XS`      | eASIC Nextreme-3S Structured ASIC |
 
 Note: the parameter value is not case-sensitive.
 
@@ -520,8 +522,8 @@ Non User-Modifiable Parameters
 
 The RV12 features a number of parameters that are not intended to be modified in a user design. For completeness these parameters and their defined values are specified below:
 
-| Parameter  | Type        |       Value      | Description                |
-|:-----------|:------------|:----------------:|:---------------------------|
+| Parameter  | Type        |      Value       | Description                |
+| :--------- | :---------- | :--------------: | :------------------------- |
 | `VENDORID` | Vector (16) |     16’H0001     | Roa Logic Vendor ID        |
 | `ARCHID`   | Vector (16) | 1&lt;&lt;XLEN 12 | RV12 Architecture ID       |
 | `REVMAJOR` | Vector (4)  |       4’h0       | RV12 Major Revision Number |
@@ -573,48 +575,48 @@ The following sections describe each of the register functions as specifically i
 
 Note: These descriptions are derived from “The RISC-V Instruction Set Manual, Volume II: Privileged Architecture, Version 1.9.1", Editors Andrew Waterman and Krste Asanović, RISC-V Foundation, November 4, 2016, and released under the Creative Commons Attribution 4.0 International License
 
-| **Address** | **Privilege** |   **Name**  | **Description**                           |
-|:-----------:|:-------------:|:-----------:|:------------------------------------------|
-|    0xF11    |      MRO      | `mvendorid` | Vendor ID                                 |
-|    0xF12    |      MRO      |  `marchid`  | Architecture ID                           |
-|    0xF13    |      MRO      |   `mimpid`  | Implementation ID                         |
-|    0xF14    |      MRO      |  `mhartid`  | Hardware thread ID                        |
-|    0x300    |      MRW      |  `mstatus`  | Machine status register                   |
-|    0x301    |      MRW      |    `misa`   | ISA and extensions                        |
-|    0x302    |      MRW      |  `medeleg`  | Machine exception delegation register     |
-|    0x303    |      MRW      |  `mideleg`  | Machine interrupt delegation register     |
-|    0x304    |      MRW      |    `mie`    | Machine interrupt-enable register         |
-|    0x305    |      MRW      |   `mtvec`   | Machine trap-handler base address         |
-|    0x7c0    |      MRW      |  `mnmivec`  | Machine non-maskable interrupt vector     |
-|    0x340    |      MRW      |  `mscratch` | Scratch register for machine trap handler |
-|    0x341    |      MRW      |    `mepc`   | Machine exception program counter         |
-|    0x342    |      MRW      |   `mcause`  | Machine trap cause                        |
-|    0x343    |      MRW      |  `mbadaddr` | Machine bad address                       |
-|    0x344    |      MRW      |    `mip`    | Machine interrupt pending                 |
-|    0xB00    |      MRW      |   `mcycle`  | Machine cycle counter                     |
-|    0xB02    |      MRW      |  `minstret` | Machine instructions-retired counter      |
-|    0xB80    |      MRW      |  `mcycleh`  | Upper 32 bits of `mcycle`, RV32I only     |
-|    0xB82    |      MRW      | `minstreth` | Upper 32 bits of `minstret`, RV32I only   |
+| **Address** | **Privilege** |  **Name**   | **Description**                          |
+| :---------: | :-----------: | :---------: | :--------------------------------------- |
+|    0xF11    |      MRO      | `mvendorid` | Vendor ID                                |
+|    0xF12    |      MRO      |  `marchid`  | Architecture ID                          |
+|    0xF13    |      MRO      |  `mimpid`   | Implementation ID                        |
+|    0xF14    |      MRO      |  `mhartid`  | Hardware thread ID                       |
+|    0x300    |      MRW      |  `mstatus`  | Machine status register                  |
+|    0x301    |      MRW      |   `misa`    | ISA and extensions                       |
+|    0x302    |      MRW      |  `medeleg`  | Machine exception delegation register    |
+|    0x303    |      MRW      |  `mideleg`  | Machine interrupt delegation register    |
+|    0x304    |      MRW      |    `mie`    | Machine interrupt-enable register        |
+|    0x305    |      MRW      |   `mtvec`   | Machine trap-handler base address        |
+|    0x7c0    |      MRW      |  `mnmivec`  | Machine non-maskable interrupt vector    |
+|    0x340    |      MRW      | `mscratch`  | Scratch register for machine trap handler |
+|    0x341    |      MRW      |   `mepc`    | Machine exception program counter        |
+|    0x342    |      MRW      |  `mcause`   | Machine trap cause                       |
+|    0x343    |      MRW      | `mbadaddr`  | Machine bad address                      |
+|    0x344    |      MRW      |    `mip`    | Machine interrupt pending                |
+|    0xB00    |      MRW      |  `mcycle`   | Machine cycle counter                    |
+|    0xB02    |      MRW      | `minstret`  | Machine instructions-retired counter     |
+|    0xB80    |      MRW      |  `mcycleh`  | Upper 32 bits of `mcycle`, RV32I only    |
+|    0xB82    |      MRW      | `minstreth` | Upper 32 bits of `minstret`, RV32I only  |
 
 | **Address** | **Privilege** |  **Name**  | **Description**                          |
-|:-----------:|:-------------:|:----------:|:-----------------------------------------|
-|    0x100    |      SRW      |  `sstatus` | Supervisor status register               |
-|    0x102    |      SRW      |  `sedeleg` | Supervisor exception delegation register |
-|    0x103    |      SRW      |  `sideleg` | Supervisor interrupt delegation register |
-|    0x104    |      SRW      |    `sie`   | Supervisor interrupt-enable register     |
-|    0x105    |      SRW      |   `stvec`  | Supervisor trap handler base address     |
+| :---------: | :-----------: | :--------: | :--------------------------------------- |
+|    0x100    |      SRW      | `sstatus`  | Supervisor status register               |
+|    0x102    |      SRW      | `sedeleg`  | Supervisor exception delegation register |
+|    0x103    |      SRW      | `sideleg`  | Supervisor interrupt delegation register |
+|    0x104    |      SRW      |   `sie`    | Supervisor interrupt-enable register     |
+|    0x105    |      SRW      |  `stvec`   | Supervisor trap handler base address     |
 |    0x140    |      SRW      | `sscratch` | Scratch register for trap handler        |
 |    0x141    |      SRW      |   `sepc`   | Supervisor exception program counter     |
 |    0x142    |      SRO      |  `scause`  | Supervisor trap cause                    |
 |    0x143    |      SRO      | `sbadaddr` | Supervisor bad address                   |
-|    0x144    |      SRW      |    `sip`   | Supervisor interrupt pending register    |
+|    0x144    |      SRW      |   `sip`    | Supervisor interrupt pending register    |
 
-| **Address** | **Privilege** |   **Name**  | **Description**                            |
-|:-----------:|:-------------:|:-----------:|:-------------------------------------------|
-|    0xC00    |      URO      |   `cycle`   | Cycle counter for `RDCYCLE` instruction    |
+| **Address** | **Privilege** |  **Name**   | **Description**                          |
+| :---------: | :-----------: | :---------: | :--------------------------------------- |
+|    0xC00    |      URO      |   `cycle`   | Cycle counter for `RDCYCLE` instruction  |
 |    0xC02    |      URO      |  `instret`  | Instruction-retire counter for `RDINSTRET` |
-|    0xC80    |      URO      |   `cycleh`  | Upper 32bits of `cycle`, RV32I only        |
-|    0xC82    |      URO      | `instret` h | Upper 32bit of `instret`, RV32I only       |
+|    0xC80    |      URO      |  `cycleh`   | Upper 32bits of `cycle`, RV32I only      |
+|    0xC82    |      URO      | `instret` h | Upper 32bit of `instret`, RV32I only     |
 
 Machine Level CSRs
 ------------------
@@ -632,9 +634,9 @@ The “I” bit will be set for RV32I and RV64I base ISAs, and the “E” bit w
 The Base field encodes the native base integer ISA width as shown:
 
 | Value | Description |
-|:-----:|:-----------:|
-|   1   |      32     |
-|   2   |      64     |
+| :---: | :---------: |
+|   1   |     32      |
+|   2   |     64      |
 
 ### Vendor ID Register (`mvendorid`)
 
@@ -808,25 +810,25 @@ The `sscratch` register is an XLEN-bit read/write register, dedicated for use by
 The `scause` register is an XLEN-bit read-only register. The Interrupt bit is set if the exception was caused by an interrupt. The Exception Code field contains a code identifying the last exception.
 
 | Interrupt | Exception Code | Description                    |
-|:---------:|:--------------:|:-------------------------------|
-|     1     |        0       | User software interrupt        |
-|     1     |        1       | Supervisor software interrupt  |
-|     1     |       2-3      | *Reserved*                     |
-|     1     |        4       | User timer interrupt           |
-|     1     |        5       | Supervisor timer interrupt     |
-|     1     |       6-7      | *Reserved*                     |
-|     1     |        8       | User external interrupt        |
-|     1     |        9       | Supervisor external interrupt  |
-|     1     |       ≤10      | *Reserved*                     |
-|     0     |        0       | Instruction address misaligned |
-|     0     |        1       | Instruction access fault       |
-|     0     |        2       | Illegal Instruction            |
-|     0     |        3       | Breakpoint                     |
-|     0     |        4       | *Reserved*                     |
-|     0     |        5       | Load access fault              |
-|     0     |        6       | AMO address misaligned         |
-|     0     |        7       | Store/AMO access fault         |
-|     0     |        8       | Environment call               |
+| :-------: | :------------: | :----------------------------- |
+|     1     |       0        | User software interrupt        |
+|     1     |       1        | Supervisor software interrupt  |
+|     1     |      2-3       | *Reserved*                     |
+|     1     |       4        | User timer interrupt           |
+|     1     |       5        | Supervisor timer interrupt     |
+|     1     |      6-7       | *Reserved*                     |
+|     1     |       8        | User external interrupt        |
+|     1     |       9        | Supervisor external interrupt  |
+|     1     |      ≤10       | *Reserved*                     |
+|     0     |       0        | Instruction address misaligned |
+|     0     |       1        | Instruction access fault       |
+|     0     |       2        | Illegal Instruction            |
+|     0     |       3        | Breakpoint                     |
+|     0     |       4        | *Reserved*                     |
+|     0     |       5        | Load access fault              |
+|     0     |       6        | AMO address misaligned         |
+|     0     |       7        | Store/AMO access fault         |
+|     0     |       8        | Environment call               |
 |     0     |       ≤9       | *Reserved*                     |
 
 ### Supervisor Bad Address Register (`sbadaddr`)
@@ -866,35 +868,35 @@ The RV12 CPU is designed to support a variety of external bus interfaces. The fo
 AMBA3 AHB-Lite
 --------------
 
-| Port         |  Size  | Direction | Description                                           |
-|:-------------|:------:|:---------:|:------------------------------------------------------|
-| `HRESETn`    |    1   |   Input   | Asynchronous active low reset                         |
-| `HCLK`       |    1   |   Input   | System clock input                                    |
-|              |        |           |                                                       |
-| `IHSEL`      |    1   |   Output  | Provided for AHB-Lite compatibility – tied high (‘1’) |
-| `IHADDR`     | `XLEN` |   Output  | Instruction address                                   |
-| `IHRDATA`    |   32   |   Input   | Instruction data                                      |
-| `IHWRITE`    |    1   |   Output  | Instruction write                                     |
-| `IHSIZE`     |    3   |   Output  | Transfer size                                         |
-| `IHBURST`    |    3   |   Output  | Transfer burst size                                   |
-| `IHPROT`     |    4   |   Output  | Transfer protection level                             |
-| `IHTRANS`    |    2   |   Output  | Transfer type                                         |
-| `IHMASTLOCK` |    1   |   Output  | Transfer master lock                                  |
-| `IHREADY`    |    1   |   Input   | Slave Ready Indicator                                 |
-| `IHRESP`     |    1   |   Input   | Instruction Transfer Response                         |
-|              |        |           |                                                       |
-| `DHSEL`      |    1   |   Output  | Provided for AHB-Lite compatibility – tied high (‘1’) |
-| `DHADDR`     | `XLEN` |   Output  | Data address                                          |
-| `DHRDATA`    | `XLEN` |   Input   | Data read data                                        |
-| `DHWDATA`    | `XLEN` |   Output  | Data write data                                       |
-| `DHWRITE`    |    1   |   Output  | Instruction write                                     |
-| `DHSIZE`     |    3   |   Output  | Transfer size                                         |
-| `DHBURST`    |    3   |   Output  | Transfer burst size                                   |
-| `DHPROT`     |    4   |   Output  | Transfer protection level                             |
-| `DHTRANS`    |    2   |   Output  | Transfer type                                         |
-| `DHMASTLOCK` |    1   |   Output  | Transfer master lock                                  |
-| `DHREADY`    |    1   |   Input   | Slave Ready Indicator                                 |
-| `DHRESP`     |    1   |   Input   | Data Transfer Response                                |
+| Port         |  Size  | Direction | Description                              |
+| :----------- | :----: | :-------: | :--------------------------------------- |
+| `HRESETn`    |   1    |   Input   | Asynchronous active low reset            |
+| `HCLK`       |   1    |   Input   | System clock input                       |
+|              |        |           |                                          |
+| `IHSEL`      |   1    |  Output   | Provided for AHB-Lite compatibility – tied high (‘1’) |
+| `IHADDR`     | `XLEN` |  Output   | Instruction address                      |
+| `IHRDATA`    |   32   |   Input   | Instruction data                         |
+| `IHWRITE`    |   1    |  Output   | Instruction write                        |
+| `IHSIZE`     |   3    |  Output   | Transfer size                            |
+| `IHBURST`    |   3    |  Output   | Transfer burst size                      |
+| `IHPROT`     |   4    |  Output   | Transfer protection level                |
+| `IHTRANS`    |   2    |  Output   | Transfer type                            |
+| `IHMASTLOCK` |   1    |  Output   | Transfer master lock                     |
+| `IHREADY`    |   1    |   Input   | Slave Ready Indicator                    |
+| `IHRESP`     |   1    |   Input   | Instruction Transfer Response            |
+|              |        |           |                                          |
+| `DHSEL`      |   1    |  Output   | Provided for AHB-Lite compatibility – tied high (‘1’) |
+| `DHADDR`     | `XLEN` |  Output   | Data address                             |
+| `DHRDATA`    | `XLEN` |   Input   | Data read data                           |
+| `DHWDATA`    | `XLEN` |  Output   | Data write data                          |
+| `DHWRITE`    |   1    |  Output   | Instruction write                        |
+| `DHSIZE`     |   3    |  Output   | Transfer size                            |
+| `DHBURST`    |   3    |  Output   | Transfer burst size                      |
+| `DHPROT`     |   4    |  Output   | Transfer protection level                |
+| `DHTRANS`    |   2    |  Output   | Transfer type                            |
+| `DHMASTLOCK` |   1    |  Output   | Transfer master lock                     |
+| `DHREADY`    |   1    |   Input   | Slave Ready Indicator                    |
+| `DHRESP`     |   1    |   Input   | Data Transfer Response                   |
 
 ### HRESETn
 
@@ -924,18 +926,18 @@ When the active low asynchronous `HRESETn` input is asserted (‘0’), the core
 
 The instruction transfer size is indicated by `IHSIZE`. Its value depends on the `XLEN` parameter and if the current transfer is a cache-line fill or non-cacheable instruction read.
 
-| `IHSIZE` |  Type | Description                                                                             |
-|:--------:|:-----:|:----------------------------------------------------------------------------------------|
-|   `010`  |  Word | Non-cacheable instruction read. `XLEN=32`                                               |
-|   `011`  | Dword | Non-cacheable instruction read. `XLEN=64`                                               |
-|   `1--`  |       | Cache line fill. The actual size depends on the Instruction cache parameters and `XLEN` |
+| `IHSIZE` | Type  | Description                              |
+| :------: | :---: | :--------------------------------------- |
+|  `010`   | Word  | Non-cacheable instruction read. `XLEN=32` |
+|  `011`   | Dword | Non-cacheable instruction read. `XLEN=64` |
+|  `1--`   |       | Cache line fill. The actual size depends on the Instruction cache parameters and `XLEN` |
 
 ### IHBURST
 
 The instruction burst type indicates if the transfer is a single transfer or part of a burst.
 
 | `IHBURST` | Type   | Description                     |
-|:---------:|:-------|:--------------------------------|
+| :-------: | :----- | :------------------------------ |
 |   `000`   | Single | *Not used*                      |
 |   `001`   | INCR   | Non-cacheable instruction reads |
 |   `010`   | WRAP4  | 4-beat wrapping burst           |
@@ -949,26 +951,26 @@ The instruction burst type indicates if the transfer is a single transfer or par
 
 The instruction protection signals provide information about the bus transfer. They are intended to implement some level of protection.
 
-| Bit\# | Value | Description                                |
-|:-----:|:-----:|:-------------------------------------------|
-|   3   |   1   | Cacheable region addressed                 |
-|       |   0   | Non-cacheable region addressed             |
-|   2   |   1   | Bufferable                                 |
-|       |   0   | Non-bufferable                             |
+| Bit\# | Value | Description                              |
+| :---: | :---: | :--------------------------------------- |
+|   3   |   1   | Cacheable region addressed               |
+|       |   0   | Non-cacheable region addressed           |
+|   2   |   1   | Bufferable                               |
+|       |   0   | Non-bufferable                           |
 |   1   |   1   | Privileged access. CPU is not in User Mode |
-|       |   0   | User access. CPU is in User Mode           |
-|   0   |   0   | Opcode fetch, always ‘0’                   |
+|       |   0   | User access. CPU is in User Mode         |
+|   0   |   0   | Opcode fetch, always ‘0’                 |
 
 ### IHTRANS
 
 `IHTRANS` indicates the type of the current instruction transfer.
 
-| `IHTRANS` | Type   | Description                                           |
-|:---------:|:-------|:------------------------------------------------------|
-|    `00`   | IDLE   | No transfer required                                  |
-|    `01`   | BUSY   | CPU inserts wait states during instruction burst read |
-|    `10`   | NONSEQ | First transfer of an instruction read burst           |
-|    `11`   | SEQ    | Remaining transfers of an instruction readburst       |
+| `IHTRANS` | Type   | Description                              |
+| :-------: | :----- | :--------------------------------------- |
+|   `00`    | IDLE   | No transfer required                     |
+|   `01`    | BUSY   | CPU inserts wait states during instruction burst read |
+|   `10`    | NONSEQ | First transfer of an instruction read burst |
+|   `11`    | SEQ    | Remaining transfers of an instruction readburst |
 
 ### IHMASTLOCK
 
@@ -1006,53 +1008,53 @@ The instruction master lock signal indicates if the current transfer is part of 
 
 The data transfer size is indicated by DHSIZE. Its value depends on the `XLEN` parameter and if the current transfer is a cache-line fill/write-back or a non-cacheable data transfer.
 
-| `DHSIZE` | Type     | Description                                                                             |
-|:--------:|:---------|:----------------------------------------------------------------------------------------|
-|   `000`  | Byte     | Non-cacheable data transfer                                                             |
-|   `001`  | Halfword | Non-cacheable data transfer                                                             |
-|   `010`  | Word     | Non-cacheable data transfer                                                             |
-|   `011`  | Dword    | Non-cacheable data transfer                                                             |
-|   `1--`  |          | Cache line fill. The actual size depends on the Instruction cache parameters and `XLEN` |
+| `DHSIZE` | Type     | Description                              |
+| :------: | :------- | :--------------------------------------- |
+|  `000`   | Byte     | Non-cacheable data transfer              |
+|  `001`   | Halfword | Non-cacheable data transfer              |
+|  `010`   | Word     | Non-cacheable data transfer              |
+|  `011`   | Dword    | Non-cacheable data transfer              |
+|  `1--`   |          | Cache line fill. The actual size depends on the Instruction cache parameters and `XLEN` |
 
 ### DHBURST
 
 The instruction burst type indicates if the transfer is a single transfer or part of a burst.
 
-| `DHBURST` |  Type  | Description                                    |
-|:---------:|:------:|:-----------------------------------------------|
+| `DHBURST` |  Type  | Description                              |
+| :-------: | :----: | :--------------------------------------- |
 |    000    | Single | Single transfer. E.g. non-cacheable read/write |
-|    001    |  INCR  | *Not used*                                     |
-|    010    |  WRAP4 | 4-beat wrapping burst                          |
-|    011    |  INCR4 | *Not used*                                     |
-|    100    |  WRAP8 | 8-beat wrapping burst                          |
-|    101    |  INCR8 | *Not used*                                     |
-|    110    | WRAP16 | 16-bear wrapping burst                         |
-|    111    | INCR16 | *Not used*                                     |
+|    001    |  INCR  | *Not used*                               |
+|    010    | WRAP4  | 4-beat wrapping burst                    |
+|    011    | INCR4  | *Not used*                               |
+|    100    | WRAP8  | 8-beat wrapping burst                    |
+|    101    | INCR8  | *Not used*                               |
+|    110    | WRAP16 | 16-bear wrapping burst                   |
+|    111    | INCR16 | *Not used*                               |
 
 ### DHPROT
 
 The data protection signals provide information about the bus transfer. They are intended to implement some level of protection.
 
-| Bit\# | Value | Description                                |
-|:-----:|:-----:|:-------------------------------------------|
-|   3   |   1   | Cacheable region addressed                 |
-|       |   0   | Non-cacheable region addressed             |
-|   2   |   1   | Bufferable                                 |
-|       |   0   | Non-bufferable                             |
+| Bit\# | Value | Description                              |
+| :---: | :---: | :--------------------------------------- |
+|   3   |   1   | Cacheable region addressed               |
+|       |   0   | Non-cacheable region addressed           |
+|   2   |   1   | Bufferable                               |
+|       |   0   | Non-bufferable                           |
 |   1   |   1   | Privileged access. CPU is not in User Mode |
-|       |   0   | User access. CPU is in User Mode           |
-|   0   |   1   | Data transfer, always ‘1’                  |
+|       |   0   | User access. CPU is in User Mode         |
+|   0   |   1   | Data transfer, always ‘1’                |
 
 ### DHTRANS
 
 `DHTRANS` indicates the type of the current data transfer.
 
 | `DHTRANS` |  Type  | Description                          |
-|:---------:|:------:|:-------------------------------------|
-|     00    |  IDLE  | No transfer required                 |
-|     01    |  BUSY  | *Not used*                           |
-|     10    | NONSEQ | First transfer of an data burst      |
-|     11    |   SEQ  | Remaining transfers of an data burst |
+| :-------: | :----: | :----------------------------------- |
+|    00     |  IDLE  | No transfer required                 |
+|    01     |  BUSY  | *Not used*                           |
+|    10     | NONSEQ | First transfer of an data burst      |
+|    11     |  SEQ   | Remaining transfers of an data burst |
 
 ### DHMASTLOCK
 
@@ -1073,12 +1075,12 @@ The RV12 supports multiple external interrupts and is designed to operate in con
 
 Dedicated pins on the RV12 core present the interrupt to the CPU which then expects the Identifier of the Source Interrupt to be presented by the PLIC at the appropriate interrupt vector upon a claim of the interrupt.
 
-|    Port   | Size | Direction | Description            |
-|:---------:|:----:|:---------:|:-----------------------|
-|  EXT\_NMI |   1  |   Input   | Non-Maskable Interrupt |
-| EXT\_TINT |   1  |   Input   | Timer Interrupt        |
-| EXT\_SINT |   1  |   Input   | Software Interrupt     |
-|  EXT\_INT |   4  |   Input   | External Interrupts    |
+|   Port    | Size | Direction | Description            |
+| :-------: | :--: | :-------: | :--------------------- |
+| EXT\_NMI  |  1   |   Input   | Non-Maskable Interrupt |
+| EXT\_TINT |  1   |   Input   | Timer Interrupt        |
+| EXT\_SINT |  1   |   Input   | Software Interrupt     |
+| EXT\_INT  |  4   |   Input   | External Interrupts    |
 
 ### EXT\_NMI
 
@@ -1105,11 +1107,11 @@ The interrupt vector used to service the interrupt is determined based on the mo
 RV12 supports one general-purpose external interrupt input per operating mode, as defined in Table \[tab:external-interrupt-inputs\]:
 
 | Interrupt     | Priority | Mode Supported  |
-|:--------------|:--------:|:----------------|
-| EXT\_INT\[3\] |     3    | Machine Mode    |
-| EXT\_INT\[2\] |     2    | Reserved        |
-| EXT\_INT\[1\] |     1    | Supervisor Mode |
-| EXT\_INT\[0\] |     0    | User Mode       |
+| :------------ | :------: | :-------------- |
+| EXT\_INT\[3\] |    3     | Machine Mode    |
+| EXT\_INT\[2\] |    2     | Reserved        |
+| EXT\_INT\[1\] |    1     | Supervisor Mode |
+| EXT\_INT\[0\] |    0     | User Mode       |
 
 Each interrupt will be serviced by the operating mode it corresponds to, or alternatively a higher priority mode depending on the system configuration and specific operating conditions at the time the interrupt is handled. This includes if interrupt delegation is enabled, if a specific is implemented, or the specific operating mode at the time of servicing for example.
 
@@ -1137,15 +1139,15 @@ The Debug Unit has two interfaces; one to communicate with the CPU and one to co
 The Debug Controller Interface is an SRAM like synchronous interface. The connected Debug Controller must use the same clock as the CPU.
 
 | Port        |  Size  | Direction | Description           |
-|:------------|:------:|:---------:|:----------------------|
-| `dbg_stall` |    1   |   Input   | Stall CPU             |
-| `dbg_strb`  |    1   |   Input   | Access Request/Strobe |
-| `dbg_we`    |    1   |   Input   | Write Enable          |
+| :---------- | :----: | :-------: | :-------------------- |
+| `dbg_stall` |   1    |   Input   | Stall CPU             |
+| `dbg_strb`  |   1    |   Input   | Access Request/Strobe |
+| `dbg_we`    |   1    |   Input   | Write Enable          |
 | `dbg_addr`  |   13   |   Input   | Address Bus           |
 | `dbg_dati`  | `XLEN` |   Input   | Write Data Bus        |
-| `dbg_dato`  | `XLEN` |   Output  | Read Data Bus         |
-| `dbg_ack`   |    1   |   Output  | Access Acknowledge    |
-| `dbg_bp`    |    1   |   Output  | BreakPoint            |
+| `dbg_dato`  | `XLEN` |  Output   | Read Data Bus         |
+| `dbg_ack`   |   1    |  Output   | Access Acknowledge    |
+| `dbg_bp`    |   1    |  Output   | BreakPoint            |
 
 ### dbg\_stall
 
@@ -1184,39 +1186,39 @@ The Debug Unit’s address map provides access to the Debug Unit’s internal re
 
 The internal registers can be always accessed, whereas the Register Files and the CSRs can only be access when the CPU is stalled.
 
-| **addr\[12:0\]** |  **Register** | **Description**                                                        |
-|:-----------------|:-------------:|:-----------------------------------------------------------------------|
-| 0x0000           |   `DBG_CTRL`  | Debug Control                                                          |
-| 0x0001           |   `DBG_HIT`   | Debug Hit                                                              |
-| 0x0002           |    `DBG_IE`   | Debug Interrupt Enable                                                 |
-| 0x0003           |  `DBG_CAUSE`  | Debug Interrupt Cause                                                  |
-| 0x0004-0x000F    |               | *Reserved*                                                             |
-| 0x0010           | `DBG_BPCTRL0` | Hardware Breakpoint0 Control                                           |
-| 0x0011           | `DBG_BPDATA0` | Hardware Breakpoint0 Data                                              |
-| 0x0012           | `DBG_BPCTRL1` | Hardware Breakpoint1 Control                                           |
-| 0x0013           | `DBG_BPDATA1` | Hardware Breakpoint1 Data                                              |
-| 0x0014           | `DBG_BPCTRL2` | Hardware Breakpoint2 Control                                           |
-| 0x0015           | `DBG_BPDATA2` | Hardware Breakpoint2 Data                                              |
-| 0x0016           | `DBG_BPCTRL3` | Hardware Breakpoint3 Control                                           |
-| 0x0017           | `DBG_BPDATA3` | Hardware Breakpoint3 Data                                              |
-| 0x0018           | `DBG_BPCTRL4` | Hardware Breakpoint4 Control                                           |
-| 0x0019           | `DBG_BPDATA4` | Hardware Breakpoint4 Data                                              |
-| 0x001A           | `DBG_BPCTRL5` | Hardware Breakpoint5 Control                                           |
-| 0x001B           | `DBG_BPDATA5` | Hardware Breakpoint5 Data                                              |
-| 0x001C           | `DBG_BPCTRL6` | Hardware Breakpoint6 Control                                           |
-| 0x001D           | `DBG_BPDATA6` | Hardware Breakpoint6 Data                                              |
-| 0x001E           | `DBG_BPCTRL7` | Hardware Breakpoint7 Control                                           |
-| 0x001F           | `DBG_BPDATA7` | Hardware Breakpoint7 Data                                              |
-| 0x0020-0x00FF    |               | *Reserved*                                                             |
-| 0x0100-0x011F    |      `RF`     | Integer Register File                                                  |
-| 0x0120-0x03FF    |               | *Reserved*                                                             |
-| 0x0140-0x051F    |     `FRF`     | Floating Point Register File                                           |
-| 0x0160-0x071F    |  `FRF` (MSBs) | MSBs of the Floating Point Register, for 64bit `FRF` with 32bit `XLEN` |
-| 0x0180-0x07FF    |               | *Reserved*                                                             |
-| 0x0800           |     `NPC`     | Next Program Counter                                                   |
-| 0x0801           |     `PPC`     | Current Program Counter                                                |
-| 0x0802-0x0FFF    |               | *Reserved*                                                             |
-| 0x1000-0x1FFF    |      CSR      | CPU Control and Status                                                 |
+| **addr\[12:0\]** | **Register**  | **Description**                          |
+| :--------------- | :-----------: | :--------------------------------------- |
+| 0x0000           |  `DBG_CTRL`   | Debug Control                            |
+| 0x0001           |   `DBG_HIT`   | Debug Hit                                |
+| 0x0002           |   `DBG_IE`    | Debug Interrupt Enable                   |
+| 0x0003           |  `DBG_CAUSE`  | Debug Interrupt Cause                    |
+| 0x0004-0x000F    |               | *Reserved*                               |
+| 0x0010           | `DBG_BPCTRL0` | Hardware Breakpoint0 Control             |
+| 0x0011           | `DBG_BPDATA0` | Hardware Breakpoint0 Data                |
+| 0x0012           | `DBG_BPCTRL1` | Hardware Breakpoint1 Control             |
+| 0x0013           | `DBG_BPDATA1` | Hardware Breakpoint1 Data                |
+| 0x0014           | `DBG_BPCTRL2` | Hardware Breakpoint2 Control             |
+| 0x0015           | `DBG_BPDATA2` | Hardware Breakpoint2 Data                |
+| 0x0016           | `DBG_BPCTRL3` | Hardware Breakpoint3 Control             |
+| 0x0017           | `DBG_BPDATA3` | Hardware Breakpoint3 Data                |
+| 0x0018           | `DBG_BPCTRL4` | Hardware Breakpoint4 Control             |
+| 0x0019           | `DBG_BPDATA4` | Hardware Breakpoint4 Data                |
+| 0x001A           | `DBG_BPCTRL5` | Hardware Breakpoint5 Control             |
+| 0x001B           | `DBG_BPDATA5` | Hardware Breakpoint5 Data                |
+| 0x001C           | `DBG_BPCTRL6` | Hardware Breakpoint6 Control             |
+| 0x001D           | `DBG_BPDATA6` | Hardware Breakpoint6 Data                |
+| 0x001E           | `DBG_BPCTRL7` | Hardware Breakpoint7 Control             |
+| 0x001F           | `DBG_BPDATA7` | Hardware Breakpoint7 Data                |
+| 0x0020-0x00FF    |               | *Reserved*                               |
+| 0x0100-0x011F    |     `RF`      | Integer Register File                    |
+| 0x0120-0x03FF    |               | *Reserved*                               |
+| 0x0140-0x051F    |     `FRF`     | Floating Point Register File             |
+| 0x0160-0x071F    | `FRF` (MSBs)  | MSBs of the Floating Point Register, for 64bit `FRF` with 32bit `XLEN` |
+| 0x0180-0x07FF    |               | *Reserved*                               |
+| 0x0800           |     `NPC`     | Next Program Counter                     |
+| 0x0801           |     `PPC`     | Current Program Counter                  |
+| 0x0802-0x0FFF    |               | *Reserved*                               |
+| 0x1000-0x1FFF    |      CSR      | CPU Control and Status                   |
 
 Internal Register Map
 ---------------------
@@ -1230,14 +1232,14 @@ The `XLEN` size `DBG_CTRL` controls the single-step and branch-tracing functions
 When the Single-Step-Trace-Enable bit is ‘1’ the Single-Step-Trace function is enabled. The CPU will assert (‘1’) `dbg_bp` each time a non-NOP instruction is about to be executed.
 
 | **sste** | **Description**            |
-|:--------:|:---------------------------|
-|     0    | Single-Step-Trace disabled |
-|     1    | Single-Step-Trace enabled  |
+| :------: | :------------------------- |
+|    0     | Single-Step-Trace disabled |
+|    1     | Single-Step-Trace enabled  |
 
 When the Branch-Trace-Enable bit is ‘1’ the Branch-Step-Trace function is enabled. The CPU will assert `dbg_bp` each time a branch instruction is about to be executed.
 
 | **bte** | **Description**            |
-|:-------:|:---------------------------|
+| :-----: | :------------------------- |
 |    0    | Branch-Step-Trace disabled |
 |    1    | Branch-Step-Trace enabled  |
 
@@ -1254,12 +1256,12 @@ The Breakpoint-Hit fields are asserted (‘1’) when the respective hardware br
 ### Debug Interrupt Enable Register `DBG_IE`
 
 | **Bit\#** | **Description**                       |
-|:---------:|:--------------------------------------|
+| :-------: | :------------------------------------ |
 |   31-18   | External Interrupts                   |
-|     17    | Timer Interrupt                       |
-|     16    | Software Interrupt                    |
-|     11    | Environment call from Machine Mode    |
-|     10    | Environment call from Hypervisor Mode |
+|    17     | Timer Interrupt                       |
+|    16     | Software Interrupt                    |
+|    11     | Environment call from Machine Mode    |
+|    10     | Environment call from Hypervisor Mode |
 |     9     | Environment call from Supervisor Mode |
 |     8     | Environment call from User Mode       |
 |     7     | Store Access Fault                    |
@@ -1282,21 +1284,21 @@ Logic ‘1’ indicates the CPU hands over execution to the debug controller whe
 The `DBG_CAUSE` register contains the exception number that caused the CPU to hand over control to the external Debug Controller. See the `mcause` register description for a description of all exceptions.
 
 | **DBG\_CAUSE** | **Description**                | **GDB Sigval** |
-|:--------------:|:-------------------------------|:--------------:|
-|     &gt;15     | Interrupts                     |       INT      |
+| :------------: | :----------------------------- | :------------: |
+|     &gt;15     | Interrupts                     |      INT       |
 |                | Timer Interrupt                |      ALRM      |
 |       11       | ECALL from Machine Mode        |      TRAP      |
 |       10       | ECALL from Hypervisor Mode     |      TRAP      |
-|        9       | ECALL from Supervisor Mode     |      TRAP      |
-|        8       | ECALL from User Mode           |      TRAP      |
-|        7       | Store Access Fault             |      SEGV      |
-|        6       | Store Address Misaligned       |       BUS      |
-|        5       | Load Access Fault              |      SEGV      |
-|        4       | Load Address Misaligned        |       BUS      |
-|        3       | Breakpoint                     |      TRAP      |
-|        2       | Illegal Instruction            |       ILL      |
-|        1       | Instruction Access Fault       |      SEGV      |
-|        0       | Instruction Address Misaligned |       BUS      |
+|       9        | ECALL from Supervisor Mode     |      TRAP      |
+|       8        | ECALL from User Mode           |      TRAP      |
+|       7        | Store Access Fault             |      SEGV      |
+|       6        | Store Address Misaligned       |      BUS       |
+|       5        | Load Access Fault              |      SEGV      |
+|       4        | Load Address Misaligned        |      BUS       |
+|       3        | Breakpoint                     |      TRAP      |
+|       2        | Illegal Instruction            |      ILL       |
+|       1        | Instruction Access Fault       |      SEGV      |
+|       0        | Instruction Address Misaligned |      BUS       |
 
 Because the RISC-V defines the cause register as an integer value, there is no easy way to detect if there was no cause. It’s recommended that the Debug Environment writes ‘-1’ into the `dbg_cause` register upon starting the debug session and after handling each exception.
 
@@ -1309,21 +1311,21 @@ The `DBG_BPCTRL` registers control the functionality of the hardware breakpoints
 The Breakpoint Implemented field informs the Debug Environment if the hardware breakpoint is implemented. The bit is set (‘1’) when the hardware breakpoint is implemented and (‘0’) when it is not. The Debug Environment should read the `DBG_BPCTRL` registers and examine the Breakpoint Implemented fields to determine the amount of hardware breakpoints implemented.
 
 | impl | Description                         |
-|:----:|:------------------------------------|
-|   0  | Hardware Breakpoint not implemented |
-|   1  | Hardware Breakpoint implemented     |
+| :--: | :---------------------------------- |
+|  0   | Hardware Breakpoint not implemented |
+|  1   | Hardware Breakpoint implemented     |
 
 The Breakpoint Enable bit enables or disables the breakpoint. The hardware breakpoint is enabled when the bit is set (‘1’) and disabled when the bit is cleared (‘0’). When the hardware breakpoint is disabled it will not generate a breakpoint hit, even if the breakpoint conditions are met. Clearing the breakpoint enable bit does not clear any pending hits. These must be cleared in the `DBG_HIT` register.
 
-| ena | Description                     |
-|:---:|:--------------------------------|
-|  0  | Hardware Breakpoint is disabled |
-|  1  | Hardware Breakpoint is enabled  |
+| ena  | Description                     |
+| :--: | :------------------------------ |
+|  0   | Hardware Breakpoint is disabled |
+|  1   | Hardware Breakpoint is enabled  |
 
 The Breakpoint Condition Code bits determine what condition triggers the hardware breakpoint.
 
 |   cc   | Description       |
-|:------:|:------------------|
+| :----: | :---------------- |
 | 3’b000 | Instruction Fetch |
 | 3’b001 | Data Load         |
 | 3’b010 | Data Store        |
@@ -1355,12 +1357,12 @@ Resources
 
 Below are some example implementations for various platforms. All implementations are push button, no effort has been undertaken to reduce area or improve performance.
 
-| Platform | DFF | Logic Cells | Memory | Performance (MHz) |
-|:---------|:---:|:-----------:|:------:|:------------------|
-| lfxp3c-5 |  51 |      85     |    0   | 235MHz            |
-|          |     |             |        |                   |
-|          |     |             |        |                   |
-|          |     |             |        |                   |
+| Platform | DFF  | Logic Cells | Memory | Performance (MHz) |
+| :------- | :--: | :---------: | :----: | :---------------- |
+| lfxp3c-5 |  51  |     85      |   0    | 235MHz            |
+|          |      |             |        |                   |
+|          |      |             |        |                   |
+|          |      |             |        |                   |
 
 Acknowledgements
 ================
@@ -1375,7 +1377,7 @@ Revision History
 ================
 
 | Date        | Rev. | Comments        |
-|:------------|:-----|:----------------|
+| :---------- | :--- | :-------------- |
 | 01-Feb-2017 | 1.0  | Initial Release |
 |             |      |                 |
 |             |      |                 |
