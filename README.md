@@ -12,9 +12,7 @@ Optional features include Branch Prediction, Instruction Cache, Data Cache, and 
 
 ## Documentation
 
-- [Product Brief]()
-- [RV12 Datasheet]()
-- [User Guide]()
+- [RV12 Datasheet](DATASHEET.md)
 
 ## Features
 
