@@ -12,7 +12,7 @@ Author: Roa Logic
 -   [Configurations](#configurations)
 -   [Control & Status Registers](#control-status-registers)
 -   [External Interfaces](#external-interfaces)
--   [Debug Unit](#debug-unit-1)
+-   [Debug Unit](#debug-unit)
 -   [Resources](#resources)
 -   [Acknowledgements](#acknowledgements)
 -   [Revision History](#revision-history)
