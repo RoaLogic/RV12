@@ -4,7 +4,7 @@ Category: Datasheet
 Author: Roa Logic
 ---
 # RV12 RISC-V 32/64-bit CPU Core Datasheet
-##Contents
+## Contents
 
 -   [Product Brief](#product-brief)
 -   [Introduction to the RV12](#introduction-to-the-rv12)
