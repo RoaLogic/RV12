@@ -13,6 +13,7 @@ Optional features include Branch Prediction, Instruction Cache, Data Cache, and 
 ## Documentation
 
 - [RV12 Datasheet](DATASHEET.md)
+  - [PDF Format Datasheet](docs/RoaLogic_RV12_RISCV_Datasheet.pdf)
 
 ## Features
 
