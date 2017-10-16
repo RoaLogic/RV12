@@ -69,7 +69,7 @@ The following parameters control the feature set of a specific implementation of
 
 ## License
 
-Released under the RoaLogic [Non-Commerical License](/LICENSE.md)
+Released under the RoaLogic [Non-Commercial License](/LICENSE.md)
 
 ## Dependencies
 Requires the Roa Logic [Memories IPs]() and [AHB3Lite Package](). These are included as submodules.
