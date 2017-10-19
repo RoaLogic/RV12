@@ -23,12 +23,12 @@
 \usepackage{amssymb,amsmath} % Math Fonts
 \usepackage{ifxetex,ifluatex}
 \usepackage{longtable} % Long table supprot
-\usepackage{vmargin} % Margin control  
+\usepackage{vmargin} % Margin control
 \usepackage{tabularx} % Table support
 \usepackage{booktabs} % For \toprule, \midrule and \bottomrule
 \usepackage{csvsimple} % Import CSV files
 \usepackage{layout} % Show summary of page layout
-\usepackage{hyperref} % Hyperlink support   
+\usepackage{hyperref} % Hyperlink support
 \usepackage{titlesec} %Headings Styliser
 \usepackage{fancyhdr} % Header & Footer control
 \usepackage{comment}
@@ -49,10 +49,10 @@
 \hypersetup{
     colorlinks=true,
     linkcolor=blue,
-    filecolor=magenta,      
+    filecolor=magenta,
     urlcolor=blue,
 }
- 
+
 \urlstyle{same}
 
 % Font & Colour control
@@ -63,16 +63,16 @@
 % Heading Formats
 \titleformat{\chapter}
    {\normalfont\Huge\bfseries\color{rlchapter}\sffamily}{\thechapter.}{1em}{}[{\titlerule[0.8pt]}]
-   
+
 \titleformat{\section}
   {\color{rlsection}\sffamily\LARGE\bfseries}{\thesection}{1em}{}
 
 \titleformat{\subsection}
   {\color{rlsection}\sffamily\large\bfseries}{\thesubsection}{1em}{}
-  
+
 \titleformat{\subsubsection}
   {\color{rlsection}\sffamily\large\bfseries}{\thesubsubsection}{1em}{}
-  
+
 %\titlespacing*{\chapter}     {0pt}{1.5ex plus 1ex minus .2ex}{2.3ex plus .2ex}
 \titlespacing*{\chapter}      {0pt}{-50pt}{20pt}
 \titlespacing*{\section}      {0pt}{1.5ex plus 1ex minus .2ex}{2.3ex plus .2ex}
@@ -88,9 +88,11 @@
 \setlength{\parskip}{0.5em}
 
 % Long table formatting
-% \newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}                  
-% \newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}                        
+% \newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+% \newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
 % \newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
+\usepackage{subfig}
+\captionsetup{belowskip=0pt,aboveskip=7pt}
 
 % Pad All Table Rows
 % \renewcommand{\arraystretch}{1.2}
