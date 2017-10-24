@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="awc" version="2">
+	<waveform>
+		<datasets>
+			<dataset alias="simulation1" file="dataset.asdb" id="0" uniqueid="1508764270"/>
+		</datasets>
+		<browser type="events"/>
+		<view active="true">
+			<cursors>
+				<cursor name="Default cursor" id="-1" time="0fs+0" lock="0" tip="1"/>
+				<active name="Default cursor" time="0fs+0"/>
+			</cursors>
+			<signalspart>
+				<signal name="/testbench_top/HRESETn" aliasid="0"/>
+				<signal name="/testbench_top/HCLK" aliasid="0"/>
+				<viewmode value="namedrow"/>
+				<expand value="1"/>
+				<group name="Instruction bus">
+					<viewmode value=""/>
+					<expand value=""/>
+					<signal name="/testbench_top/dut/core/if_unit/if_nxt_pc" aliasid="0"/>
+					<signal name="/testbench_top/dut/core/if_unit/if_out_order" aliasid="0"/>
+					<signal name="/testbench_top/dut/icache/HADDR" aliasid="0"/>
+					<signal name="/testbench_top/dut/icache/HRDATA" aliasid="0"/>
+					<signal name="/testbench_top/dut/icache/biu_rack" aliasid="0"/>
+					<signal name="/testbench_top/dut/icache/genblk1/icache_core_inst/core_tag" aliasid="0"/>
+					<signal name="/testbench_top/dut/icache/genblk1/icache_core_inst/tag_idx" aliasid="0"/>
+					<signal name="/testbench_top/dut/icache/genblk1/icache_core_inst/dat_idx" aliasid="0"/>
+					<signal name="/testbench_top/dut/icache/genblk1/icache_core_inst/wr_state" aliasid="0"/>
+					<signal name="/testbench_top/dut/icache/genblk1/icache_core_inst/cache_hit" aliasid="0"/>
+					<signal name="/testbench_top/dut/icache/genblk1/icache_core_inst/way_dat" aliasid="0"/>
+					<signal name="/testbench_top/dut/icache/genblk1/icache_core_inst/way_hit" aliasid="0"/>
+					<signal name="/testbench_top/dut/icache/genblk1/icache_core_inst/pc" aliasid="0"/>
+					<signal name="/testbench_top/dut/icache/biu_adro" aliasid="0"/>
+					<signal name="/testbench_top/dut/icache/genblk1/icache_core_inst/biu_do" aliasid="0"/>
+					<signal name="/testbench_top/dut/icache/genblk1/icache_core_inst/filling" aliasid="0"/>
+					<expand value="1"/>
+					<signal name="/testbench_top/dut/icache/genblk1/icache_core_inst/biu_fifo" aliasid="0"/>
+				</group>
+				<viewmode value="namedrow"/>
+				<group name="Instruction fetch">
+					<viewmode value=""/>
+					<expand value=""/>
+					<signal name="/testbench_top/dut/core/if_unit/if_parcel" aliasid="0"/>
+					<signal name="/testbench_top/dut/core/if_parcel_pc" aliasid="0"/>
+					<integral_representation value="Binary"/>
+					<signal name="/testbench_top/dut/core/if_unit/if_parcel_valid" aliasid="0"/>
+					<integral_representation value=""/>
+					<signal name="/testbench_top/dut/core/if_unit/parcel_shift_register" aliasid="0"/>
+					<signal name="/testbench_top/dut/core/if_unit/pc_shift_register" aliasid="0"/>
+					<integral_representation value="Binary"/>
+					<signal name="/testbench_top/dut/core/if_unit/parcel_sr_valid" aliasid="0"/>
+					<integral_representation value=""/>
+					<signal name="/testbench_top/dut/core/if_unit/if_instr" aliasid="0"/>
+					<signal name="/testbench_top/dut/core/if_unit/if_pc" aliasid="0"/>
+					<signal name="/testbench_top/dut/core/if_unit/is_16bit_instruction" aliasid="0"/>
+					<signal name="/testbench_top/dut/core/if_unit/if_exception" aliasid="0"/>
+					<signal name="/testbench_top/dut/core/if_unit/if_stall" aliasid="0"/>
+					<signal name="/testbench_top/dut/core/if_unit/if_bubble" aliasid="0"/>
+				</group>
+				<viewmode value="namedrow"/>
+				<group name="Pre decode">
+					<viewmode value=""/>
+					<signal name="/testbench_top/dut/core/pd_unit/pd_instr" aliasid="0"/>
+					<signal name="/testbench_top/dut/core/pd_unit/pd_pc" aliasid="0"/>
+					<signal name="/testbench_top/dut/core/pd_unit/pd_exception" aliasid="0"/>
+					<signal name="/testbench_top/dut/core/pd_unit/pd_bubble" aliasid="0"/>
+					<signal name="/testbench_top/dut/core/pd_unit/branch_pc" aliasid="0"/>
+					<signal name="/testbench_top/dut/core/pd_unit/branch_taken" aliasid="0"/>
+				</group>
+				<viewmode value="namedrow"/>
+				<group name="Instruction decode">
+					<viewmode value=""/>
+					<signal name="/testbench_top/dut/core/id_unit/id_opcode" aliasid="0"/>
+					<signal name="/testbench_top/dut/core/ex_units/id_instr" aliasid="0"/>
+					<signal name="/testbench_top/dut/core/id_pc" aliasid="0"/>
+					<signal name="/testbench_top/dut/core/id_bubble" aliasid="0"/>
+					<signal name="/testbench_top/dut/core/id_unit/id_stall" aliasid="0"/>
+					<signal name="/testbench_top/dut/core/id_unit/id_exception" aliasid="0"/>
+				</group>
+				<viewmode value="namedrow"/>
+				<group name="Execution ">
+					<viewmode value=""/>
+					<signal name="/testbench_top/dut/core/ex_units/ex_instr" aliasid="0"/>
+					<signal name="/testbench_top/dut/core/ex_units/ex_pc" aliasid="0"/>
+					<signal name="/testbench_top/dut/core/ex_units/ex_r" aliasid="0"/>
+					<signal name="/testbench_top/dut/core/ex_units/ex_bubble" aliasid="0"/>
+				</group>
+				<signal name="/testbench_top/dut/core/int_rf/rf_we" aliasid="0"/>
+				<expand value="1"/>
+				<signal name="/testbench_top/dut/core/int_rf/rf" aliasid="0"/>
+			</signalspart>
+			<firstvisiblesignal number="0"/>
+			<timesynchronization value="1"/>
+			<cursorssynchronization value="1"/>
+			<time beginvisible="0fs" endvisible="0fs"/>
+		</view>
+		<bookmarks/>
+		<time beginvisible="352ps" endvisible="380ps"/>
+		<timeunit name="auto"/>
+		<grid type="signalgrid" aliasid="0" name="/testbench_top/dut/core/if_unit/if_nxt_pc" edgetype="all" color="#808080" gridname="if_nxt_pc" ruler="0"/>
+		<grid type="signalgrid" aliasid="0" name="/testbench_top/dut/icache/HADDR" edgetype="all" color="#808080" gridname="HADDR" ruler="0"/>
+		<grid type="signalgrid" aliasid="0" name="/testbench_top/dut/icache/HRDATA" edgetype="all" color="#808080" gridname="HRDATA" ruler="0"/>
+		<grid type="signalgrid" aliasid="0" name="/testbench_top/dut/icache/biu_rack" edgetype="all" color="#808080" gridname="biu_rack" ruler="0"/>
+		<cursors>
+			<cursor name="Default cursor" id="-1" time="362190fs" lock="0" tip="1"/>
+			<active name="Default cursor" time="362190fs"/>
+		</cursors>
+		<hierarchy_depth value="0"/>
+	</waveform>
+</document>

@@ -1,0 +1,439 @@
+timestamp=1508770167696
+
+[~A]
+/home/bjorn/RV12/rtl/verilog/pkg/riscv_pkg.sv_riscv_state1.9_pkg.sv_riscv_du_pkg.sv_ahb3lite_pkg.sv_riscv_alu.sv_riscv_lsu.sv_riscv_bu.sv_riscv_mul.sv_riscv_div.sv_riscv_ex.sv_riscv_id.sv_riscv_if.sv_riscv_memwb.sv_riscv_rf.sv_riscv_state1.9.sv_riscv_bp.sv_riscv_du.sv_riscv_core.sv_rl_ram_1r1w.sv_rl_ram_1r1w_generic.sv_rl_ram_1r1w_easic_n3x.sv_rl_ram_1r1w_easic_n3xs.sv_rl_ram_1rw.sv_rl_ram_1rw_generic.sv_rl_ram_1rw_easic_n3x.sv_riscv_memmisaligned.sv_riscv_wbuf.sv_riscv_icache_core.sv_riscv_noicache_core.sv_riscv_dcache_core.sv_riscv_nodcache_core.sv_riscv_cache_biu_ahb3lite.sv_riscv_icache_ahb3lite.sv_riscv_dcache_ahb3lite.sv_riscv_top_ahb3lite.sv_testbench_top.sv_memory_model_ahb3lite.sv_dbg_bfm.sv=0*38050043*38129226
+/home/bjorn/RV12/rtl/verilog/pkg/riscv_pkg.sv_riscv_state1.9_pkg.sv_riscv_du_pkg.sv_ahb3lite_pkg.sv_riscv_alu.sv_riscv_lsu.sv_riscv_bu.sv_riscv_mul.sv_riscv_div.sv_riscv_ex.sv_riscv_id.sv_riscv_if.sv_riscv_pd.sv_riscv_memwb.sv_riscv_rf.sv_riscv_state1.9.sv_riscv_bp.sv_riscv_du.sv_riscv_core.sv_rl_ram_1r1w.sv_rl_ram_1r1w_generic.sv_rl_ram_1r1w_easic_n3x.sv_rl_ram_1r1w_easic_n3xs.sv_rl_ram_1rw.sv_rl_ram_1rw_generic.sv_rl_ram_1rw_easic_n3x.sv_riscv_memmisaligned.sv_riscv_wbuf.sv_riscv_icache_core.sv_riscv_noicache_core.sv_riscv_dcache_core.sv_riscv_nodcache_core.sv_riscv_cache_biu_ahb3lite.sv_riscv_icache_ahb3lite.sv_riscv_dcache_ahb3lite.sv_riscv_top_ahb3lite.sv_testbench_top.sv_memory_model_ahb3lite.sv_dbg_bfm.sv=0*90835622*90915953
+LastVerilogToplevel=testbench_top
+ModifyID=807
+Version=74
+
+[$root]
+A/$root=22|||1*402934857
+BinI32/$root=3*420521800
+SLP=3*420521904
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|c73a565f2ade592f8ac1c68f484c9216babed6cfea884f902c4cf2ba2c440e54
+
+[\*assocarray#([]bit,[]logic) \]
+A/\*assocarray#([]bit,[]logic) \=22|||1*403434619
+AICT=386245162513409
+BinI32/\*assocarray#([]bit,[]logic) \=3*421053863
+CLI=0*90835121
+SLP=3*421055817
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|28d50cbe667753a254d0ce15b290b843e450eb5e1c3995ec393c0862345ade59832e2e78ef13b89bcf8c8faf9ecc2464bd7ea428ed673eda0460805c6c26b265
+
+[\ahb3lite_bus \\ahb3lite_bus.master \\ \]
+A/\ahb3lite_bus \\ahb3lite_bus.master \\ \=22|./../../../../../../ahb3lite_pkg/rtl/verilog/ahb3lite_pkg.sv|168|1*403027602
+BinI32/\ahb3lite_bus \\ahb3lite_bus.master \\ \=3*420533986
+R=./../../../../../../ahb3lite_pkg/rtl/verilog/ahb3lite_pkg.sv|168
+SLP=3*420534412
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|e0aeb25d2cec4b30c2b02370adada624972b87f9080e347562b5fe3b69f68d028c540c5fcf0d1479d3898dc00ec50c7a43738489419c2ad2014d0f4e02d96e50
+
+[\ahb3lite_bus \\ahb3lite_bus.master_cb \\ \]
+A/\ahb3lite_bus \\ahb3lite_bus.master_cb \\ \=22|./../../../../../../ahb3lite_pkg/rtl/verilog/ahb3lite_pkg.sv|140|1*403012888
+BinI32/\ahb3lite_bus \\ahb3lite_bus.master_cb \\ \=3*420531068
+R=./../../../../../../ahb3lite_pkg/rtl/verilog/ahb3lite_pkg.sv|140
+SLP=3*420531497
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|e0aeb25d2cec4b30c2b02370adada624230a0a878b9bc84e29024fafa4a9b925f0dc4d3e08088d5c7d856f5b25ef0108912a3e065bfc91270f0997512036dddd
+
+[\ahb3lite_bus \\ahb3lite_bus.slave \\ \]
+A/\ahb3lite_bus \\ahb3lite_bus.slave \\ \=22|./../../../../../../ahb3lite_pkg/rtl/verilog/ahb3lite_pkg.sv|185|1*403030836
+BinI32/\ahb3lite_bus \\ahb3lite_bus.slave \\ \=3*420534710
+R=./../../../../../../ahb3lite_pkg/rtl/verilog/ahb3lite_pkg.sv|185
+SLP=3*420535135
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|e0aeb25d2cec4b30c2b02370adada624e630bca39df0ea1cc2cf1d01a9c0c1471a29e8fb04657c0bb3351e9d67b09568881c12c25129808da5d8de8711bb399c
+
+[\ahb3lite_bus \\ahb3lite_bus.slave_cb \\ \]
+A/\ahb3lite_bus \\ahb3lite_bus.slave_cb \\ \=22|./../../../../../../ahb3lite_pkg/rtl/verilog/ahb3lite_pkg.sv|162|1*403020024
+BinI32/\ahb3lite_bus \\ahb3lite_bus.slave_cb \\ \=3*420532529
+R=./../../../../../../ahb3lite_pkg/rtl/verilog/ahb3lite_pkg.sv|162
+SLP=3*420532957
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|e0aeb25d2cec4b30c2b02370adada62476fa27b2d779609b31ffe4faeb6449e7b183e710a49e173167bf463dbd3b32e25584b0034f2fd90051a3cdb11ec70236
+
+[\ahb3lite_bus.master_cb.cb_master \]
+A/\ahb3lite_bus.master_cb.cb_master \=22|./../../../../../../ahb3lite_pkg/rtl/verilog/ahb3lite_pkg.sv|141|1*403016863
+BinI32/\ahb3lite_bus.master_cb.cb_master \=3*420531816
+R=./../../../../../../ahb3lite_pkg/rtl/verilog/ahb3lite_pkg.sv|141
+SLP=3*420532237
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|e0aeb25d2cec4b30c2b02370adada624046df29f0e5d2261dacc693ce949a4b87cac3d0c15902cc94694ef424bccecc51cd06cf8a544cea134a9f27566746c4e
+
+[\ahb3lite_bus.slave_cb.cb_slave \]
+A/\ahb3lite_bus.slave_cb.cb_slave \=22|./../../../../../../ahb3lite_pkg/rtl/verilog/ahb3lite_pkg.sv|163|1*403024187
+BinI32/\ahb3lite_bus.slave_cb.cb_slave \=3*420533276
+R=./../../../../../../ahb3lite_pkg/rtl/verilog/ahb3lite_pkg.sv|163
+SLP=3*420533695
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|e0aeb25d2cec4b30c2b02370adada624bbb14ac5b02501076a7dab15411707b7047f9c1f611910bb10308a7c5a247ce7de3709f7c6c7ea3e303166cb6ea3e076
+
+[\apb_bus \\apb_bus.master \\ \]
+A/\apb_bus \\apb_bus.master \\ \=22|./../../../../../../ahb3lite_pkg/rtl/verilog/ahb3lite_pkg.sv|226|1*403042000
+BinI32/\apb_bus \\apb_bus.master \\ \=3*420540277
+R=./../../../../../../ahb3lite_pkg/rtl/verilog/ahb3lite_pkg.sv|226
+SLP=3*420540834
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|39c1872528ffc2a5e45a43c7df9a8b8047974275cfed8a157555455b884ca73b97f9b0e3cc5d4ce76fe8562bf4532bc9
+
+[\apb_bus \\apb_bus.slave \\ \]
+A/\apb_bus \\apb_bus.slave \\ \=22|./../../../../../../ahb3lite_pkg/rtl/verilog/ahb3lite_pkg.sv|241|1*403045048
+BinI32/\apb_bus \\apb_bus.slave \\ \=3*420541093
+R=./../../../../../../ahb3lite_pkg/rtl/verilog/ahb3lite_pkg.sv|241
+SLP=3*420541909
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|39c1872528ffc2a5e45a43c7df9a8b80f1e6fb3a927e55ecd296e98f6539cff0b6f91fb0fc302fd07c48573345f676a3
+
+[ahb3lite_bus]
+A/ahb3lite_bus=22|./../../../../../../ahb3lite_pkg/rtl/verilog/ahb3lite_pkg.sv|102|1*402993439
+BinI32/ahb3lite_bus=3*420524030
+R=./../../../../../../ahb3lite_pkg/rtl/verilog/ahb3lite_pkg.sv|102
+SLP=3*420528021
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|aa2cee53275d9a43ee2b1ba0061c07ff3be4e0f98d357230c7dbb65a26eb136a886b1aae02c1947830b0633b15a0c49e
+
+[ahb3lite_pkg]
+A/ahb3lite_pkg=22|./../../../../../../ahb3lite_pkg/rtl/verilog/ahb3lite_pkg.sv|48|1*402987937
+BinI32/ahb3lite_pkg=3*420523550
+R=./../../../../../../ahb3lite_pkg/rtl/verilog/ahb3lite_pkg.sv|48
+SLP=3*420523839
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|dc1436f8f56e96b9ec389ca1755d4c7799eb7d403addae74eda1b9135229c4f1886b1aae02c1947830b0633b15a0c49e
+
+[apb_bus]
+A/apb_bus=22|./../../../../../../ahb3lite_pkg/rtl/verilog/ahb3lite_pkg.sv|208|1*403034174
+BinI32/apb_bus=3*420535433
+R=./../../../../../../ahb3lite_pkg/rtl/verilog/ahb3lite_pkg.sv|208
+SLP=3*420538323
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|290225d59c21cc2c8b3df8039b66f9d726527262ddaa47cb266f3a3c4d9b973ae6ac8ac3c2907e439e4242dd9d4811e2
+
+[dbg_bfm]
+A/dbg_bfm=22|./../../../../../../bench/verilog/ahb3lite/dbg_bfm.sv|59|1*403411328
+BinI32/dbg_bfm=3*421021490
+R=./../../../../../../bench/verilog/ahb3lite/dbg_bfm.sv|59
+SLP=3*421023192
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|679b6acd49f0eb576b88cc5f57bf5d6026527262ddaa47cb266f3a3c4d9b973a1959c15c01222de37f7b4782e81903e4
+
+[htif]
+A/htif=22|./../../../../../../bench/verilog/ahb3lite/testbench_top.sv|498|1*403427399
+BinI32/htif=3*421044249
+R=./../../../../../../bench/verilog/ahb3lite/testbench_top.sv|498
+SLP=3*421046547
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|0f4e74abfc218f4816a182e4cb039d3ea2128b99ba02dae6fee4492f83d15001
+
+[memory_model_ahb3lite]
+A/memory_model_ahb3lite=22|./../../../../../../bench/verilog/ahb3lite/memory_model_ahb3lite.sv|49|1*403415238
+BinI32/memory_model_ahb3lite=3*421024654
+R=./../../../../../../bench/verilog/ahb3lite/memory_model_ahb3lite.sv|49
+SLP=3*421038599
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|f6e7c5a425beed9828a01704455d0981a80400455272141c18147a03ef977a773802ccda6e04ae67686fc87ac952cb47
+
+[mmio_if]
+A/mmio_if=22|./../../../../../../bench/verilog/ahb3lite/testbench_top.sv|379|1*403429852
+BinI32/mmio_if=3*421047767
+R=./../../../../../../bench/verilog/ahb3lite/testbench_top.sv|379
+SLP=3*421051962
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|b101246dd67565cf36a744ff6d5bcd9526527262ddaa47cb266f3a3c4d9b973a06878b831c56e55d8742156846e13bbb
+
+[riscv_alu]
+A/riscv_alu=22|./../../../../../../rtl/verilog/core/ex/riscv_alu.sv|38|1*403048967
+BinI32/riscv_alu=3*420542476
+R=./../../../../../../rtl/verilog/core/ex/riscv_alu.sv|38
+SLP=3*420556339
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|0fb14247d002ba4dc4ba6f4ca1ddc06630e1dd2180480d04b83cf4fa50fd2fb50dfd3c16467dd14dae8dd001514eb4d7
+
+[riscv_bp]
+A/riscv_bp=22|./../../../../../../rtl/verilog/core/riscv_bp.sv|38|1*403201145
+BinI32/riscv_bp=3*420809092
+R=./../../../../../../rtl/verilog/core/riscv_bp.sv|38
+SLP=3*420813314
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|bfa974fbdb4419af0918c19b6d7e38f323b0775eaf50bfb15e1a083253ac86ef3ce808fda90d9345693baa356e5ac584
+
+[riscv_bu]
+A/riscv_bu=22|./../../../../../../rtl/verilog/core/ex/riscv_bu.sv|38|1*403068667
+BinI32/riscv_bu=3*420579746
+R=./../../../../../../rtl/verilog/core/ex/riscv_bu.sv|38
+SLP=3*420589454
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|1ecd0e860f3197eaa3ce10c8a85861fea6aa6b1542660c3b5d93267cb2483e9ec6eac17ab1b57dc62f71265de93f3a21
+
+[riscv_cache_biu_ahb3lite]
+A/riscv_cache_biu_ahb3lite=22|./../../../../../../rtl/verilog/ahb3lite/riscv_cache_biu_ahb3lite.sv|38|1*403355736
+BinI32/riscv_cache_biu_ahb3lite=3*420995079
+R=./../../../../../../rtl/verilog/ahb3lite/riscv_cache_biu_ahb3lite.sv|38
+SLP=3*421003072
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|e1d0b32f2033392d970dfa8bbf9a134876a2c9397f6ea8d0f8ebf8d2d744b6a17a5a5dfe08cda4222e6c2be7b8a4d5c79a5e62674c4a8838624a36aa3bf357a1
+
+[riscv_core]
+A/riscv_core=22|./../../../../../../rtl/verilog/core/riscv_core.sv|38|1*403228535
+BinI32/riscv_core=3*420844744
+R=./../../../../../../rtl/verilog/core/riscv_core.sv|38
+SLP=3*420846243
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|171bf0e328b1edd502ad5e9c7c26090cc4fa7c260d873bc29208306db13753ee0910ebceec49e9f576514d0594fa0ab6
+
+[riscv_dcache_ahb3lite]
+A/riscv_dcache_ahb3lite=22|./../../../../../../rtl/verilog/ahb3lite/riscv_dcache_ahb3lite.sv|38|1*403371811
+BinI32/riscv_dcache_ahb3lite=3*421008681
+R=./../../../../../../rtl/verilog/ahb3lite/riscv_dcache_ahb3lite.sv|38
+SLP=3*421010638
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|9d30d06216e708902b12a226de2c592ab022fed25c7825f4006ef4f9185ba2d37228eb0753b27ff8d5f5fd2ea81e0975
+
+[riscv_dcache_core]
+A/riscv_dcache_core=22|./../../../../../../rtl/verilog/core/cache/riscv_dcache_core.sv|38|1*403316195
+BinI32/riscv_dcache_core=3*420930260
+R=./../../../../../../rtl/verilog/core/cache/riscv_dcache_core.sv|38
+SLP=3*420972595
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|9d30d06216e708902b12a226de2c592a2673a1145ed428c3f4f7e0d5561ddae83d8f4f45b8fce9a3c66bf6b8095e4305
+
+[riscv_div]
+A/riscv_div=22|./../../../../../../rtl/verilog/core/ex/riscv_div.sv|40|1*403088855
+BinI32/riscv_div=3*420610447
+R=./../../../../../../rtl/verilog/core/ex/riscv_div.sv|40
+SLP=3*420623442
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|0748c28bc72ec7d27223287296217523f4fcd5116b3755abd4dccce293d4edcde7187c092a552d55c8ae2e0b9a61df46
+
+[riscv_du]
+A/riscv_du=22|./../../../../../../rtl/verilog/core/riscv_du.sv|38|1*403212013
+BinI32/riscv_du=3*420817294
+R=./../../../../../../rtl/verilog/core/riscv_du.sv|38
+SLP=3*420833662
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|7f14eb3bddc12e1bcac29e3c171c2e579d8b4e8ef1374421143aa6249ef85470c35be32a9a0a3ae1ccba50a5e3a29349
+
+[riscv_du_pkg]
+A/riscv_du_pkg=22|./../../../../../../rtl/verilog/pkg/riscv_du_pkg.sv|42|1*402981890
+BinI32/riscv_du_pkg=3*420523167
+R=./../../../../../../rtl/verilog/pkg/riscv_du_pkg.sv|42
+SLP=3*420523348
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|2efde4e224274ff6af9e479e9ee3cc00c237f3611d549dfe61d1d22ff4ebd72c1d2a784a895991cbf70a909c0aff106e
+
+[riscv_ex]
+A/riscv_ex=22|./../../../../../../rtl/verilog/core/riscv_ex.sv|38|1*403096361
+BinI32/riscv_ex=3*420631086
+R=./../../../../../../rtl/verilog/core/riscv_ex.sv|38
+SLP=3*420636254
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|e0e3dcfe7400b18d764803a70682fafc3d6ac2656ee8a4b7c6159d96b71f53dfd0010f3f405b2e6e0e1371f2838e6257
+
+[riscv_icache_ahb3lite]
+A/riscv_icache_ahb3lite=22|./../../../../../../rtl/verilog/ahb3lite/riscv_icache_ahb3lite.sv|38|1*403364457
+BinI32/riscv_icache_ahb3lite=3*421007467
+R=./../../../../../../rtl/verilog/ahb3lite/riscv_icache_ahb3lite.sv|38
+SLP=3*421008255
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|f7c46908fae4f722db0ea404b6c035ee1ad715689bb87452144c5c666c54bea07228eb0753b27ff8d5f5fd2ea81e0975
+
+[riscv_icache_core]
+A/riscv_icache_core=22|./../../../../../../rtl/verilog/core/cache/riscv_icache_core.sv|38|1*403280791
+BinI32/riscv_icache_core=3*420876121
+R=./../../../../../../rtl/verilog/core/cache/riscv_icache_core.sv|38
+SLP=3*420905339
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|f7c46908fae4f722db0ea404b6c035eeb368cfc65c231c4b60ec284c0d79d37348707ec415c9e2a07ee9f4019e8a7ba5
+
+[riscv_id]
+A/riscv_id=22|./../../../../../../rtl/verilog/core/riscv_id.sv|43|1*403107950
+BinI32/riscv_id=3*420638453
+R=./../../../../../../rtl/verilog/core/riscv_id.sv|43
+SLP=3*420659021
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|8d40823f85ecaf74a1bc785caab5786a14bdda985a12bf2eace5f014fcf18c5dd0010f3f405b2e6e0e1371f2838e6257
+
+[riscv_if]
+A/riscv_if=22|./../../../../../../rtl/verilog/core/riscv_if.sv|39|1*403131167
+BinI32/riscv_if=3*420674594
+R=./../../../../../../rtl/verilog/core/riscv_if.sv|39
+SLP=3*420692762
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|98be783fcf2e931d4b5ab0a5d332745dbf54c37a5929d0b0bef44c4f98f3ba184a4d9f331a53a2c33bdb51528478601b
+
+[riscv_lsu]
+A/riscv_lsu=22|./../../../../../../rtl/verilog/core/ex/riscv_lsu.sv|38|1*403057142
+BinI32/riscv_lsu=3*420561933
+R=./../../../../../../rtl/verilog/core/ex/riscv_lsu.sv|38
+SLP=3*420573410
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|410fdc772608ec45455c6e2b5c553fa70f35ea33f062537ade0f669a8850af950dfd3c16467dd14dae8dd001514eb4d7
+
+[riscv_memmisaligned]
+A/riscv_memmisaligned=22|./../../../../../../rtl/verilog/core/riscv_memmisaligned.sv|38|1*403272102
+BinI32/riscv_memmisaligned=3*420862719
+R=./../../../../../../rtl/verilog/core/riscv_memmisaligned.sv|38
+SLP=3*420864648
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|c21ee0197a7a4ef40d0f9f7451ec0ac1a88f649067da7f2adab8d4eb3a7e1bd8a293ca9d9a19858e404c6ee0910308cd
+
+[riscv_memwb]
+A/riscv_memwb=22|./../../../../../../rtl/verilog/core/riscv_memwb.sv|38|1*403152516
+BinI32/riscv_memwb=3*420727782
+R=./../../../../../../rtl/verilog/core/riscv_memwb.sv|38
+SLP=3*420731530
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|944662caf6bd4f13ca0c5f07cf4a003c99181ac982e6bbc64045f643b52fc62f34a73779a47a265b8572c981792de587
+
+[riscv_mul]
+A/riscv_mul=22|./../../../../../../rtl/verilog/core/ex/riscv_mul.sv|38|1*403076856
+BinI32/riscv_mul=3*420593539
+R=./../../../../../../rtl/verilog/core/ex/riscv_mul.sv|38
+SLP=3*420603625
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|4fb9a20a9e9e4ed9055dcfd366a38cdf27bf69321d2779b4a1ff26783d686bd6e7187c092a552d55c8ae2e0b9a61df46
+
+[riscv_nodcache_core]
+A/riscv_nodcache_core=22|./../../../../../../rtl/verilog/core/cache/riscv_nodcache_core.sv|38|1*403349428
+BinI32/riscv_nodcache_core=3*420988348
+R=./../../../../../../rtl/verilog/core/cache/riscv_nodcache_core.sv|38
+SLP=3*420992863
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|e83743bbb69bdf0daf72eb7b651138225e783d34a010f019d0239ea11bf68cfa4e6b05c73056e5ece83e2b78584af852
+
+[riscv_noicache_core]
+A/riscv_noicache_core=22|./../../../../../../rtl/verilog/core/cache/riscv_noicache_core.sv|38|1*403308451
+BinI32/riscv_noicache_core=3*420917038
+R=./../../../../../../rtl/verilog/core/cache/riscv_noicache_core.sv|38
+SLP=3*420925456
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|7e1b542f762380206ec434d98cb0a749dc95e238cd062130e6f6ca503f53cf93092ea4160c48d307b3ec6b8565a426e5
+
+[riscv_pd]
+A/riscv_pd=22|./../../../../../../rtl/verilog/core/riscv_pd.sv|39|1*403140081
+BinI32/riscv_pd=3*420698533
+R=./../../../../../../rtl/verilog/core/riscv_pd.sv|39
+SLP=3*420716036
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|ea3b50b1b69a2bcd1a2269651d4d9d47536c9008ac87b7c2cbb596311114c0c84a4d9f331a53a2c33bdb51528478601b
+
+[riscv_pkg]
+A/riscv_pkg=22|./../../../../../../rtl/verilog/pkg/riscv_pkg.sv|44|1*402935247
+BinI32/riscv_pkg=3*420521972
+R=./../../../../../../rtl/verilog/pkg/riscv_pkg.sv|44
+SLP=3*420522150
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|dda20fd27c45310a643afb30b9f0e3b730e1dd2180480d04b83cf4fa50fd2fb5d02f62ca33c02830cbd600ecdb4655eb
+
+[riscv_rf]
+A/riscv_rf=22|./../../../../../../rtl/verilog/core/riscv_rf.sv|38|1*403159158
+BinI32/riscv_rf=3*420733251
+R=./../../../../../../rtl/verilog/core/riscv_rf.sv|38
+SLP=3*420737678
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|fb9cedf3327b7ec164b3961d84e13a1fbf27d3090d6c2eeec6e2c876aebcd7ea3ce808fda90d9345693baa356e5ac584
+
+[riscv_state1_9]
+A/riscv_state1_9=22|./../../../../../../rtl/verilog/core/riscv_state1.9.sv|38|1*403164476
+BinI32/riscv_state1_9=3*420738669
+R=./../../../../../../rtl/verilog/core/riscv_state1.9.sv|38
+SLP=3*420782854
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|c7b14fea4e3a25eec08dce7f915ddce627588b46c75456acf393e2e5a8432fd5de2e5c0ce07b9dbb49f0b1d2cb6623f5
+
+[riscv_state_pkg]
+A/riscv_state_pkg=22|./../../../../../../rtl/verilog/pkg/riscv_state1.9_pkg.sv|38|1*402963676
+BinI32/riscv_state_pkg=3*420522599
+R=./../../../../../../rtl/verilog/pkg/riscv_state1.9_pkg.sv|38
+SLP=3*420522783
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|75981588f94295f91e2abfff9e2bd46520bd50550983f770bdcc2c62c989b533ac21b8a6c8d88833820426b97d3417a3
+
+[riscv_top_ahb3lite]
+A/riscv_top_ahb3lite=22|./../../../../../../rtl/verilog/ahb3lite/riscv_top_ahb3lite.sv|38|1*403382601
+BinI32/riscv_top_ahb3lite=3*421011431
+R=./../../../../../../rtl/verilog/ahb3lite/riscv_top_ahb3lite.sv|38
+SLP=3*421012662
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|ab1809ad8dc98f409026b90839dd75d463a9674282676c1ed433434a26a1bcf327d21d5b613bdc14ed874053aecff8d7
+
+[riscv_wbuf]
+A/riscv_wbuf=22|./../../../../../../rtl/verilog/core/riscv_wbuf.sv|38|1*403274372
+BinI32/riscv_wbuf=3*420865975
+R=./../../../../../../rtl/verilog/core/riscv_wbuf.sv|38
+SLP=3*420873515
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|d5c4170f7e6087e5196c3c54f6a5b6dd4787421f78165a30132de3163da2e9428bbc288b5ecd8a634b05e9816c336e59
+
+[rl_ram_1r1w]
+A/rl_ram_1r1w=22|./../../../../../../memory/rtl/verilog/rl_ram_1r1w.sv|45|1*403207131
+BinI32/rl_ram_1r1w=3*420814108
+R=./../../../../../../memory/rtl/verilog/rl_ram_1r1w.sv|45
+SLP=3*420816631
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|cb33fc31accd065dc5bc8d63c1e05487afa63ac135db4c792a479c629b13099578d9af3f4d8179d99546c803633639c1
+
+[rl_ram_1r1w_easic_n3x]
+A/rl_ram_1r1w_easic_n3x=22|./../../../../../../memory/rtl/verilog/rl_ram_1r1w_easic_n3x.sv|45|1*403255160
+BinI32/rl_ram_1r1w_easic_n3x=3*420850458
+R=./../../../../../../memory/rtl/verilog/rl_ram_1r1w_easic_n3x.sv|45
+SLP=3*420852445
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|fcc84933ca7e510e987a2ca784be0c56910db0a5554ee30d924169bba1d0acfab916080d6c329a86d89d032715439e59
+
+[rl_ram_1r1w_easic_n3xs]
+A/rl_ram_1r1w_easic_n3xs=22|./../../../../../../memory/rtl/verilog/rl_ram_1r1w_easic_n3xs.sv|45|1*403248222
+BinI32/rl_ram_1r1w_easic_n3xs=3*420847226
+R=./../../../../../../memory/rtl/verilog/rl_ram_1r1w_easic_n3xs.sv|45
+SLP=3*420849847
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|fcc84933ca7e510e987a2ca784be0c5667d3e0788e1c4f7caa76cb27e2e0dc8fe9d9fb40e9533c6157bd62c8e5b4225d
+
+[rl_ram_1r1w_generic]
+A/rl_ram_1r1w_generic=22|./../../../../../../memory/rtl/verilog/rl_ram_1r1w_generic.sv|45|1*403259477
+BinI32/rl_ram_1r1w_generic=3*420852902
+R=./../../../../../../memory/rtl/verilog/rl_ram_1r1w_generic.sv|45
+SLP=3*420855731
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|fcc84933ca7e510e987a2ca784be0c56edf4f60ee21cc4749cab2f6018be0c1e22393b83d8259ff2a5a6590f45403aea
+
+[rl_ram_1rw]
+A/rl_ram_1rw=22|./../../../../../../memory/rtl/verilog/rl_ram_1rw.sv|45|1*403262975
+BinI32/rl_ram_1rw=3*420856403
+R=./../../../../../../memory/rtl/verilog/rl_ram_1rw.sv|45
+SLP=3*420857335
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|9f3b8857342f0b143283e8a69233a20024f0ca7ecffe6d4a95e4bc00373d3074251cd6bab816c7efba5e8ce6a8803752
+
+[rl_ram_1rw_easic_n3x]
+A/rl_ram_1rw_easic_n3x=22|./../../../../../../memory/rtl/verilog/rl_ram_1rw_easic_n3x.sv|45|1*403265746
+BinI32/rl_ram_1rw_easic_n3x=3*420857710
+R=./../../../../../../memory/rtl/verilog/rl_ram_1rw_easic_n3x.sv|45
+SLP=3*420859004
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|008c10f0c7e5b88218e9b0e97156262e70dcf933f83200233bedfdae04b3b1ebc32d4d84814eb1fe4fb2f3d43493f45b
+
+[rl_ram_1rw_generic]
+A/rl_ram_1rw_generic=22|./../../../../../../memory/rtl/verilog/rl_ram_1rw_generic.sv|45|1*403268605
+BinI32/rl_ram_1rw_generic=3*420859273
+R=./../../../../../../memory/rtl/verilog/rl_ram_1rw_generic.sv|45
+SLP=3*420862070
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|3ac19fbe801c76718642ebd1af95d6eb669b4b6060a6972f5819714dd732cbf5bcdf7bb404c5f0cc40ca1483315b3d31
+
+[testbench_top]
+A/testbench_top=22|./../../../../../../bench/verilog/ahb3lite/testbench_top.sv|49|1*403396950
+BinI32/testbench_top=3*421013372
+R=./../../../../../../bench/verilog/ahb3lite/testbench_top.sv|49
+SLP=3*421018683
+Version=2017.02.99 (Linux)|0000001d789cd32d2e33cab654d04e494dcbcc4bd50ef6f455d0cec94c4aad28d1d62b030089600959|cd7ff6b95994bfa780855ee06ca3815b23d40dee978d48ad8ec4b207e726d8f624e185a4a18ceb634978d55a09f13524
+
+[~MFT]
+0=58|0work.mgf|90915953|65199135
+1=106|1work.mgf|403434619|402934857
+3=212|3work.mgf|421055817|420521800
+
+[~U]
+$root=12|0*90803100|
+\*assocarray#([]bit,[]logic) \=12|||0x10030000
+\ahb3lite_bus \\ahb3lite_bus.master \\ \=12|0*90812667||0x80040000
+\ahb3lite_bus \\ahb3lite_bus.master_cb \\ \=12|0*90810604||0x80040000
+\ahb3lite_bus \\ahb3lite_bus.slave \\ \=12|0*90813132||0x80040000
+\ahb3lite_bus \\ahb3lite_bus.slave_cb \\ \=12|0*90811628||0x80040000
+\ahb3lite_bus.master_cb.cb_master \=12|0*90811142||0x80000
+\ahb3lite_bus.slave_cb.cb_slave \=12|0*90812169||0x80000
+\apb_bus \\apb_bus.master \\ \=12|0*90814336||0x80040000
+\apb_bus \\apb_bus.slave \\ \=12|0*90814767||0x80040000
+ahb3lite_bus=12|0*90809919||0x80000
+ahb3lite_pkg=12|0*90809255||0x40000000
+apb_bus=12|0*90813600||0x80000
+dbg_bfm=12|0*90833165|
+htif=12|0*90834349|
+memory_model_ahb3lite=12|0*90833637|
+mmio_if=12|0*90834691|
+riscv_alu=12|0*90815273|
+riscv_bp=12|0*90821691|
+riscv_bu=12|0*90816194|
+riscv_cache_biu_ahb3lite=12|0*90829784|
+riscv_core=12|0*90823161|
+riscv_dcache_ahb3lite=12|0*90831053|
+riscv_dcache_core=12|0*90828299|
+riscv_div=12|0*90817261|
+riscv_du=12|0*90822507|
+riscv_du_pkg=12|0*90808476||0x40000000
+riscv_ex=12|0*90817723|
+riscv_icache_ahb3lite=12|0*90830465|
+riscv_icache_core=12|0*90826704|
+riscv_id=12|0*90818527|
+riscv_if=12|0*90819137|
+riscv_lsu=12|0*90815739|
+riscv_memmisaligned=12|0*90825947|
+riscv_memwb=12|0*90820151|
+riscv_mul=12|0*90816741|
+riscv_nodcache_core=12|0*90829276|
+riscv_noicache_core=12|0*90827710|
+riscv_pd=12|0*90819666|
+riscv_pkg=12|0*90803570||0x40000000
+riscv_rf=12|0*90820565|
+riscv_state1_9=12|0*90820936|
+riscv_state_pkg=12|0*90806363||0x40000000
+riscv_top_ahb3lite=12|0*90831641|
+riscv_wbuf=12|0*90826229|
+rl_ram_1r1w=12|0*90822192|
+rl_ram_1r1w_easic_n3x=12|0*90824394|
+rl_ram_1r1w_easic_n3xs=12|0*90824048|
+rl_ram_1r1w_generic=12|0*90824729|
+rl_ram_1rw=12|0*90825031||0x10
+rl_ram_1rw_easic_n3x=12|0*90825332|
+rl_ram_1rw_generic=12|0*90825653|
+testbench_top=12|0*90832626||0x10

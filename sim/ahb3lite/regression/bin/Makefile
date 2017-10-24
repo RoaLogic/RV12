@@ -65,13 +65,13 @@ TST_SRC_DIR=$(ROOT_DIR)/../bench/regression
 ##########################################################################
 #REGRESSION_MEM_LATENCY      = 0 1 2 3 4 5 7 8 15
 #REGRESSION_MEM_LATENCY      = 0 1 3 8
-REGRESSION_MEM_LATENCY     = 0 1 3
+REGRESSION_MEM_LATENCY     = 0
 #REGRESSION_XLEN             = 32 64
-REGRESSION_XLEN             = 32 64
+REGRESSION_XLEN             = 32
 #REGRESSION_WRITEBUFFER_SIZE = 0 2 8
-REGRESSION_WRITEBUFFER_SIZE = 0 2 8
-REGRESSION_ICACHE_SIZE = 0 4
-REGRESSION_DCACHE_SIZE = 0 4
+REGRESSION_WRITEBUFFER_SIZE = 0
+REGRESSION_ICACHE_SIZE = 1
+REGRESSION_DCACHE_SIZE = 1
 #REGRESSION_MULT_LATENCY = 3 2 1 0
 REGRESSION_MULT_LATENCY = 4
 
@@ -82,7 +82,7 @@ REGRESSION_MULT_LATENCY = 4
 #
 ##########################################################################
 XLEN    = 32
-HAS_RVC = 0
+HAS_RVC = 1 
 HAS_U   = 1 
 HAS_S   = 1
 HAS_H   = 0
@@ -192,7 +192,7 @@ logs = $(call add_regression,DCACHE_SIZE,				\
 regression: $(logs)
 
 %.log:
-	$(MAKE) riviera LOG=./log/$(@F)						\
+	$(MAKE) riviera_waves LOG=./log/$(@F)						\
 	  PARAMS="DCACHE_SIZE=$(subst DCACHE_SIZE,,$(word 1,$(subst @, ,$*)))		\
 	          ICACHE_SIZE=$(subst ICACHE_SIZE,,$(word 2,$(subst @, ,$*)))		\
 	          MEM_LATENCY=$(subst MEM_LATENCY,,$(word 3,$(subst @, ,$*))) 		\

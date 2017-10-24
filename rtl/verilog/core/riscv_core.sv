@@ -46,7 +46,7 @@ module riscv_core #(
   parameter            HAS_MMU         = 0,
   parameter            HAS_MULDIV      = 0,
   parameter            HAS_AMO         = 0,
-  parameter            HAS_RVC         = 0,
+  parameter            HAS_RVC         = 1,
   parameter            IS_RV32E        = 0,
 
   parameter            MULT_LATENCY    = 0,
@@ -84,9 +84,10 @@ module riscv_core #(
   output [XLEN         -1:0] if_nxt_pc,
   output                     if_stall,
                              if_flush,
+  output		     if_out_order,
   input  [PARCEL_SIZE  -1:0] if_parcel,
   input  [XLEN         -1:0] if_parcel_pc,
-  input                      if_parcel_valid,
+  input  [ 		1:0] if_parcel_valid,
   input                      if_parcel_misaligned,
   input                      if_parcel_page_fault,
 
@@ -134,17 +135,21 @@ module riscv_core #(
 
   logic [XLEN          -1:0] bu_nxt_pc,
                              st_nxt_pc,
+			     branch_pc,
                              if_pc,
+			     pd_pc,
                              id_pc,
                              ex_pc,
-                             wb_pc;
+                             wb_pc;			     
 
   logic [INSTR_SIZE    -1:0] if_instr,
+			     pd_instr,
                              id_instr,
                              ex_instr,
                              wb_instr;
 
   logic                      if_bubble,
+			     pd_bubble,
                              id_bubble,
                              ex_bubble,
                              wb_bubble;
@@ -161,7 +166,7 @@ module riscv_core #(
 
   //Branch Prediction
   logic [               1:0] bp_bp_predict,
-                             if_bp_predict,
+                             pd_bp_predict,
                              id_bp_predict,
                              bu_bp_predict;
 
@@ -172,6 +177,7 @@ module riscv_core #(
 
   //Exceptions
   logic [EXCEPTION_SIZE-1:0] if_exception,
+			     pd_exception,
                              id_exception,
                              ex_exception,
                              wb_exception;
@@ -227,7 +233,11 @@ module riscv_core #(
   logic [              31:0] du_ie,
                              du_exceptions;
 
+  logic 		     is_16bit_instruction,
+			     is_32bit_instruction;
 
+  logic			     branch_taken;
+    
   ////////////////////////////////////////////////////////////////
   //
   // Module Body
@@ -247,6 +257,17 @@ module riscv_core #(
     .EXCEPTION_SIZE ( EXCEPTION_SIZE ),
     .HAS_BPU        ( HAS_BPU        ) )
   if_unit ( .* );
+
+  riscv_pd #(
+    .XLEN           ( XLEN           ),
+    .PC_INIT        ( PC_INIT        ),
+    .INSTR_SIZE     ( INSTR_SIZE     ),
+    .PARCEL_SIZE    ( PARCEL_SIZE    ),
+    .EXCEPTION_SIZE ( EXCEPTION_SIZE ),
+    .HAS_BPU        ( HAS_BPU        ) )
+  pd_unit ( .* );
+
+
 
   /*
    * Instruction Decoder

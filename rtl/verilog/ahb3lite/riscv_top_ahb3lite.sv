@@ -144,9 +144,10 @@ module riscv_top_ahb3lite #(
   logic [XLEN       -1:0] if_nxt_pc;
   logic                   if_stall,
                           if_flush;
+  logic			  if_out_order;
   logic [PARCEL_SIZE-1:0] if_parcel;
   logic [XLEN       -1:0] if_parcel_pc;
-  logic                   if_parcel_valid;
+  logic [            1:0] if_parcel_valid;
   logic                   if_parcel_misaligned;
   logic                   if_parcel_page_fault;
 
@@ -285,6 +286,7 @@ module riscv_top_ahb3lite #(
 
     .*
   );
+
   assign mem_page_fault = 1'b0; //TODO: for now
 
 endmodule

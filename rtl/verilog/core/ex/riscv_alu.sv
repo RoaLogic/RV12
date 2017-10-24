@@ -97,7 +97,7 @@ module riscv_alu #(
   logic [             6:0] func7;
   logic [             4:0] rs1;
   logic                    is_rv64;
-  logic                    has_rvc;
+  logic                    is_16bit_instruction;
 
   //Operand generation
   logic [            31:0] opA32;
@@ -121,8 +121,8 @@ module riscv_alu #(
   assign opcode = id_instr[ 6: 2];
 
   assign is_rv64 = (XLEN    == 64);
-  assign has_rvc = (HAS_RVC !=  0);
-
+  assign is_16bit_instruction = ~& id_instr[1:0];
+  
   /*
    *
    */
@@ -141,8 +141,8 @@ module riscv_alu #(
       casex ( {is_rv64,func7,func3,opcode} )
         {1'b?,LUI   }: alu_r <= opA + opB; //actually just opB, but simplify encoding
         {1'b?,AUIPC }: alu_r <= opA + opB;
-        {1'b?,JAL   }: alu_r <= id_pc + 'h4;
-        {1'b?,JALR  }: alu_r <= id_pc + 'h4;
+        {1'b?,JAL   }: alu_r <= is_16bit_instruction ? id_pc + 'h2 : id_pc + 'h4;
+        {1'b?,JALR  }: alu_r <= is_16bit_instruction ? id_pc + 'h2 : id_pc + 'h4;
 
         //logical operators
         {1'b?,ADDI  }: alu_r <= opA + opB;

@@ -46,7 +46,7 @@ module riscv_icache_core #(
   parameter            WAYS           =  2, // 1           : Direct Mapped
                                             //<n>          : n-way set associative
                                             //<n>==<blocks>: fully associative
-  parameter            REPLACE_ALG    = 1,  //0: Random
+  parameter            REPLACE_ALG    = 0,  //0: Random
                                             //1: FIFO
                                             //2: LRU
 
@@ -59,11 +59,12 @@ module riscv_icache_core #(
   //CPU side
   output reg                      if_stall_nxt_pc,
   input                           if_stall,
-                                  if_flush,
+  input                           if_flush,
+  input				  if_out_order,
   input      [XLEN          -1:0] if_nxt_pc,
   output reg [XLEN          -1:0] if_parcel_pc,
   output reg [PARCEL_SIZE   -1:0] if_parcel,
-  output reg                      if_parcel_valid,
+  output reg [               1:0] if_parcel_valid,
   output                          if_parcel_misaligned,
   input                           bu_cacheflush,
                                   dcflush_rdy,
@@ -197,6 +198,11 @@ module riscv_icache_core #(
                            filling;
   logic [IDX_BITS    -1:0] cnt, nxt_cnt;
 
+  logic		lsb_valid;
+  logic		msb_valid;
+  logic [XLEN		-1:0] fetch_pc;
+  logic [XLEN		-1:0] fetched_pc_previous;
+
   enum logic [2:0] {FLUSH=3'b000,WAIT4DCACHE=3'b001,ARMED=3'b010,FILL=3'b100} wr_state;
 
 
@@ -210,15 +216,16 @@ module riscv_icache_core #(
   //Is this a cacheable region?
   //MSB=1 non-cacheable (IO region)
   //MSB=0 cacheabel (instruction/data region)
-  assign is_cacheable = ~if_nxt_pc[PHYS_ADDR_SIZE-1];
-
+  //VERANDERD!
+  assign is_cacheable = if_nxt_pc[PHYS_ADDR_SIZE-1];
+ 
   always @(posedge clk)
     if      ( if_flush_dly                ) is_cacheable_dly <= is_cacheable;
     else if (!if_stall || !if_stall_nxt_pc) is_cacheable_dly <= is_cacheable;
 
   
-  //For now don't support 16bit accesses
-  assign if_parcel_misaligned = |pc[1:0]; //send out together with instruction
+  
+  assign if_parcel_misaligned = pc[0]; //send out together with instruction
 
 
   //delay IF-flush
@@ -226,13 +233,37 @@ module riscv_icache_core #(
     if      (!rstn    ) if_flush_dly <= 1'b0;
     else if (!if_stall) if_flush_dly <= if_flush;
 
-
-  //Register if_nxt_pc
+  //assign fetch_pc = if_out_order ? if_nxt_pc + 'h2 : if_nxt_pc;
+ 
+ //Register fetch pc
   always @(posedge clk,negedge rstn)
     if      (!rstn                        ) pc <= PC_INIT;
     else if ( if_flush_dly                ) pc <= if_nxt_pc; //if_nxt_pc is updated by if_flush, so valid 1 cycle later
     else if (!if_stall && !if_stall_nxt_pc) pc <= if_nxt_pc;
 
+
+  always @(posedge clk, negedge rstn)
+    if	    (!rstn			  ) fetch_pc <= PC_INIT;
+    else if ( if_flush_dly		  ) fetch_pc <= if_out_order ? if_nxt_pc + 'h2 : if_nxt_pc;
+    else if (!if_stall && !if_stall_nxt_pc) fetch_pc <= if_out_order ? if_nxt_pc + 'h2 : if_nxt_pc;
+
+  always @(posedge clk, negedge rstn)
+    if 	    (!rstn                        ) fetched_pc_previous <= PC_INIT;
+    else if ( if_flush_dly                ) fetched_pc_previous <= fetch_pc;
+    else if (!if_stall && !if_stall_nxt_pc) fetched_pc_previous <= fetch_pc;
+  
+
+  always_comb
+    if      (pc      == fetch_pc	    ) lsb_valid <= 1'b1;
+    else if (pc -'h2 == fetched_pc_previous ) lsb_valid <= 1'b1;
+    else 		                      lsb_valid <= 1'b0;
+
+
+  always_comb
+    if      (pc == fetch_pc      ) msb_valid <= 1'b1;
+    else if (pc == fetch_pc - 'h2) msb_valid <= 1'b1;
+    else 			   msb_valid <= 1'b0;    
+    
  
   //core TAG value
   assign core_tag = pc[PHYS_ADDR_SIZE-2 -: TAG_BITS];
@@ -429,12 +460,13 @@ endgenerate
 
    assign dat_widx = biu_adro [ DAT_IDX_LSB +: DAT_IDX_BITS ];
 //  assign dat_idx  = if_stall_nxt_pc ? pc[ DAT_IDX_LSB +: DAT_IDX_BITS ] : if_nxt_pc[ DAT_IDX_LSB +: DAT_IDX_BITS ];
-  assign dat_idx  = (if_stall || if_stall_nxt_pc) ? pc[ DAT_IDX_LSB +: DAT_IDX_BITS ] : if_nxt_pc[ DAT_IDX_LSB +: DAT_IDX_BITS ];
+   assign dat_idx  = (if_stall || if_stall_nxt_pc) ? pc[ DAT_IDX_LSB +: DAT_IDX_BITS ] : if_nxt_pc[ DAT_IDX_LSB +: DAT_IDX_BITS ];
 
 
 /*
 initial
 begin
+   $display ("Cache size  : %0d", SIZE);
    $display ("BLK_OFF_BITS: %0d", BLK_OFF_BITS);
    $display ("SETS        : %0d", SETS        );
    $display ("IDX_BITS    : %0d", IDX_BITS    );
@@ -445,7 +477,7 @@ begin
    $display ("dat_idx[%0d:%0d]\n", DAT_IDX_LSB+DAT_IDX_BITS-1, DAT_IDX_LSB);
 
    $display ("TAG_BITS: %0d", TAG_BITS);
-   $display ("TAG[%0d:%0d]", XLEN-1, XLEN-TAG_BITS);
+   $display ("TAG[%0d:%0d]", XLEN-2, XLEN-TAG_BITS-1); // bit 31 for cacheable
  
 end
 */
@@ -489,43 +521,49 @@ endgenerate
   always_comb
     case (wr_state)
         ARMED   : begin
-                     biu_stb         = is_cacheable     ? ~(if_flush | if_flush_dly) & ~cache_hit          //TODO: shouldn't this be is_cacheble_dly??
-                                                        : ~if_flush & ~if_stall & ~biu_fifo[1].valid;
-                     if_stall_nxt_pc = is_cacheable     ? ~(if_flush | if_flush_dly) & ~cache_hit
-                                                        : ~biu_stb_ack | biu_fifo[1].valid;
-                     if_parcel_valid = is_cacheable_dly ? ~(if_flush | if_flush_dly) &  cache_hit
-                                                        : ~(if_flush | if_flush_dly) & ~if_stall & biu_fifo[0].valid;
-                     if_parcel_pc    = is_cacheable_dly ? pc
-                                                        : { {XLEN-PHYS_ADDR_SIZE{1'b0}},biu_fifo[0].adr};
-                     nxt_cnt         = !cache_hit ? BURST_SIZE -1 : cnt;
+                     biu_stb            = is_cacheable     ? ~(if_flush | if_flush_dly) & ~cache_hit          //TODO: shouldn't this be is_cacheble_dly??
+                                                           : ~if_flush & ~if_stall & ~biu_fifo[1].valid;
+                     if_stall_nxt_pc    = is_cacheable     ? ~(if_flush | if_flush_dly) & ~cache_hit
+                                                           : ~biu_stb_ack | biu_fifo[1].valid;
+                     if_parcel_valid[0] = is_cacheable_dly ? ~(if_flush | if_flush_dly) &  cache_hit & lsb_valid
+                                                           : ~(if_flush | if_flush_dly) & ~if_stall & biu_fifo[0].valid & lsb_valid;
+                     if_parcel_valid[1] = is_cacheable_dly ? ~(if_flush | if_flush_dly) &  cache_hit & msb_valid
+                                                           : ~(if_flush | if_flush_dly) & ~if_stall & biu_fifo[0].valid & msb_valid ;
+                     if_parcel_pc       = is_cacheable_dly ? pc
+                                                           : { {XLEN-PHYS_ADDR_SIZE{1'b0}},biu_fifo[0].adr};
+                     nxt_cnt            = !cache_hit ? BURST_SIZE -1 : cnt;
                  end
 
         FLUSH  : begin
-                     biu_stb         = is_cacheable ? 1'b0
+                     biu_stb            = is_cacheable ? 1'b0
                                                     : (~if_flush & ~if_stall) & ~biu_fifo[1].valid;
-                     if_stall_nxt_pc = is_cacheable ? |cnt
+                     if_stall_nxt_pc    = is_cacheable ? |cnt
                                                     : ~biu_stb_ack | biu_fifo[1].valid;
-                     if_parcel_valid = is_cacheable ? 1'b0
-                                                    : ~(if_flush | if_flush_dly) & ~if_stall & biu_fifo[0].valid;
-                     if_parcel_pc    = { {XLEN-PHYS_ADDR_SIZE{1'b0}},biu_fifo[0].adr};
-                     nxt_cnt         = cnt -1;
+                     if_parcel_valid[0] = is_cacheable ? 1'b0
+                                                    : ~(if_flush | if_flush_dly) & ~if_stall & biu_fifo[0].valid & lsb_valid;
+                     if_parcel_valid[1] = is_cacheable ? 1'b0
+                                                    : ~(if_flush | if_flush_dly) & ~if_stall & biu_fifo[0].valid & msb_valid;
+                     if_parcel_pc       = { {XLEN-PHYS_ADDR_SIZE{1'b0}},biu_fifo[0].adr};
+                     nxt_cnt            = cnt -1;
                  end
 
         FILL   : begin
-                     biu_stb         = 1'b0;
+                     biu_stb            = 1'b0;
                      //TODO: if_stall_nxt_pc: what if if_nxt_pc is non-cacheable??
-                     if_stall_nxt_pc = ~(~if_flush_dly & biu_rack & (biu_adro == pc)) & (hold_if_flush ? |cnt : 1'b1);
-                     if_parcel_valid = ~(if_flush | if_flush_dly) &  (biu_rack & (biu_adro == pc));
-                     if_parcel_pc    = { {XLEN-PHYS_ADDR_SIZE{1'b0}},biu_adro};
-                     nxt_cnt         = (bu_cacheflush | hold_bu_cacheflush) ? {IDX_BITS{1'b1}} : biu_rack ? cnt -1 : cnt;
+                     if_stall_nxt_pc    = ~(~if_flush_dly & biu_rack & (biu_adro == pc)) & (hold_if_flush ? |cnt : 1'b1);
+                     if_parcel_valid[0] = ~(if_flush | if_flush_dly) &  (biu_rack & (biu_adro == pc)) & lsb_valid;
+                     if_parcel_valid[1] = ~(if_flush | if_flush_dly) &  (biu_rack & (biu_adro == pc)) & msb_valid;
+                     if_parcel_pc       = pc; //{ {XLEN-PHYS_ADDR_SIZE{1'b0}},biu_adro};
+                     nxt_cnt            = (bu_cacheflush | hold_bu_cacheflush) ? {IDX_BITS{1'b1}} : biu_rack ? cnt -1 : cnt;
                  end
 
         default: begin
-                     biu_stb         = 1'b0;
-                     if_stall_nxt_pc = 1'b1;
-                     if_parcel_valid = 1'b0;
-                     if_parcel_pc    = { {XLEN-PHYS_ADDR_SIZE{1'b0}},biu_adro};
-                     nxt_cnt         = cnt;
+                     biu_stb            = 1'b0;
+                     if_stall_nxt_pc    = 1'b1;
+                     if_parcel_valid[0] = 1'b0;
+   		     if_parcel_valid[1] = 1'b0;
+                     if_parcel_pc       = { {XLEN-PHYS_ADDR_SIZE{1'b0}},biu_adro};
+                     nxt_cnt            = cnt;
                  end
     endcase
 
@@ -599,7 +637,7 @@ endgenerate
         biu_fifo[2].valid <= 1'b0;
     end
     else
-      case ({biu_rack,if_parcel_valid})
+      case ({biu_rack,if_parcel_valid[0] | if_parcel_valid[1] })
         2'b00: ; //no action
         2'b10:   //FIFO write
                case ({biu_fifo[1].valid,biu_fifo[0].valid})
@@ -630,7 +668,7 @@ endgenerate
 
   //Address & Data
   always @(posedge clk)
-    case ({biu_rack,if_parcel_valid})
+    case ({biu_rack,if_parcel_valid[0] | if_parcel_valid[1]})
         2'b00: ;
         2'b10: case({biu_fifo[1].valid,biu_fifo[0].valid})
                  2'b11 : begin
