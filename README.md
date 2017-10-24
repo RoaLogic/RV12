@@ -13,6 +13,7 @@ Optional features include Branch Prediction, Instruction Cache, Data Cache, and 
 ## Documentation
 
 - [RV12 Datasheet](DATASHEET.md)
+  - [PDF Format Datasheet](docs/RoaLogic_RV12_RISCV_Datasheet.pdf)
 
 ## Features
 
@@ -68,7 +69,7 @@ The following parameters control the feature set of a specific implementation of
 
 ## License
 
-Released under the RoaLogic [Non-Commerical License](/LICENSE.md)
+Released under the RoaLogic [Non-Commercial License](/LICENSE.md)
 
 ## Dependencies
 Requires the Roa Logic [Memories IPs]() and [AHB3Lite Package](). These are included as submodules.

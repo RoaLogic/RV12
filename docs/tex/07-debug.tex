@@ -1,6 +1,6 @@
-\chapter{Debug Unit}\label{debug-unit}
+\chapter{Debug Unit} \label{debug-unit}
 
-\section{Introduction}\label{introduction-4}
+\section{Introduction} \label{introduction-4}
 
 The Debug Unit is a separate unit in the CPU. It's not directly related
 to any instruction execution or support functions, like Cache or Branch
@@ -14,8 +14,7 @@ external Debug Tools. The Debug Unit does not stall the CPU, instead it
 relies on the external debug controller to stall the CPU when the Debug
 Unit requests it.
 
-\section{Debug Controller Interface
-}\label{debug-controller-interface}
+\section{Debug Controller Interface} \label{debug-controller-interface}
 
 The Debug Unit has two interfaces; one to communicate with the CPU and
 one to communicate with the external debug controller. The CPU interface
@@ -90,8 +89,6 @@ single-step, branch-trace, or exception hit occurred. This is the CPU
 stall request from the Debug Unit to the external debug controller. The
 Debug Controller must assert (`1') \texttt{dbg\_stall} immediately
 (combinatorial) upon detecting \texttt{dbg\_bp} asserted.
-
-\pagebreak
 
 \section{Register Map}\label{register-map}
 
@@ -171,10 +168,10 @@ The \texttt{XLEN} size \texttt{DBG\_CTRL} controls the single-step and branch-tr
 functions.
 
 \ifdefined\MARKDOWN
-% Skip 
+% Skip
 \else
 
-\begin{figure*}[h!]
+\begin{figure*}[htb!]
 	{\footnotesize
 		\begin{center}
 			\begin{tabular}{@{}Ucc}
@@ -233,10 +230,10 @@ is about to be executed.
 \subsection{Debug Breakpoint Hit Register \texttt{DBG\_HIT}} \label{debug-breakpoint-hit-register-dbg_hit}
 
 \ifdefined\MARKDOWN
-% Skip 
+% Skip
 \else
 
-\begin{figure*}[h!]
+\begin{figure*}[htb!]
 	{\footnotesize
 		\begin{center}
 			\begin{tabular}{@{}YccccccccFcc}
@@ -267,7 +264,7 @@ is about to be executed.
 				\multicolumn{1}{c|}{sste} \\
 				\hline
 				XLEN-16 & 1 & 1 & 1 & 1 & 1 & 1 & 1 & 1 & 6 & 1 & 1\\
-				
+
 			\end{tabular}
 		\end{center}
 	}
@@ -299,10 +296,10 @@ Environment.
 \subsection{Debug Interrupt Enable Register \texttt{DBG\_IE}} \label{debug-interrupt-enable-register-dbg_ie}
 
 \ifdefined\MARKDOWN
-% Skip 
+% Skip
 \else
 
-\begin{figure*}[h!]
+\begin{figure*}[htb!]
 	{\footnotesize
 		\begin{center}
 			\begin{tabular}{@{}U}
@@ -381,10 +378,10 @@ be set in the \texttt{dbg\_ie} register.
 \texttt{DBG\_CAUSE}}\label{debug-exception-cause-register-dbg_cause}
 
 \ifdefined\MARKDOWN
-% Skip 
+% Skip
 \else
 
-\begin{figure*}[h!]
+\begin{figure*}[htb!]
 	{\footnotesize
 		\begin{center}
 			\begin{tabular}{@{}U}
@@ -410,7 +407,20 @@ CPU to hand over control to the external Debug Controller. See the
 	\toprule
 	\textbf{DBG\_CAUSE} & \textbf{Description}           & \textbf{GDB Sigval}\tabularnewline
 	\midrule
+\ifdefined\MARKDOWN
 	\endhead
+\else
+	\endfirsthead
+	\multicolumn{3}{c}{{(Continued from previous page)}} \\
+	\toprule
+	\textbf{DBG\_CAUSE} & \textbf{Description}           & \textbf{GDB Sigval}\tabularnewline
+	\midrule
+	\endhead
+	\midrule \multicolumn{3}{c}{{\tablename\ \thetable{} continued on next page\ldots}} \\
+	\endfoot
+	\endlastfoot
+
+\fi
 	\textgreater{}15    & Interrupts                     & INT\tabularnewline
 	                    & Timer Interrupt                & ALRM\tabularnewline
 	11                  & ECALL from Machine Mode        & TRAP\tabularnewline
@@ -442,10 +452,10 @@ shows the basic mapping of the \texttt{DBG\_CAUSE} register to GDB Signals.
 \texttt{DBG\_CTRLx}}\label{debug-breakpoint-control-registers-dbg_ctrlx}
 
 \ifdefined\MARKDOWN
-% Skip 
+% Skip
 \else
 
-\begin{figure*}[h!]
+\begin{figure*}[htb!]
 	{\footnotesize
 		\begin{center}
 			\begin{tabular}{@{}UFWcc}
@@ -484,7 +494,7 @@ Environment should read the \texttt{DBG\_BPCTRL} registers and examine the
 Breakpoint Implemented fields to determine the amount of hardware
 breakpoints implemented.
 
-\begin{longtable}[]{@{}cl@{}}
+\begin{longtable}[!htb]{@{}cl@{}}
 \toprule
 impl & Description\tabularnewline
 \midrule
@@ -530,7 +540,7 @@ cc & Description\tabularnewline
 3'b1-\/- & Reserved\tabularnewline
 \bottomrule
 \caption{\texttt{DBG\_CTRLx} Breakpoint Condition Codes}
-\end{longtable} 
+\end{longtable}
 
 \subsubsection{Instruction Fetch}\label{instruction-fetch}
 
@@ -558,16 +568,16 @@ accesses (either reads from or writes to) the address specified in the
 \texttt{DBG\_DATAx}}\label{debug-breakpoint-data-registers-dbg_datax}
 
 \ifdefined\MARKDOWN
-% Skip 
+% Skip
 \else
 
-\begin{figure*}[h!]
+\begin{figure*}[htb!]
 	{\footnotesize
 		\begin{center}
 			\begin{tabular}{@{}U}
 				\instbitrange{XLEN-1}{0} \\
 				\hline
-				\multicolumn{1}{|c|}{data}  \\
+				\multicolumn{1}{|c|}{Data}  \\
 				\hline
 			\end{tabular}
 		\end{center}
