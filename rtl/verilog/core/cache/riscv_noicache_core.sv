@@ -48,10 +48,11 @@ module riscv_noicache_core #(
   output reg                      if_stall_nxt_pc,
   input                           if_stall,
                                   if_flush,
+  input				  if_out_order,
   input      [XLEN          -1:0] if_nxt_pc,
   output reg [XLEN          -1:0] if_parcel_pc,
   output reg [PARCEL_SIZE   -1:0] if_parcel,
-  output reg                      if_parcel_valid,
+  output reg [		     1:0] if_parcel_valid,
   output                          if_parcel_misaligned,
   input                           bu_cacheflush,
                                   dcflush_rdy,
@@ -110,6 +111,11 @@ module riscv_noicache_core #(
   fifo_struct  biu_fifo[3];
   logic        if_flush_dly;
 
+  logic		lsb_valid;
+  logic		msb_valid;
+  logic [XLEN		-1:0] fetched_pc;
+  logic [XLEN		-1:0] fetched_pc_previous;
+
 
   //////////////////////////////////////////////////////////////////
   //
@@ -124,7 +130,10 @@ module riscv_noicache_core #(
   assign is_cacheable = ~if_nxt_pc[PHYS_ADDR_SIZE-1];
 
   //For now don't support 16bit accesses
-  assign if_parcel_misaligned = |if_nxt_pc[1:0]; //send out together with instruction
+  // if (has rvc) parcelmisaligned = if_nxt_pc[0]
+  // else parcelmisaligned = |if_nxt_pc[1:0]
+
+  assign if_parcel_misaligned = if_nxt_pc[0]; //send out together with instruction
 
   //delay IF-flush
   always @(posedge clk,negedge rstn)
@@ -135,11 +144,29 @@ module riscv_noicache_core #(
   /*
    * To CPU
    */
-  assign if_stall_nxt_pc = ~dcflush_rdy | ~biu_stb_ack | biu_fifo[1].valid;
-  assign if_parcel_valid =  dcflush_rdy & ~(if_flush | if_flush_dly) & ~if_stall & biu_fifo[0].valid;
-  assign if_parcel_pc    = { {XLEN-PHYS_ADDR_SIZE{1'b0}},biu_fifo[0].adr};
-  assign if_parcel       = biu_fifo[0].dat[ if_parcel_pc[$clog2(XLEN/32)+1:1]*16 +: PARCEL_SIZE ];
+  assign if_stall_nxt_pc    = ~dcflush_rdy | ~biu_stb_ack | biu_fifo[1].valid & ~if_stall;
+  assign if_parcel_valid[0] = dcflush_rdy & ~(if_flush | if_flush_dly) & ~if_stall & biu_fifo[0].valid & lsb_valid;
+  assign if_parcel_valid[1] = dcflush_rdy & ~(if_flush | if_flush_dly) & ~if_stall & biu_fifo[0].valid & msb_valid;
+  assign if_parcel_pc       = {{XLEN-PHYS_ADDR_SIZE{1'b0}}, biu_fifo[0].adr};
+  //assign if_parcel	    = biu_fifo[0].dat;
+  assign if_parcel          = biu_fifo[0].dat[ if_parcel_pc[$clog2(XLEN/32)+1:1]*16 +: PARCEL_SIZE ];
 
+  assign fetched_pc = biu_adro[1] ? biu_adro -'h2 : biu_adro; 
+
+  always @(posedge clk, negedge rstn)
+	if	(if_flush | if_flush_dly) 	fetched_pc_previous <= fetched_pc_previous;
+	else if (biu_rack) 			fetched_pc_previous <= biu_adro;
+
+  always @(posedge clk, negedge rstn)
+	if 	(~biu_rack & (fetched_pc == fetched_pc_previous -'h2))		   lsb_valid <= 1'b1;   
+	else if	(biu_adro == fetched_pc | fetched_pc_previous == fetched_pc - 'h2) lsb_valid <= 1'b1;
+	else 									   lsb_valid <= 1'b0;
+
+  always @(posedge clk, negedge rstn)
+	if	(biu_adro + 'h2 == fetched_pc +'h2 | biu_adro == fetched_pc +'h2)  	      msb_valid <= 1'b1;
+ 	else									   	      msb_valid <= 1'b0;
+
+        
 
 
   /*
@@ -183,8 +210,8 @@ module riscv_noicache_core #(
         biu_fifo[2].valid <= 1'b0;
     end
     else
-      case ({biu_rack,if_parcel_valid})
-        2'b00: ; //no action
+      case ({biu_rack, (if_parcel_valid[0] | if_parcel_valid[1])})// & (biu_rack | biu_fifo[1].valid)})
+        2'b00: ;//biu_fifo[0].valid <= biu_fifo[1].valid;
         2'b10:   //FIFO write
                case ({biu_fifo[1].valid,biu_fifo[0].valid})
                  2'b11  : begin
@@ -214,23 +241,23 @@ module riscv_noicache_core #(
 
   //Address & Data
   always @(posedge clk)
-    case ({biu_rack,if_parcel_valid})
+    case ({biu_rack,(if_parcel_valid[0] | if_parcel_valid[1]) & (biu_rack | biu_fifo[1].valid)})
         2'b00: ;
         2'b10: case({biu_fifo[1].valid,biu_fifo[0].valid})
                  2'b11 : begin
                              //fill entry2
                              biu_fifo[2].dat <= biu_do;
-                             biu_fifo[2].adr <= biu_adro;
+                             biu_fifo[2].adr <= fetched_pc;
                          end
                  2'b01 : begin
                              //fill entry1
                              biu_fifo[1].dat <= biu_do;
-                             biu_fifo[1].adr <= biu_adro;
+                             biu_fifo[1].adr <= fetched_pc;
                          end
                  default:begin
                              //fill entry0
                              biu_fifo[0].dat <= biu_do;
-                             biu_fifo[0].adr <= biu_adro;
+                             biu_fifo[0].adr <= fetched_pc;
                          end
                endcase
         2'b01: begin
@@ -256,7 +283,7 @@ module riscv_noicache_core #(
                  3'b01? : begin
                               //fill entry1
                               biu_fifo[1].dat <= biu_do;
-                              biu_fifo[1].adr <= biu_adro;
+                              biu_fifo[1].adr <= fetched_pc;
 
                               //push entry0
                               biu_fifo[0].dat <= biu_fifo[1].dat;
@@ -269,7 +296,7 @@ module riscv_noicache_core #(
                  default:begin
                               //fill entry0
                               biu_fifo[0].dat <= biu_do;
-                              biu_fifo[0].adr <= biu_adro;
+                              biu_fifo[0].adr <= fetched_pc;
 
                               //don't care
                               biu_fifo[1].dat <= 'hx;

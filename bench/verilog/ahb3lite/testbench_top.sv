@@ -67,6 +67,7 @@ parameter MULT_LATENCY     = 0;
 parameter CORES            = 1;
 parameter HTIF             = 0; //Host-interface
 
+
 //caches
 parameter ICACHE_SIZE      = 0;
 parameter DCACHE_SIZE      = 0;
@@ -145,6 +146,9 @@ logic [XLEN          -1:0] mem_hwdata[2],
                            mem_hrdata[2];
 logic [               2:0] mem_hsize[2];
 logic                      mem_hwrite[2];
+
+int			   str_length;
+logic                      is_rvc_test;
 
 
 ////////////////////////////////////////////////////////////////
@@ -242,6 +246,11 @@ unified_memory (
   .HWDATA ( mem_hwdata ),
   .HRDATA ( mem_hrdata ) );
 
+ahb3lite_checker#(
+  .ADDR_SIZE(PHYS_ADDR_SIZE),
+  .DATA_SIZE(XLEN	   ) )
+ahb_checker( .*);
+
 
 //Front-End Server
 generate
@@ -259,18 +268,20 @@ generate
         .host_csr_fromhost ( host_csr_fromhost ) );
   end
   else
-  begin
+  begin     
+      
       //New MMIO interface
-      mmio_if #(XLEN, PHYS_ADDR_SIZE, 32'h80001000)
+      mmio_if #(XLEN, PHYS_ADDR_SIZE, 32'h80001000 ) 
       mmio_if_inst (
-        .HRESETn ( HRESETn ),
-        .HCLK    ( HCLK    ),
-        .HTRANS  ( dat_HTRANS  ),
-        .HWRITE  ( dat_HWRITE  ),
-        .HSIZE   ( dat_HSIZE   ),
-        .HBURST  ( dat_HBURST  ),
-        .HADDR   ( dat_HADDR   ),
-        .HWDATA  ( dat_HWDATA  ) );
+        .HRESETn     ( HRESETn ),
+        .HCLK        ( HCLK    ),
+        .HTRANS      ( dat_HTRANS  ),
+        .HWRITE      ( dat_HWRITE  ),
+        .HSIZE       ( dat_HSIZE   ),
+        .HBURST      ( dat_HBURST  ),
+        .HADDR       ( dat_HADDR   ),
+        .HWDATA      ( dat_HWDATA  ), 
+        .is_rvc_test ( is_rvc_test ) );     
   end
 endgenerate
 
@@ -300,6 +311,10 @@ begin
     $display ("-------------------------------------------------------------");
     $display ("\n");
 
+    
+
+
+
 `ifdef WAVES
     $shm_open("waves");
     $shm_probe("AS",testbench_top,"AS");
@@ -307,6 +322,16 @@ begin
 `endif
 
   unified_memory.read_elf2hex(INIT_FILE);
+
+
+  // check if the test is for the rvc extension
+  str_length = unified_memory.read_elf2hex.file.len();
+  if(unified_memory.read_elf2hex.file.substr(str_length-7,str_length-5) == "rvc") is_rvc_test <= 1'b1;
+  else    									  is_rvc_test <= 1'b0;
+
+
+
+
 
   HCLK  = 'b0;
 
@@ -369,7 +394,9 @@ module mmio_if #(
   output reg [HDATA_SIZE-1:0] HRDATA,
 
   output reg                  HREADYOUT,
-  output                      HRESP
+  output                      HRESP,
+
+  input			      is_rvc_test
 );
   //
   // Variables
@@ -433,7 +460,7 @@ module mmio_if #(
     if (!HRESETn) catch     <= 1'b0;
     else
     begin
-        catch <= dHTRANS == HTRANS_NONSEQ && dHWRITE && dHADDR == CATCH_ADDR;
+        catch <= dHTRANS == HTRANS_NONSEQ && dHWRITE && dHADDR == {is_rvc_test ? CATCH_ADDR + 'h2000 : CATCH_ADDR};
         data_reg  <= HWDATA;
     end
 

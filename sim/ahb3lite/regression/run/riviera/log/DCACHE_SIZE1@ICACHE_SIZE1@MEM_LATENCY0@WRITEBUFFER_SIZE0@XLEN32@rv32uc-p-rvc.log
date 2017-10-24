@@ -1,0 +1,11 @@
+# Aldec, Inc. Riviera-PRO version 2017.02.99.6498 built for Linux on March 29, 2017.
+# HDL, SystemC, and Assertions simulator, debugger, and design environment.
+# (c) 1999-2017 Aldec, Inc. All rights reserved.
+vsim -ses -O2 "-threads 4" +notimingchecks testbench_top +access +r -gDCACHE_SIZE=1 -gICACHE_SIZE=1 -gMEM_LATENCY=0 -gWRITEBUFFER_SIZE=0 -gXLEN=32 -gMULT_LATENCY="rv32uc-p-rvc" -gHAS_U=1 -gHAS_S=1 -gHAS_H=0 -gHAS_AMO= -gHAS_RVC=1 -gHAS_MULDIV=1 -gTECHNOLOGY="GENERIC" -gINIT_FILE="../../../../../bench/regression/rv32uc-p-rvc.hex"
+# ELBREAD: Elaboration process.
+# ELBREAD: Error: ELBREAD_0081 testbench_top.sv (249): Design unit ahb3lite_checker instantiated in work.testbench_top not found in searched libraries: work.
+# ELBREAD: Error: Elaboration process completed with errors.
+# VSIM: Error: Simulation initialization failed.
+log -mem -rec /testbench_top/*;
+# VSIM: Error: Trace failed: Simulator is not accessible.
+quit

@@ -67,15 +67,15 @@ module riscv_id #(
                                   du_stall,
 
   //Program counter
-  input      [XLEN          -1:0] if_pc,
+  input      [XLEN          -1:0] pd_pc,
   output reg [XLEN          -1:0] id_pc,
-  input      [               1:0] if_bp_predict,
+  input      [               1:0] pd_bp_predict,
   output reg [               1:0] id_bp_predict,
 
 
   //Instruction
-  input      [INSTR_SIZE    -1:0] if_instr,
-  input                           if_bubble,
+  input      [INSTR_SIZE    -1:0] pd_instr,
+  input                           pd_bubble,
   output reg [INSTR_SIZE    -1:0] id_instr,
   output reg                      id_bubble,
   input      [INSTR_SIZE    -1:0] ex_instr,
@@ -84,7 +84,7 @@ module riscv_id #(
   input                           wb_bubble,
 
   //Exceptions
-  input      [EXCEPTION_SIZE-1:0] if_exception,
+  input      [EXCEPTION_SIZE-1:0] pd_exception,
                                   ex_exception,
                                   wb_exception,
   output reg [EXCEPTION_SIZE-1:0] id_exception,
@@ -126,13 +126,13 @@ module riscv_id #(
                              immU;
 
   //Opcodes
-  logic [               6:2] if_opcode,
+  logic [               6:2] pd_opcode,
                              id_opcode,
                              ex_opcode,
                              wb_opcode;
 
-  logic [               2:0] if_func3;
-  logic [               6:0] if_func7;
+  logic [               2:0] pd_func3;
+  logic [               6:0] pd_func7;
 
   logic                      is_rv64,
                              has_fp,
@@ -175,14 +175,14 @@ module riscv_id #(
     if      (!rstn                 ) id_pc <= PC_INIT;
     else if ( st_flush             ) id_pc <= st_nxt_pc;
     else if ( bu_flush ||  du_flush) id_pc <= bu_nxt_pc; //Is this required?! 
-    else if (!stall    && !id_stall) id_pc <= if_pc;
+    else if (!stall    && !id_stall) id_pc <= pd_pc;
 
   /*
    * Instruction
    */
   always @(posedge clk,negedge rstn)
     if      (!rstn ) id_instr <= INSTR_NOP;
-    else if (!stall) id_instr <= if_instr;
+    else if (!stall) id_instr <= pd_instr;
 
 
   always @(posedge clk,negedge rstn)
@@ -190,16 +190,16 @@ module riscv_id #(
     else if ( bu_flush || st_flush || du_flush) id_bubble_r <= 1'b1;
     else if (!stall                           )
       if  (id_stall) id_bubble_r <= 1'b1;
-      else           id_bubble_r <= if_bubble;
+      else           id_bubble_r <= pd_bubble;
 
   //local stall
   assign stall = ex_stall | (du_stall & (~id_bubble_r | |id_exception));
   assign id_bubble = stall | bu_flush | st_flush | |ex_exception | |wb_exception | id_bubble_r;
 
 
-  assign if_opcode  = if_instr[ 6: 2];
-  assign if_func7   = if_instr[31:25];
-  assign if_func3   = if_instr[14:12];
+  assign pd_opcode  = pd_instr[ 6: 2];
+  assign pd_func7   = pd_instr[31:25];
+  assign pd_func3   = pd_instr[14:12];
 
   assign id_opcode  = id_instr [ 6:2];
   assign ex_opcode  = ex_instr [ 6:2];
@@ -218,7 +218,7 @@ module riscv_id #(
 
 
   always @(posedge clk)
-    if (!stall && !id_stall) id_bp_predict <= if_bp_predict;
+    if (!stall && !id_stall) id_bp_predict <= pd_bp_predict;
 
   /*
    * Exceptions
@@ -230,13 +230,13 @@ module riscv_id #(
         if ( id_stall) id_exception <= 'h0;
         else 
         begin
-            id_exception                            <= if_exception;
-            id_exception[CAUSE_ILLEGAL_INSTRUCTION] <= ~if_bubble & illegal_instr;
-            id_exception[CAUSE_BREAKPOINT         ] <= ~if_bubble & (if_instr == EBREAK);
-            id_exception[CAUSE_UMODE_ECALL        ] <= ~if_bubble & (if_instr == ECALL ) & (st_prv == PRV_U) & has_user;
-            id_exception[CAUSE_SMODE_ECALL        ] <= ~if_bubble & (if_instr == ECALL ) & (st_prv == PRV_S) & has_super;
-            id_exception[CAUSE_HMODE_ECALL        ] <= ~if_bubble & (if_instr == ECALL ) & (st_prv == PRV_H) & has_hyper;
-            id_exception[CAUSE_MMODE_ECALL        ] <= ~if_bubble & (if_instr == ECALL ) & (st_prv == PRV_M);
+            id_exception                            <= pd_exception;
+            id_exception[CAUSE_ILLEGAL_INSTRUCTION] <= ~pd_bubble & illegal_instr;
+            id_exception[CAUSE_BREAKPOINT         ] <= ~pd_bubble & (pd_instr == EBREAK);
+            id_exception[CAUSE_UMODE_ECALL        ] <= ~pd_bubble & (pd_instr == ECALL ) & (st_prv == PRV_U) & has_user;
+            id_exception[CAUSE_SMODE_ECALL        ] <= ~pd_bubble & (pd_instr == ECALL ) & (st_prv == PRV_S) & has_super;
+            id_exception[CAUSE_HMODE_ECALL        ] <= ~pd_bubble & (pd_instr == ECALL ) & (st_prv == PRV_H) & has_hyper;
+            id_exception[CAUSE_MMODE_ECALL        ] <= ~pd_bubble & (pd_instr == ECALL ) & (st_prv == PRV_M);
         end
 
   /*
@@ -244,11 +244,11 @@ module riscv_id #(
    */
   //address into register file. Gets registered in memory
   //Should the hold be handled by the memory?!
-  assign id_src1 = ~(du_stall || ex_stall) ? if_instr[19:15] : id_instr[19:15];
-  assign id_src2 = ~(du_stall || ex_stall) ? if_instr[24:20] : id_instr[24:20];
+  assign id_src1 = ~(du_stall || ex_stall) ? pd_instr[19:15] : id_instr[19:15];
+  assign id_src2 = ~(du_stall || ex_stall) ? pd_instr[24:20] : id_instr[24:20];
 
-  assign if_src1 = if_instr[19:15];
-  assign if_src2 = if_instr[24:20];
+  assign if_src1 = pd_instr[19:15];
+  assign if_src2 = pd_instr[24:20];
 
 
   /*
@@ -256,8 +256,8 @@ module riscv_id #(
    *
    *                                 31    30          12           11  10           5  4            1            0
    */
-  assign immI = { {XLEN-11{if_instr[31]}},                             if_instr[30:25],if_instr[24:21],if_instr[20] };
-  assign immU = { {XLEN-31{if_instr[31]}},if_instr[30:12],                                                    12'b0 };
+  assign immI = { {XLEN-11{pd_instr[31]}},                             pd_instr[30:25],pd_instr[24:21],pd_instr[20] };
+  assign immU = { {XLEN-31{pd_instr[31]}},pd_instr[30:12],                                                    12'b0 };
 
 
   /*
@@ -286,7 +286,7 @@ module riscv_id #(
   always @(posedge clk)
     if (!stall)
     begin
-    casex (if_opcode)
+    casex (pd_opcode)
       OPC_OP_IMM  : begin
                         id_userf_opA <= ~( (if_src1 == wb_dst) & |wb_dst & can_ldwb );
                         id_userf_opB <= 'b0;
@@ -342,7 +342,7 @@ module riscv_id #(
   always @(posedge clk)
     if (!stall)
     (* synthesis,parallel_case *)
-    casex (if_opcode)
+    casex (pd_opcode)
       OPC_LOAD_FP : ;
       OPC_MISC_MEM: ;
       OPC_OP_IMM  : begin
@@ -350,7 +350,7 @@ module riscv_id #(
                         id_opB <= immI;
                     end
       OPC_AUIPC   : begin
-                        id_opA <= if_pc;
+                        id_opA <= pd_pc;
                         id_opB <= immU;
                     end
       OPC_OP_IMM32: begin
@@ -450,7 +450,7 @@ module riscv_id #(
   always @(posedge clk)
     if (!stall)
     (* synthesis,parallel_case *)
-    casex (if_opcode)
+    casex (pd_opcode)
       OPC_OP_IMM  : begin
                         id_bypex_opA <= (if_src1 == id_dst) & |id_dst & can_bypex;
                         id_bypex_opB <= 'b0;
@@ -529,10 +529,10 @@ module riscv_id #(
    */
   always_comb
     if      (bu_flush || st_flush || du_flush) id_stall = 'b0;        //flush overrules stall
-    else if (stall                           ) id_stall = ~if_bubble; //ignore NOPs e.g. after flush or IF-stall
+    else if (stall                           ) id_stall = ~pd_bubble; //ignore NOPs e.g. after flush or IF-stall
 /*
     else if (id_opcode == OPC_LOAD)
-      casex (if_opcode)
+      casex (pd_opcode)
         OPC_OP_IMM  : id_stall = (if_src1 == id_dst);
         OPC_OP_IMM32: id_stall = (if_src1 == id_dst);
         OPC_OP      : id_stall = (if_src1 == id_dst) | (if_src2 == id_dst);
@@ -553,7 +553,7 @@ module riscv_id #(
    */
 
   always_comb
-    casex (if_opcode)
+    casex (pd_opcode)
       OPC_LOAD  : illegal_instr = illegal_lsu_instr;
       OPC_STORE : illegal_instr = illegal_lsu_instr;
       default   : illegal_instr = illegal_alu_instr & (has_muldiv ? illegal_muldiv_instr : 1'b1);
@@ -562,7 +562,7 @@ module riscv_id #(
 
   //ALU
   always_comb
-    casex (if_instr)
+    casex (pd_instr)
        FENCE  : illegal_alu_instr = 1'b0;
        FENCE_I: illegal_alu_instr = 1'b0;
        ECALL  : illegal_alu_instr = 1'b0;
@@ -573,7 +573,7 @@ module riscv_id #(
        MRET   : illegal_alu_instr = st_prv != PRV_M;
        default:
             (* synthesis,parallel_case *)
-            casex ( {is_rv64,if_func7,if_func3,if_opcode} )
+            casex ( {is_rv64,pd_func7,pd_func3,pd_opcode} )
               {1'b?,LUI   }: illegal_alu_instr = 1'b0;
               {1'b?,AUIPC }: illegal_alu_instr = 1'b0;
               {1'b?,JAL   }: illegal_alu_instr = 1'b0;
@@ -596,7 +596,7 @@ module riscv_id #(
               {1'b?,OR    }: illegal_alu_instr = 1'b0;
               {1'b?,ANDI  }: illegal_alu_instr = 1'b0;
               {1'b?,AND   }: illegal_alu_instr = 1'b0;
-              {1'b?,SLLI  }: illegal_alu_instr = ~is_rv64 & if_func7[0]; //shamt[5] illegal for RV32
+              {1'b?,SLLI  }: illegal_alu_instr = ~is_rv64 & pd_func7[0]; //shamt[5] illegal for RV32
               {1'b?,SLL   }: illegal_alu_instr = 1'b0;
               {1'b1,SLLIW }: illegal_alu_instr = 1'b0;                   //RV64
               {1'b1,SLLW  }: illegal_alu_instr = 1'b0;                   //RV64
@@ -604,11 +604,11 @@ module riscv_id #(
               {1'b?,SLT   }: illegal_alu_instr = 1'b0;
               {1'b?,SLTIU }: illegal_alu_instr = 1'b0;
               {1'b?,SLTU  }: illegal_alu_instr = 1'b0;
-              {1'b?,SRLI  }: illegal_alu_instr = ~is_rv64 & if_func7[0]; //shamt[5] illegal for RV32
+              {1'b?,SRLI  }: illegal_alu_instr = ~is_rv64 & pd_func7[0]; //shamt[5] illegal for RV32
               {1'b?,SRL   }: illegal_alu_instr = 1'b0;
               {1'b1,SRLIW }: illegal_alu_instr = 1'b0;                   //RV64
               {1'b1,SRLW  }: illegal_alu_instr = 1'b0;                   //RV64
-              {1'b?,SRAI  }: illegal_alu_instr = ~is_rv64 & if_func7[0]; //shamt[5] illegal for RV32
+              {1'b?,SRAI  }: illegal_alu_instr = ~is_rv64 & pd_func7[0]; //shamt[5] illegal for RV32
               {1'b?,SRA   }: illegal_alu_instr = 1'b0;
               {1'b1,SRAIW }: illegal_alu_instr = 1'b0;
               {1'b?,SRAW  }: illegal_alu_instr = 1'b0;
@@ -627,7 +627,7 @@ module riscv_id #(
 
   //LSU
   always_comb
-    casex ( {is_rv64,has_amo,if_func7,if_func3,if_opcode} )
+    casex ( {is_rv64,has_amo,pd_func7,pd_func3,pd_opcode} )
       {1'b?,1'b?,LB    }: illegal_lsu_instr = 1'b0;
       {1'b?,1'b?,LH    }: illegal_lsu_instr = 1'b0;
       {1'b?,1'b?,LW    }: illegal_lsu_instr = 1'b0;
@@ -647,7 +647,7 @@ module riscv_id #(
 
   //MULDIV
   always_comb
-    casex ( {is_rv64,if_func7,if_func3,if_opcode} )
+    casex ( {is_rv64,pd_func7,pd_func3,pd_opcode} )
       {1'b?,MUL    }: illegal_muldiv_instr = 1'b0;
       {1'b?,MULH   }: illegal_muldiv_instr = 1'b0;
       {1'b1,MULW   }: illegal_muldiv_instr = 1'b0;  //RV64
@@ -668,7 +668,7 @@ module riscv_id #(
    * Check CSR accesses
    */
   always_comb
-    case (if_instr[31:20])
+    case (pd_instr[31:20])
       //User
       USTATUS   : illegal_csr_rd = (HAS_USER  == 0);
       UIE       : illegal_csr_rd = (HAS_USER  == 0);
@@ -738,7 +738,7 @@ module riscv_id #(
     endcase
 
   always_comb
-    case (if_instr[31:20])
+    case (pd_instr[31:20])
       USTATUS   : illegal_csr_wr = (HAS_USER  == 0);
       UIE       : illegal_csr_wr = (HAS_USER  == 0);
       UTVEC     : illegal_csr_wr = (HAS_USER  == 0);

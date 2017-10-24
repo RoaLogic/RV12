@@ -71,14 +71,14 @@ module riscv_du #(
   input      [XLEN          -1:0] du_dati_rf,
                                   du_dati_frf,
                                   st_csr_rval,
-                                  if_pc,
+                                  pd_pc,
                                   id_pc,
                                   ex_pc,
                                   bu_nxt_pc,
   input                           bu_flush,
                                   st_flush,
 
-  input      [INSTR_SIZE    -1:0] if_instr,
+  input      [INSTR_SIZE    -1:0] pd_instr,
                                   ex_instr,
   input      [EXCEPTION_SIZE-1:0] ex_exception,
   input      [XLEN          -1:0] ex_memadr,
@@ -427,8 +427,8 @@ endgenerate
    * Combinatorial generation of break-point hit logic
    * For actual registers see 'Registers' section
    */
-  assign bp_instr_hit  = dbg.ctrl.instr_break_ena  & (if_instr      != INSTR_NOP);
-  assign bp_branch_hit = dbg.ctrl.branch_break_ena & (if_instr[6:2] == OPC_BRANCH);
+  assign bp_instr_hit  = dbg.ctrl.instr_break_ena  & (pd_instr      != INSTR_NOP);
+  assign bp_branch_hit = dbg.ctrl.branch_break_ena & (pd_instr[6:2] == OPC_BRANCH);
 
   //Memory access
   assign mem_read  = ~|ex_exception & (ex_instr[6:2] == OPC_LOAD );
@@ -445,7 +445,7 @@ begin: gen_bp_hit
         if (!dbg.bp[n].ctrl.enabled || !dbg.bp[n].ctrl.implemented) bp_hit[n] = 1'b0;
         else
           case (dbg.bp[n].ctrl.cc)
-             BP_CTRL_CC_FETCH    : bp_hit[n] = (if_pc     == dbg.bp[n].data) & ~bu_flush & ~st_flush;
+             BP_CTRL_CC_FETCH    : bp_hit[n] = (pd_pc     == dbg.bp[n].data) & ~bu_flush & ~st_flush;
              BP_CTRL_CC_LD_ADR   : bp_hit[n] = (ex_memadr == dbg.bp[n].data) & mem_ack & mem_read;
              BP_CTRL_CC_ST_ADR   : bp_hit[n] = (ex_memadr == dbg.bp[n].data) & mem_ack & mem_write;
              BP_CTRL_CC_LDST_ADR : bp_hit[n] = (ex_memadr == dbg.bp[n].data) & mem_ack & (mem_read | mem_write);

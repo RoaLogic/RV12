@@ -35,6 +35,7 @@
 //                                                             //
 /////////////////////////////////////////////////////////////////
 
+// Module parameters
 module riscv_if #(
   parameter            XLEN           = 32,
   parameter [XLEN-1:0] PC_INIT        = 'h200,
@@ -44,85 +45,90 @@ module riscv_if #(
   parameter            HAS_BPU        = 0,
   parameter            HAS_RVC        = 0
 )
+
+// Input and outputs
 (
   input                           rstn,          //Reset
   input                           clk,           //Clock
-  input                           id_stall,
+  input                           id_stall,	 //Stall input instruction decode
 
+  // Inputs from instruction cache/bus
   input                           if_stall_nxt_pc,
   input      [PARCEL_SIZE   -1:0] if_parcel,
   input      [XLEN          -1:0] if_parcel_pc,
-  input                           if_parcel_valid,
+  input      [               1:0] if_parcel_valid,
   input                           if_parcel_misaligned, 
   input                           if_parcel_page_fault,
 
-  output reg [INSTR_SIZE    -1:0] if_instr,      //Instruction out
-  output reg                      if_bubble,     //Insert bubble in the pipe (NOP instruction)
-  output reg [EXCEPTION_SIZE-1:0] if_exception,
-
-  input      [               1:0] bp_bp_predict, //Branch Prediction bits
-  output reg [               1:0] if_bp_predict, //push down the pipe
-
-  input                           bu_flush,      //flush pipe & load new program counter
+  // Flush input from down the pipe
+  input                           bu_flush,      
                                   st_flush,
-                                  du_flush,      //flush pipe after debug exit
+                                  du_flush, 
+  // Program counter changes     
   input      [XLEN          -1:0] bu_nxt_pc,     //Branch Unit Next Program Counter
                                   st_nxt_pc,     //State Next Program Counter
                                   id_pc,         //ID next program counter (used by debug unit)
 
+  // Outputs for instruction cache/bus 
+  output reg [XLEN	    -1:0] if_nxt_pc,	 //Program counter to get the next instruction
+  output 			  if_stall, 	 //Stall instruction fetch BIU (cache/bus-interface)
+  output                          if_flush,      //Flush instruction fetch BIU (cache/bus-interface)
+  output 			  if_out_order,
+    
+  // Outputs for pre decode
+  output reg [XLEN	     -1:0] if_pc,	 //Program counter for the instruction to id 
+  output reg [INSTR_SIZE     -1:0] if_instr,	 //Instruction output to instruction decode
+  output reg 		 	   if_bubble, 	 //Insert bublle in the pipe (NOP instruction)
+  output reg [EXCEPTION_SIZE -1:0] if_exception,  //Exception bit for down the pipe
 
-  output reg [XLEN          -1:0] if_nxt_pc,     //next Program Counter
-  output                          if_stall,      //stall instruction fetch BIU (cache/bus-interface)
-  output                          if_flush,      //flush instruction fetch BIU (cache/bus-interface)
-  output reg [XLEN          -1:0] if_pc          //Program Counter
+  // Instruction size
+  output 			   is_16bit_instruction,
+  output 			   is_32bit_instruction,
+//output			   is_48bit_instruction,
+//output			   is_64bit_instruction,
+
+
+  // Inputs from  pre decode for branches
+  input      [XLEN          -1:0] branch_pc,
+  input                           branch_taken
+  
 );
 
-
-  ////////////////////////////////////////////////////////////////
-  //
+  //////////////////////////////////////////////////////////////////////////
+  //  
   // Variables
-  //
-
-  //Instruction size
-  logic is_16bit_instruction;
-  logic is_32bit_instruction;
-//  logic is_48bit_instruction;
-//  logic is_64bit_instruction;
 
   logic                      flushes;      //OR all flush signals
 
-  logic [2*INSTR_SIZE  -1:0] parcel_shift_register;
-  logic [INSTR_SIZE    -1:0] new_parcel,
-                             active_parcel,
-                             converted_instruction,
-                             pd_instr;
-  logic                      pd_bubble;
+  logic [2*INSTR_SIZE  -1:0] parcel_shift_register; 
+  logic [2*XLEN	       -1:0] pc_shift_register;
+  logic [INSTR_SIZE    -1:0] new_parcel;
 
-  logic [XLEN          -1:0] pd_pc;
   logic                      parcel_valid;
-  logic [               2:0] parcel_sr_valid,
-                             parcel_sr_bubble;
+  logic [               3:0] parcel_sr_valid;
 
-  logic [               6:2] opcode;
+  logic [EXCEPTION_SIZE-1:0] parcel_exception;
 
-  logic [EXCEPTION_SIZE-1:0] parcel_exception,
-                             pd_exception;
+  logic 		     is_rv64;
+  logic	[XLEN	       -1:0] dummy_pc;
+  logic			     out_order;
 
-  logic [XLEN          -1:0] branch_pc;
-  logic                      branch_taken;
-
-  logic [XLEN          -1:0] immB,
-                             immJ;
-
-
-  ////////////////////////////////////////////////////////////////
+  /////////////////////////////////////////////////////////////////////////
   //
-  // Module Body
+  // Module body
+
+
+  ////////////////////////////////////////////////////////////////////////
   //
-  import riscv_pkg::*;
+  // Instruction fetch
+
+  import riscv_pkg::*;		
   import riscv_state_pkg::*;
 
-  //All flush signals
+  assign is_rv64 = (XLEN == 64);
+  assign dummy_pc = is_rv64 ? 64'h0000000000000000 : 32'h00000000;
+
+  //All flush signals combined
   assign flushes = bu_flush | st_flush | du_flush;
 
   //Flush upper layer (memory BIU) 
@@ -132,173 +138,213 @@ module riscv_if #(
   assign if_stall = id_stall | (&parcel_sr_valid & ~flushes);
 
 
-
-  //parcel is valid when bus-interface says so AND when received PC is requested PC
+  //parcel is valid when bus-interface says so AND when received PC is requested PC 
   always @(posedge clk,negedge rstn)
     if (!rstn) parcel_valid <= 1'b0;
-    else       parcel_valid <= if_parcel_valid;
-
+    else       parcel_valid <= if_parcel_valid[0] | if_parcel_valid[1];
 
   /*
    * Next Program Counter
    */
-  always @(posedge clk,negedge rstn)
-    if      (!rstn                        ) if_nxt_pc <= PC_INIT;
-    else if ( st_flush                    ) if_nxt_pc <= st_nxt_pc;
-    else if ( bu_flush        ||  du_flush) if_nxt_pc <= bu_nxt_pc; //flush takes priority
-    else if ( branch_taken    && !id_stall) if_nxt_pc <= branch_pc;
-    else if (!if_stall_nxt_pc && !id_stall) if_nxt_pc <= if_nxt_pc + 'h4;
-//TODO: handle if_stall and 16bit instructions
+   always @(posedge clk,negedge rstn)
+     if      (!rstn		 			    ) if_nxt_pc <= PC_INIT;
+     else if ( st_flush					    ) if_nxt_pc <= st_nxt_pc[1] ? st_nxt_pc -'h2 : st_nxt_pc;
+     else if ( bu_flush		|| du_flush		    ) if_nxt_pc <= bu_nxt_pc[1] ? bu_nxt_pc -'h2 : bu_nxt_pc; //flush takes priority
+     else if ( branch_taken	&& !id_stall		    ) if_nxt_pc <= branch_pc[1] ? branch_pc -'h2 : branch_pc;
+     else if (!if_stall_nxt_pc	&& !id_stall 	&& !if_stall) if_nxt_pc <= if_nxt_pc + 'h4;
 
-  always @(posedge clk,negedge rstn)
-    if      (!rstn                        ) pd_pc <= PC_INIT;
-    else if ( st_flush                    ) pd_pc <= st_nxt_pc;
-    else if ( bu_flush        ||  du_flush) pd_pc <= bu_nxt_pc;
-    else if ( branch_taken    && !id_stall) pd_pc <= branch_pc;
-    else if ( if_parcel_valid && !id_stall) pd_pc <= if_parcel_pc;
+   
+  always @(posedge clk, negedge rstn)
+     if	     (!rstn					) out_order <= 1'b0;
+     else if ( st_flush                 		) out_order <= st_nxt_pc[1];
+     else if ( bu_flush || du_flush     		) out_order <= bu_nxt_pc[1];
+     else if ( branch_taken && !id_stall		) out_order <= branch_pc[1];
+     else if (!if_stall_nxt_pc && !id_stall && !if_stall) out_order <= out_order;	 
+    
 
-  always @(posedge clk,negedge rstn)
-    if      (!rstn                ) if_pc <= PC_INIT;
-    else if ( st_flush            ) if_pc <= st_nxt_pc;
-    else if ( bu_flush || du_flush) if_pc <= bu_nxt_pc;
-    else if (!id_stall            ) if_pc <= pd_pc;
-
-
+  assign if_out_order = out_order;
   /*
-   *  Instruction
-   */
-  //instruction shift register, for 16bit instruction support
-//  assign new_parcel = if_parcel_valid ? if_parcel : INSTR_NOP; //RiH: was parcel_valid, handle in-flight faulty instruction
-  assign new_parcel = if_parcel;
-  always @(posedge clk,negedge rstn)
-    if      (!rstn    ) parcel_shift_register <= {INSTR_NOP,INSTR_NOP};
-    else if ( flushes ) parcel_shift_register <= {INSTR_NOP,INSTR_NOP};
-    else if (!id_stall)
-      if (branch_taken)
+   *  Instruction state machine  
+   */ 
+ always @(posedge clk,negedge rstn)
+  if      (!rstn    ) parcel_shift_register <= {INSTR_NOP,INSTR_NOP};
+  else if ( flushes ) parcel_shift_register <= {INSTR_NOP,INSTR_NOP};
+  else if (!id_stall)
+    if (branch_taken)
           parcel_shift_register <= {INSTR_NOP,INSTR_NOP};
-      else
+    else
         case (parcel_sr_valid)
-            3'b000:                           parcel_shift_register <= {INSTR_NOP , new_parcel};
-            3'b001: if (is_16bit_instruction) parcel_shift_register <= {INSTR_NOP , new_parcel};
-                    else                      parcel_shift_register <= {new_parcel, parcel_shift_register[15:0]};
-            3'b011: if (is_16bit_instruction) parcel_shift_register <= {new_parcel, parcel_shift_register[16 +: INSTR_SIZE]};
-                    else                      parcel_shift_register <= {INSTR_NOP , new_parcel};
-            3'b111: if (is_16bit_instruction) parcel_shift_register <= {INSTR_NOP , parcel_shift_register[16 +: INSTR_SIZE]};
-                    else                      parcel_shift_register <= {new_parcel, parcel_shift_register[32 +: 16]};
-        endcase
+		4'b0000: case (if_parcel_valid)
+			  2'b00 : parcel_shift_register <= {INSTR_NOP , INSTR_NOP};
+			  2'b01 : parcel_shift_register <= {new_parcel, INSTR_NOP};
+			  2'b10 : parcel_shift_register <= {16'h0000  , new_parcel[16+:16], INSTR_NOP};
+			  2'b11 : parcel_shift_register <= {INSTR_NOP , new_parcel};
+			endcase
 
+		4'b0100: case (if_parcel_valid)
+			  2'b00 : parcel_shift_register <= {parcel_shift_register[32+: INSTR_SIZE], INSTR_NOP};
+			  2'b01 : parcel_shift_register <= {INSTR_NOP, new_parcel[ 0+: 16], parcel_shift_register[32+: 16]};
+			  2'b10 : parcel_shift_register <= {INSTR_NOP, new_parcel[16+: 16], parcel_shift_register[32+: 16]};
+			  2'b11 : parcel_shift_register <= {16'h0000 , new_parcel, parcel_shift_register[32+: 16]};
+			endcase
+
+		4'b0011: case (if_parcel_valid)
+			  2'b00 : parcel_shift_register <= is_16bit_instruction ? {parcel_shift_register[16+: INSTR_SIZE], INSTR_NOP}: 
+										  {INSTR_NOP , INSTR_NOP};
+			  2'b01 : parcel_shift_register <= is_16bit_instruction ? {INSTR_NOP , new_parcel[ 0+:16], parcel_shift_register[16+: 16]}:
+										  {new_parcel, INSTR_NOP};
+			  2'b10 : parcel_shift_register <= is_16bit_instruction ? {INSTR_NOP , new_parcel[16+:16], parcel_shift_register[16+: 16]}:
+										  {16'h0000  , new_parcel[16+: 16], INSTR_NOP};
+			  2'b11 : parcel_shift_register <= is_16bit_instruction ? {16'h0000  , new_parcel, parcel_shift_register[16+: 16]}:
+										  {INSTR_NOP , new_parcel};
+			endcase
+		4'b0111: case (if_parcel_valid)
+			  2'b00 : parcel_shift_register <= is_16bit_instruction ? {INSTR_NOP , parcel_shift_register[16+: INSTR_SIZE]}: 
+										  {parcel_shift_register[32+: INSTR_SIZE], INSTR_NOP};
+			  2'b01 : parcel_shift_register <= is_16bit_instruction ? {new_parcel, parcel_shift_register[16+: INSTR_SIZE]}: 
+										  {16'h0000  , new_parcel, parcel_shift_register[32+: 16]};
+			  2'b10 : parcel_shift_register <= is_16bit_instruction ? {16'h0000  , new_parcel[16+: 16], parcel_shift_register[16+: INSTR_SIZE]}: 
+										  {INSTR_NOP , new_parcel[16+: 16], parcel_shift_register[16+:16]};
+			  2'b11 : parcel_shift_register <= is_16bit_instruction ? {new_parcel, parcel_shift_register[16+: INSTR_SIZE]}: 
+										  {16'h0000  , new_parcel, parcel_shift_register[32+: 16]};
+			endcase
+
+
+		4'b1111: if	(is_16bit_instruction) parcel_shift_register <= {16'h0000 , parcel_shift_register[16+: 48]};
+			else			       parcel_shift_register <= {INSTR_NOP, parcel_shift_register[32+: INSTR_SIZE]};
+        endcase
 
   always @(posedge clk,negedge rstn)
-    if      (!rstn    ) parcel_sr_valid <= 'h0;
-    else if ( flushes ) parcel_sr_valid <= 'h0;
-    else if (!id_stall)
-      if (branch_taken)
-          parcel_sr_valid <= 'h0;
-      else
+  if      (!rstn    ) parcel_sr_valid <= {4'b0000};
+  else if ( flushes ) parcel_sr_valid <= {4'b0000};
+  else if (!id_stall)
+    if (branch_taken)
+          parcel_sr_valid <= {4'b0000};
+    else
         case (parcel_sr_valid)
-//branch to 16bit address would yield 3'b010
-            3'b000:                           parcel_sr_valid <= {           1'b0, if_parcel_valid, if_parcel_valid}; //3'b011;
-            3'b001: if (is_16bit_instruction) parcel_sr_valid <= {           1'b0, if_parcel_valid, if_parcel_valid}; //3'b011;
-                    else                      parcel_sr_valid <= {if_parcel_valid, if_parcel_valid,            1'b1}; //3'b111;
-            3'b011: if (is_16bit_instruction) parcel_sr_valid <= {if_parcel_valid, if_parcel_valid,            1'b1}; //3'b111;
-                    else                      parcel_sr_valid <= {           1'b0, if_parcel_valid, if_parcel_valid}; //3'b011;
-            3'b111: if (is_16bit_instruction) parcel_sr_valid <= {           1'b0,            1'b1,            1'b1}; //3'b011;
-                    else                      parcel_sr_valid <= {if_parcel_valid, if_parcel_valid,            1'b1}; //3'b111;
+		4'b0000: case (if_parcel_valid)
+			  2'b00 : parcel_sr_valid <= {4'b0000};
+			  2'b01 : parcel_sr_valid <= {4'b0100};
+			  2'b10 : parcel_sr_valid <= {4'b0100};
+			  2'b11 : parcel_sr_valid <= {4'b0011};
+			endcase
+
+		4'b0100: case (if_parcel_valid)
+			  2'b00 : parcel_sr_valid <= {4'b0100};
+			  2'b01 : parcel_sr_valid <= {4'b0011};
+			  2'b10 : parcel_sr_valid <= {4'b0011};
+			  2'b11 : parcel_sr_valid <= {4'b0111};
+			endcase
+
+
+		4'b0011: case (if_parcel_valid)
+			  2'b00 : parcel_sr_valid <= is_16bit_instruction ? {4'b0100} : {4'b0000};
+			  2'b01 : parcel_sr_valid <= is_16bit_instruction ? {4'b0011} : {4'b0100};
+			  2'b10 : parcel_sr_valid <= is_16bit_instruction ? {4'b0011} : {4'b0100};
+			  2'b11 : parcel_sr_valid <= is_16bit_instruction ? {4'b0111} : {4'b0011};
+			endcase
+
+		4'b0111: case (if_parcel_valid)
+			  2'b00 : parcel_sr_valid <= is_16bit_instruction ? {4'b0011} : {4'b0100};
+			  2'b01 : parcel_sr_valid <= is_16bit_instruction ? {4'b0111} : {4'b0011};
+			  2'b10 : parcel_sr_valid <= is_16bit_instruction ? {4'b0111} : {4'b0011};
+			  2'b11 : parcel_sr_valid <= is_16bit_instruction ? {4'b1111} : {4'b0111};
+			endcase
+
+
+		4'b1111: if 	(is_16bit_instruction)  parcel_sr_valid <=  {4'b0111};
+			else				parcel_sr_valid <=  {4'b0011};
         endcase
 
-  assign active_parcel = parcel_shift_register[INSTR_SIZE-1:0];
-  assign pd_bubble     = is_16bit_instruction ? ~parcel_sr_valid[0] : ~&parcel_sr_valid[1:0];
 
-  assign is_16bit_instruction = ~&active_parcel[1:0];
-  assign is_32bit_instruction =  &active_parcel[1:0];
+  //change program counter for output to instruction decode
+  always @(posedge clk, negedge rstn)
+    if		(!rstn			) pc_shift_register<= {dummy_pc, PC_INIT};
+    else if	( st_flush		) pc_shift_register<= {dummy_pc, st_nxt_pc};
+    else if 	( bu_flush || du_flush	) pc_shift_register<= {dummy_pc, bu_nxt_pc};
+    else if 	(!id_stall 		) 
+      if (branch_taken)
+        pc_shift_register<= pc_shift_register;
+      else
+	case(parcel_sr_valid)
+		4'b0000: case(if_parcel_valid)
+			  2'b00 : pc_shift_register<= {dummy_pc, if_parcel_pc};
+			  2'b01 : pc_shift_register<= {if_parcel_pc, pc_shift_register[ 0+: XLEN]};
+			  2'b10 : pc_shift_register<= {if_parcel_pc, pc_shift_register[ 0+: XLEN]};
+			  2'b11 : pc_shift_register<= {dummy_pc, if_parcel_pc};
+			endcase
+		
+		4'b0100: case(if_parcel_valid)
+			  2'b00 : pc_shift_register<= pc_shift_register; 
+			  //2'b11 : pc_shift_register<= {if_parcel_pc, pc_shift_register[   0+: XLEN]};
+			 default: pc_shift_register<= {if_parcel_pc, pc_shift_register[XLEN+: XLEN] +'h2};		
+			endcase		
+
+		4'b0011: case(if_parcel_valid)
+			  2'b00 : pc_shift_register<= is_16bit_instruction ? {pc_shift_register[ 0+: XLEN], pc_shift_register[   0+: XLEN]}: 
+									     {dummy_pc, if_parcel_pc};
+			  2'b01 : pc_shift_register<= is_16bit_instruction ? {if_parcel_pc, pc_shift_register[   0+: XLEN] +'h2}:
+									     {if_parcel_pc, pc_shift_register[XLEN+: XLEN]};
+			  2'b10 : pc_shift_register<= is_16bit_instruction ? {if_parcel_pc, pc_shift_register[   0+: XLEN] + 'h2}:
+									     {if_parcel_pc, pc_shift_register[XLEN+: XLEN]};
+			  2'b11 : pc_shift_register<= is_16bit_instruction ? {if_parcel_pc, pc_shift_register[   0+: XLEN] + 'h2}:
+									     {dummy_pc, if_parcel_pc};
+			endcase
+
+		4'b0111: case(if_parcel_valid)
+			  2'b00 : pc_shift_register<= is_16bit_instruction ? {pc_shift_register[XLEN+: XLEN], pc_shift_register[XLEN+: XLEN]} :  
+									     {pc_shift_register[XLEN+: XLEN], pc_shift_register[   0+: XLEN]}; 
+   			  2'b01 : pc_shift_register<= is_16bit_instruction ? {if_parcel_pc, pc_shift_register[XLEN+: XLEN]}:
+								             {if_parcel_pc, pc_shift_register[   0+: XLEN]+ 'h2};
+			  2'b10 : pc_shift_register<= is_16bit_instruction ? {if_parcel_pc, pc_shift_register[XLEN+: XLEN]}:
+									     {if_parcel_pc, pc_shift_register[   0+: XLEN]+ 'h2};
+			  2'b11 : pc_shift_register<= is_16bit_instruction ? {if_parcel_pc, pc_shift_register[XLEN+: XLEN]}: 
+									     {if_parcel_pc, pc_shift_register[XLEN+: XLEN] +'h2};
+			endcase
+
+
+		4'b1111: if	(is_16bit_instruction) pc_shift_register<= {pc_shift_register[XLEN+: XLEN], pc_shift_register[ 0+: XLEN] +'h2};
+			else 			       pc_shift_register<= {if_parcel_pc, pc_shift_register[XLEN+: XLEN]};
+	
+	endcase
+  // link incoming instruction to new_parcel 
+  assign new_parcel = if_parcel;
+
+  // Link the outcoming values to the associated values for pre decode
+  assign if_instr  = parcel_shift_register[INSTR_SIZE-1:0]; 
+  assign if_bubble = ~parcel_sr_valid[0];
+  assign if_pc 	   = pc_shift_register[INSTR_SIZE -1:0];
+
+  assign is_16bit_instruction = ~&if_instr[1:0];
+  assign is_32bit_instruction =  &if_instr[1:0];
 //  assign is_48bit_instruction =   active_parcel[5:0] == 6'b011111;
 //  assign is_64bit_instruction =   active_parcel[6:0] == 7'b0111111;
 
   
-  //Convert 16bit instructions to 32bit instructions here.
-  always_comb
-    case(active_parcel)
-      WFI    : pd_instr = INSTR_NOP;                                 //Implement WFI as a nop 
-      default: if (is_32bit_instruction) pd_instr = active_parcel;
-               else                      pd_instr = -1;             //Illegal
-    endcase
+  always @(posedge clk, negedge rstn)
+    if	    (!rstn			) if_exception <= 'h0; 
+    else if ( flushes			) if_exception <= 'h0;
+    else if ( parcel_valid && !id_stall	) if_exception <= parcel_exception;
 
 
-  always @(posedge clk,negedge rstn)
-    if      (!rstn    ) if_instr <= INSTR_NOP;
-    else if ( flushes ) if_instr <= INSTR_NOP;
-    else if (!id_stall) if_instr <= pd_instr;
-
-
-  always @(posedge clk,negedge rstn)
-    if      (!rstn    ) if_bubble <= 1'b1;
-    else if ( flushes ) if_bubble <= 1'b1;
-    else if (!id_stall) if_bubble <= pd_bubble;
-
-
-
-  /*
-   * Branches & Jump
-   */
-  assign immB = {{XLEN-12{pd_instr[31]}},                pd_instr[ 7],pd_instr[30:25],pd_instr[11: 8],1'b0};
-  assign immJ = {{XLEN-20{pd_instr[31]}},pd_instr[19:12],pd_instr[20],pd_instr[30:25],pd_instr[24:21],1'b0};
-
-  assign opcode = pd_instr[6:2];
-
-  // Branch and Jump prediction
-  always_comb
-    (* synthesis,parallel_case *)
-    casex ({pd_bubble,opcode})
-      {1'b0,OPC_JAL   } : begin
-                             branch_taken = 1'b1;
-                             branch_pc    = pd_pc + immJ;
-                          end
-      {1'b0,OPC_BRANCH} : begin
-                              //if this CPU has a Branch Predict Unit, then use it's prediction
-                              //otherwise assume backwards jumps taken, forward jumps not taken
-                              branch_taken = HAS_BPU ? bp_bp_predict[1] : immB[31];
-                              branch_pc    = pd_pc + immB;
-                          end
-      default           : begin
-                              branch_taken = 1'b0;
-                              branch_pc    = 'hx;
-                          end
-    endcase
-
-  always @(posedge clk,negedge rstn)
-    if      (!rstn    ) if_bp_predict <= 2'b00;
-    else if (!id_stall) if_bp_predict <= (HAS_BPU) ? bp_bp_predict : {branch_taken,1'b0};
-
-
-
-  /*
-   * Exceptions
-   */
-  //parcel-fetch
+  // parcel-fetch exception
   always @(posedge clk,negedge rstn)
     if      (!rstn                     ) parcel_exception <= 'h0;
     else if ( flushes                  ) parcel_exception <= 'h0;
     else if ( parcel_valid && !id_stall)
     begin
         parcel_exception <= 'h0;
-
         parcel_exception[CAUSE_MISALIGNED_INSTRUCTION  ] <= if_parcel_misaligned;
         parcel_exception[CAUSE_INSTRUCTION_ACCESS_FAULT] <= if_parcel_page_fault;
     end 
 
-
-  //pre-decode
-  always @(posedge clk,negedge rstn)
-    if      (!rstn                     ) pd_exception <= 'h0;
-    else if ( flushes                  ) pd_exception <= 'h0;
-    else if ( parcel_valid && !id_stall) pd_exception <= parcel_exception;
+  endmodule	
 
 
-  //instruction-fetch
-  always @(posedge clk,negedge rstn)
-    if      (!rstn                     ) if_exception <= 'h0;
-    else if ( flushes                  ) if_exception <= 'h0;
-    else if ( parcel_valid && !id_stall) if_exception <= pd_exception;
 
-endmodule
+
+
+
+
+
 

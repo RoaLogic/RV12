@@ -45,7 +45,7 @@ module riscv_icache_ahb3lite #(
   parameter WAYS           =  2, // 1           : Direct Mapped
                                  //<n>          : n-way set associative
                                  //<n>==<blocks>: fully associative
-  parameter REPLACE_ALG    = 1,  //0: Random
+  parameter REPLACE_ALG    = 0,  //0: Random
                                  //1: FIFO
                                  //2: LRU
 
@@ -75,10 +75,11 @@ module riscv_icache_ahb3lite #(
   output                       if_stall_nxt_pc,
   input                        if_stall,
                                if_flush,
+  input			       if_out_order,
   input      [XLEN       -1:0] if_nxt_pc,
   output     [XLEN       -1:0] if_parcel_pc,
   output     [PARCEL_SIZE-1:0] if_parcel,
-  output                       if_parcel_valid,
+  output     [            1:0] if_parcel_valid,
   output                       if_parcel_misaligned,
   input                        bu_cacheflush,
                                dcflush_rdy,
