@@ -1107,7 +1107,7 @@ The Debug Unit is a separate unit in the CPU. It’s not directly related to any
 
 The Debug Unit has its own interfaces and must be connected to an external debug controller that provides the actual interfacing to the external Debug Tools. The Debug Unit does not stall the CPU, instead it relies on the external debug controller to stall the CPU when the Debug Unit requests it.
 
-### Debug Controller Interface 
+### Debug Controller Interface
 
 The Debug Unit has two interfaces; one to communicate with the CPU and one to communicate with the external debug controller. The CPU interface is an internal interface and therefore not described here.
 
@@ -1330,8 +1330,8 @@ The `DBG_DATA` registers contain the data/value that trigger a breakpoint hit. T
 Below are some example implementations for various platforms. All implementations are push button, no effort has been undertaken to reduce area or improve performance.
 
 | Platform | DFF | Logic Cells | Memory | Performance (MHz) |
-|:---------|:---:|:-----------:|:------:|:------------------|
-| lfxp3c-5 |  51 |      85     |    0   | 235MHz            |
+|:---------|:---:|:-----------:|:------:|:-----------------:|
+| lfxp3c-5 |  51 |      85     |    0   |       235MHz      |
 |          |     |             |        |                   |
 |          |     |             |        |                   |
 |          |     |             |        |                   |
@@ -1346,11 +1346,11 @@ The RV12 CPU is designed to be compliant with the specifications listed below. T
 
 ## Revision History
 
-| Date        | Rev. | Comments        |
-|:------------|:-----|:----------------|
-| 01-Feb-2017 | 1.0  | Initial Release |
-|             |      |                 |
-|             |      |                 |
-|             |      |                 |
+|     Date    | Rev. | Comments             |
+|:-----------:|:----:|:---------------------|
+| 01-Feb-2017 |  1.0 | Initial RV11 Release |
+| 01-Nov-2017 |  1.1 | RV12 Update          |
+|             |      |                      |
+|             |      |                      |
 
 [1] Full reference details of the specifications are documented in section 11
