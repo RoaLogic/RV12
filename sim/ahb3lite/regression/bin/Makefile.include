@@ -1,48 +1,41 @@
-#################################################################
-##                                                             ##
-##    ██████╗  ██████╗  █████╗                                 ##
-##    ██╔══██╗██╔═══██╗██╔══██╗                                ##
-##    ██████╔╝██║   ██║███████║                                ##
-##    ██╔══██╗██║   ██║██╔══██║                                ##
-##    ██║  ██║╚██████╔╝██║  ██║                                ##
-##    ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝                                ##
-##          ██╗      ██████╗  ██████╗ ██╗ ██████╗              ##
-##          ██║     ██╔═══██╗██╔════╝ ██║██╔════╝              ##
-##          ██║     ██║   ██║██║  ███╗██║██║                   ##
-##          ██║     ██║   ██║██║   ██║██║██║                   ##
-##          ███████╗╚██████╔╝╚██████╔╝██║╚██████╗              ##
-##          ╚══════╝ ╚═════╝  ╚═════╝ ╚═╝ ╚═════╝              ##
-##                                                             ##
-##    RISC-V                                                   ##
-##    Simulator Include file                                   ##
-##                                                             ##
-#################################################################
-##                                                             ##
-##     Copyright (C) 2014-2017 ROA Logic BV                    ##
-##                                                             ##
-##   This confidential and proprietary software is provided    ##
-##  under license. It may only be used as authorised by a      ##
-##  licensing agreement from ROA Logic BV.                     ##
-##  No parts may be copied, reproduced, distributed, modified  ##
-##  or adapted in any form without prior written consent.      ##
-##  This entire notice must be reproduced on all authorised    ##
-##  copies.                                                    ##
-##                                                             ##
-##     THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY     ##
-##  EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED  ##
-##  TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS  ##
-##  FOR A PARTICULAR PURPOSE. IN NO EVENT SHALL THE AUTHOR     ##
-##  OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,        ##
-##  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES   ##
-##  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE  ##
-##  GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR       ##
-##  BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF ##
-##  LIABILITY, WHETHER IN  CONTRACT, STRICT LIABILITY, OR TORT ##
-##  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT ##
-##  OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE        ##
-##  POSSIBILITY OF SUCH DAMAGE.                                ##
-##                                                             ##
-#################################################################
+#####################################################################
+##   ,------.                    ,--.                ,--.          ##
+##   |  .--. ' ,---.  ,--,--.    |  |    ,---. ,---. `--' ,---.    ##
+##   |  '--'.'| .-. |' ,-.  |    |  |   | .-. | .-. |,--.| .--'    ##
+##   |  |\  \ ' '-' '\ '-'  |    |  '--.' '-' ' '-' ||  |\ `--.    ##
+##   `--' '--' `---'  `--`--'    `-----' `---' `-   /`--' `---'    ##
+##                                             `---'               ##
+##   Roa Logic RV12 RISC-V CPU                                     ##
+##   Simulator Include File                                        ##
+##                                                                 ##
+#####################################################################
+##                                                                 ##
+##             Copyright (C) 2017 ROA Logic BV                     ##
+##             www.roalogic.com                                    ##
+##                                                                 ##
+##   This source file may be used and distributed without          ##
+##   restriction provided that this copyright statement is not     ##
+##   removed from the file and that any derivative work contains   ##
+##   the original copyright notice and the associated disclaimer.  ##
+##                                                                 ##
+##      THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY        ##
+##   EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED     ##
+##   TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS     ##
+##   FOR A PARTICULAR PURPOSE. IN NO EVENT SHALL THE AUTHOR OR     ##
+##   CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,  ##
+##   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT  ##
+##   NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;  ##
+##   LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)      ##
+##   HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN     ##
+##   CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR  ##
+##   OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS          ##
+##   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  ##
+##                                                                 ##
+#####################################################################
+#
+# 2017-10-06: Change header, logo, copyright notice
+#             Moved 'tech' into a subdirectory
+#
 
 
 #####################################################################
@@ -74,7 +67,7 @@ DEFINES:=SIM
 #####################################################################
 MEM_SRC_DIR=$(ROOT_DIR)/memory/rtl/verilog
 DUT_SRC_DIR=$(ROOT_DIR)/rtl/verilog
-RTL_TOP  = 
+RTL_TOP  = riscv_top_$(busif) 
 RTL_VLOG = $(DUT_SRC_DIR)/pkg/riscv_pkg.sv			\
 	   $(DUT_SRC_DIR)/pkg/riscv_state1.9_pkg.sv		\
 	   $(DUT_SRC_DIR)/pkg/riscv_du_pkg.sv			\
@@ -129,24 +122,9 @@ TB_VHDL =
 #####################################################################
 # Technology Libraries
 #####################################################################
-LIBEXT = .v
-
-N3X_LIB_DIR   = $(ETOOLS10_HOME)/data_ruby28/design_libs/logical/sim/verilog
-N3X_IPLIB_DIR = $(ETOOLS10_HOME)/data_ruby28/ip_lib
-N3X_IP_DIRS := $(filter %verilog, $(shell find $(N3X_IPLIB_DIR) -type d -print) )
-
-
-N3XS_LIB_DIR   = $(ETOOLS11_HOME)/data_n3xs/design_libs/logical/sim/verilog
-N3XS_IPLIB_DIR = $(ETOOLS11_HOME)/data_n3xs/ip_lib
-N3XS_IP_DIRS := $(filter %verilog, $(shell find $(N3XS_IPLIB_DIR) -type d -print) )
-
-
-ifeq ($(TECHNOLOGY), n3xs)
-    TECHLIBS = $(N3XS_LIB_DIR)
-    LIBDIRS  = $(N3XS_IP_DIRS)
-else
-  ifeq ($(TECHNOLOGY), n3x)
-      TECHLIBS = $(N3X_LIB_DIR)
-      LIBDIRS  = $(N3X_IP_DIRS)
-  endif
+ifneq ($(TECHNOLOGY), generic)
+ifneq ($(strip $(TECHNOLOGY)),)
+-include ../bin/tech/Makefile.$(TECHNOLOGY)
 endif
+endif
+

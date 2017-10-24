@@ -328,7 +328,7 @@ endgenerate
     begin
         mul_bubble <= 1'b1;
 
-        case (state)
+        unique case (state)
           ST_IDLE: if (!id_bubble)
                      if (is_mul)
                      begin

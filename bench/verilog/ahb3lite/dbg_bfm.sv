@@ -1,59 +1,41 @@
-/////////////////////////////////////////////////////////////////
-//                                                             //
-//    ██████╗  ██████╗  █████╗                                 //
-//    ██╔══██╗██╔═══██╗██╔══██╗                                //
-//    ██████╔╝██║   ██║███████║                                //
-//    ██╔══██╗██║   ██║██╔══██║                                //
-//    ██║  ██║╚██████╔╝██║  ██║                                //
-//    ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝                                //
-//          ██╗      ██████╗  ██████╗ ██╗ ██████╗              //
-//          ██║     ██╔═══██╗██╔════╝ ██║██╔════╝              //
-//          ██║     ██║   ██║██║  ███╗██║██║                   //
-//          ██║     ██║   ██║██║   ██║██║██║                   //
-//          ███████╗╚██████╔╝╚██████╔╝██║╚██████╗              //
-//          ╚══════╝ ╚═════╝  ╚═════╝ ╚═╝ ╚═════╝              //
-//                                                             //
-//    RISC-V                                                   //
-//    Debug Controller Simulation Model                        //
-//                                                             //
-/////////////////////////////////////////////////////////////////
-//                                                             //
-//     Copyright (C) 2016 ROA Logic BV                         //
-//                                                             //
-//    This confidential and proprietary software is provided   //
-//  under license. It may only be used as authorised by a      //
-//  licensing agreement from ROA Logic BV.                     //
-//  No parts may be copied, reproduced, distributed, modified  //
-//  or adapted in any form without prior written consent.      //
-//  This entire notice must be reproduced on all authorised    //
-//  copies.                                                    //
-//                                                             //
-//    TO THE MAXIMUM EXTENT PERMITTED BY LAW, IN NO EVENT      //
-//  SHALL ROA LOGIC BE LIABLE FOR ANY INDIRECT, SPECIAL,       //
-//  CONSEQUENTIAL OR INCIDENTAL DAMAGES WHATSOEVER (INCLUDING, //
-//  BUT NOT LIMITED TO, DAMAGES FOR LOSS OF PROFIT, BUSINESS   //
-//  INTERRUPTIONS OR LOSS OF INFORMATION) ARISING OUT OF THE   //
-//  USE OR INABILITY TO USE THE PRODUCT WHETHER BASED ON A     //
-//  CLAIM UNDER CONTRACT, TORT OR OTHER LEGAL THEORY, EVEN IF  //
-//  ROA LOGIC WAS ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.  //
-//  IN NO EVENT WILL ROA LOGIC BE LIABLE TO ANY AGGREGATED     //
-//  CLAIMS MADE AGAINST ROA LOGIC GREATER THAN THE FEES PAID   //
-//  FOR THE PRODUCT                                            //
-//                                                             //
-/////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////
+//   ,------.                    ,--.                ,--.          //
+//   |  .--. ' ,---.  ,--,--.    |  |    ,---. ,---. `--' ,---.    //
+//   |  '--'.'| .-. |' ,-.  |    |  |   | .-. | .-. |,--.| .--'    //
+//   |  |\  \ ' '-' '\ '-'  |    |  '--.' '-' ' '-' ||  |\ `--.    //
+//   `--' '--' `---'  `--`--'    `-----' `---' `-   /`--' `---'    //
+//                                             `---'               //
+//   Roa Logic RV12 RISC-V CPU                                     //
+//   Debug Controller Simulation Model                             //
+//                                                                 //
+/////////////////////////////////////////////////////////////////////
+//                                                                 //
+//             Copyright (C) 2016-2017 ROA Logic BV                //
+//             www.roalogic.com                                    //
+//                                                                 //
+//   This source file may be used and distributed without          //
+//   restriction provided that this copyright statement is not     //
+//   removed from the file and that any derivative work contains   //
+//   the original copyright notice and the associated disclaimer.  //
+//                                                                 //
+//      THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY        //
+//   EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED     //
+//   TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS     //
+//   FOR A PARTICULAR PURPOSE. IN NO EVENT SHALL THE AUTHOR OR     //
+//   CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,  //
+//   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT  //
+//   NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;  //
+//   LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)      //
+//   HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN     //
+//   CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR  //
+//   OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS          //
+//   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  //
+//                                                                 //
+/////////////////////////////////////////////////////////////////////
 
-//  CVS Log
-//
-//  $Id: $
-//
-//  $Date: $
-//  $Revision: $
-//  $Author: $
-//  $Locker:  $
-//  $State: Exp $
-//
 // Change History:
-//   $Log: $
+//   2017-10-06: Changed header, logo, copyright notice
+//               Moved stall_cpu declaration. Fixed QuestaSim bug
 //
 
 module dbg_bfm #(
@@ -76,8 +58,10 @@ module dbg_bfm #(
 );
   ////////////////////////////////////////////////////////////////
   //
-  // Typedefs
+  // Variables
   //
+  logic stall_cpu;
+
 
   ////////////////////////////////////////////////////////////////
   //
@@ -152,11 +136,6 @@ module dbg_bfm #(
   endtask;
 
 
-  ////////////////////////////////////////////////////////////////
-  //
-  // Variables
-  //
-  logic stall_cpu;
 
 
   ////////////////////////////////////////////////////////////////

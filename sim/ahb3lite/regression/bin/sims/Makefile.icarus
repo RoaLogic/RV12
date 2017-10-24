@@ -13,7 +13,7 @@
 ##          ███████╗╚██████╔╝╚██████╔╝██║╚██████╗              ##
 ##          ╚══════╝ ╚═════╝  ╚═════╝ ╚═╝ ╚═════╝              ##
 ##                                                             ##
-##    Modelsim/Questasim Simulator Command file                ##
+##    Icarus Verilog Simulator Command file                    ##
 ##                                                             ##
 #################################################################
 ##                                                             ##
@@ -44,55 +44,26 @@
 #################################################################
 all: sim
 
-#################################################################
+##########################################################################
+#
 # Make Targets
-#################################################################
-SIM_OPTS=-c -ses
+#
+##########################################################################
+sim: $(TOP).out
+	./$(TOP).out
 
-.PHONY: sim simw clean
-
-LOG = $(TOP).log
-
-sim: vlog
-	vsim $(SIM_OPTS)				\
-	  -l $(LOG) $(TOP)				\
-	  -do "run -all; quit"				\
-	  $(foreach p, $(PARAMS),-g`echo $p | sed -r 's/(\w+)=([^0-9].*)/\1="\2"/'`)
-
-
-simw: vlog
-	vsim $(SIM_OPTS) 				\
-	 -l $(LOG) $(TOP) +access +r		\
-	 -do "log -mem -rec /$(TOP)/*; run -all; quit"	\
-	$(foreach p, $(PARAMS),-g`echo $p | sed -r 's/(\w+)=([^0-9].*)/\1="\2"/'`)
+simw:
+	@$(MAKE) sim WAVES="-DWAVES"
+	gtkwave $(TOP).vcd
 	
+$(TOP).out: $(VLOG)
+	iverilog -g2012 					\
+	$(VLOG) -s $(TOP) -o $(TOP).out $(WAVES)		\
+	$(foreach lib,$(wildcard $(VLOG_LIBS)),-y $(lib))	\
+	$(foreach d,$(INCDIRS),-I$d/)				\
+	$(foreach d,$(DEFINES),-D$d)
+
+
 clean:
-	@rm -rf work *.log
+	@rm -rf ./*.out
 
-
-
-#################################################################
-## VHDL
-#################################################################
-
-
-#################################################################
-## Verilog
-#################################################################
-.PHONY: vlog
-
-vlog: work $(VLOG) $(VLOG_LIBS)
-	vlog -work work $(VLOG)					\
-	-sv2k9 -threads 3					\
-	$(foreach d,$(DEFINES),+define+$d)			\
-	$(foreach d,$(INCDIRS),+incdir+$d)			\
-	$(foreach l,$(wildcard $(LIBDIRS)),-y $l) 		\
-	+libext$(foreach e,$(LIBEXT),+e)			\
-	$(foreach l,$(wildcard $(TECH_LIBS)/*.v),-v $l)
-
-
-#################################################################
-## libraries
-#################################################################
-work:
-	vlib $@
