@@ -39,6 +39,7 @@ header {
 	-moz-border-radius: 4px;
 	border-radius: 4px;
 	border: 0px;
+	margin: 30px 25px;
 }
 
 footer {
@@ -81,4 +82,8 @@ p.logo {
 	border-radius: 4px;
 	margin: 0px 10px 10px 0px;
 	padding: 5px;
+}
+
+code, pre {
+    font-size: 12px;
 }

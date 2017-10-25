@@ -1,0 +1,416 @@
+\chapter{External Interfaces}\label{external-interfaces}
+
+The RV12 CPU is designed to support a variety of external bus interfaces.
+The following sections define the default AMBA3 AHB-Lite and Interrupt
+Interfaces.
+
+\section{AMBA3 AHB-Lite}\label{amba3-ahb-lite}
+
+\begin{longtable}[]{@{}lccl@{}}
+	\toprule
+	Port                & Size          & Direction & Description\tabularnewline
+	\midrule
+	\endhead
+	\texttt{HRESETn}    & 1             & Input     & Asynchronous active low reset\tabularnewline
+	\texttt{HCLK}       & 1             & Input     & System clock input\tabularnewline
+	                    &               &           & \tabularnewline
+	\texttt{IHSEL}      & 1             & Output    & Provided for AHB-Lite compatibility -- tied high (`1')\tabularnewline
+	\texttt{IHADDR}     & \texttt{XLEN} & Output    & Instruction address\tabularnewline
+	\texttt{IHRDATA}    & 32            & Input     & Instruction data\tabularnewline
+	\texttt{IHWRITE}    & 1             & Output    & Instruction write\tabularnewline
+	\texttt{IHSIZE}     & 3             & Output    & Transfer size\tabularnewline
+	\texttt{IHBURST}    & 3             & Output    & Transfer burst size\tabularnewline
+	\texttt{IHPROT}     & 4             & Output    & Transfer protection level\tabularnewline
+	\texttt{IHTRANS}    & 2             & Output    & Transfer type\tabularnewline
+	\texttt{IHMASTLOCK} & 1             & Output    & Transfer master lock\tabularnewline
+	\texttt{IHREADY}    & 1             & Input     & Slave Ready Indicator\tabularnewline
+	\texttt{IHRESP}     & 1             & Input     & Instruction Transfer Response\tabularnewline
+	                    &               &           & \tabularnewline
+	\texttt{DHSEL}      & 1             & Output    & Provided for AHB-Lite compatibility -- tied high (`1')\tabularnewline
+	\texttt{DHADDR}     & \texttt{XLEN} & Output    & Data address\tabularnewline
+	\texttt{DHRDATA}    & \texttt{XLEN} & Input     & Data read data\tabularnewline
+	\texttt{DHWDATA}    & \texttt{XLEN} & Output    & Data write data\tabularnewline
+	\texttt{DHWRITE}    & 1             & Output    & Instruction write\tabularnewline
+	\texttt{DHSIZE}     & 3             & Output    & Transfer size\tabularnewline
+	\texttt{DHBURST}    & 3             & Output    & Transfer burst size\tabularnewline
+	\texttt{DHPROT}     & 4             & Output    & Transfer protection level\tabularnewline
+	\texttt{DHTRANS}    & 2             & Output    & Transfer type\tabularnewline
+	\texttt{DHMASTLOCK} & 1             & Output    & Transfer master lock\tabularnewline
+	\texttt{DHREADY}    & 1             & Input     & Slave Ready Indicator\tabularnewline
+	\texttt{DHRESP}     & 1             & Input     & Data Transfer Response\tabularnewline
+	\bottomrule
+	\caption{AMBA3 AHB-Lite Ports}
+	\label{tab:ahb-ports}
+\end{longtable}
+
+\subsection{HRESETn}\label{hresetn}
+
+When the active low asynchronous \texttt{HRESETn} input is asserted (`0'), the
+core is put into its initial reset state.
+
+\subsection{HCLK}\label{hclk}
+
+\texttt{HCLK} is the system clock. All internal logic operates at the rising edge
+of the system clock. All AHB bus timings are related to the rising edge
+of \texttt{HCLK}.
+
+\subsection{IHSEL}\label{ihsel}
+
+\texttt{IHSEL} is a \emph{slave} selection signal and therefore provided for
+AHB-Lite completeness. This signal is tied permanently high (`1')
+
+\subsection{IHADDR}\label{ihaddr}
+
+\texttt{IHADDR} is the instruction address bus. Its size is determined by
+\texttt{PHYS\_ADDR\_SIZE}.
+
+\subsection{IHRDATA}\label{ihrdata}
+
+\texttt{IHRDATA} transfers the instruction from memory to the CPU. Its size is
+determined by XLEN.
+\texttt{
+}\subsection{IHWRITE}\label{ihwrite}
+
+\texttt{IHWRITE} indicates whether the current transfer is a read or a write
+transfer. The instruction write is always negated (`0').
+
+\subsection{IHSIZE}\label{ihsize}
+
+The instruction transfer size is indicated by \texttt{IHSIZE}. Its value depends
+on the \texttt{XLEN} parameter and if the current transfer is a cache-line fill
+or non-cacheable instruction read.
+
+\begin{longtable}[]{@{}ccp{7cm}@{}}
+	\toprule
+	\texttt{IHSIZE} & Type & Description\tabularnewline
+	\midrule
+	\endhead
+	\texttt{010}   & Word  & Non-cacheable instruction read. \texttt{XLEN=32}\tabularnewline
+	\texttt{011}   & Dword & Non-cacheable instruction read. \texttt{XLEN=64}\tabularnewline
+	\texttt{1-\/-} &       & Cache line fill. The actual size depends on the Instruction cache parameters and \texttt{XLEN}\tabularnewline
+	\bottomrule
+	\caption{Supported IHSIZE Values}
+	\label{tab:isize-values}
+\end{longtable}
+
+\subsection{IHBURST}\label{ihburst}
+
+The instruction burst type indicates if the transfer is a single
+transfer or part of a burst.
+
+\begin{longtable}[]{@{}cll@{}}
+	\toprule
+	\texttt{IHBURST} & Type & Description\tabularnewline
+	\midrule
+	\endhead
+	\texttt{000} & Single & \emph{Not used}\tabularnewline
+	\texttt{001} & INCR   & Non-cacheable instruction reads\tabularnewline
+	\texttt{010} & WRAP4  & 4-beat wrapping burst\tabularnewline
+	\texttt{011} & INCR4  & \emph{Not used}\tabularnewline
+	\texttt{100} & WRAP8  & 8-beat wrapping burst\tabularnewline
+	\texttt{101} & INCR8  & \emph{Not used}\tabularnewline
+	\texttt{110} & WRAP16 & 16-bear wrapping burst\tabularnewline
+	\texttt{111} & INCR16 & \emph{Not used}\tabularnewline
+	\bottomrule
+	\caption{Supported IHBURST Values}
+	\label{tab:ihburst-values}
+\end{longtable}
+
+\subsection{IHPROT}\label{ihprot}
+
+The instruction protection signals provide information about the bus
+transfer. They are intended to implement some level of protection.
+
+\begin{longtable}[]{@{}ccl@{}}
+\toprule
+Bit\# & Value & Description\tabularnewline
+\midrule
+\endhead
+3 & 1 & Cacheable region addressed\tabularnewline
+  & 0 & Non-cacheable region addressed\tabularnewline
+2 & 1 & Bufferable\tabularnewline
+  & 0 & Non-bufferable\tabularnewline
+1 & 1 & Privileged access. CPU is not in User Mode\tabularnewline
+  & 0 & User access. CPU is in User Mode\tabularnewline
+0 & 0 & Opcode fetch, always `0'\tabularnewline
+\bottomrule
+\caption{Supported IHPROT Values}
+\label{tab:ihprot-values}
+\end{longtable}
+
+
+\subsection{IHTRANS}\label{ihtrans}
+
+\texttt{IHTRANS} indicates the type of the current instruction transfer.
+
+\begin{longtable}[]{@{}cll@{}}
+\toprule
+\texttt{IHTRANS} & Type & Description\tabularnewline
+\midrule
+\endhead
+\texttt{00} & IDLE   & No transfer required\tabularnewline
+\texttt{01} & BUSY   & CPU inserts wait states during instruction burst read\tabularnewline
+\texttt{10} & NONSEQ & First transfer of an instruction read burst\tabularnewline
+\texttt{11} & SEQ    & Remaining transfers of an instruction readburst\tabularnewline
+\bottomrule
+\caption{Supported IHTRANS Values}
+\label{tab:ihtrans-values}
+\end{longtable}
+
+\subsection{IHMASTLOCK}\label{ihmastlock}
+
+The instruction master lock signal indicates if the current transfer is
+part of a locked sequence, commonly used for Read-Modify-Write cycles.
+The instruction master lock is always negated (`0').
+
+\subsection{IHREADY}\label{ihready}
+
+\texttt{IHREADY} indicates whether the addressed slave is ready to transfer data
+or not. When \texttt{IHREADY} is negated (`0') the slave is not ready, forcing
+wait states. When \texttt{IHREADY} is asserted (`0') the slave is ready and the
+transfer completed.
+
+\subsection{IHRESP}\label{ihresp}
+
+\texttt{IHRESP} is the instruction transfer response; it can either be \texttt{OKAY} (`0')
+or \texttt{ERROR} (`1'). An error response causes a Bus Error exception.
+
+\subsection{DHSEL}\label{dhsel}
+
+\texttt{DHSEL} is a \emph{slave} selection signal and therefore provided for AHB-Lite
+completeness. This signal is tied permanently high (`1')
+
+\subsection{DHADDR}\label{dhaddr}
+
+\texttt{DHADDR} is the data address bus. Its size is determined by
+\texttt{PHYS\_ADDR\_SIZE}.
+
+\subsection{DHRDATA}\label{dhrdata}
+
+\texttt{DHRDATA} transfers the data from memory to the CPU. Its size is
+determined by \texttt{XLEN}.
+
+\subsection{DHWDATA}\label{dhwdata}
+
+\texttt{DHWDATA} transfers the data from the CPU to memory. Its size is
+determined by \texttt{XLEN}.
+
+\subsection{DHWRITE}\label{dhwrite}
+
+\texttt{DHWRITE} indicates whether the current transfer is a read or a write
+transfer. It is asserted (`1') during a write and negated (`0') during a
+read transfer.
+
+\subsection{DHSIZE}\label{dhsize}
+
+The data transfer size is indicated by DHSIZE. Its value depends on the
+\texttt{XLEN} parameter and if the current transfer is a cache-line
+fill/write-back or a non-cacheable data transfer.
+
+\begin{longtable}[]{@{}clp{7.5cm}@{}}
+\toprule
+\texttt{DHSIZE} & Type & Description\tabularnewline
+\midrule
+\endhead
+\texttt{000}   & Byte     & Non-cacheable data transfer\tabularnewline
+\texttt{001}   & Halfword & Non-cacheable data transfer\tabularnewline
+\texttt{010}   & Word     & Non-cacheable data transfer\tabularnewline
+\texttt{011}   & Dword    & Non-cacheable data transfer\tabularnewline
+\texttt{1-\/-} &          & Cache line fill. The actual size depends on the Instruction cache parameters and \texttt{XLEN}\tabularnewline
+\bottomrule
+\caption{Supported DHSIZE Values}
+\label{tab:dhsize-values}
+\end{longtable}
+
+\subsection{DHBURST}\label{dhburst}
+
+The instruction burst type indicates if the transfer is a single
+transfer or part of a burst.
+
+\begin{longtable}[]{@{}ccl@{}}
+\toprule
+\texttt{DHBURST} & Type & Description\tabularnewline
+\midrule
+\endhead
+000 & Single & Single transfer. E.g. non-cacheable
+read/write\tabularnewline
+001 & INCR   & \emph{Not used}\tabularnewline
+010 & WRAP4  & 4-beat wrapping burst\tabularnewline
+011 & INCR4  & \emph{Not used}\tabularnewline
+100 & WRAP8  & 8-beat wrapping burst\tabularnewline
+101 & INCR8  & \emph{Not used}\tabularnewline
+110 & WRAP16 & 16-bear wrapping burst\tabularnewline
+111 & INCR16 & \emph{Not used}\tabularnewline
+\bottomrule
+\caption{Supported DHBURST Values}
+\label{tab:dhburst-values}
+\end{longtable}
+
+
+\subsection{DHPROT}\label{dhprot}
+
+The data protection signals provide information about the bus transfer.
+They are intended to implement some level of protection.
+
+\begin{longtable}[]{@{}ccl@{}}
+\toprule
+Bit\# & Value & Description\tabularnewline
+\midrule
+\endhead
+3 & 1 & Cacheable region addressed\tabularnewline
+  & 0 & Non-cacheable region addressed\tabularnewline
+2 & 1 & Bufferable\tabularnewline
+  & 0 & Non-bufferable\tabularnewline
+1 & 1 & Privileged access. CPU is not in User Mode\tabularnewline
+  & 0 & User access. CPU is in User Mode\tabularnewline
+0 & 1 & Data transfer, always `1'\tabularnewline
+\bottomrule
+\caption{Supported DHPROT Values}
+\label{tab:dhprot-values}
+\end{longtable}
+
+\subsection{DHTRANS}\label{dhtrans}
+
+\texttt{DHTRANS} indicates the type of the current data transfer.
+
+\begin{longtable}[]{@{}ccl@{}}
+\toprule
+\texttt{DHTRANS} & Type & Description\tabularnewline
+\midrule
+\endhead
+00 & IDLE   & No transfer required\tabularnewline
+01 & BUSY   & \emph{Not used}\tabularnewline
+10 & NONSEQ & First transfer of an data burst\tabularnewline
+11 & SEQ    & Remaining transfers of an data burst\tabularnewline
+\bottomrule
+\caption{Supported DHTRANS Values}
+\label{tab:dhtrans-values}
+\end{longtable}
+
+\subsection{DHMASTLOCK}\label{dhmastlock}
+
+The data master lock signal indicates if the current transfer is part of
+a locked sequence, commonly used for Read-Modify-Write cycles. The data
+master lock is always negated (`0').
+
+\subsection{DHREADY}\label{dhready}
+
+\texttt{DHREADY} indicates whether the addressed slave is ready to transfer data
+or not. When \texttt{DHREADY} is negated (`0') the slave is not ready, forcing
+wait states. When \texttt{DHREADY} is asserted (`0') the slave is ready and the
+transfer completed.
+
+\subsection{DHRESP}\label{dhresp}
+
+\texttt{DHRESP} is the data transfer response; it can either be \texttt{OKAY} (`0') or
+\texttt{ERROR} (`1'). An error response causes a Bus Error exception.
+
+\section{Interrupts}\label{interrupts}
+
+The RV12 supports multiple external interrupts and is designed to
+operate in conjunction with an external Platform Level Interrupt
+Controller (PLIC) as defined in Chapter 7 of the RISC-V Privilege Level
+specification v1.9.1.
+
+Dedicated pins on the RV12 core present the interrupt to the CPU which
+then expects the Identifier of the Source Interrupt to be presented by
+the PLIC at the appropriate interrupt vector upon a claim of the
+interrupt.
+
+\begin{longtable}[]{@{}cccl@{}}
+\toprule
+Port & Size & Direction & Description\tabularnewline
+\midrule
+\endhead
+EXT\_NMI  & 1 & Input & Non-Maskable Interrupt\tabularnewline
+EXT\_TINT & 1 & Input & Timer Interrupt\tabularnewline
+EXT\_SINT & 1 & Input & Software Interrupt\tabularnewline
+EXT\_INT  & 4 & Input & External Interrupts\tabularnewline
+\bottomrule
+\caption{Interrupts Supported}
+\label{tab:int-support}
+\end{longtable}
+
+\subsection{EXT\_NMI}\label{ext_nmi}
+
+The RV12 supports a single external non-maskable interrupt, accessible
+in Machine Mode only. The interrupt vector for \texttt{EXT\_NMI} is defined as an
+RV12 core parameter \texttt{MNMIVEC\_DEFAULT} (see section \ref{core-parameters} )
+
+\subsection{EXT\_TINT}\label{ext_tint}
+
+The RV12 supports a single Machine-Mode timer interrupt \texttt{EXT\_TINT}.
+
+The interrupt may be delegated to other operating modes via software
+manipulation of \texttt{mip} and \texttt{sip} registers.
+Alternatively, higher performance interrupt redirection may be
+implemented via use of the \texttt{mideleg} and \texttt{sideleg} configuration registers
+
+\ifdefined\MARKDOWN
+% Skip Row
+\else
+(See sections \ref{machine-exception-interrupt-delegation-registers-medeleg-mideleg} and \ref{supervisor-trap-delegation-registers-sedeleg-sideleg} ).
+\fi
+
+The interrupt vector used to service the interrupt is determined based
+on the mode the interrupt is delegated to via the \texttt{MTVEC\_DEFAULT},
+\texttt{STVEC\_DEFAULT} and \texttt{UTVEC\_DEFAULT} parameters.
+
+\subsection{EXT\_SINT}\label{ext_sint}
+
+The RV12 supports a single Machine-Mode timer interrupt \texttt{EXT\_SINT}.
+
+The interrupt may be delegated to other operating modes via software
+manipulation of \texttt{mip} and \texttt{sip} registers.
+Alternatively, higher performance interrupt redirection may be
+implemented via use of the \texttt{mideleg} and \texttt{sideleg} configuration registers
+
+\ifdefined\MARKDOWN
+% Skip Row
+\else
+(See sections \ref{machine-exception-interrupt-delegation-registers-medeleg-mideleg} and \ref{supervisor-trap-delegation-registers-sedeleg-sideleg} ).
+\fi
+
+The interrupt vector used to service the interrupt is determined based
+on the mode the interrupt is delegated to via the \texttt{MTVEC\_DEFAULT},
+\texttt{STVEC\_DEFAULT} and \texttt{UTVEC\_DEFAULT} parameters.
+
+\subsection{EXT\_INT}\label{ext_int}
+
+RV12 supports one general-purpose external interrupt input per operating
+mode, as defined in Table \ref{tab:external-interrupt-inputs}:
+
+\begin{longtable}[]{@{}lcl@{}}
+\toprule
+Interrupt & Priority & Mode Supported\tabularnewline
+\midrule
+\endhead
+EXT\_INT[3] & 3 & Machine Mode\tabularnewline
+EXT\_INT[2] & 2 & Reserved\tabularnewline
+EXT\_INT[1] & 1 & Supervisor Mode\tabularnewline
+EXT\_INT[0] & 0 & User Mode\tabularnewline
+\bottomrule
+\caption{External Interrupt Inputs}
+\label{tab:external-interrupt-inputs}
+\end{longtable}
+
+Each interrupt will be serviced by the operating mode it corresponds to,
+or alternatively a higher priority mode depending on the system
+configuration and specific operating conditions at the time the
+interrupt is handled. This includes if interrupt delegation is enabled,
+if a specific is implemented, or the specific operating mode at the time
+of servicing for example.
+
+Notes:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\item
+  An external interrupt will never be serviced by a lower priority mode
+  than that corresponding to the input pin. For example, an interrupt
+  presented to \texttt{EXT\_INT{[}1{]}} -- corresponding to supervisor mode --
+  cannot be serviced by a user mode ISR.
+\item
+  Conversely, Machine Mode may service interrupts arriving on any of the
+  interrupt inputs due to it have the highest priority.
+\end{enumerate}

@@ -1,0 +1,30 @@
+%
+% LaTeX Root for PDF/HTML Build
+%
+\documentclass[a4paper,oneside,11pt,openany]{book}
+
+% Load Packages and Document Format
+\input{tex/preamble}
+\input{tex/00-setup.tex}
+
+\begin{document}
+
+	\frontmatter
+	\maketitle
+	\tableofcontents
+	% \listoftodos
+
+	\mainmatter
+
+	\input{tex/01-product-brief.tex}
+	\input{tex/02-introduction.tex}
+	\input{tex/03-pipeline.tex}
+	\input{tex/04-configurations.tex}
+	\input{tex/05-csrs.tex}
+	\input{tex/06-external-if.tex}
+	\input{tex/07-debug.tex}
+	\input{tex/08-resources.tex}
+	\input{tex/09-references.tex}
+	\input{tex/10-history.tex}
+
+\end{document}
