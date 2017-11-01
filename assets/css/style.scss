@@ -3,69 +3,63 @@
 
 @import "{{ site.theme }}";
 
-body {
-	background-color: #FFFFFF;
-}
+/* General Format Updates */
+body { background-color: #FFFFFF; }
+
+p, ul, ol, table, dl { margin-bottom: 15px; }
+
+code, pre { font-size: 12px; }
+
+a { color: #050692; } /* Roa Logic Blue for Links */
 
 /* Add Roa Logic Font */
-h1, h2, h3 {
-	font-family: Montserrat, Monaco, serif;
-}
+h1, h2, h3, h4, h5, h6 { font-family: Montserrat, Monaco, serif; }
 
-h4, h5, h6 {
-	font-family: Montserrat, Monaco, serif;
-	font-weight: 700;
-}
+h4, h5, h6 { font-weight: 700; }
 
-th {
-  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-}
+th { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; }
 
-h1.header {
- 	font-family: Montserrat, sans-serif;
-}
+h1.header { font-family: Montserrat, sans-serif; }
 
-/* Roa Logic Blue for Links */
-a {
-    color: #050692;
-}
+/*
+ * Page Section Updates
+ */
+
 
 /* Reduce left margin by 10px */
 header {
-	padding: 34px 25px 22px 40px;
-	background-color: #159957;
-	background-image: linear-gradient(120deg, #155799, #159957);
-	-webkit-border-radius: 4px;
-	-moz-border-radius: 4px;
-	border-radius: 4px;
-	border: 0px;
-	margin: 30px 25px;
+  padding: 34px 25px 22px 40px;
+  background-color: #159957;
+  background-image: linear-gradient(120deg, #155799, #159957);
+  -webkit-border-radius: 4px;
+  -moz-border-radius: 4px;
+  border-radius: 4px;
+  border: 0px;
+  margin: 30px 25px;
 }
 
-footer {
-	padding-left: 40px;
-}
+footer { text-align: center; }
 
 /* Recolour Buttons (Roa Logic Blue) */
 header li {
-	background: #0506CF;
-	background: -moz-linear-gradient(top, #0506CF 0%, #050692 100%);
+  background: #0506CF;
+  background: -moz-linear-gradient(top, #0506CF 0%, #050692 100%);
   background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#f8f8f8), color-stop(100%,#dddddd));
   background: -webkit-linear-gradient(top, #0506CF 0%,#050692 100%);
   background: -o-linear-gradient(top, #0506CF 0%,#050692 100%);
   background: -ms-linear-gradient(top, #0506CF 0%,#050692 100%);
   background: linear-gradient(top, #0506CF 0%,#050692 100%);
 
-	border-radius:4px;
+  border-radius:4px;
   border:1px solid #0D0D0D;
 
-	-webkit-box-shadow: inset 0px 1px 1px 0 rgba(0,102,204, 1);
-	box-shadow: inset 0px 1px 1px 0 rgba(0,102,204, 1);
+  -webkit-box-shadow: inset 0px 1px 1px 0 rgba(0,102,204, 1);
+  box-shadow: inset 0px 1px 1px 0 rgba(0,102,204, 1);
 
 }
 header li:hover {
-	background: #0066CC;
-	background: -moz-linear-gradient(top, #0066CC 0%, #004080 100%);
+  background: #0066CC;
+  background: -moz-linear-gradient(top, #0066CC 0%, #004080 100%);
   background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#f8f8f8), color-stop(100%,#dddddd));
   background: -webkit-linear-gradient(top, #0066CC 0%,#004080 100%);
   background: -o-linear-gradient(top, #0066CC 0%,#004080 100%);
@@ -75,15 +69,9 @@ header li:hover {
 
 /* Format Logo in Header */
 p.logo {
-	/*background-color: #F7F7F7;
-	border: 1px solid #000;*/
-	-webkit-border-radius: 4px;
-	-moz-border-radius: 4px;
-	border-radius: 4px;
-	margin: 0px 10px 10px 0px;
-	padding: 5px;
+  -webkit-border-radius: 4px;
+  -moz-border-radius: 4px;
+  border-radius: 4px;
+  margin: 0px 10px 0px 10px;
 }
 
-code, pre {
-    font-size: 12px;
-}
