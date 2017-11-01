@@ -1,0 +1,33 @@
+% Load Roalogic Title Page Generator
+\usepackage{pkg/roalogictitle}
+
+\graphicspath{ {./assets/img/} }
+
+% Document Variables
+
+\title{RV12 RISC-V 32/64-bit CPU Core}
+\heading{RV12 RISC-V CPU Core}
+\author{Roa Logic}
+\date{01-Nov-2017}
+\version{1.1}
+\doctype{Datasheet}
+\project{http://roalogic.github.io/RV12}
+\author{Paul Hardy}
+
+ % Set page headers/footer
+\pagestyle{fancy}
+\fancyhf{}
+%\fancyfoot[CE,CO]{\thepage}
+%\fancyhead[LE,RO]{RV12 RISC-V 32/64-bit CPU Core}
+%\fancyhead[RE,LO]{\textcircled{c} Roa Logic}
+\fancyhead[L]{\theheading\space(v\theversion)}
+\fancyhead[R]{\includegraphics[width=50px,trim=0 25px 0 0]{assets/img/RoaLogicHeader}}
+\fancyfoot[C]{\thepage}
+
+%\newcommand*{\MARKDOWN}{}%
+
+% \ifdefined\DEBUG
+%     DEBUG was on
+% \else
+%    DEBUG was off
+% \fi

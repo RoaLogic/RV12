@@ -1,0 +1,385 @@
+\chapter{Configurations}\label{configurations}
+
+\section{Introduction}\label{introduction-1}
+
+The RV12 is a highly configurable 32 or 64bit RISC CPU. The core parameters and
+configuration options are described in this section.
+
+\section{Core Parameters}\label{core-parameters}
+
+\begin{longtable}[]{@{}lccp{6cm}@{}}
+\toprule
+	Parameter & Type & Default & Description\tabularnewline
+\midrule
+
+\ifdefined\MARKDOWN
+	\endhead
+\else
+	\endfirsthead
+
+	\multicolumn{4}{c}{{(Continued from previous page)}} \\
+	\toprule
+		Parameter & Type & Default & Description\tabularnewline
+	\midrule
+	\endhead
+
+	\midrule \multicolumn{4}{c}{{\tablename\ \thetable{} continued on next page\ldots}} \\
+	\endfoot
+	\endlastfoot
+\fi
+
+\texttt{XLEN}                 & Integer & 32                      & Datapath width\tabularnewline
+\texttt{PC\_INIT}             & Address & \texttt{h200}           & Program Counter Initialisation Vector\tabularnewline
+\texttt{PHYS\_ADDR\_SIZE}     & Integer & \texttt{XLEN}           & Physical Address Size\tabularnewline
+\texttt{HAS\_USER}            & Integer & 0                       & User Mode Enable\tabularnewline
+\texttt{HAS\_SUPER}           & Integer & 0                       & Supervisor Mode Enable\tabularnewline
+\texttt{HAS\_HYPER}           & Integer & 0                       & Hypervisor Mode Enable\tabularnewline
+\texttt{HAS\_MULDIV}          & Integer & 0                       & ``M'' Extension Enable\tabularnewline
+\texttt{HAS\_AMO}             & Integer & 0                       & ``A'' Extension Enable\tabularnewline
+\texttt{HAS\_RVC}             & Integer & 0                       & ``C'' Extension Enable\tabularnewline
+\texttt{HAS\_BPU}             & Integer & 1                       & Branch Prediction Unit Control Enable\tabularnewline
+\texttt{IS\_RV32E}            & Integer & 0                       & RV32E Base Integer Instruction Set Enable\tabularnewline
+\texttt{MULT\_LATENCY}        & Integer & 0                       & Hardware Multiplier Latency (if ``M'' Extension enabled)\tabularnewline
+\texttt{BP\_LOCAL\_BITS}      & Integer & 10                      & Number of local predictor bits\tabularnewline
+\texttt{BP\_GLOBAL\_BITS}     & Integer & 2                       & Number of global predictor bits\tabularnewline
+\texttt{HARTID}               & Integer & 0                       & Hart Identifier\tabularnewline
+\texttt{ICACHE\_SIZE}         & Integer & 16                      & Instruction Cache size in Kbytes\tabularnewline
+\texttt{ICACHE\_BLOCK\_SIZE}  & Integer & 32                      & Instruction Cache block length in bytes\tabularnewline
+\texttt{ICACHE\_WAYS}         & Integer & 2                       & Instruction Cache associativity\tabularnewline
+\texttt{ICACHE\_REPLACE\_ALG} & Integer & 0                       & Instruction Cache replacement algorithm
+\newline0: Random
+\newline1: FIFO
+\newline2: LRU\tabularnewline
+\texttt{DCACHE\_SIZE}         & Integer & 16                      & Data Cache size in Kbytes\tabularnewline
+\texttt{DCACHE\_BLOCK\_SIZE}  & Integer & 32                      & Data Cache block length in bytes\tabularnewline
+\texttt{DCACHE\_WAYS}         & Integer & 2                       & Data Cache associativity\tabularnewline
+\texttt{DCACHE\_REPLACE\_ALG} & Integer & 0                       & Data Cache replacement algorithm
+\newline0: Random
+\newline1: FIFO
+\newline2: LRU\tabularnewline
+\texttt{BREAKPOINTS}          & Integer & 3                       & Number of hardware breakpoints\tabularnewline
+\texttt{TECHNOLOGY}           & String  & \texttt{GENERIC}        & Target Silicon Technology\tabularnewline
+\texttt{MNMIVEC\_DEFAULT}     & Address & \texttt{PC\_INIT-`h004} & Machine Mode Non-Maskable Interrupt vector address\tabularnewline
+\texttt{MTVEC\_DEFAULT}       & Address & \texttt{PC\_INIT-`h040} & Machine Mode Interrupt vector address\tabularnewline
+\texttt{HTVEC\_DEFAULT}       & Address & \texttt{PC\_INIT-`h080} & Hypervisor Mode Interrupt vector address\tabularnewline
+\texttt{STVEC\_DEFAULT}       & Address & \texttt{PC\_INIT-`h0C0} & Supervisor Mode Interrupt vector address\tabularnewline
+\texttt{UTVEC\_DEFAULT}       & Address & \texttt{PC\_INIT-`h100} & User Mode Interrupt vector address\tabularnewline
+\bottomrule
+\caption{IP Core Configuration}
+\label{tab:ip-core-configuration}
+\end{longtable}
+
+
+\subsection{XLEN}\label{xlen}
+
+The \texttt{XLEN} parameter specifies the width of the data path. Allowed values
+are either 32 or 64, for a 32bit or 64bit CPU respectively.
+
+\subsection{PC\_INIT}\label{pc_init}
+
+The \texttt{PC\_INIT} parameter specifies the initialization vector of the
+Program Counter; i.e. the boot address, which by default is defined as address
+`h200
+
+\subsection{PHYS\_ADDR\_SIZE}\label{phys_addr_size}
+
+The \texttt{PHYS\_ADDR\_SIZE} parameter specifies the physical address space the
+CPU can address. This parameter must be equal or less than XLEN. Using fewer
+bits for the physical address reduces internal and external resources.
+Internally the CPU still uses \texttt{XLEN}, but only the
+\texttt{PHYS\_ADDR\_SIZE} LSBs are used to address the caches and the external
+buses.
+
+\subsection{HAS\_USER}\label{has_user}
+
+The \texttt{HAS\_USER} parameter defines if User Privilege Level is enabled
+(`1') or disabled (`0'). The default value is disabled (`0').
+
+\subsection{HAS\_SUPER}\label{has_super}
+
+The \texttt{HAS\_SUPER} parameter defines if Supervisor Privilege Level is
+enabled (`1') or disabled (`0'). The default value is disabled (`0').
+
+\subsection{HAS\_HYPER}\label{has_hyper}
+
+The \texttt{HAS\_HYPER} parameter defines if Hypervisor Privilege Level is
+enabled (`1') or disabled (`0'). The default value is disabled (`0').
+
+\subsection{HAS\_MULDIV}\label{has_muldiv}
+
+The \texttt{HAS\_MULDIV} parameter defines if the ``M'' Standard Extension for
+Integer Multiplication and Division is enabled (`1') or disabled (`0').
+The default value is disabled (`0').
+
+\subsection{HAS\_AMO}\label{has_amo}
+
+The \texttt{HAS\_AMO} parameter defines if the ``A'' Standard Extension for
+Atomic Memory Instructions is enabled (`1') or disabled (`0'). The
+default value is disabled (`0').
+
+\subsection{HAS\_RVC}\label{has_rvc}
+
+The \texttt{HAS\_RVC} parameter defines if the ``C'' Standard Extension for
+Compressed Instructions is enabled (`1') or disabled (`0'). The default
+value is disabled (`0').
+
+\subsection{HAS\_BPU}\label{has_bpu}
+
+The CPU has an optional Branch Prediction Unit that can reduce the branch
+penalty considerably by prediction if a branch is taken or not taken. The
+\texttt{HAS\_BPU} parameter specifies if the core should generate a branch-
+predictor. Setting this parameter to 0 prevents the core from generating a
+branch-predictor. Setting this parameter to 1 instructs the core to generate a
+branch-predictor. The type and size of the branch-predictor is determined by the
+\texttt{BP\_GLOBAL\_BITS} and \texttt{BP\_LOCAL\_BITS} parameters.
+
+\ifdefined\MARKDOWN
+See branch prediction unit section for more details.
+\else
+See section \ref{branch-prediction-unit} \nameref{branch-prediction-unit} for more details.
+\fi
+
+\subsection{IS\_RV12E}\label{is_rv12e}
+
+RV12 supports the RV32E Base Integer Instruction Set, Version 1.9. RV32E is a
+reduced version of RV32I designed for embedded systems, reducing the number of
+integer registers to 16. The \texttt{IS\_RV12E} parameter determines if this
+feature is enabled (`1') or disabled (`0'). The default value is disabled (`0').
+
+\subsection{MULT\_LATENCY}\label{mult_latency}
+
+If the ``M'' Standard Extension for Integer Multiplication and Division is
+enabled via the \texttt{HAS\_MULDIV} parameter (\texttt{HAS\_MULDIV=1} See
+section 4.2.7), a hardware multiplier will be generated to support these
+instructions. By default (i.e. when \texttt{MULT\_LATENCY=0}) the generated
+multiplier will be built as a purely combinatorial function.
+
+The performance of the hardware multiplier may be improved at the expense of
+increased latency of 1, 2 or 3 clock cycles by defining \texttt{MULT\_LATENCY}
+to 1, 2 or 3 respectively.
+
+If the ``M'' Standard Extension is \emph{not} enabled (\texttt{HAS\_MULDIV=0})
+then the MULT\_LATENCY parameter has no effect on the RV12
+implementation.
+
+\subsection{BPU\_LOCAL\_BITS}\label{bpu_local_bits}
+
+The CPU has an optional Branch Prediction Unit that can reduce the branch
+penalty considerably by prediction if a branch is taken or not taken. The
+\texttt{BPU\_LOCAL\_BITS} parameter specifies how many bits from the program
+counter should be used for the prediction.
+
+This parameter only has an effect if \texttt{HAS\_BPU=1}.
+
+\ifdefined\MARKDOWN
+See branch prediction unit section for more details.
+\else
+See section \ref{branch-prediction-unit} \nameref{branch-prediction-unit} for more details.
+\fi
+
+\subsection{BPU\_GLOBAL\_BITS}\label{bpu_global_bits}
+
+The CPU has an optional Branch Prediction Unit that can reduce the branch
+penalty considerably by prediction if a branch is taken or not-taken. The
+\texttt{BPU\_GLOBAL\_BITS} parameter specifies how many history bits should be
+used for the prediction.
+
+This parameter only has an effect if \texttt{HAS\_BPU=1}.
+
+\ifdefined\MARKDOWN
+See branch prediction unit section for more details.
+\else
+See section \ref{branch-prediction-unit} \nameref{branch-prediction-unit} for more details.
+\fi
+
+\subsection{HARTID}\label{hartid}
+
+The RV12 is a single thread CPU, for which each instantiation requires a hart
+identifier (\texttt{HARTID}), which must be unique within the overall system.
+The default \texttt{HARTID} is 0, but may be set to any integer.
+
+\subsection{ICACHE\_SIZE}\label{icache_size}
+
+The CPU has an optional instruction cache. The \texttt{ICACHE\_SIZE} parameter
+specifies the size of the instruction cache in Kbytes. Setting this parameter to
+0 prevents the core from generating an instruction cache.
+
+\ifdefined\MARKDOWN
+See instruction cache section for more details.
+\else
+See section \ref{instruction-cache} \nameref{instruction-cache} for more details.
+\fi
+
+
+\subsection{ICACHE\_BLOCK\_LENGTH}\label{icache_block_length}
+
+The CPU has an optional instruction cache. The \texttt{ICACHE\_BLOCK\_LENGTH}
+parameter specifies the number of bytes in one cache block.
+
+\ifdefined\MARKDOWN
+See instruction cache section for more details.
+\else
+See section \ref{instruction-cache} \nameref{instruction-cache} for more details.
+\fi
+
+\subsection{ICACHE\_WAYS}\label{icache_ways}
+
+The CPU has an optional instruction cache. The \texttt{ICACHE\_WAYS} parameter
+specifies the associativity of the cache. Setting this parameter to 1 generates
+a direct mapped cache, setting it to 2 generates a 2-way set associative cache,
+setting it to 4 generates a 4-way set associative cache, etc.
+
+\ifdefined\MARKDOWN
+See instruction cache section for more details.
+\else
+See section \ref{instruction-cache} \nameref{instruction-cache} for more details.
+\fi
+See section \ref{instruction-cache} \nameref{instruction-cache} for more details.
+
+\subsection{ICACHE\_REPLACE\_ALG}\label{icache_replace_alg}
+
+The CPU has an optional instruction cache. The \texttt{ICACHE\_REPLACE\_ALG}
+parameter specifies the algorithm used to select which block will be
+replaced during a block-fill.
+
+\ifdefined\MARKDOWN
+See instruction cache section for more details.
+\else
+See section \ref{instruction-cache} \nameref{instruction-cache} for more details.
+\fi
+See section \ref{instruction-cache} \nameref{instruction-cache} for more details.
+
+\subsection{DCACHE\_SIZE}\label{dcache_size}
+
+The CPU has an optional data cache. The DCACHE\_SIZE parameter specifies the
+size of the instruction cache in Kbytes. Setting this parameter to `0' prevents
+the core from generating a data cache.
+
+\ifdefined\MARKDOWN
+See data cache section for more details.
+\else
+See section \ref{data-cache} \nameref{data-cache} for more details.
+\fi
+
+\subsection{DCACHE\_BLOCK\_LENGTH}\label{dcache_block_length}
+
+The CPU has an optional data cache. \texttt{The DCACHE\_BLOCK\_LENGTH} parameter
+specifies the number of bytes in one cache block.
+
+\ifdefined\MARKDOWN
+See data cache section for more details.
+\else
+See section \ref{data-cache} \nameref{data-cache} for more details.
+\fi
+
+\subsection{DCACHE\_WAYS}\label{dcache_ways}
+
+The CPU has an optional data cache. The \texttt{DCACHE\_WAYS} parameter
+specifies the associativity of the cache. Setting this parameter to 1 generates
+a direct mapped cache, setting it to 2 generates a 2-way set associative cache,
+setting it to 4 generates a 4-way set associative cache, etc.
+
+\ifdefined\MARKDOWN
+See data cache section for more details.
+\else
+See section \ref{data-cache} \nameref{data-cache} for more details.
+\fi
+
+\subsection{DCACHE\_REPLACE\_ALG}\label{dcache_replace_alg}
+
+The CPU has an optional instruction cache. The \texttt{DCACHE\_REPLACE\_ALG}
+parameter specifies the algorithm used to select which block will be
+replaced during a block-fill.
+
+\ifdefined\MARKDOWN
+See data cache section for more details.
+\else
+See section \ref{data-cache} \nameref{data-cache} for more details.
+\fi
+
+\subsection{BREAKPOINTS}\label{breakpoints}
+
+The CPU has a debug unit that connects to an external debug controller.
+The \texttt{BREAKPOINTS} parameter specifies the number of implemented hardware
+breakpoints. The maximum is 8.
+
+\subsection{TECHNOLOGY}\label{technology}
+
+The \texttt{TECHNOLOGY} parameter defines the target silicon technology and may
+be one of the following values:
+
+\begin{longtable}[]{@{}cl@{}}
+\toprule
+Parameter Value & Description\tabularnewline
+\midrule
+\endhead
+\texttt{GENERIC} & Behavioural Implementation\tabularnewline
+\texttt{N3X} & eASIC Nextreme-3 Structured ASIC\tabularnewline
+\texttt{N3XS} & eASIC Nextreme-3S Structured ASIC\tabularnewline
+\bottomrule
+\caption{Supported Technology Targets}
+\label{tab:supported-tech-targets}
+
+\end{longtable}
+
+Note: the parameter value is not case-sensitive.
+
+\subsection{MNMIVEC\_DEFAULT}\label{mnmivec_default}
+
+The \texttt{MNMIVEC\_DEFAULT} parameter defines the Machine Mode non-maskable
+interrupt vector address. The default vector is defined relative to the
+Program Counter Initialisation vector \texttt{PC\_INIT} as follows:
+
+\texttt{MNMIVEC\_DEFAULT = PC\_INIT - 'h004}
+
+\subsection{MTVEC\_DEFAULT}\label{mtvec_default}
+
+The \texttt{MTVEC\_DEFAULT} parameter defines the interrupt vector address for
+the Machine Privilege Level. The default vector is defined relative to
+the Program Counter Initialisation vector \texttt{PC\_INIT} as follows:
+
+\texttt{MTVEC\_DEFAULT = PC\_INIT - 'h040}
+
+\subsection{HTVEC\_DEFAULT}\label{htvec_default}
+
+The \texttt{HTVEC\_DEFAULT} parameter defines the interrupt vector address for
+the Hypervisor Privilege Level. The default vector is defined relative
+to the Program Counter Initialisation vector \texttt{PC\_INIT} as follows:
+
+\texttt{HTVEC\_DEFAULT = PC\_INIT - 'h080}
+
+\subsection{STVEC\_DEFAULT}\label{stvec_default}
+
+The \texttt{STVEC\_DEFAULT} parameter defines the interrupt vector address for
+the Supervisor Privilege Level. The default vector is defined relative
+to the Program Counter Initialisation vector \texttt{PC\_INIT} as follows:
+
+\texttt{STVEC\_DEFAULT = PC\_INIT - 'h0C0}
+
+\subsection{UTVEC\_DEFAULT}\label{utvec_default}
+
+The \texttt{UTVEC\_DEFAULT} parameter defines the interrupt vector address for
+the User Privilege Level. The default vector is defined relative to the
+Program Counter Initialisation vector \texttt{PC\_INIT} as follows:
+
+\texttt{UTVEC\_DEFAULT = PC\_INIT - 'h100}
+
+\section{Non User-Modifiable Parameters} \label{non-user-modifiable-parameters}
+
+The RV12 features a number of parameters that are not intended to be
+modified in a user design. For completeness these parameters and their
+defined values are specified below:
+
+\begin{longtable}[]{@{}llcl@{}}
+\toprule
+Parameter         & Type        & Value                                 & Description\tabularnewline
+\midrule
+\endhead
+\texttt{VENDORID} & Vector (16) & 16'H0001                              & Roa Logic Vendor ID\tabularnewline
+\texttt{ARCHID}   & Vector (16) & 1\textless\textless XLEN \textbar\ 12 & RV12 Architecture ID\tabularnewline
+\texttt{REVMAJOR} & Vector (4)  & 4'h0                                  & RV12 Major Revision Number\tabularnewline
+\texttt{REVMINOR} & Vector (4)  & 4'h0                                  & RV12 Minor Revision Number\tabularnewline
+\bottomrule
+\caption{Non-Modifiable Parameters}
+\label{tab:nonmod-parameters}
+\end{longtable}
