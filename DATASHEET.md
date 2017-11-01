@@ -8,7 +8,6 @@ Author: Roa Logic
 
 -   [Product Brief](#product-brief)
 -   [Introduction to the RV12](#introduction-to-the-rv12)
--   [RV12 Execution Pipeline](#rv12-execution-pipeline)
 -   [Configurations](#configurations)
 -   [Control & Status Registers](#control-status-registers)
 -   [External Interfaces](#external-interfaces)
@@ -142,7 +141,7 @@ The RV12 can execute one instruction every clock cycle. However due to the pipel
 
 Instead of waiting the processor predicts the branch’s outcome and continues fetching instructions from the predicted address. When a branch is predicted wrong, the processor must flush its pipeline and restart fetching from the calculated branch address. The processor’s state is not affected because the pipeline is flushed and therefore none of the incorrectly fetched instructions is actually executed. However the branch prediction may have forced the Instruction Cache to load new instructions. The Instruction Cache state is NOT restored, meaning the predicted instructions remain in the Instruction Cache.
 
-The RV12 has an optional Branch Prediction Unit (BPU) that stores historical data to guide the processor in deciding if a particular branch is taken or not-taken. The BPU data is updated as soon as the branch executes.
+The RV12 has an optional Branch Prediction Unit (BPU) that stores historical data to guide the processor in deciding if a particular branch is taken or not- taken. The BPU data is updated as soon as the branch executes.
 
 The BPU has a number of parameters that determine its behavior. `HAS_BPU` determines if a BPU is present, `BPU_LOCAL_BITS` determines how many of the program counter’s LSB must be used and `BPU_GLOBAL_BITS` determines how many history bits must be used.
 
@@ -181,123 +180,6 @@ The RV12 has a single integer pipeline that can execute one instruction per cycl
 ### Register File
 
 The Register File is made up of 32 register locations (X0-X31) each XLEN bits wide. Register X0 is always zero. The Register File has two read ports and one write port.
-
-## RV12 Execution Pipeline
-
-The RV12 implements a 32/64bit Integer modified form of the classic RISC pipeline. The pipeline consists of the Instruction Fetch, Pre-Decode, Instruction Decode, Execution, and Write Back stages as highlighted in the figure below.
-
-![RV12 Execution Pipeline](assets/img/Pipeline-Overview.png)
-
-### Instruction Fetch (IF)
-
-![Instruction Fetch Stage Implementation](assets/img/Pipeline-IF.png)
-
-The Instruction Fetch unit loads a new parcel from the program memory. A parcel is a code field that contains one or more instructions. The address of the parcel to load is held by the Program Counter (PC). The Program Counter is either 32 or 64bits wide, depending on the XLEN parameter. The Program Counter is updated whenever the Instruction Pipeline is not stalled.
-
-In case the pipeline must be flushed the Program Counter is restarted from the given address.
-
-| **Signal**     | **Direction** |  **To/From**  | **Description**                              |
-|:---------------|:-------------:|:-------------:|:---------------------------------------------|
-| `if_nxt_pc`    |       to      | Bus Interface | Next address to fetch parcel from            |
-| `parcel_pc`    |      from     | Bus Interface | Fetch parcel’s address                       |
-| `parcel_valid` |      from     | Bus Interface | Valid indicators for parcel                  |
-| `parcel`       |      from     | Bus Interface | Fetched parcel                               |
-|                |               |               |                                              |
-| `Flush`        |      from     |    EX/State   | When asserted flushes the pipe               |
-| `Stall`        |      from     |       PD      | When asserted stalls the pipe                |
-| `pd_branch_pc` |      from     |       PD      | New program counter for a branch instruction |
-| `if_pc`        |       to      |       PD      | Instruction Fetch program counter            |
-| `if_instr`     |       to      |       PD      | Instruction Fetch instruction                |
-| `if_bubble`    |       to      |       PD      | Instruction Fetch bubble                     |
-
-### Pre-Decode (PD)
-
-The Pre-Decode unti translates 16-bit compressed instructions to the base 32bit RISC-V instructions and then processes Program Counter modifying instructions. Jump-And-Link and Branch instructions modify the Program Counter in the Instruction Fetch stage. This avoids waiting for the Execution stage to trigger the update and reduces the demand for pipeline flushes. The destination address for branches is predicted based on the data provided by the optional Branch Prediction Unit or determined statically based on the offset.
-
-![Instruction Pre-Decode Stage](assets/img/Pipeline-PD.png)
-
-| **Signal**     | **Direction** | **To/From** | **Description**                               |
-|:---------------|:-------------:|:-----------:|:----------------------------------------------|
-| `if_pc`        |      from     |      IF     | Instruction\_fetch program counter            |
-| `if_instr`     |      from     |      IF     | Instruction\_fetch instruction                |
-| `if_bubble`    |      from     |      IF     | Instruction\_fetch bubble                     |
-| `pd_branch_pc` |       to      |      IF     | New PC (for a branch instruction)             |
-|                |               |             |                                               |
-| `bu_predict`   |      from     |      BP     | Branch prediction from Branch Prediction Unit |
-| `pd_predict `  |       to      |      ID     | Forwarded branch prediction                   |
-| `pd_pc`        |       to      |      ID     | Pre-Decode program counter                    |
-| `pd_instr`     |       to      |      ID     | Pre-Decode instruction                        |
-| `pd_bubble`    |       to      |      ID     | Pre-Decode bubble                             |
-
-### Instruction Decode (ID)
-
-The Instruction Decode unit ensures the operands for the execution units are available. It accesses the Register File, calculates immediate values, and sets bypasses.
-
-![Instruction Decode Stage Implementation](assets/img/Pipeline-ID.png)
-
-| **Signal**   | **Direction** | **To/From** | **Description**                    |
-|:-------------|:-------------:|:-----------:|:-----------------------------------|
-| `pd_pc`      |      from     |      PD     | Pre-Decode program counter         |
-| `pd_instr`   |      from     |      PD     | Pre-Decode instruction             |
-| `pd_bubble`  |      from     |      PD     | Pre-Decode bubble                  |
-|              |               |             |                                    |
-| `src1`       |       to      |      RF     | Source Register1 index             |
-| `src2`       |       to      |      RF     | Source Register2 Index             |
-|              |               |             |                                    |
-| `id_bypassA` |       to      |      EX     | Bypass signals for srcA            |
-| `id_bypassB` |       to      |      EX     | Bypass signals for srcB            |
-| `id_opA`     |       to      |      EX     | Calculated operandA                |
-| `id_opB`     |       to      |      EX     | Calculated operandB                |
-| `id_pc`      |       to      |      EX     | Instruction Decode program counter |
-| `id_instr`   |       to      |      EX     | Instruction Decode instruction     |
-| `id_bubble`  |       to      |      EX     | Instruction Decode bubble          |
-
-### Execute (EX)
-
-The Execute stage performs the required operation on the data provided by the Instruction Decode stage. The Execution stage has multiple execution units, each with a unique function. The ALU performs logical and arithmetic operations. The Multiplier unit calculates signed/unsigned multiplications. The Divider unit calculates signed/unsigned division and remainder. The Load-Store Unit accesses the data memory. The Branch Unit calculates jump and branch addresses and validates the predicted branches.
-
-Only one operation can be executed per clock cycle. Most operations complete in one clock cycle, except for the divide instructions, which always take multiple clock cycles to complete. The multiplier supports configurable latencies, to improve performance.
-
-![Execute Stage Implementation](assets/img/Pipeline-EX.png)
-
-| **Signal**  | **Direction** | **To/From** | **Description**                    |
-|:------------|:-------------:|:-----------:|:-----------------------------------|
-| id\_pc      |      from     |      ID     | Instruction Decode program counter |
-| id\_instr   |      from     |      ID     | Instruction Decode instruction     |
-| id\_bubble  |      from     |      ID     | Instruction Decode bubble          |
-|             |               |             |                                    |
-| opA         |      from     |      RF     | Source Register1 value             |
-| opB         |      from     |      RF     | Source Register2 value             |
-|             |               |             |                                    |
-| id\_bypassA |      from     |      ID     | Bypass signals for srcA            |
-| id\_bypassB |      from     |      ID     | Bypass signals for srcB            |
-| id\_opA     |      from     |      ID     | Calculated operandA                |
-| id\_opB     |      from     |      ID     | Calculated operandB                |
-| ex\_stall   |       to      |      ID     | Stall ID (and higher) stages       |
-| ex\_flush   |       to      |   ID/PD/IF  | Flush ID (and higher) pipe stages  |
-| ex\_r       |       to      |      WB     | Result from execution units        |
-| ex\_pc      |       to      |      WB     | Execute program counter            |
-| ex\_instr   |       to      |      WB     | Execute instruction                |
-| ex\_bubble  |       to      |      WB     | Execute bubble                     |
-
-### Write-Back (WB)
-
-The Write-Back stage writes the results from the Execution Unit into the Register File.
-
-![Write-back Stage Implementation](assets/img/Pipeline-WB.png)
-
-| **Signal**  | **Direction** | **To/From** | **Description**             |
-|:------------|:-------------:|:-----------:|:----------------------------|
-| `ex_pc`     |      from     |      EX     | Execute program counter     |
-| `ex_instr`  |      from     |      EX     | Execute instruction         |
-| `ex_bubble` |      from     |      EX     | Execute bubble              |
-| `ex_r`      |      from     |      EX     | Result from execution units |
-|             |               |             |                             |
-| `wb_r`      |       to      |      RF     | Result to be written to RF  |
-| `wb_dst`    |       to      |      RF     | Destination register index  |
-| `wb_we`     |       to      |      RF     | Write enable                |
-| `wb_pc`     |       to      |      WB     | WriteBack program counter   |
-| `wb_instr`  |       to      |      WB     | WriteBack instruction       |
 
 ## Configurations
 
@@ -378,7 +260,7 @@ The `HAS_RVC` parameter defines if the “C” Standard Extension for Compressed
 
 #### HAS\_BPU
 
-The CPU has an optional Branch Prediction Unit that can reduce the branch penalty considerably by prediction if a branch is taken or not taken. The `HAS_BPU` parameter specifies if the core should generate a branch-predictor. Setting this parameter to 0 prevents the core from generating a branch-predictor. Setting this parameter to 1 instructs the core to generate a branch-predictor. The type and size of the branch-predictor is determined by the `BP_GLOBAL_BITS` and `BP_LOCAL_BITS` parameters.
+The CPU has an optional Branch Prediction Unit that can reduce the branch penalty considerably by prediction if a branch is taken or not taken. The `HAS_BPU` parameter specifies if the core should generate a branch- predictor. Setting this parameter to 0 prevents the core from generating a branch-predictor. Setting this parameter to 1 instructs the core to generate a branch-predictor. The type and size of the branch-predictor is determined by the `BP_GLOBAL_BITS` and `BP_LOCAL_BITS` parameters.
 
 See branch prediction unit section for more details.
 
@@ -512,12 +394,12 @@ The `UTVEC_DEFAULT` parameter defines the interrupt vector address for the User 
 
 The RV12 features a number of parameters that are not intended to be modified in a user design. For completeness these parameters and their defined values are specified below:
 
-| Parameter  | Type        |       Value      | Description                |
-|:-----------|:------------|:----------------:|:---------------------------|
-| `VENDORID` | Vector (16) |     16’H0001     | Roa Logic Vendor ID        |
-| `ARCHID`   | Vector (16) | 1&lt;&lt;XLEN 12 | RV12 Architecture ID       |
-| `REVMAJOR` | Vector (4)  |       4’h0       | RV12 Major Revision Number |
-| `REVMINOR` | Vector (4)  |       4’h0       | RV12 Minor Revision Number |
+| Parameter  | Type        |       Value       | Description                |
+|:-----------|:------------|:-----------------:|:---------------------------|
+| `VENDORID` | Vector (16) |      16’H0001     | Roa Logic Vendor ID        |
+| `ARCHID`   | Vector (16) | 1&lt;&lt;XLEN  12 | RV12 Architecture ID       |
+| `REVMAJOR` | Vector (4)  |        4’h0       | RV12 Major Revision Number |
+| `REVMINOR` | Vector (4)  |        4’h0       | RV12 Minor Revision Number |
 
 ## Control & Status Registers
 
@@ -673,7 +555,7 @@ When a trap is delegated to a less-privileged mode `x`, the `xcause` register is
 
 #### Machine Interrupt Registers (`mie`, `mip`)
 
-The `mip` register is an `XLEN`-bit read/write register containing information on pending interrupts, while `mie` is the corresponding `XLEN`-bit read/write register containing interrupt enable bits. Only the bits corresponding to lower-privilege software interrupts (`USIP`, `SSIP`) and timer interrupts (`UTIP`, `STIP`) in `mip` are writable through this CSR address; the remaining bits are read-only.
+The `mip` register is an `XLEN`-bit read/write register containing information on pending interrupts, while `mie` is the corresponding `XLEN`-bit read/write register containing interrupt enable bits. Only the bits corresponding to lower-privilege software interrupts (`USIP`, `SSIP`) and timer interrupts (`UTIP`, `STIP`) in `mip` are writable through this CSR address; the remaining bits are read- only.
 
 Restricted views of the `mip` and `mie` registers appear as the `sip/sie`, and `uip/uie` registers in S-mode, and U-mode respectively. If an interrupt is delegated to privilege mode `x` by setting a bit in the `mideleg` register, it becomes visible in the `xip` register and is maskable using the `xie`register. Otherwise, the corresponding bits in `xip` and `x`ie appear to be hardwired to zero.
 
@@ -683,7 +565,7 @@ There is a separate timer interrupt-enable bit, named `MTIE`, `STIE`, and `UTIE`
 
 Each lower privilege level has a separate software interrupt-pending bit (`SSIP`, `USIP`), which can be both read and written by CSR accesses from code running on the local hart at the associated or any higher privilege level. The machine-level `MSIP` bits are written by accesses to memory-mapped control registers, which are used by remote harts to provide machine-mode interprocessor interrupts. Interprocessor interrupts for lower privilege levels are implemented through ABI or SBI calls to the AEE or SEE respectively, which might ultimately result in a machine- mode write to the receiving hart’s `MSIP` bit. A hart can write its own `MSIP` bit using the same memory-mapped control register.
 
-The `MEIP`, `SEIP`, `UEIP` bits correspond to external interrupt-pending bits for machine, supervisor, and user external interrupts, respectively. These bits are read-only and are set and cleared by a platform-specific interrupt controller. There is a separate external interrupt-enable bit, named `MEIE`, `SEIE`, and `UEIE` for M-mode, S-mode, and U-mode external interrupts respectively.
+The `MEIP`, `SEIP`, `UEIP` bits correspond to external interrupt-pending bits for machine, supervisor, and user external interrupts, respectively. These bits are read-only and are set and cleared by a platform- specific interrupt controller. There is a separate external interrupt-enable bit, named `MEIE`, `SEIE`, and `UEIE` for M-mode, S-mode, and U-mode external interrupts respectively.
 
 An interrupt` i` will be taken if bit `i` is set in both `mip` and `mie`, and if interrupts are globally enabled. By default, M-mode interrupts are globally enabled if the hart’s current privilege mode is less than M, or if the current privilege mode is M and the `MIE` bit in the `mstatus` register is set. If bit `i` in `mideleg` is set, however, interrupts are considered to be globally enabled if the hart’s current privilege mode equals the delegated privilege mode (S, or U) and that mode’s interrupt enable bit (`SIE` or `UIE` in `mstatus`) is set, or if the current privilege mode is less than the delegated privilege mode.
 
@@ -759,7 +641,7 @@ The machine exception delegation register (`sedeleg`) and machine interrupt dele
 
 The `sip` register is an XLEN-bit read/write register containing information on pending interrupts; `sie` is the corresponding XLEN-bit read/write register containing interrupt enable bits.
 
-Three types of interrupts are defined: software interrupts, timer interrupts, and external interrupts. A supervisor-level software interrupt is triggered on the current *hart* by writing 1 to its supervisor software interrupt-pending (`SSIP`) bit in the `sip` register. A pending supervisor-level software interrupt can be cleared by writing 0 to the `SSIP` bit in `sip`. Supervisor-level software interrupts are disabled when the `SSIE` bit in the `sie` register is clear.
+Three types of interrupts are defined: software interrupts, timer interrupts, and external interrupts. A supervisor-level software interrupt is triggered on the current *hart* by writing 1 to its supervisor software interrupt- pending (`SSIP`) bit in the `sip` register. A pending supervisor- level software interrupt can be cleared by writing 0 to the `SSIP` bit in `sip`. Supervisor-level software interrupts are disabled when the `SSIE` bit in the `sie` register is clear.
 
 Interprocessor interrupts are sent to other harts by means of *SBI* calls, which will ultimately cause the `SSIP` bit to be set in the recipient *hart’s* `sip` register.
 
@@ -1346,11 +1228,11 @@ The RV12 CPU is designed to be compliant with the specifications listed below. T
 
 ## Revision History
 
-|     Date    | Rev. | Comments             |
-|:-----------:|:----:|:---------------------|
-| 01-Feb-2017 |  1.0 | Initial RV11 Release |
-| 01-Nov-2017 |  1.1 | RV12 Update          |
+| Date        | Rev. | Comments             |
+|:------------|:----:|:---------------------|
+| 01-Feb-2017 | v1.0 | Initial RV11 Release |
+| 01-Nov-2017 | v1.1 | RV12 Update          |
 |             |      |                      |
 |             |      |                      |
 
-[1] Full reference details of the specifications are documented in section 11
+[1] Full reference details of the specifications are documented in the References chapter

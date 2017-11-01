@@ -333,18 +333,19 @@ EXT\_INT  & 4 & Input & External Interrupts\tabularnewline
 
 \subsection{EXT\_NMI}\label{ext_nmi}
 
-The RV12 supports a single external non-maskable interrupt, accessible
-in Machine Mode only. The interrupt vector for \texttt{EXT\_NMI} is defined as an
-RV12 core parameter \texttt{MNMIVEC\_DEFAULT} (see section \ref{core-parameters} )
+The RV12 supports a single external non-maskable interrupt, accessible in
+Machine Mode only. The interrupt vector for \texttt{EXT\_NMI} is defined as an
+RV12 core parameter \texttt{MNMIVEC\_DEFAULT} (see section \ref{core-parameters}
+)
 
 \subsection{EXT\_TINT}\label{ext_tint}
 
 The RV12 supports a single Machine-Mode timer interrupt \texttt{EXT\_TINT}.
 
 The interrupt may be delegated to other operating modes via software
-manipulation of \texttt{mip} and \texttt{sip} registers.
-Alternatively, higher performance interrupt redirection may be
-implemented via use of the \texttt{mideleg} and \texttt{sideleg} configuration registers
+manipulation of \texttt{mip} and \texttt{sip} registers. Alternatively, higher
+performance interrupt redirection may be implemented via use of the
+\texttt{mideleg} and \texttt{sideleg} configuration registers
 
 \ifdefined\MARKDOWN
 % Skip Row

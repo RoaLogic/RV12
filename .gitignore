@@ -1,13 +1,3 @@
-
-docs/.texpadtmp
-*.toc
-*.gz
-*.out
-*.log
-*.blg
-*.bbl
-*.aux
-*.txss
-*.sublime-project
-*.sublime-workspace
 docs/build
+
+favicon.ico

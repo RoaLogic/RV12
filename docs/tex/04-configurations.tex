@@ -2,8 +2,8 @@
 
 \section{Introduction}\label{introduction-1}
 
-The RV12 is a highly configurable 32 or 64bit RISC CPU. The core
-parameters and configuration options are described in this section.
+The RV12 is a highly configurable 32 or 64bit RISC CPU. The core parameters and
+configuration options are described in this section.
 
 \section{Core Parameters}\label{core-parameters}
 
@@ -27,8 +27,6 @@ parameters and configuration options are described in this section.
 	\endfoot
 	\endlastfoot
 \fi
-
-
 
 \texttt{XLEN}                 & Integer & 32                      & Datapath width\tabularnewline
 \texttt{PC\_INIT}             & Address & \texttt{h200}           & Program Counter Initialisation Vector\tabularnewline
@@ -80,22 +78,22 @@ are either 32 or 64, for a 32bit or 64bit CPU respectively.
 \subsection{PC\_INIT}\label{pc_init}
 
 The \texttt{PC\_INIT} parameter specifies the initialization vector of the
-Program Counter; i.e. the boot address, which by default is defined as
-address `h200
+Program Counter; i.e. the boot address, which by default is defined as address
+`h200
 
 \subsection{PHYS\_ADDR\_SIZE}\label{phys_addr_size}
 
 The \texttt{PHYS\_ADDR\_SIZE} parameter specifies the physical address space the
-CPU can address. This parameter must be equal or less than XLEN. Using
-fewer bits for the physical address reduces internal and external
-resources. Internally the CPU still uses \texttt{XLEN}, but only the
+CPU can address. This parameter must be equal or less than XLEN. Using fewer
+bits for the physical address reduces internal and external resources.
+Internally the CPU still uses \texttt{XLEN}, but only the
 \texttt{PHYS\_ADDR\_SIZE} LSBs are used to address the caches and the external
 buses.
 
 \subsection{HAS\_USER}\label{has_user}
 
-The \texttt{HAS\_USER} parameter defines if User Privilege Level is enabled (`1')
-or disabled (`0'). The default value is disabled (`0').
+The \texttt{HAS\_USER} parameter defines if User Privilege Level is enabled
+(`1') or disabled (`0'). The default value is disabled (`0').
 
 \subsection{HAS\_SUPER}\label{has_super}
 
@@ -127,14 +125,13 @@ value is disabled (`0').
 
 \subsection{HAS\_BPU}\label{has_bpu}
 
-The CPU has an optional Branch Prediction Unit that can reduce the
-branch penalty considerably by prediction if a branch is taken or not
-taken. The \texttt{HAS\_BPU} parameter specifies if the core should generate a
-branch-predictor. Setting this parameter to 0 prevents the core from
-generating a branch-predictor. Setting this parameter to 1 instructs the
-core to generate a branch-predictor. The type and size of the
-branch-predictor is determined by the \texttt{BP\_GLOBAL\_BITS} and
-\texttt{BP\_LOCAL\_BITS} parameters.
+The CPU has an optional Branch Prediction Unit that can reduce the branch
+penalty considerably by prediction if a branch is taken or not taken. The
+\texttt{HAS\_BPU} parameter specifies if the core should generate a branch-
+predictor. Setting this parameter to 0 prevents the core from generating a
+branch-predictor. Setting this parameter to 1 instructs the core to generate a
+branch-predictor. The type and size of the branch-predictor is determined by the
+\texttt{BP\_GLOBAL\_BITS} and \texttt{BP\_LOCAL\_BITS} parameters.
 
 \ifdefined\MARKDOWN
 See branch prediction unit section for more details.
@@ -144,23 +141,22 @@ See section \ref{branch-prediction-unit} \nameref{branch-prediction-unit} for mo
 
 \subsection{IS\_RV12E}\label{is_rv12e}
 
-RV12 supports the RV32E Base Integer Instruction Set, Version 1.9. RV32E
-is a reduced version of RV32I designed for embedded systems, reducing
-the number of integer registers to 16. The \texttt{IS\_RV12E} parameter
-determines if this feature is enabled (`1') or disabled (`0'). The
-default value is disabled (`0').
+RV12 supports the RV32E Base Integer Instruction Set, Version 1.9. RV32E is a
+reduced version of RV32I designed for embedded systems, reducing the number of
+integer registers to 16. The \texttt{IS\_RV12E} parameter determines if this
+feature is enabled (`1') or disabled (`0'). The default value is disabled (`0').
 
 \subsection{MULT\_LATENCY}\label{mult_latency}
 
-If the ``M'' Standard Extension for Integer Multiplication and Division
-is enabled via the \texttt{HAS\_MULDIV} parameter (\texttt{HAS\_MULDIV=1} See section
-4.2.7), a hardware multiplier will be generated to support these
-instructions. By default (i.e. when \texttt{MULT\_LATENCY=0}) the generated multiplier will
-be built as a purely combinatorial function.
+If the ``M'' Standard Extension for Integer Multiplication and Division is
+enabled via the \texttt{HAS\_MULDIV} parameter (\texttt{HAS\_MULDIV=1} See
+section 4.2.7), a hardware multiplier will be generated to support these
+instructions. By default (i.e. when \texttt{MULT\_LATENCY=0}) the generated
+multiplier will be built as a purely combinatorial function.
 
-The performance of the hardware multiplier may be improved at the
-expense of increased latency of 1, 2 or 3 clock cycles by defining
-\texttt{MULT\_LATENCY} to 1, 2 or 3 respectively.
+The performance of the hardware multiplier may be improved at the expense of
+increased latency of 1, 2 or 3 clock cycles by defining \texttt{MULT\_LATENCY}
+to 1, 2 or 3 respectively.
 
 If the ``M'' Standard Extension is \emph{not} enabled (\texttt{HAS\_MULDIV=0})
 then the MULT\_LATENCY parameter has no effect on the RV12
@@ -168,10 +164,10 @@ implementation.
 
 \subsection{BPU\_LOCAL\_BITS}\label{bpu_local_bits}
 
-The CPU has an optional Branch Prediction Unit that can reduce the
-branch penalty considerably by prediction if a branch is taken or not
-taken. The \texttt{BPU\_LOCAL\_BITS} parameter specifies how many bits from the
-program counter should be used for the prediction.
+The CPU has an optional Branch Prediction Unit that can reduce the branch
+penalty considerably by prediction if a branch is taken or not taken. The
+\texttt{BPU\_LOCAL\_BITS} parameter specifies how many bits from the program
+counter should be used for the prediction.
 
 This parameter only has an effect if \texttt{HAS\_BPU=1}.
 
@@ -183,10 +179,10 @@ See section \ref{branch-prediction-unit} \nameref{branch-prediction-unit} for mo
 
 \subsection{BPU\_GLOBAL\_BITS}\label{bpu_global_bits}
 
-The CPU has an optional Branch Prediction Unit that can reduce the
-branch penalty considerably by prediction if a branch is taken or
-not-taken. The \texttt{BPU\_GLOBAL\_BITS} parameter specifies how many history
-bits should be used for the prediction.
+The CPU has an optional Branch Prediction Unit that can reduce the branch
+penalty considerably by prediction if a branch is taken or not-taken. The
+\texttt{BPU\_GLOBAL\_BITS} parameter specifies how many history bits should be
+used for the prediction.
 
 This parameter only has an effect if \texttt{HAS\_BPU=1}.
 
@@ -198,15 +194,15 @@ See section \ref{branch-prediction-unit} \nameref{branch-prediction-unit} for mo
 
 \subsection{HARTID}\label{hartid}
 
-The RV12 is a single thread CPU, for which each instantiation requires a
-hart identifier (\texttt{HARTID}), which must be unique within the overall
-system. The default \texttt{HARTID} is 0, but may be set to any integer.
+The RV12 is a single thread CPU, for which each instantiation requires a hart
+identifier (\texttt{HARTID}), which must be unique within the overall system.
+The default \texttt{HARTID} is 0, but may be set to any integer.
 
 \subsection{ICACHE\_SIZE}\label{icache_size}
 
 The CPU has an optional instruction cache. The \texttt{ICACHE\_SIZE} parameter
-specifies the size of the instruction cache in Kbytes. Setting this
-parameter to 0 prevents the core from generating an instruction cache.
+specifies the size of the instruction cache in Kbytes. Setting this parameter to
+0 prevents the core from generating an instruction cache.
 
 \ifdefined\MARKDOWN
 See instruction cache section for more details.
@@ -229,10 +225,9 @@ See section \ref{instruction-cache} \nameref{instruction-cache} for more details
 \subsection{ICACHE\_WAYS}\label{icache_ways}
 
 The CPU has an optional instruction cache. The \texttt{ICACHE\_WAYS} parameter
-specifies the associativity of the cache. Setting this parameter to 1
-generates a direct mapped cache, setting it to 2 generates a 2-way set
-associative cache, setting it to 4 generates a 4-way set associative
-cache, etc.
+specifies the associativity of the cache. Setting this parameter to 1 generates
+a direct mapped cache, setting it to 2 generates a 2-way set associative cache,
+setting it to 4 generates a 4-way set associative cache, etc.
 
 \ifdefined\MARKDOWN
 See instruction cache section for more details.
@@ -256,9 +251,9 @@ See section \ref{instruction-cache} \nameref{instruction-cache} for more details
 
 \subsection{DCACHE\_SIZE}\label{dcache_size}
 
-The CPU has an optional data cache. The DCACHE\_SIZE parameter specifies
-the size of the instruction cache in Kbytes. Setting this parameter to
-`0' prevents the core from generating a data cache.
+The CPU has an optional data cache. The DCACHE\_SIZE parameter specifies the
+size of the instruction cache in Kbytes. Setting this parameter to `0' prevents
+the core from generating a data cache.
 
 \ifdefined\MARKDOWN
 See data cache section for more details.
@@ -279,10 +274,10 @@ See section \ref{data-cache} \nameref{data-cache} for more details.
 
 \subsection{DCACHE\_WAYS}\label{dcache_ways}
 
-The CPU has an optional data cache. The \texttt{DCACHE\_WAYS} parameter specifies
-the associativity of the cache. Setting this parameter to 1 generates a
-direct mapped cache, setting it to 2 generates a 2-way set associative
-cache, setting it to 4 generates a 4-way set associative cache, etc.
+The CPU has an optional data cache. The \texttt{DCACHE\_WAYS} parameter
+specifies the associativity of the cache. Setting this parameter to 1 generates
+a direct mapped cache, setting it to 2 generates a 2-way set associative cache,
+setting it to 4 generates a 4-way set associative cache, etc.
 
 \ifdefined\MARKDOWN
 See data cache section for more details.
@@ -377,14 +372,13 @@ defined values are specified below:
 
 \begin{longtable}[]{@{}llcl@{}}
 \toprule
-Parameter & Type & Value & Description\tabularnewline
+Parameter         & Type        & Value                                 & Description\tabularnewline
 \midrule
 \endhead
-\texttt{VENDORID} & Vector (16) & 16'H0001 & Roa Logic Vendor ID\tabularnewline
-\texttt{ARCHID} & Vector (16) & 1\textless{}\textless{}XLEN \textbar{} 12 & RV12
-Architecture ID\tabularnewline
-\texttt{REVMAJOR} & Vector (4) & 4'h0 & RV12 Major Revision Number\tabularnewline
-\texttt{REVMINOR} & Vector (4) & 4'h0 & RV12 Minor Revision Number\tabularnewline
+\texttt{VENDORID} & Vector (16) & 16'H0001                              & Roa Logic Vendor ID\tabularnewline
+\texttt{ARCHID}   & Vector (16) & 1\textless\textless XLEN \textbar\ 12 & RV12 Architecture ID\tabularnewline
+\texttt{REVMAJOR} & Vector (4)  & 4'h0                                  & RV12 Major Revision Number\tabularnewline
+\texttt{REVMINOR} & Vector (4)  & 4'h0                                  & RV12 Minor Revision Number\tabularnewline
 \bottomrule
 \caption{Non-Modifiable Parameters}
 \label{tab:nonmod-parameters}
