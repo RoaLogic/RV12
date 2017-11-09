@@ -64,9 +64,9 @@ module ahb3lite_checker #(
   input                        HCLK,
 
   input                        HSEL,
-  input      [HADDR_SIZE -1:0] HADDR,
-  input      [HDATA_SIZE -1:0] HWDATA,
-  input      [HDATA_SIZE -1:0] HRDATA,
+  input      [ ADDR_SIZE -1:0] HADDR,
+  input      [ DATA_SIZE -1:0] HWDATA,
+  input      [ DATA_SIZE -1:0] HRDATA,
   input                        HWRITE,
   input      [            2:0] HSIZE,
   input      [            2:0] HBURST,
@@ -93,11 +93,12 @@ module ahb3lite_checker #(
   logic [           1:0] prev_htrans;
   logic [           2:0] prev_hburst;
   logic                  prev_hwrite;
-  logic [HADDR_SIZE-1:0] prev_haddr;
-  logic [HDATA_SIZE-1:0] prev_hwdata,
+  logic [ ADDR_SIZE-1:0] prev_haddr;
+  logic [ DATA_SIZE-1:0] prev_hwdata,
                          prev_hrdata;
   logic                  prev_hready,
                          prev_hresp;
+  logic	[	    2:0] prev_hsize;  // added
 
   integer                burst_cnt;
 
@@ -152,7 +153,7 @@ module ahb3lite_checker #(
     if (HTRANS == HTRANS_SEQ)
     begin
         //SEQ only during a burst
-        if (!is_burst || last_burst_beat)
+        if (!is_burst) // || last_burst_beat)
           $display("AHB ERROR (%m): HTRANS=SEQ, but not a burst transfer @%0t", $time);
     end
 
@@ -253,6 +254,7 @@ module ahb3lite_checker #(
     //HADDR should increase by HSIZE during bursts (wrap for wrapping-bursts)
     logic incr_haddr;
     logic [ADDR_SIZE-1:0] nxt_haddr;
+    logic [ADDR_SIZE-1:0] nxt_addr;  // added
 
     //normalize address
     case (HSIZE)

@@ -246,10 +246,10 @@ unified_memory (
   .HWDATA ( mem_hwdata ),
   .HRDATA ( mem_hrdata ) );
 
-ahb3lite_checker#(
-  .ADDR_SIZE(PHYS_ADDR_SIZE),
-  .DATA_SIZE(XLEN	   ) )
-ahb_checker( .*);
+
+
+
+
 
 
 //Front-End Server

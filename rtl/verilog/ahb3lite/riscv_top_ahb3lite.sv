@@ -255,6 +255,27 @@ module riscv_top_ahb3lite #(
 
     .*
   );
+
+  ahb3lite_checker #(
+   .ADDR_SIZE  ( PHYS_ADDR_SIZE ),
+   .DATA_SIZE  ( XLEN	        ))
+  instruction_bus_checker (
+   .HRESETn  ( HRESETn        ),
+   .HCLK      ( HCLK          ),
+   .HSEL      ( ins_HSEL      ),
+   .HADDR     ( ins_HADDR     ),
+   .HWDATA    ( ins_HWDATA    ),
+   .HRDATA    ( ins_HRDATA    ),
+   .HWRITE    ( ins_HWRITE    ),
+   .HSIZE     ( ins_HSIZE     ),
+   .HBURST    ( ins_HBURST    ),
+   .HPROT     ( ins_HPROT     ),
+   .HTRANS    ( ins_HTRANS    ),
+   .HMASTLOCK ( ins_HMASTLOCK ),
+   .HREADY    ( ins_HREADY    ),
+   .HRESP     ( ins_HRESP     )
+  );
+
   assign if_parcel_page_fault = 1'b0; //TODO: for now
 
   /*
@@ -286,6 +307,28 @@ module riscv_top_ahb3lite #(
 
     .*
   );
+
+ ahb3lite_checker #(
+   .ADDR_SIZE  ( PHYS_ADDR_SIZE ),
+   .DATA_SIZE  ( XLEN	        ))
+  data_bus_checker (
+   .HRESETn  ( HRESETn        ),
+   .HCLK      ( HCLK          ),
+   .HSEL      ( dat_HSEL      ),
+   .HADDR     ( dat_HADDR     ),
+   .HWDATA    ( dat_HWDATA    ),
+   .HRDATA    ( dat_HRDATA    ),
+   .HWRITE    ( dat_HWRITE    ),
+   .HSIZE     ( dat_HSIZE     ),
+   .HBURST    ( dat_HBURST    ),
+   .HPROT     ( dat_HPROT     ),
+   .HTRANS    ( dat_HTRANS    ),
+   .HMASTLOCK ( dat_HMASTLOCK ),
+   .HREADY    ( dat_HREADY    ),
+   .HRESP     ( dat_HRESP     )
+  );
+
+
 
   assign mem_page_fault = 1'b0; //TODO: for now
 

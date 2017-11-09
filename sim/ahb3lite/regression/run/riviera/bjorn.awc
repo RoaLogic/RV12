@@ -2,7 +2,7 @@
 <document type="awc" version="2">
 	<waveform>
 		<datasets>
-			<dataset alias="simulation1" file="dataset.asdb" id="0" uniqueid="1508764270"/>
+			<dataset alias="simulation1" file="dataset.asdb" id="0" uniqueid="1510225789"/>
 		</datasets>
 		<browser type="events"/>
 		<view active="true">
@@ -13,31 +13,46 @@
 			<signalspart>
 				<signal name="/testbench_top/HRESETn" aliasid="0"/>
 				<signal name="/testbench_top/HCLK" aliasid="0"/>
+				<signal name="/testbench_top/dut/core/if_unit/if_nxt_pc" aliasid="0"/>
+				<viewmode value="namedrow"/>
+				<group name="Memory bus">
+					<viewmode value=""/>
+					<signal name="/testbench_top/dut/icache/biu_inst/HTRANS" aliasid="0"/>
+					<signal name="/testbench_top/dut/icache/HADDR" aliasid="0"/>
+					<signal name="/testbench_top/dut/instruction_bus_checker/HWRITE" aliasid="0"/>
+					<signal name="/testbench_top/dut/icache/HRDATA" aliasid="0"/>
+					<signal name="/testbench_top/dut/instruction_bus_checker/HREADY" aliasid="0"/>
+					<signal name="/testbench_top/dut/icache/biu_inst/HBURST" aliasid="0"/>
+					<signal name="/testbench_top/dut/icache/biu_inst/HRESP" aliasid="0"/>
+					<signal name="/testbench_top/dut/instruction_bus_checker/HREADY" aliasid="0"/>
+					<signal name="/testbench_top/dut/instruction_bus_checker/is_burst" aliasid="0"/>
+					<signal name="/testbench_top/dut/instruction_bus_checker/last_burst_beat" aliasid="0"/>
+					<signal name="/testbench_top/dut/instruction_bus_checker/burst_cnt" aliasid="0"/>
+				</group>
 				<viewmode value="namedrow"/>
 				<expand value="1"/>
 				<group name="Instruction bus">
 					<viewmode value=""/>
 					<expand value=""/>
-					<signal name="/testbench_top/dut/core/if_unit/if_nxt_pc" aliasid="0"/>
-					<signal name="/testbench_top/dut/core/if_unit/if_out_order" aliasid="0"/>
-					<signal name="/testbench_top/dut/icache/HADDR" aliasid="0"/>
-					<signal name="/testbench_top/dut/icache/HRDATA" aliasid="0"/>
 					<signal name="/testbench_top/dut/icache/biu_rack" aliasid="0"/>
+					<signal name="/testbench_top/dut/icache/biu_adro" aliasid="0"/>
+					<signal name="/testbench_top/dut/icache/genblk1/icache_core_inst/wr_state" aliasid="0"/>
+					<signal name="/testbench_top/dut/icache/genblk1/icache_core_inst/filling" aliasid="0"/>
+					<signal name="/testbench_top/dut/icache/genblk1/icache_core_inst/pc_fifo" aliasid="0"/>
+					<signal name="/testbench_top/dut/icache/genblk1/icache_core_inst/pc" aliasid="0"/>
+					<signal name="/testbench_top/dut/icache/genblk1/icache_core_inst/cache_hit" aliasid="0"/>
+					<signal name="/testbench_top/dut/icache/genblk1/icache_core_inst/active_burst" aliasid="0"/>
 					<signal name="/testbench_top/dut/icache/genblk1/icache_core_inst/core_tag" aliasid="0"/>
+					<signal name="/testbench_top/dut/icache/genblk1/icache_core_inst/tag_in" aliasid="0"/>
 					<signal name="/testbench_top/dut/icache/genblk1/icache_core_inst/tag_idx" aliasid="0"/>
 					<signal name="/testbench_top/dut/icache/genblk1/icache_core_inst/dat_idx" aliasid="0"/>
-					<signal name="/testbench_top/dut/icache/genblk1/icache_core_inst/wr_state" aliasid="0"/>
-					<signal name="/testbench_top/dut/icache/genblk1/icache_core_inst/cache_hit" aliasid="0"/>
-					<signal name="/testbench_top/dut/icache/genblk1/icache_core_inst/way_dat" aliasid="0"/>
-					<signal name="/testbench_top/dut/icache/genblk1/icache_core_inst/way_hit" aliasid="0"/>
-					<signal name="/testbench_top/dut/icache/genblk1/icache_core_inst/pc" aliasid="0"/>
-					<signal name="/testbench_top/dut/icache/biu_adro" aliasid="0"/>
-					<signal name="/testbench_top/dut/icache/genblk1/icache_core_inst/biu_do" aliasid="0"/>
-					<signal name="/testbench_top/dut/icache/genblk1/icache_core_inst/filling" aliasid="0"/>
-					<expand value="1"/>
-					<signal name="/testbench_top/dut/icache/genblk1/icache_core_inst/biu_fifo" aliasid="0"/>
+					<signal name="/testbench_top/dut/icache/genblk1/icache_core_inst/cache_dat" aliasid="0"/>
+					<signal name="/testbench_top/dut/icache/genblk1/icache_core_inst/tag_out" aliasid="0"/>
+					<signal name="/testbench_top/dut/icache/genblk1/icache_core_inst/nxt_cnt" aliasid="0"/>
+					<signal name="/testbench_top/dut/icache/genblk1/icache_core_inst/cnt" aliasid="0"/>
 				</group>
 				<viewmode value="namedrow"/>
+				<expand value="1"/>
 				<group name="Instruction fetch">
 					<viewmode value=""/>
 					<expand value=""/>
@@ -79,8 +94,10 @@
 					<signal name="/testbench_top/dut/core/id_unit/id_exception" aliasid="0"/>
 				</group>
 				<viewmode value="namedrow"/>
+				<expand value="1"/>
 				<group name="Execution ">
 					<viewmode value=""/>
+					<expand value=""/>
 					<signal name="/testbench_top/dut/core/ex_units/ex_instr" aliasid="0"/>
 					<signal name="/testbench_top/dut/core/ex_units/ex_pc" aliasid="0"/>
 					<signal name="/testbench_top/dut/core/ex_units/ex_r" aliasid="0"/>
@@ -96,15 +113,15 @@
 			<time beginvisible="0fs" endvisible="0fs"/>
 		</view>
 		<bookmarks/>
-		<time beginvisible="352ps" endvisible="380ps"/>
+		<time beginvisible="290ps" endvisible="318ps"/>
 		<timeunit name="auto"/>
 		<grid type="signalgrid" aliasid="0" name="/testbench_top/dut/core/if_unit/if_nxt_pc" edgetype="all" color="#808080" gridname="if_nxt_pc" ruler="0"/>
 		<grid type="signalgrid" aliasid="0" name="/testbench_top/dut/icache/HADDR" edgetype="all" color="#808080" gridname="HADDR" ruler="0"/>
 		<grid type="signalgrid" aliasid="0" name="/testbench_top/dut/icache/HRDATA" edgetype="all" color="#808080" gridname="HRDATA" ruler="0"/>
 		<grid type="signalgrid" aliasid="0" name="/testbench_top/dut/icache/biu_rack" edgetype="all" color="#808080" gridname="biu_rack" ruler="0"/>
 		<cursors>
-			<cursor name="Default cursor" id="-1" time="362190fs" lock="0" tip="1"/>
-			<active name="Default cursor" time="362190fs"/>
+			<cursor name="Default cursor" id="-1" time="298090fs" lock="0" tip="1"/>
+			<active name="Default cursor" time="298090fs"/>
 		</cursors>
 		<hierarchy_depth value="0"/>
 	</waveform>
