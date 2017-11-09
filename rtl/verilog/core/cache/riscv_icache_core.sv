@@ -151,6 +151,12 @@ module riscv_icache_core #(
     logic [PHYS_ADDR_SIZE -1:0] adr;
   } fifo_struct;
 
+  typedef struct packed {
+    logic	                valid;
+    logic [XLEN		  -1:0] pc;
+  } pc_struct;
+
+
 
   //////////////////////////////////////////////////////////////////
   //
@@ -197,11 +203,12 @@ module riscv_icache_core #(
                            flushing,
                            filling;
   logic [IDX_BITS    -1:0] cnt, nxt_cnt;
-
-  logic		lsb_valid;
-  logic		msb_valid;
-  logic [XLEN		-1:0] fetch_pc;
-  logic [XLEN		-1:0] fetched_pc_previous;
+  
+  logic 	           active_burst;
+  logic			   lsb_valid;
+  logic			   msb_valid;
+  pc_struct    		   pc_fifo[3];
+  logic [XLEN	     -1:0] asked_pc_previous;
 
   enum logic [2:0] {FLUSH=3'b000,WAIT4DCACHE=3'b001,ARMED=3'b010,FILL=3'b100} wr_state;
 
@@ -226,8 +233,8 @@ module riscv_icache_core #(
   
   
   assign if_parcel_misaligned = pc[0]; //send out together with instruction
-
-
+  
+  
   //delay IF-flush
   always @(posedge clk,negedge rstn)
     if      (!rstn    ) if_flush_dly <= 1'b0;
@@ -238,35 +245,150 @@ module riscv_icache_core #(
  //Register fetch pc
   always @(posedge clk,negedge rstn)
     if      (!rstn                        ) pc <= PC_INIT;
-    else if ( if_flush_dly                ) pc <= if_nxt_pc; //if_nxt_pc is updated by if_flush, so valid 1 cycle later
+    //else if ( if_flush_dly                ) pc <= if_nxt_pc; //if_nxt_pc is updated by if_flush, so valid 1 cycle later
     else if (!if_stall && !if_stall_nxt_pc) pc <= if_nxt_pc;
 
+  // fifo buffer for program counter
+  always @(posedge clk, negedge rstn)
+    if(!rstn)
+	begin 
+	  pc_fifo[0].valid <= 1'b0;  
+	  pc_fifo[1].valid <= 1'b0;
+	  pc_fifo[2].valid <= 1'b0;
+   	end
+    else if (if_flush)
+	begin
+	  pc_fifo[0].valid <= 1'b0;
+	  pc_fifo[1].valid <= 1'b0;
+	  pc_fifo[2].valid <= 1'b0;
+	end
+    else 
+	if(!if_stall)
+	case({!if_stall_nxt_pc, if_parcel_valid[1] | if_parcel_valid[0]})
+	  2'b00: ; // no write, no read -> nothing to do
+	  
+	  // read from buffer
+	  2'b01: begin 
+		   pc_fifo[0].pc    <= pc_fifo[1].pc; 
+		   pc_fifo[0].valid <= pc_fifo[1].valid;
+		   pc_fifo[1].pc    <= pc_fifo[2].pc;
+		   pc_fifo[1].valid <= pc_fifo[2].valid;
+		   pc_fifo[2].pc    <= 'hx;
+		   pc_fifo[2].valid <= 1'b0;
+		 end
+	  
+	  2'b10: // write from buffer
+		case({pc_fifo[1].valid, pc_fifo[0].valid})
+	  	  2'b11:   begin
+	 		     pc_fifo[2].pc    <= if_out_order ? if_nxt_pc + 'h2 : if_nxt_pc;
+			     pc_fifo[2].valid <= 1'b1;
+			   end
+		  2'b01:   begin
+			     pc_fifo[1].pc    <= if_out_order ? if_nxt_pc +'h2 : if_nxt_pc;
+			     pc_fifo[1].valid <= 1'b1; 
+			   end
+		  default: begin
+			     pc_fifo[0].pc    <= if_out_order ? if_nxt_pc +'h2: if_nxt_pc;
+			     pc_fifo[0].valid <= 1'b1;
+			   end
+		 endcase
+
+	  2'b11: // read and write from buffer
+		casex({pc_fifo[2].valid, pc_fifo[1].valid, pc_fifo[0].valid})
+		  3'b1?? : begin
+			     pc_fifo[2].pc    <= if_out_order ? if_nxt_pc + 'h2 : if_nxt_pc;
+			     pc_fifo[2].valid <= 1'b1; 
+		
+			     pc_fifo[0].pc    <= pc_fifo[1].pc;
+			     pc_fifo[0].valid <= pc_fifo[1].valid;
+			     pc_fifo[1].pc    <= pc_fifo[2].pc;
+			     pc_fifo[1].valid <= pc_fifo[2].valid;
+			   end
+
+		 3'b01? :  begin
+			     pc_fifo[1].pc    <= if_out_order ? if_nxt_pc + 'h2 : if_nxt_pc;
+			     pc_fifo[1].valid <= 1'b1;
+			
+			     pc_fifo[0].pc    <= pc_fifo[1].pc;
+			     pc_fifo[0].valid <= pc_fifo[1].valid;
+
+			     pc_fifo[2].pc    <= 'hx;
+			     pc_fifo[2].valid <= 1'b0;
+			   end
+
+		 default:  begin
+			     pc_fifo[0].pc    <= if_out_order ? if_nxt_pc + 'h2 : if_nxt_pc;
+			     pc_fifo[0].valid <= 1'b1;
+
+			     pc_fifo[1].pc    <= 'hx;
+			     pc_fifo[1].valid <= 1'b0;
+			     pc_fifo[2].pc    <= 'hx;
+			     pc_fifo[2].valid <= 1'b0;
+			   end
+		endcase
+	endcase
+
 
   always @(posedge clk, negedge rstn)
-    if	    (!rstn			  ) fetch_pc <= PC_INIT;
-    else if ( if_flush_dly		  ) fetch_pc <= if_out_order ? if_nxt_pc + 'h2 : if_nxt_pc;
-    else if (!if_stall && !if_stall_nxt_pc) fetch_pc <= if_out_order ? if_nxt_pc + 'h2 : if_nxt_pc;
+	if	(~if_stall & (if_parcel_valid[0] | if_parcel_valid[1]))  	asked_pc_previous <= pc_fifo[0].pc;
+	else 	 								asked_pc_previous <= asked_pc_previous;
 
-  always @(posedge clk, negedge rstn)
-    if 	    (!rstn                        ) fetched_pc_previous <= PC_INIT;
-    else if ( if_flush_dly                ) fetched_pc_previous <= fetch_pc;
-    else if (!if_stall && !if_stall_nxt_pc) fetched_pc_previous <= fetch_pc;
-  
+  always_comb // @(posedge clk, negedge rstn)
+	case(wr_state)
+	  FILL  :
+	    begin
+		if 	(biu_adro == pc_fifo[0].pc)		lsb_valid <= 1'b1;
+		else if	(biu_adro == asked_pc_previous + 'h2)	lsb_valid <= 1'b1;
+		else 						lsb_valid <= 1'b0;
+	    end
+	  ARMED : 
+	    begin
+		if      (pc == pc_fifo[0].pc) 			lsb_valid <= 1'b1;
+		else if (pc == asked_pc_previous + 'h2)		lsb_valid <= 1'b1;
+		else 						lsb_valid <= 1'b0;
+	    end
+	
+	  default :
+	    begin
+		if 	(biu_fifo[0].adr == pc_fifo[0].pc)		lsb_valid <= 1'b1;
+		else if	(biu_fifo[0].adr == asked_pc_previous + 'h2)	lsb_valid <= 1'b1;
+		else 							lsb_valid <= 1'b0;
+	    end
+	endcase
+	
 
-  always_comb
-    if      (pc      == fetch_pc	    ) lsb_valid <= 1'b1;
-    else if (pc -'h2 == fetched_pc_previous ) lsb_valid <= 1'b1;
-    else 		                      lsb_valid <= 1'b0;
+  always_comb // @(posedge clk, negedge rstn)
+	case(wr_state)
+	  FILL :
+	   begin 
+		if	(biu_adro + 'h2 == pc_fifo[0].pc +'h2)  msb_valid <= 1'b1;
+	     	else if (biu_adro       == pc_fifo[0].pc -'h2)	msb_valid <= 1'b1;
+ 		else				   	      	msb_valid <= 1'b0;  
+	   end
 
+	 ARMED: 
+	   begin
+		if	(pc + 'h2 == pc_fifo[0].pc + 'h2)	msb_valid <= 1'b1;
+		else if (pc	  == pc_fifo[0].pc - 'h2)	msb_valid <= 1'b1;
+		else						msb_valid <= 1'b0;
+	   end
 
-  always_comb
-    if      (pc == fetch_pc      ) msb_valid <= 1'b1;
-    else if (pc == fetch_pc - 'h2) msb_valid <= 1'b1;
-    else 			   msb_valid <= 1'b0;    
-    
+          default:
+	    begin
+		if	(biu_fifo[0].adr + 'h2 == pc_fifo[0].pc +'h2)   msb_valid <= 1'b1;
+		else if (biu_fifo[0].adr       == pc_fifo[0].pc -'h2)	msb_valid <= 1'b1;
+ 		else				   	      		msb_valid <= 1'b0;  
+  	   end
+	endcase
  
   //core TAG value
-  assign core_tag = pc[PHYS_ADDR_SIZE-2 -: TAG_BITS];
+  always_comb
+	case(wr_state)
+	  FILL    : active_burst = cnt[3] ? 1'b0 : 1'b1;
+	  default : active_burst = 1'b0;
+	endcase
+
+  assign core_tag = active_burst ? biu_adro[PHYS_ADDR_SIZE-2  -: TAG_BITS] : pc[PHYS_ADDR_SIZE-2 -: TAG_BITS];
 
 
   /*
@@ -321,6 +443,10 @@ generate
         assign way_dat[way] = (dat_out[way] & {DAT_BITS{way_hit[way]}}) | way_dat[way -1];
   end
 endgenerate
+
+//  always @(posedge clk, negedge rstn)
+//    $display ("time @%0t ,way = %0d, %0d ",$time, way, {DAT_BITS{way_hit[way]}});
+
 
   /*
    * Generate 'hit' and data block
@@ -466,6 +592,7 @@ endgenerate
 /*
 initial
 begin
+   $display ("replace alg : %0d", REPLACE_ALG);  
    $display ("Cache size  : %0d", SIZE);
    $display ("BLK_OFF_BITS: %0d", BLK_OFF_BITS);
    $display ("SETS        : %0d", SETS        );
@@ -477,10 +604,20 @@ begin
    $display ("dat_idx[%0d:%0d]\n", DAT_IDX_LSB+DAT_IDX_BITS-1, DAT_IDX_LSB);
 
    $display ("TAG_BITS: %0d", TAG_BITS);
-   $display ("TAG[%0d:%0d]", XLEN-2, XLEN-TAG_BITS-1); // bit 31 for cacheable
+   $display ("TAG[%0d:%0d]", XLEN-1, XLEN-TAG_BITS-1); // bit 31 for cacheable
  
 end
+
+
+always @(posedge clk, negedge rstn)
+begin
+  if(if_parcel_valid[0] & if_parcel_valid[1])    	$display ("Time = %0t, if_parcel = %0h, if_parcel_pc = %0h" ,$time, if_parcel, if_parcel_pc );
+   	//$display ("Time = %0t, Tag = %0h, dataIDX = %0h" ,$time, core_tag, dat_idx );
+     
+end
 */
+
+
 
   //generate TAG data
 generate
@@ -490,7 +627,7 @@ generate
       begin
           assign tag_in[way].valid = ~flushing;
           assign tag_in[way].lru   = 'h0;
-          assign tag_in[way].tag   = core_tag;
+          assign tag_in[way].tag   =  core_tag;
       end
       else if (REPLACE_ALG == 1) //FIFO
       begin
@@ -512,6 +649,7 @@ generate
   end //next way
 endgenerate
 
+  
 
 
   /*
@@ -531,7 +669,7 @@ endgenerate
                                                            : ~(if_flush | if_flush_dly) & ~if_stall & biu_fifo[0].valid & msb_valid ;
                      if_parcel_pc       = is_cacheable_dly ? pc
                                                            : { {XLEN-PHYS_ADDR_SIZE{1'b0}},biu_fifo[0].adr};
-                     nxt_cnt            = !cache_hit ? BURST_SIZE -1 : cnt;
+                     nxt_cnt            = bu_cacheflush ? cnt : !cache_hit ? BURST_SIZE -1 : cnt;
                  end
 
         FLUSH  : begin
@@ -550,7 +688,7 @@ endgenerate
         FILL   : begin
                      biu_stb            = 1'b0;
                      //TODO: if_stall_nxt_pc: what if if_nxt_pc is non-cacheable??
-                     if_stall_nxt_pc    = ~(~if_flush_dly & biu_rack & (biu_adro == pc)) & (hold_if_flush ? |cnt : 1'b1);
+                     if_stall_nxt_pc    = ~(~if_flush_dly & biu_rack &  (biu_adro == pc)) & (hold_if_flush ? |cnt : 1'b1);
                      if_parcel_valid[0] = ~(if_flush | if_flush_dly) &  (biu_rack & (biu_adro == pc)) & lsb_valid;
                      if_parcel_valid[1] = ~(if_flush | if_flush_dly) &  (biu_rack & (biu_adro == pc)) & msb_valid;
                      if_parcel_pc       = pc; //{ {XLEN-PHYS_ADDR_SIZE{1'b0}},biu_adro};

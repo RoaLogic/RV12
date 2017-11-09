@@ -16,7 +16,7 @@ vsim -ses -O2 "-threads 4" +notimingchecks testbench_top +access +r -gDCACHE_SIZ
 # KERNEL: Warning: You are using the Riviera-PRO LV. The performance of simulation is reduced.
 # KERNEL: Warning: Contact Aldec for available upgrade options - sales@aldec.com.
 # KERNEL: Kernel process initialization done.
-# Allocation: Simulator allocated 9052 kB (elbread=1315 elab2=7295 kernel=440 sdf=0)
+# Allocation: Simulator allocated 9133 kB (elbread=1316 elab2=7366 kernel=451 sdf=0)
 # RUNTIME: Warning: RUNTIME_0155 riscv_mul.sv (92): Replication multiplier is not positive:           0
 # KERNEL: Time: 0 ps,  Iteration: 0,  Instance: /testbench_top/dut/core/ex_units/genblk1/mul,  Process: @INTERNAL#0_30@.
 # RUNTIME: Warning: RUNTIME_0155 riscv_div.sv (71): Replication multiplier is not positive:           0
@@ -39,16 +39,16 @@ vsim -ses -O2 "-threads 4" +notimingchecks testbench_top +access +r -gDCACHE_SIZ
 # KERNEL: Time: 0 ps,  Iteration: 0,  Instance: /testbench_top/dut/core/du_unit,  Process: @INTERNAL#0_18@.
 # RUNTIME: Warning: RUNTIME_0155 riscv_du.sv (234): Replication multiplier is not positive:           0
 # KERNEL: Time: 0 ps,  Iteration: 0,  Instance: /testbench_top/dut/core/du_unit,  Process: @INTERNAL#0_18@.
-# RUNTIME: Warning: RUNTIME_0155 riscv_icache_core.sv (535): Replication multiplier is not positive:           0
-# KERNEL: Time: 0 ps,  Iteration: 0,  Instance: /testbench_top/dut/icache/genblk1/icache_core_inst,  Process: @INTERNAL#0_38@.
-# RUNTIME: Warning: RUNTIME_0155 riscv_icache_core.sv (548): Replication multiplier is not positive:           0
-# KERNEL: Time: 0 ps,  Iteration: 0,  Instance: /testbench_top/dut/icache/genblk1/icache_core_inst,  Process: @INTERNAL#0_38@.
-# RUNTIME: Warning: RUNTIME_0155 riscv_icache_core.sv (567): Replication multiplier is not positive:           0
-# KERNEL: Time: 0 ps,  Iteration: 0,  Instance: /testbench_top/dut/icache/genblk1/icache_core_inst,  Process: @INTERNAL#0_38@.
+# RUNTIME: Warning: RUNTIME_0155 riscv_icache_core.sv (669): Replication multiplier is not positive:           0
+# KERNEL: Time: 0 ps,  Iteration: 0,  Instance: /testbench_top/dut/icache/genblk1/icache_core_inst,  Process: @INTERNAL#0_39@.
+# RUNTIME: Warning: RUNTIME_0155 riscv_icache_core.sv (682): Replication multiplier is not positive:           0
+# KERNEL: Time: 0 ps,  Iteration: 0,  Instance: /testbench_top/dut/icache/genblk1/icache_core_inst,  Process: @INTERNAL#0_39@.
+# RUNTIME: Warning: RUNTIME_0155 riscv_icache_core.sv (701): Replication multiplier is not positive:           0
+# KERNEL: Time: 0 ps,  Iteration: 0,  Instance: /testbench_top/dut/icache/genblk1/icache_core_inst,  Process: @INTERNAL#0_39@.
 # KERNEL: ASDB file was created in location /home/bjorn/RV12/sim/ahb3lite/regression/run/riviera/dataset.asdb
 log -mem -rec /testbench_top/*;
 # KERNEL: Error: KERNEL_0202 Assert/Cover processes can be traced only if compiled with -dbg switch.
-# VSIM: 1420 object(s) traced.
+# VSIM: 1489 object(s) traced.
 run -all;
 # KERNEL: 
 # KERNEL: 
@@ -82,21 +82,21 @@ run -all;
 # KERNEL: INFO   : No memory technology specified. Using generic inferred memory (testbench_top.dut.dcache.genblk2.dcache_core_inst.gen_ways[1].tag_ram.genblk1)
 # KERNEL: INFO   : No memory technology specified. Using generic inferred memory (testbench_top.dut.dcache.genblk2.dcache_core_inst.gen_ways[1].data_ram.genblk1)
 # RUNTIME: Warning: RUNTIME_0232 memory_model_ahb3lite.sv (335): Non-existent associative array entry. Returning default value.
-# KERNEL: Time: 731 ps,  Iteration: 2,  Instance: /testbench_top/unified_memory/genblk1[1],  Process: @ALWAYS#288,297,311,315,325_8@.
+# KERNEL: Time: 689 ps,  Iteration: 2,  Instance: /testbench_top/unified_memory/genblk1[1],  Process: @ALWAYS#288,297,311,315,325_8@.
 # RUNTIME: Warning: RUNTIME_0232 memory_model_ahb3lite.sv (335): Non-existent associative array entry. Returning default value.
-# KERNEL: Time: 733 ps,  Iteration: 2,  Instance: /testbench_top/unified_memory/genblk1[1],  Process: @ALWAYS#288,297,311,315,325_8@.
+# KERNEL: Time: 691 ps,  Iteration: 2,  Instance: /testbench_top/unified_memory/genblk1[1],  Process: @ALWAYS#288,297,311,315,325_8@.
 # RUNTIME: Warning: RUNTIME_0232 memory_model_ahb3lite.sv (335): Non-existent associative array entry. Returning default value.
-# KERNEL: Time: 735 ps,  Iteration: 2,  Instance: /testbench_top/unified_memory/genblk1[1],  Process: @ALWAYS#288,297,311,315,325_8@.
+# KERNEL: Time: 693 ps,  Iteration: 2,  Instance: /testbench_top/unified_memory/genblk1[1],  Process: @ALWAYS#288,297,311,315,325_8@.
 # RUNTIME: Warning: RUNTIME_0232 memory_model_ahb3lite.sv (335): Non-existent associative array entry. Returning default value.
-# KERNEL: Time: 737 ps,  Iteration: 2,  Instance: /testbench_top/unified_memory/genblk1[1],  Process: @ALWAYS#288,297,311,315,325_8@.
+# KERNEL: Time: 695 ps,  Iteration: 2,  Instance: /testbench_top/unified_memory/genblk1[1],  Process: @ALWAYS#288,297,311,315,325_8@.
 # RUNTIME: Warning: RUNTIME_0232 memory_model_ahb3lite.sv (335): Non-existent associative array entry. Returning default value.
-# KERNEL: Time: 739 ps,  Iteration: 2,  Instance: /testbench_top/unified_memory/genblk1[1],  Process: @ALWAYS#288,297,311,315,325_8@.
+# KERNEL: Time: 697 ps,  Iteration: 2,  Instance: /testbench_top/unified_memory/genblk1[1],  Process: @ALWAYS#288,297,311,315,325_8@.
 # RUNTIME: Warning: RUNTIME_0232 memory_model_ahb3lite.sv (335): Non-existent associative array entry. Returning default value.
-# KERNEL: Time: 741 ps,  Iteration: 2,  Instance: /testbench_top/unified_memory/genblk1[1],  Process: @ALWAYS#288,297,311,315,325_8@.
+# KERNEL: Time: 699 ps,  Iteration: 2,  Instance: /testbench_top/unified_memory/genblk1[1],  Process: @ALWAYS#288,297,311,315,325_8@.
 # RUNTIME: Warning: RUNTIME_0232 memory_model_ahb3lite.sv (335): Non-existent associative array entry. Returning default value.
-# KERNEL: Time: 743 ps,  Iteration: 2,  Instance: /testbench_top/unified_memory/genblk1[1],  Process: @ALWAYS#288,297,311,315,325_8@.
+# KERNEL: Time: 701 ps,  Iteration: 2,  Instance: /testbench_top/unified_memory/genblk1[1],  Process: @ALWAYS#288,297,311,315,325_8@.
 # RUNTIME: Warning: RUNTIME_0232 memory_model_ahb3lite.sv (335): Non-existent associative array entry. Returning default value.
-# KERNEL: Time: 745 ps,  Iteration: 2,  Instance: /testbench_top/unified_memory/genblk1[1],  Process: @ALWAYS#288,297,311,315,325_8@.
+# KERNEL: Time: 703 ps,  Iteration: 2,  Instance: /testbench_top/unified_memory/genblk1[1],  Process: @ALWAYS#288,297,311,315,325_8@.
 # KERNEL: 
 # KERNEL: 
 # KERNEL: 
@@ -106,9 +106,9 @@ run -all;
 # KERNEL: -------------------------------------------------------------
 # KERNEL: 
 # KERNEL: 
-# RUNTIME: Info: RUNTIME_0068 testbench_top.sv (483): $finish called.
-# KERNEL: Time: 773 ps,  Iteration: 2,  Instance: /testbench_top/genblk1/mmio_if_inst,  Process: @ALWAYS#464_5@.
-# KERNEL: stopped at time: 773 ps
+# RUNTIME: Info: RUNTIME_0068 testbench_top.sv (488): $finish called.
+# KERNEL: Time: 731 ps,  Iteration: 2,  Instance: /testbench_top/genblk1/mmio_if_inst,  Process: @ALWAYS#469_5@.
+# KERNEL: stopped at time: 731 ps
 # VSIM: Simulation has finished. There are no more test vectors to simulate.
 quit
 # VSIM: Simulation has finished.

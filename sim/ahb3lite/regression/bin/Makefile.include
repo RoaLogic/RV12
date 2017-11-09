@@ -107,7 +107,7 @@ RTL_VLOG = $(DUT_SRC_DIR)/pkg/riscv_pkg.sv			\
            $(DUT_SRC_DIR)/core/cache/riscv_noicache_core.sv	\
 	   $(DUT_SRC_DIR)/core/cache/riscv_dcache_core.sv	\
 	   $(DUT_SRC_DIR)/core/cache/riscv_nodcache_core.sv	\
-	   $(DUT_SRC_DIR)/$(busif)/$(busif)_checker.sv          \
+	   $(DUT_SRC_DIR)/$(busif)/$(busif)_checker.sv		\
 	   $(DUT_SRC_DIR)/$(busif)/riscv_cache_biu_$(busif).sv	\
            $(DUT_SRC_DIR)/$(busif)/riscv_icache_$(busif).sv	\
 	   $(DUT_SRC_DIR)/$(busif)/riscv_dcache_$(busif).sv	\
