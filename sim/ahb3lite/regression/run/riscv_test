@@ -1,0 +1,226 @@
+#!/usr/bin/perl
+
+##########################################
+#	REGRESSION VARIABLES
+##########################################
+
+my @REGRESSION_MEM_LATENCY 	= qw(15);
+my @REGRESSION_XLEN 	   	= qw(64);
+my @REGRESSION_WRITEBUFFER_SIZE = qw(0);
+my @REGRESSION_ICACHE_SIZE	= qw(0);
+my @REGRESSION_DCACHE_SIZE	= qw(0);
+my @REGRESSION_MULT_LATENCY 	= qw(4);
+
+##########################################
+#	CPU Variables
+##########################################
+
+my $HAS_U	= 1;
+my $HAS_S	= 1;
+my $HAS_H	= 0;
+my $HAS_AMO	= 0;
+my $HAS_FPU	= 0;
+my $HAS_MMU	= 0;
+my $HAS_MUL	= 1;
+my $HAS_DIV	= $HAS_MUL;
+my $HAS_RVC 	= 1;
+my $CORES	= 1;
+my $TECHNOLOGY	= GENERIC;
+
+##########################################
+#	Tests
+##########################################
+
+#	Integer tests
+my @U_INT32_TESTS = qw(
+	simple
+	add addi
+	and andi
+	auipc
+	beq bge bgeu blt bltu bne
+	fence_i
+	jal jalr
+	lb lbu lh lhu lw
+	lui
+	or ori
+	sb sh sw
+	sll slli
+	slt slti sltiu sltu
+	sra srai
+	srl srli
+	sub
+	xor xori	
+);
+my @U_INT64_TESTS = qw(
+	addiw addw
+	lwu ld
+	sd
+	sllw slliw
+	sllu sltui
+	sraw swaiw
+	srlw srliw
+	subw
+);
+
+#	Atomic tests
+my @U_AMO32_TESTS = qw(
+	amoadd_w amoand_w
+	amomax_w amomaxu_w
+	amomin_w amominu_w
+	amoor_w  amoxor_w
+	amoswap_w lrsc
+);
+my @U_AMO64_TESTS = qw(
+	amoadd_d amoand_d
+	amomax_d amomaxu_d
+	amomin_d amominu_d
+	amoor_d  amoxor_d
+	amoswap_d
+);
+
+#	RVC test
+my @U_RVC_TEST    = qw(rvc);
+
+#	Multiplier and divider tests
+my @U_MUL32_TESTS = qw(mul mulh mulhu mulhsu);
+my @U_MUL64_TESTS = qw(mulw);
+my @U_DIV32_TESTS = qw(div divu rem remu);
+my @U_DIV64_TESTS = qw(divw divuw remw remuw);
+
+# 	TODO: ADD floating point tests, single, double, quad precision
+
+#	Machine mode tests
+my @M_TESTS = qw(
+	breakpoint csr
+	illegal ma_addr
+	ma_fetch mcsr
+	sbreak scall
+);
+my @M32_TEST = qw(shamt);
+
+#	Supervisor mode tests
+my @S_TESTS = qw(
+	csr dirty illegal
+	ma_fetch sbreak 
+	scall wfi
+);
+
+
+###############################################
+#	Tests
+# Create array with all different tests
+# according to CPU variables
+###############################################
+
+foreach $XLEN(@REGRESSION_XLEN){
+	
+	# User mode tests
+	# TODO:  ADD Vector testing when implemented
+	# TODO:  ADD Floating point testen when implemented, single, double, quad precision
+
+	if($HAS_U == 1)
+	{	
+	  # Add integer tests
+	  push(@u_int_test, @U_INT32_TESTS);
+	  if($XLEN == 64){ push(@u_int_test, @U_INT64_TESTS);}
+	
+	  foreach $TEST(@u_int_test){		
+		push(@tests, "make TESTS=rv".$XLEN."ui-p-".$TEST." XLEN=".$XLEN);
+	  }
+	
+	  # Add atomic tests
+	  if($HAS_AMO == 1) {
+	    push(@u_amo_tests, @U_AMO32_TESTS);
+	    if($XLEN == 64){ push(@u_amo_tests, @U_AMO64_TESTS);}
+
+	    foreach $TEST(@u_amo_tests){
+	      push(@tests, "make TESTS=rv".$XLEN."ua-p-".$TEST." XLEN=".$XLEN);
+	    }
+ 	  }
+
+	  # Add multiplier tests
+	  if($HAS_MUL == 1) {
+	    push(@u_mul_tests, @U_MUL32_TESTS);
+	    if($XLEN == 64){ push(@u_mul_tests, @U_MUL64_TESTS);}
+	
+	    foreach $TEST(@u_mul_tests){
+	       foreach $mult_latency(@REGRESSION_MULT_LATENCY){
+	       push (@tests, "make TESTS=rv".$XLEN."um-p-".$TEST." XLEN=".$XLEN." MULT_LATENCY=".$mult_latency);
+	     }
+	   }
+	 }
+
+	  # Add divider tests
+	  if($HAS_DIV == 1) {
+	    push(@u_div_tests, @U_DIV32_TESTS);
+	    if($XLEN == 64){ push(@u_div_tests, @U_DIV64_TESTS);}
+	
+	    foreach $TEST(@u_div_tests){
+	      push (@tests, "make TESTS=rv".$XLEN."um-p-".$TEST." XLEN=".$XLEN);
+	    }
+	  }
+
+	  # Add rvc tests
+	  if($HAS_RVC == 1) {
+	    push (@tests, "make TESTS=rv".$XLEN."uc-p-".$U_RVC_TEST[0]." XLEN=".$XLEN);
+	  }
+	}
+	
+	# Supervisor mode tests
+	if($HAS_S == 1){
+	  foreach $TEST(@S_TESTS){
+	  push(@tests, "make TESTS=rv".$XLEN."si-p-".$TEST." XLEN=".$XLEN);
+	  }
+	}
+	
+	# Machine mode tests
+	foreach $TEST(@M_TESTS){
+	  push(@tests, "make TESTS=rv".$XLEN."mi-p-".$TEST." XLEN=".$XLEN);
+	}
+        if($XLEN == 32){ push(@tests, "make TESTS=rv".$XLEN."mi-p-".$M32_TEST[0]." XLEN=".$XLEN);}		
+}
+
+##########################################
+#	CPU variables
+# String with variables for make command
+##########################################
+
+$cpu_variables =" HAS_U=".$HAS_U. 	
+		" HAS_S=".$HAS_S.	
+		" HAS_H=".$HAS_H.	
+		" HAS_AMO=".$HAS_AMO.	
+		" HAS_FPU=".$HAS_FPU.
+		" HAS_MMU=".$HAS_MMU.
+		" HAS_MUL=".$HAS_MUL.
+		" HAS_DIV=".$HAS_DIV.
+		" HAS_RVC=".$HAS_RVC.
+		" CORES=".$CORES.
+		" TECHNOLOGY=".$TECHNOLOGY;
+
+
+
+##########################################
+# 	Regression variables
+# Run tests with all regression variables
+##########################################
+
+foreach $writebuffer_size(@REGRESSION_WRITEBUFFER_SIZE){
+  foreach $dcache_size(@REGRESSION_DCACHE_SIZE){
+    foreach $icache_size(@REGRESSION_ICACHE_SIZE){
+      foreach $mem_latency(@REGRESSION_MEM_LATENCY){
+	foreach $test(@tests){
+	  $regression_variables = " MEM_LATENCY=".$mem_latency.
+				  " WRITEBUFFER_SIZE=".$writebuffer_size.
+				  " ICACHE_SIZE=".$icache_size.
+				  " DCACHE_SIZE=".$dcache_size;
+	  $value = system($test. $cpu_variables. $regression_variables);
+	  if($value > 0){
+ 	    print "Error in return value of Makefile \n";
+ 	    exit;
+	  }
+	}	
+      }
+    }
+  }
+}
+
