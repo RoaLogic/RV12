@@ -44,7 +44,6 @@ The RV12 is compatible with the following RISC-V Foundation  specifications:
 ## Interfaces
 
 - AHB3 Lite
-- Wishbone
 
 ## Parameters
 
