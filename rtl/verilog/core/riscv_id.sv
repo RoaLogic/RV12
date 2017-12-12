@@ -733,6 +733,11 @@ module riscv_id #(
       MIBOUND   : illegal_csr_rd =                                  (st_prv < PRV_M);
       MDBASE    : illegal_csr_rd =                                  (st_prv < PRV_M);
       MDBOUND   : illegal_csr_rd =                                  (st_prv < PRV_M);
+      MCYCLE    : illegal_csr_rd =                                  (st_prv < PRV_M); 
+      MINSTRET  : illegal_csr_rd =                                  (st_prv < PRV_M);
+     //TODO: performance counters
+      MCYCLEH   : illegal_csr_rd =                    (XLEN > 32) | (st_prv < PRV_M);
+      MINSTRETH : illegal_csr_rd =                    (XLEN > 32) | (st_prv < PRV_M);
 
       default   : illegal_csr_rd = 1'b1;
     endcase
