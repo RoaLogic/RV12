@@ -682,11 +682,11 @@ module riscv_id #(
       FRM       : illegal_csr_rd = (HAS_FPU   == 0);
       FCSR      : illegal_csr_rd = (HAS_FPU   == 0);
       CYCLE     : illegal_csr_rd = (HAS_USER  == 0);
-      TIME      : illegal_csr_rd = (HAS_USER  == 0);
+      TIME      : illegal_csr_rd = 1'b1; //trap on reading TIME. Machine mode must access external timer
       INSTRET   : illegal_csr_rd = (HAS_USER  == 0);
       //TODO: hpmcounters
       CYCLEH    : illegal_csr_rd =                    (XLEN > 32);
-      TIMEH     : illegal_csr_rd =                    (XLEN > 32);
+      TIMEH     : illegal_csr_rd = 1'b1; //trap on reading TIMEH. Machine mode must access external timer
       INSTRETH  : illegal_csr_rd =                    (XLEN > 32);
       //Supervisor
       SSTATUS   : illegal_csr_rd = (HAS_SUPER == 0)               | (st_prv < PRV_S);
