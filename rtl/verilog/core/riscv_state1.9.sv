@@ -134,9 +134,8 @@ module riscv_state1_9 #(
     fcsr_struct fcsr;
 
     //User Counter/Timers
-    timer_struct      cycle,   //timer for RDCYCLE
-                      timer,   //timer for RDTIME
-                      instret; //instruction retire count for RDINSTRET
+    timer_struct      cycle,   //timer for MCYCLE
+                      instret; //instruction retire count for MINSTRET
 
     //User trap setup
     logic  [XLEN-1:0] utvec;
@@ -308,10 +307,10 @@ module riscv_state1_9 #(
       FRM       : st_csr_rval = has_fpu ? { {XLEN-$bits(csr.fcsr.rm   ){1'b0}},csr.fcsr.rm    } : 'h0;
       FCSR      : st_csr_rval = has_fpu ? { {XLEN-$bits(csr.fcsr      ){1'b0}},csr.fcsr       } : 'h0;
       CYCLE     : st_csr_rval = csr.cycle[XLEN-1:0];
-      TIME      : st_csr_rval = csr.timer[XLEN-1:0];
+//      TIME      : st_csr_rval = csr.timer[XLEN-1:0];
       INSTRET   : st_csr_rval = csr.instret[XLEN-1:0];
       CYCLEH    : st_csr_rval = is_rv32 ? csr.cycle.h   : 'h0;
-      TIMEH     : st_csr_rval = is_rv32 ? csr.timer.h   : 'h0;
+//      TIMEH     : st_csr_rval = is_rv32 ? csr.timer.h   : 'h0;
       INSTRETH  : st_csr_rval = is_rv32 ? csr.instret.h : 'h0;
 
       //Supervisor
@@ -696,7 +695,72 @@ $display("exception");
     end
 
 
-  //mnmivec
+  /*
+   * mcycle, minstret
+   */
+generate
+  if (XLEN==32)
+  begin
+      always @(posedge clk,negedge rstn)
+      if (!rstn)
+      begin
+          csr.cycle   <= 'h0;
+          csr.instret <= 'h0;
+      end
+      else
+      begin
+          //cycle always counts (thread active time)
+          if      ( (ex_csr_we && ex_csr_reg == MCYCLE) ||
+                    (du_we_csr && du_addr    == MCYCLE)  )
+            csr.cycle.l <= csr_wval;
+          else if ( (ex_csr_we && ex_csr_reg == MCYCLEH) ||
+                    (du_we_csr && du_addr    == MCYCLEH)  )
+            csr.cycle.h <= csr_wval;
+          else
+            csr.cycle <= csr.cycle + 'h1;
+
+          //User Mode instruction retire counter
+          if      ( (ex_csr_we && ex_csr_reg == MINSTRET) ||
+                    (du_we_csr && du_addr    == MINSTRET)  )
+            csr.instret.l <= csr_wval;
+          else if ( (ex_csr_we && ex_csr_reg == MINSTRETH) ||
+                    (du_we_csr && du_addr    == MINSTRETH)  )
+            csr.instret.h <= csr_wval;
+          else if   (!id_stall && !bu_flush && !du_stall && st_prv == PRV_M)
+            csr.instret <= csr.instret + 'h1;
+      end
+  end
+  else //(XLEN > 32)
+  begin
+      always @(posedge clk,negedge rstn)
+      if (!rstn)
+      begin
+          csr.cycle   <= 'h0;
+          csr.instret <= 'h0;
+      end
+      else
+      begin
+          //cycle always counts (thread active time)
+          if ( (ex_csr_we && ex_csr_reg == MCYCLE) ||
+               (du_we_csr && du_addr    == MCYCLE)  )
+            csr.cycle <= csr_wval;
+          else
+            csr.cycle <= csr.cycle + 'h1;
+
+          //User Mode instruction retire counter
+          if ( (ex_csr_we && ex_csr_reg == MINSTRET) ||
+               (du_we_csr && du_addr    == MINSTRET)  )
+            csr.instret <= csr_wval;
+          else if (!id_stall && !bu_flush && !du_stall && st_prv == PRV_M)
+            csr.instret <= csr.instret + 'h1;
+      end
+  end
+endgenerate
+
+
+  /*
+   * mnmivec - RoaLogic Extension
+   */
   always @(posedge clk,negedge rstn)
     if (!rstn)
       csr.mnmivec <= MNMIVEC_DEFAULT;
@@ -705,7 +769,9 @@ $display("exception");
       csr.mnmivec <= {csr_wval[XLEN-1:2],2'b00};
 
 
-  //mtvec
+  /*
+   * mtvec
+   */
   always @(posedge clk,negedge rstn)
     if (!rstn)
       csr.mtvec <= MTVEC_DEFAULT;
@@ -714,7 +780,9 @@ $display("exception");
       csr.mtvec <= {csr_wval[XLEN-1:2],2'b00};
 
 
-  //medeleg, mideleg
+  /*
+   * medeleg, mideleg
+   */
 generate
   if (!HAS_HYPER && !HAS_SUPER && !HAS_USER)
   begin
@@ -760,7 +828,7 @@ endgenerate
 
 
   /*
-   * MIP
+   * mip
    */
   always @(posedge clk,negedge rstn)
     if (!rstn)
@@ -829,7 +897,9 @@ endgenerate
     end
 
 
-  /* MIE */
+  /*
+   * mie
+   */
   always @(posedge clk,negedge rstn)
     if (!rstn)
       csr.mie <= 'h0;
@@ -890,7 +960,9 @@ endgenerate
     end
 
 
-  //mscratch
+  /*
+   * mscratch
+   */
   always @(posedge clk,negedge rstn)
     if      (!rstn)                                                    csr.mscratch <= 'h0;
     else if ( (ex_csr_we && ex_csr_reg == MSCRATCH && st_prv == PRV_M) ||
@@ -1166,84 +1238,6 @@ endgenerate
   //User Registers
   //
 generate
-  //Cycle, Time, Instret are always available (even if no User Mode)
-  if (XLEN==32)
-  begin
-      always @(posedge clk,negedge rstn)
-      if (!rstn)
-      begin
-          csr.cycle    <= 'h0;
-          csr.timer    <= 'h0;
-          csr.instret  <= 'h0;
-      end
-      else
-      begin
-          //timer always counts (Wall time)
-          if      ( (ex_csr_we && ex_csr_reg == TIME) ||
-                    (du_we_csr && du_addr    == TIME)  )
-            csr.timer.l <= csr_wval;
-          else if ( (ex_csr_we && ex_csr_reg == TIMEH) ||
-                    (du_we_csr && du_addr    == TIMEH)  )
-            csr.timer.h <= csr_wval;
-          else
-            csr.timer   <= csr.timer + 'h1;
-
-          //cycle always counts (thread active time)
-          if      ( (ex_csr_we && ex_csr_reg == CYCLE) ||
-                    (du_we_csr && du_addr    == CYCLE)  )
-            csr.cycle.l <= csr_wval;
-          else if ( (ex_csr_we && ex_csr_reg == CYCLEH) ||
-                    (du_we_csr && du_addr    == CYCLEH)  )
-            csr.cycle.h <= csr_wval;
-          else
-            csr.cycle <= csr.cycle + 'h1;
-
-          //User Mode instruction retire counter
-          if      ( (ex_csr_we && ex_csr_reg == INSTRET) ||
-                    (du_we_csr && du_addr    == INSTRET)  )
-            csr.instret.l <= csr_wval;
-          else if ( (ex_csr_we && ex_csr_reg == INSTRETH) ||
-                    (du_we_csr && du_addr    == INSTRETH)  )
-            csr.instret.h <= csr_wval;
-          else if   (!id_stall && !bu_flush && !du_stall && st_prv == PRV_U)
-            csr.instret <= csr.instret + 'h1;
-      end
-  end
-  else //(XLEN > 32)
-  begin
-      always @(posedge clk,negedge rstn)
-      if (!rstn)
-      begin
-          csr.cycle    <= 'h0;
-          csr.timer    <= 'h0;
-          csr.instret  <= 'h0;
-      end
-      else
-      begin
-          //timer always counts (Wall time)
-          if ( (ex_csr_we && ex_csr_reg == TIME) ||
-               (du_we_csr && du_addr    == TIME)  )
-            csr.timer <= csr_wval;
-          else
-            csr.timer <= csr.timer + 'h1;
-
-          //cycle always counts (thread active time)
-          if ( (ex_csr_we && ex_csr_reg == TIME) ||
-               (du_we_csr && du_addr    == TIME)  )
-            csr.cycle <= csr_wval;
-          else
-            csr.cycle <= csr.cycle + 'h1;
-
-          //User Mode instruction retire counter
-          if ( (ex_csr_we && ex_csr_reg == INSTRET) ||
-               (du_we_csr && du_addr    == INSTRET)  )
-            csr.instret <= csr_wval;
-          else if (!id_stall && !bu_flush && !du_stall && st_prv == PRV_U)
-            csr.instret <= csr.instret + 'h1;
-      end
-  end
-
-
   if (HAS_USER)
   begin
       //utvec
