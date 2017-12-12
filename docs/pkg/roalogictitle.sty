@@ -1,0 +1,66 @@
+% Title Page generator
+
+%Logo
+%Title
+%DocType
+%Project
+%Date
+
+% Define Package
+\ProvidesPackage{pkg/roalogictitle}[2017/10/01 v1]
+\RequirePackage{graphicx}
+
+% Define new variables
+\newcommand*{\project}[1]{\gdef\@project{#1}%
+}
+
+\newcommand*{\doctype}[1]{\gdef\@doctype{#1}%
+}
+
+\newcommand*{\header}[1]{\gdef\@header{#1}%
+}
+
+\newcommand*{\version}[1]{\gdef\@version{#1}%
+}
+
+\newcommand*{\heading}[1]{\gdef\@heading{#1}%
+}
+
+\appendiargdef{\version}{%
+\begingroup
+\renewcommand{\thanks}[1]{}
+\protected@xdef\theversion{#1}
+\endgroup}
+
+\appendiargdef{\heading}{%
+\begingroup
+\renewcommand{\thanks}[1]{}
+\protected@xdef\theheading{#1}
+\endgroup}
+
+% Overload \maketitle with new layout
+\renewcommand*{\maketitle}{%
+\hypersetup{pageanchor=false}
+\begin{titlepage}
+\par
+\vspace{3cm}
+{\raggedleft%
+	\includegraphics[width=12cm]{assets/img/Tagged_Logo.eps}\par
+}\vspace{1cm}
+	\centering
+{\huge\bfseries\@title\unskip\strut\par}
+\vspace{1cm}
+{\LARGE\itshape\@doctype\space(v\@version)\unskip\strut\par}
+\vspace{1cm}
+{\scshape\Large\@project\unskip\strut\par}
+\vspace{1cm}
+{\large \@date\par}
+\vspace{7cm}
+{\scshape\large \copyright\space Roa Logic B.V. \par}
+
+\vfill
+
+\end{titlepage}
+\hypersetup{pageanchor=true}
+}
+\endinput
