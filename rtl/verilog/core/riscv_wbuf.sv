@@ -89,6 +89,7 @@ module riscv_wbuf #(
     logic [XLEN-  1:0] data;
     logic [XLEN/8-1:0] be;
     logic              we;
+    logic              acked; //already acknowledged?
     logic [       1:0] priv;  //privilege level
     logic              flush; //forward flush request to cache
   } fifo_struct;
@@ -111,12 +112,14 @@ module riscv_wbuf #(
                                  fifo_empty,
                                  fifo_full;
 
+  logic                          we_ack;
   logic                          mem_we_ack;
 
   logic [$clog2(FIFO_DEPTH)-1:0] pending_cnt;
 
   logic                          access_pending;
-  logic                          dcache_we;
+  logic                          read_pending;
+  logic                          cache_we_dly;
 
 
   //////////////////////////////////////////////////////////////////
@@ -155,14 +158,14 @@ module riscv_wbuf #(
 
                     fifo_data[FIFO_DEPTH-1] <= 'h0;
                 end
-       2'b10  : fifo_data[fifo_wadr] <= {mem_adr,mem_d,mem_be,mem_we,st_prv,bu_cacheflush};
+       2'b10  : fifo_data[fifo_wadr] <= {mem_adr,mem_d,mem_be,mem_we,we_ack,st_prv,bu_cacheflush};
        2'b11  : begin
                     for (n=0;n<FIFO_DEPTH-1;n++)
                       fifo_data[n] <= fifo_data[n+1];
 
                     fifo_data[FIFO_DEPTH-1] <= 'h0;
 
-                    fifo_data[fifo_wadr-1] <= {mem_adr,mem_d,mem_be,mem_we,st_prv,bu_cacheflush};
+                    fifo_data[fifo_wadr-1] <= {mem_adr,mem_d,mem_be,mem_we,we_ack,st_prv,bu_cacheflush};
                 end
        default: ;
     endcase
@@ -190,15 +193,22 @@ module riscv_wbuf #(
   /*
    * Control signals
    */
+  always @(posedge clk,negedge rstn)
+    if (!rstn) read_pending <= 1'b0;
+    else       read_pending <= (read_pending & ~mem_ack) | (mem_req & ~mem_we);
+
+
+  assign we_ack = mem_req & mem_we & ~read_pending;
+
   always @(posedge clk)
-    mem_we_ack  <= mem_req & mem_we;
+    mem_we_ack  <= we_ack;
 
 
   assign mem_q   = cache_q;
 
-  assign mem_ack = (~fifo_full & mem_we_ack                          ) |
-                   ( fifo_full & fifo_re & fifo_data[FIFO_DEPTH-1].we) |
-                   ( cache_ack & ~dcache_we                          );
+  assign mem_ack = (~fifo_full &  mem_we_ack                          ) |
+                   ( fifo_full &  fifo_re & fifo_data[FIFO_DEPTH-1].we) |
+                   ( cache_ack & ~fifo_data[0].acked                  ) ; //~cache_we_dly                       );
 
 
   /*
@@ -206,6 +216,7 @@ module riscv_wbuf #(
    - access pending
    - pending accesses in FIFO
    - bu_cacheflush (use FIFO to ensure cache-flush arrives in-order at the cache)
+   otherwise, pass through to cache-section
    */
 
   always @(posedge clk,negedge rstn)
@@ -239,6 +250,6 @@ module riscv_wbuf #(
 
 
   always @(posedge clk)
-    if (cache_req) dcache_we <= cache_we;
+    if (cache_req) cache_we_dly <= cache_we;
 endmodule
 
