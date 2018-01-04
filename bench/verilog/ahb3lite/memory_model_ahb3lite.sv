@@ -182,16 +182,17 @@ module memory_model_ahb3lite #(
           8'h00  : begin
                        for (i=0; i<byte_cnt; i++)
                        begin
-                           mem_array[ base_addr+address+ (i & ~(DATA_WIDTH/8 -1)) ][ (i%(DATA_WIDTH/8))*8+:8 ] = data[i];
-$display ("write %2h to %8h (base_addr=%8h, address=%4h, i=%2h)", data[i], base_addr+address+ (i & ~(DATA_WIDTH/8 -1)), base_addr, address, i);
-$display ("(%8h)=%8h",base_addr+address+4*(i/4), mem_array[ base_addr+address+4*(i/4) ]);
+//                           mem_array[ base_addr+address+ (i & ~(DATA_WIDTH/8 -1)) ][ (i%(DATA_WIDTH/8))*8+:8 ] = data[i];
+                           mem_array[ (base_addr + address + i) & ~(DATA_WIDTH/8 -1) ][ ((base_addr + address + i) % (DATA_WIDTH/8))*8+:8 ] = data[i];
+//$display ("write %2h to %8h (base_addr=%8h, address=%4h, i=%2h)", data[i], base_addr+address+ (i & ~(DATA_WIDTH/8 -1)), base_addr, address, i);
+//$display ("(%8h)=%8h",base_addr+address+4*(i/4), mem_array[ base_addr+address+4*(i/4) ]);
                        end
                    end
           8'h01  : eof = 1;
           8'h02  : base_addr = {data[0],data[1]} << 4;
           8'h03  : $display("INFO   : Ignored record type %0d while processing %s", record_type, file);
           8'h04  : base_addr = {data[0], data[1]} << 16;
-          8'h05  : $display("ERROR  : Unsupported record type %0d while processing %s", record_type, file);
+          8'h05  : base_addr = {data[0], data[1], data[2], data[3]};
           default: $display("ERROR  : Unknown record type while processing %s", file);
         endcase
     end
@@ -242,6 +243,15 @@ $display ("(%8h)=%8h",base_addr+address+4*(i/4), mem_array[ base_addr+address+4*
     $fclose(fd);
   endtask
 
+
+
+  /*
+   * Dump memory
+   */
+  task dump;
+    foreach (mem_array[i])
+      $display("[%8h]:%8h", i,mem_array[i]);
+  endtask
 
 
 
