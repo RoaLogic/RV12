@@ -42,14 +42,15 @@ module riscv_ex #(
   parameter            EXCEPTION_SIZE = 12,
   parameter            BP_GLOBAL_BITS = 2,
   parameter            HAS_RVC        = 0,
-  parameter            HAS_AMO        = 0,
-  parameter            HAS_MULDIV     = 0,
+  parameter            HAS_RVA        = 0,
+  parameter            HAS_RVM        = 0,
   parameter            MULT_LATENCY   = 0
 )
 (
   input                           rstn,
   input                           clk,
 
+  input                           wb_stall,
   output                          ex_stall,
 
   //Program counter
@@ -71,14 +72,17 @@ module riscv_ex #(
   output reg [INSTR_SIZE    -1:0] ex_instr,
 
   input      [EXCEPTION_SIZE-1:0] id_exception,
+                                  mem_exception,
+                                  wb_exception,
   output reg [EXCEPTION_SIZE-1:0] ex_exception,
-  input      [EXCEPTION_SIZE-1:0] wb_exception,
 
   //from ID
   input                           id_userf_opA,
                                   id_userf_opB,
                                   id_bypex_opA,
                                   id_bypex_opB,
+                                  id_bypmem_opA,
+                                  id_bypmem_opB,
                                   id_bypwb_opA,
                                   id_bypwb_opB,
   input      [XLEN          -1:0] id_opA,
@@ -88,12 +92,13 @@ module riscv_ex #(
   input      [XLEN          -1:0] rf_srcv1,
                                   rf_srcv2,
 
-  //to MEMWB
+  //to MEM
   output reg [XLEN          -1:0] ex_r,
-  output     [XLEN          -1:0] ex_memadr,
+//  output     [XLEN          -1:0] ex_memadr,
 
   //Bypasses
-  input      [XLEN          -1:0] wb_r,        //from MEM/WB stage
+  input      [XLEN          -1:0] mem_r,
+  input      [XLEN          -1:0] wb_r,
 
   //To State
   output     [              11:0] ex_csr_reg,
@@ -106,15 +111,15 @@ module riscv_ex #(
   input      [XLEN          -1:0] st_csr_rval,
 
   //To DCACHE/Memory
-  output     [XLEN          -1:0] mem_adr,
-                                  mem_d,
-  output                          mem_req,
-                                  mem_we,
-  output     [XLEN/8        -1:0] mem_be,
-  input                           mem_ack,
-  input      [XLEN          -1:0] mem_q,
-  input                           mem_misaligned,
-                                  mem_page_fault,
+  output     [XLEN          -1:0] dmem_adr,
+                                  dmem_d,
+  output                          dmem_req,
+                                  dmem_we,
+  output     [XLEN/8        -1:0] dmem_be,
+  input                           dmem_ack,
+  input      [XLEN          -1:0] dmem_q,
+  input                           dmem_misaligned,
+                                  dmem_page_fault,
 
   //Debug Unit
   input                           du_stall,
@@ -187,18 +192,20 @@ module riscv_ex #(
   //use du_stall_dly, because this is combinatorial
   //When the pipeline is longer than the time for the debugger to access the system, this fails
   always_comb
-    casex ( {id_userf_opA, id_bypwb_opA, id_bypex_opA} )
-      3'b??1 : opA = du_stall_dly ? rf_srcv1 : ex_r;
-      3'b?10 : opA = du_stall_dly ? rf_srcv1 : wb_r;
-      3'b100 : opA =                           rf_srcv1;
+    casex ( {id_userf_opA, id_bypwb_opA, id_bypmem_opA, id_bypex_opA} )
+      4'b???1: opA = du_stall_dly ? rf_srcv1 : ex_r;
+      4'b??10: opA = du_stall_dly ? rf_srcv1 : mem_r;
+      4'b?100: opA = du_stall_dly ? rf_srcv1 : wb_r;
+      4'b1000: opA =                           rf_srcv1;
       default: opA =                           id_opA;
     endcase
 
   always_comb
-    casex ( {id_userf_opB, id_bypwb_opB, id_bypex_opB} )
-      3'b??1 : opB = du_stall_dly ? rf_srcv2 : ex_r;
-      3'b?10 : opB = du_stall_dly ? rf_srcv2 : wb_r;
-      3'b100 : opB =                           rf_srcv2;
+    casex ( {id_userf_opB, id_bypwb_opB, id_bypmem_opB, id_bypex_opB} )
+      4'b???1: opB = du_stall_dly ? rf_srcv2 : ex_r;
+      4'b??10: opB = du_stall_dly ? rf_srcv2 : mem_r;
+      4'b?100: opB = du_stall_dly ? rf_srcv2 : wb_r;
+      4'b1000: opB =                           rf_srcv2;
       default: opB =                           id_opB;
     endcase
 
@@ -219,7 +226,7 @@ module riscv_ex #(
     .INSTR_SIZE     ( INSTR_SIZE     ),
     .EXCEPTION_SIZE ( EXCEPTION_SIZE ) )
   lsu (
-    .lsu_memadr ( ex_memadr  ),
+//    .lsu_memadr ( ex_memadr  ),
     .*
   );
 
@@ -234,7 +241,7 @@ module riscv_ex #(
   );
 
 generate
-  if (HAS_MULDIV)
+  if (HAS_RVM)
   begin
       riscv_mul #(
         .XLEN         ( XLEN         ),
@@ -271,7 +278,7 @@ endgenerate
    */
 
   assign ex_bubble = alu_bubble & lsu_bubble & mul_bubble & div_bubble;
-  assign ex_stall  = lsu_stall | mul_stall | div_stall;
+  assign ex_stall  = wb_stall | lsu_stall | mul_stall | div_stall;
 
   //result
   always_comb
@@ -288,11 +295,12 @@ endgenerate
   begin
        //Branch unit handles most exceptions and relays ID-exceptions
        ex_exception = bu_exception;
-
+/*
        ex_exception[CAUSE_MISALIGNED_LOAD         ] = lsu_exception[CAUSE_MISALIGNED_LOAD         ];
        ex_exception[CAUSE_LOAD_ACCESS_FAULT       ] = lsu_exception[CAUSE_LOAD_ACCESS_FAULT       ];
        ex_exception[CAUSE_MISALIGNED_STORE        ] = lsu_exception[CAUSE_MISALIGNED_STORE        ];
        ex_exception[CAUSE_STORE_ACCESS_FAULT      ] = lsu_exception[CAUSE_STORE_ACCESS_FAULT      ];
+*/
   end
 
 endmodule 
