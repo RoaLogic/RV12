@@ -35,6 +35,10 @@
 //                                                             //
 /////////////////////////////////////////////////////////////////
 
+/*
+  Changelog: 2017-12-15: Added MEM stage to improve memory access performance
+*/
+
 module riscv_core #(
   parameter            XLEN            = 32,
   parameter [XLEN-1:0] PC_INIT         = 'h200,
@@ -44,8 +48,8 @@ module riscv_core #(
   parameter            HAS_BPU         = 1,
   parameter            HAS_FPU         = 0,
   parameter            HAS_MMU         = 0,
-  parameter            HAS_MULDIV      = 0,
-  parameter            HAS_AMO         = 0,
+  parameter            HAS_RVA         = 0,
+  parameter            HAS_RVM         = 0,
   parameter            HAS_RVC         = 0,
   parameter            IS_RV32E        = 0,
 
@@ -91,15 +95,15 @@ module riscv_core #(
   input                      if_parcel_page_fault,
 
   //Data Memory Access bus
-  output [XLEN         -1:0] mem_adr,
-                             mem_d,
-  input  [XLEN         -1:0] mem_q,
-  output                     mem_we,
-  output [XLEN/8       -1:0] mem_be,
-  output                     mem_req,
-  input                      mem_ack,
-                             mem_misaligned,
-                             mem_page_fault,
+  output [XLEN         -1:0] dmem_adr,
+                             dmem_d,
+  input  [XLEN         -1:0] dmem_q,
+  output                     dmem_we,
+  output [XLEN/8       -1:0] dmem_be,
+  output                     dmem_req,
+  input                      dmem_ack,
+                             dmem_misaligned,
+                             dmem_page_fault,
 
   //cpu state
   output [              1:0] st_prv,
@@ -137,16 +141,19 @@ module riscv_core #(
                              if_pc,
                              id_pc,
                              ex_pc,
+                             mem_pc,
                              wb_pc;
 
   logic [INSTR_SIZE    -1:0] if_instr,
                              id_instr,
                              ex_instr,
+                             mem_instr,
                              wb_instr;
 
   logic                      if_bubble,
                              id_bubble,
                              ex_bubble,
+                             mem_bubble,
                              wb_bubble;
 
   logic                      bu_flush,
@@ -155,6 +162,7 @@ module riscv_core #(
 
   logic                      id_stall,
                              ex_stall,
+                             mem_stall,
                              wb_stall,
                              du_stall,
                              du_stall_dly;
@@ -174,6 +182,7 @@ module riscv_core #(
   logic [EXCEPTION_SIZE-1:0] if_exception,
                              id_exception,
                              ex_exception,
+                             mem_exception,
                              wb_exception;
 
   //RF access
@@ -192,12 +201,15 @@ module riscv_core #(
                              id_opB,
                              ex_r,
                              ex_memadr,
-                             mem_r;
+                             mem_r,
+                             mem_memadr;
 
   logic                      id_userf_opA,
                              id_userf_opB,
                              id_bypex_opA,
                              id_bypex_opB,
+                             id_bypmem_opA,
+                             id_bypmem_opB,
                              id_bypwb_opA,
                              id_bypwb_opB;
 
@@ -261,7 +273,9 @@ module riscv_core #(
     .HAS_USER       ( HAS_USER       ),
     .HAS_SUPER      ( HAS_SUPER      ),
     .HAS_HYPER      ( HAS_HYPER      ),
-    .HAS_MULDIV     ( HAS_MULDIV     ) )
+    .HAS_RVA        ( HAS_RVA        ),
+    .HAS_RVM        ( HAS_RVM        ),
+    .MULT_LATENCY   ( MULT_LATENCY   ) )
   id_unit (
     .id_src1  ( rf_src1[0]  ),
     .id_src2  ( rf_src2[0]  ),
@@ -278,8 +292,8 @@ module riscv_core #(
     .INSTR_SIZE     ( INSTR_SIZE     ),
     .EXCEPTION_SIZE ( EXCEPTION_SIZE ),
     .HAS_RVC        ( HAS_RVC        ),
-    .HAS_AMO        ( HAS_AMO        ),
-    .HAS_MULDIV     ( HAS_MULDIV     ),
+    .HAS_RVA        ( HAS_RVA        ),
+    .HAS_RVM        ( HAS_RVM        ),
     .MULT_LATENCY   ( MULT_LATENCY   ) )
   ex_units (
     .rf_srcv1 ( rf_srcv1[0] ),
@@ -287,7 +301,20 @@ module riscv_core #(
     .*
   );
 
- 
+
+  /*
+   * Memory
+   */
+  riscv_mem #(
+    .XLEN           ( XLEN           ),
+    .PC_INIT        ( PC_INIT        ),
+    .INSTR_SIZE     ( INSTR_SIZE     ),
+    .EXCEPTION_SIZE ( EXCEPTION_SIZE ) )
+  mem_unit   (
+    .*
+  );
+
+
   /*
    * Memory + Write Back unit
    */
