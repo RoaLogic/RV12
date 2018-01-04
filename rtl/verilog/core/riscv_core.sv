@@ -303,7 +303,7 @@ module riscv_core #(
 
 
   /*
-   * Memory
+   * Memory access
    */
   riscv_mem #(
     .XLEN           ( XLEN           ),
@@ -316,14 +316,14 @@ module riscv_core #(
 
 
   /*
-   * Memory + Write Back unit
+   * Memory acknowledge + Write Back unit
    */
-  riscv_memwb #(
+  riscv_wb #(
     .XLEN           ( XLEN           ),
     .PC_INIT        ( PC_INIT        ),
     .INSTR_SIZE     ( INSTR_SIZE     ),
     .EXCEPTION_SIZE ( EXCEPTION_SIZE ) )
-  memwb_unit   (
+  wb_unit   (
     .wb_dst ( rf_dst[0]  ),
     .wb_we  ( rf_we[0]   ),
     .*
