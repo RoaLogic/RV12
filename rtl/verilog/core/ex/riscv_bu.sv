@@ -48,6 +48,7 @@ module riscv_bu #(
   input                           clk,
 
   input                           ex_stall,
+  input                           st_flush,
 
   //Program counter
   input      [XLEN          -1:0] id_pc,
@@ -66,15 +67,13 @@ module riscv_bu #(
 
   input      [EXCEPTION_SIZE-1:0] id_exception,
                                   ex_exception,
+                                  mem_exception,
                                   wb_exception,
   output reg [EXCEPTION_SIZE-1:0] bu_exception,
 
   //from ID
   input      [XLEN          -1:0] opA,
                                   opB,
-
-  //From State
-  input                           st_flush,
 
   //Debug Unit
   input                           du_stall,
@@ -133,8 +132,9 @@ module riscv_bu #(
     if      (!rstn          ) bu_exception <= 'h0;
     else if (!ex_stall)
     begin
-        if      ( bu_flush     || st_flush || 
-                 |ex_exception ||
+        if      ( bu_flush      || st_flush || 
+                 |ex_exception  ||
+                 |mem_exception ||
                  |wb_exception  ) bu_exception <= 'h0;
         else if (!du_stall      )
         begin
