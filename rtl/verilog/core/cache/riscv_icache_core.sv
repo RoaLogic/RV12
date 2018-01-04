@@ -169,7 +169,8 @@ module riscv_icache_core #(
                            tag_widx; //for LRU
   logic [DAT_IDX_BITS-1:0] dat_idx,
                            dat_widx;
-  logic [TAG_BITS    -1:0] core_tag;
+  logic [TAG_BITS    -1:0] tag_in_core_tag,
+                           core_tag;
 
   logic [WAYS        -1:0] way_hit;
   logic [DAT_BITS    -1:0] way_dat [WAYS]; //only read XLEN bits from BLK_BITS
@@ -209,7 +210,7 @@ module riscv_icache_core #(
 
   //Is this a cacheable region?
   //MSB=1 non-cacheable (IO region)
-  //MSB=0 cacheabel (instruction/data region)
+  //MSB=0 cacheable (instruction/data region)
   assign is_cacheable = ~if_nxt_pc[PHYS_ADDR_SIZE-1];
 
   always @(posedge clk)
@@ -236,6 +237,9 @@ module riscv_icache_core #(
  
   //core TAG value
   assign core_tag = pc[PHYS_ADDR_SIZE-2 -: TAG_BITS];
+
+  always @(posedge clk)
+    if (!filling) tag_in_core_tag <= core_tag;
 
 
   /*
@@ -378,7 +382,14 @@ endgenerate
     if      (!rstn   ) way_random <= 'h0;
     else if (!filling) way_random <= {way_random, way_random[19] ~^ way_random[16]};
 
-  assign fill_way_select_rnd = 1 << way_random[LRU_BITS-1:0];
+
+generate
+  //Fix way-select for Direct Mapped cache (WAYS=1)
+  if (WAYS == 1)
+    assign fill_way_select_rnd = 1;
+  else
+    assign fill_way_select_rnd = 1 << way_random[LRU_BITS-1:0];
+endgenerate
 
 
   //select which way to fill (implement replacement algorithms)
@@ -435,6 +446,8 @@ endgenerate
 /*
 initial
 begin
+   $display ("WAYS        : %0d", WAYS);
+   $display ("LRU_BITS    : %0d", LRU_BITS);
    $display ("BLK_OFF_BITS: %0d", BLK_OFF_BITS);
    $display ("SETS        : %0d", SETS        );
    $display ("IDX_BITS    : %0d", IDX_BITS    );
@@ -458,13 +471,13 @@ generate
       begin
           assign tag_in[way].valid = ~flushing;
           assign tag_in[way].lru   = 'h0;
-          assign tag_in[way].tag   = core_tag;
+          assign tag_in[way].tag   = tag_in_core_tag;
       end
       else if (REPLACE_ALG == 1) //FIFO
       begin
           assign tag_in[way].valid = ~flushing & (tag_out[way].valid | fill_way_select[way]);
           assign tag_in[way].lru   = fill_way_select[way] ? {LRU_BITS{1'b1}} : tag_out[way].lru -1;
-          assign tag_in[way].tag   = fill_way_select[way] ? core_tag         : tag_out[way].tag;
+          assign tag_in[way].tag   = fill_way_select[way] ? tag_in_core_tag         : tag_out[way].tag;
       end
       else if (REPLACE_ALG == 2) //LRU
       begin
@@ -475,7 +488,7 @@ generate
           assign tag_in[way].lru = filling ? fill_way_select[way] ? {LRU_BITS{1'b1}} : new_lru( tag_out[way].lru, tag_out[ onehot2int(fill_way_select) ].lru )
                                            : way_hit[way]         ? {LRU_BITS{1'b1}} : new_lru( tag_out[way].lru, tag_out[ onehot2int(way_hit        ) ].lru );
 
-          assign tag_in[way].tag = fill_way_select[way] ? core_tag : tag_out[way].tag;
+          assign tag_in[way].tag = fill_way_select[way] ? tag_in_core_tag : tag_out[way].tag;
       end
   end //next way
 endgenerate
