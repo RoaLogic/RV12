@@ -45,6 +45,7 @@ module riscv_div #(
   input                           rstn,
   input                           clk,
 
+  input                           ex_stall,
   output reg                      div_stall,
 
   //Instruction
@@ -145,7 +146,8 @@ module riscv_div #(
 
   //retain instruction
   always @(posedge clk)
-    if (!id_bubble) div_instr <= id_instr;
+    if (!ex_stall) div_instr <= id_instr;
+//    if (!id_bubble) div_instr <= id_instr;
 
 
   /*
@@ -193,7 +195,7 @@ module riscv_div #(
            * Check for exceptions (divide by zero, signed overflow)
            * Setup dividor registers
            */
-          ST_CHK: if (!id_bubble)
+          ST_CHK: if (!ex_stall && !id_bubble)
                     unique casex ( {func7,func3,opcode} )
                        DIV    : if (~|opB)
                                 begin //signed divide by zero
