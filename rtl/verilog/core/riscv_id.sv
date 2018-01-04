@@ -49,8 +49,9 @@ module riscv_id #(
   parameter            HAS_SUPER      = 0,
   parameter            HAS_USER       = 0,
   parameter            HAS_FPU        = 0,
-  parameter            HAS_MULDIV     = 0,
-  parameter            HAS_AMO        = 0
+  parameter            HAS_RVA        = 0,
+  parameter            HAS_RVM        = 0,
+  parameter            MULT_LATENCY   = 0
 )
 (
   input                           rstn,
@@ -80,12 +81,15 @@ module riscv_id #(
   output reg                      id_bubble,
   input      [INSTR_SIZE    -1:0] ex_instr,
   input                           ex_bubble,
+  input      [INSTR_SIZE    -1:0] mem_instr,
+  input                           mem_bubble,
   input      [INSTR_SIZE    -1:0] wb_instr,
   input                           wb_bubble,
 
   //Exceptions
   input      [EXCEPTION_SIZE-1:0] if_exception,
                                   ex_exception,
+                                  mem_exception,
                                   wb_exception,
   output reg [EXCEPTION_SIZE-1:0] id_exception,
 
@@ -104,10 +108,13 @@ module riscv_id #(
                                   id_userf_opB,
                                   id_bypex_opA,
                                   id_bypex_opB,
+                                  id_bypmem_opA,
+                                  id_bypmem_opB,
                                   id_bypwb_opA,
                                   id_bypwb_opB,
 
   //from WB
+  input      [XLEN          -1:0] mem_r,
   input      [XLEN          -1:0] wb_r
 );
 
@@ -117,7 +124,7 @@ module riscv_id #(
   // Variables
   //
   logic                      id_bubble_r;
-
+  logic                      multi_cycle_instruction;
   logic                      stall;
 
 
@@ -129,6 +136,7 @@ module riscv_id #(
   logic [               6:2] if_opcode,
                              id_opcode,
                              ex_opcode,
+                             mem_opcode,
                              wb_opcode;
 
   logic [               2:0] if_func3;
@@ -146,9 +154,11 @@ module riscv_id #(
                              if_src2,
                              id_dst,
                              ex_dst,
+                             mem_dst,
                              wb_dst;
 
   logic                      can_bypex,
+                             can_bypmem,
                              can_bypwb,
                              can_ldwb;
 
@@ -182,7 +192,7 @@ module riscv_id #(
    */
   always @(posedge clk,negedge rstn)
     if      (!rstn ) id_instr <= INSTR_NOP;
-    else if (!stall) id_instr <= if_instr;
+    else if (!stall ) id_instr <= if_instr;
 
 
   always @(posedge clk,negedge rstn)
@@ -193,8 +203,9 @@ module riscv_id #(
       else           id_bubble_r <= if_bubble;
 
   //local stall
-  assign stall = ex_stall | (du_stall & (~id_bubble_r | |id_exception));
-  assign id_bubble = stall | bu_flush | st_flush | |ex_exception | |wb_exception | id_bubble_r;
+//  assign stall = ex_stall | (du_stall & (~id_bubble_r | |id_exception));
+  assign stall     = ex_stall | (du_stall & ~|wb_exception);
+  assign id_bubble = stall | bu_flush | st_flush | |ex_exception | |mem_exception | |wb_exception | id_bubble_r;
 
 
   assign if_opcode  = if_instr[ 6: 2];
@@ -203,15 +214,17 @@ module riscv_id #(
 
   assign id_opcode  = id_instr [ 6:2];
   assign ex_opcode  = ex_instr [ 6:2];
+  assign mem_opcode = mem_instr[ 6:2];
   assign wb_opcode  = wb_instr [ 6:2];
   assign id_dst     = id_instr [11:7];
   assign ex_dst     = ex_instr [11:7];
+  assign mem_dst    = mem_instr[11:7];
   assign wb_dst     = wb_instr [11:7];
 
   assign is_rv64    = (XLEN       == 64);
   assign has_fp     = (HAS_FPU    !=  0);
-  assign has_muldiv = (HAS_MULDIV !=  0);
-  assign has_amo    = (HAS_AMO    !=  0);
+  assign has_muldiv = (HAS_RVM    !=  0);
+  assign has_amo    = (HAS_RVA    !=  0);
   assign has_user   = (HAS_USER   !=  0);
   assign has_super  = (HAS_SUPER  !=  0);
   assign has_hyper  = (HAS_HYPER  !=  0);
@@ -322,7 +335,7 @@ module riscv_id #(
       OPC_LOAD    : begin
                         id_userf_opA <= ~( (if_src1 == wb_dst) & |wb_dst & can_ldwb );
                         id_userf_opB <= 'b0;
-                     end
+                    end
       OPC_STORE   : begin
                         id_userf_opA <= ~( (if_src1 == wb_dst) & |wb_dst & can_ldwb );
                         id_userf_opB <= ~( (if_src2 == wb_dst) & |wb_dst & can_ldwb );
@@ -341,7 +354,6 @@ module riscv_id #(
 
   always @(posedge clk)
     if (!stall)
-    (* synthesis,parallel_case *)
     casex (if_opcode)
       OPC_LOAD_FP : ;
       OPC_MISC_MEM: ;
@@ -406,6 +418,27 @@ module riscv_id #(
   /*
    * Bypasses
    */
+  always @(posedge clk,negedge rstn)
+    if (!rstn) multi_cycle_instruction <= 1'b0;
+    else if (!stall)
+    casex ( {is_rv64,if_func7,if_func3,if_opcode} )
+      {1'b?,MUL   } : multi_cycle_instruction <= MULT_LATENCY > 0 ? has_muldiv : 1'b0;
+      {1'b?,MULH  } : multi_cycle_instruction <= MULT_LATENCY > 0 ? has_muldiv : 1'b0;
+      {1'b1,MULW  } : multi_cycle_instruction <= MULT_LATENCY > 0 ? has_muldiv : 1'b0;
+      {1'b?,MULHSU} : multi_cycle_instruction <= MULT_LATENCY > 0 ? has_muldiv : 1'b0;
+      {1'b?,MULHU } : multi_cycle_instruction <= MULT_LATENCY > 0 ? has_muldiv : 1'b0;
+      {1'b?,DIV   } : multi_cycle_instruction <= has_muldiv;
+      {1'b1,DIVW  } : multi_cycle_instruction <= has_muldiv;
+      {1'b?,DIVU  } : multi_cycle_instruction <= has_muldiv;
+      {1'b1,DIVUW } : multi_cycle_instruction <= has_muldiv;
+      {1'b?,REM   } : multi_cycle_instruction <= has_muldiv;
+      {1'b1,REMW  } : multi_cycle_instruction <= has_muldiv;
+      {1'b?,REMU  } : multi_cycle_instruction <= has_muldiv;
+      {1'b1,REMUW } : multi_cycle_instruction <= has_muldiv;
+      default       : multi_cycle_instruction <= 1'b0;
+    endcase
+
+
   //Check for each stage if the result should be used
   always_comb
     (* synthesis,parallel_case *)
@@ -421,24 +454,43 @@ module riscv_id #(
        OPC_JALR    : can_bypex = ~id_bubble;
        OPC_JAL     : can_bypex = ~id_bubble;
        OPC_SYSTEM  : can_bypex = ~id_bubble; //TODO not ALL SYSTEM
-       default     : can_bypex = 'b0;
+       default     : can_bypex = 1'b0;
     endcase
+
 
   always_comb
     (* synthesis,parallel_case *)
     casex (ex_opcode)
-       OPC_LOAD    : can_bypwb = ~ex_bubble;
-       OPC_OP_IMM  : can_bypwb = ~ex_bubble;
-       OPC_AUIPC   : can_bypwb = ~ex_bubble;
-       OPC_OP_IMM32: can_bypwb = ~ex_bubble;
-       OPC_AMO     : can_bypwb = ~ex_bubble;
-       OPC_OP      : can_bypwb = ~ex_bubble;
-       OPC_LUI     : can_bypwb = ~ex_bubble;
-       OPC_OP32    : can_bypwb = ~ex_bubble;
-       OPC_JALR    : can_bypwb = ~ex_bubble;
-       OPC_JAL     : can_bypwb = ~ex_bubble;
-       OPC_SYSTEM  : can_bypwb = ~ex_bubble; //TODO not ALL SYSTEM
-       default     : can_bypwb = 'b0;
+       OPC_LOAD    : can_bypmem = ~ex_bubble & ~multi_cycle_instruction;
+       OPC_OP_IMM  : can_bypmem = ~ex_bubble & ~multi_cycle_instruction;
+       OPC_AUIPC   : can_bypmem = ~ex_bubble & ~multi_cycle_instruction;
+       OPC_OP_IMM32: can_bypmem = ~ex_bubble & ~multi_cycle_instruction;
+       OPC_AMO     : can_bypmem = ~ex_bubble & ~multi_cycle_instruction;
+       OPC_OP      : can_bypmem = ~ex_bubble & ~multi_cycle_instruction;
+       OPC_LUI     : can_bypmem = ~ex_bubble & ~multi_cycle_instruction;
+       OPC_OP32    : can_bypmem = ~ex_bubble & ~multi_cycle_instruction;
+       OPC_JALR    : can_bypmem = ~ex_bubble & ~multi_cycle_instruction;
+       OPC_JAL     : can_bypmem = ~ex_bubble & ~multi_cycle_instruction;
+       OPC_SYSTEM  : can_bypmem = ~ex_bubble & ~multi_cycle_instruction; //TODO not ALL SYSTEM
+       default     : can_bypmem = 1'b0;
+    endcase
+
+
+  always_comb
+    (* synthesis,parallel_case *)
+    casex (mem_opcode)
+       OPC_LOAD    : can_bypwb = ~mem_bubble & ~multi_cycle_instruction;
+       OPC_OP_IMM  : can_bypwb = ~mem_bubble & ~multi_cycle_instruction;
+       OPC_AUIPC   : can_bypwb = ~mem_bubble & ~multi_cycle_instruction;
+       OPC_OP_IMM32: can_bypwb = ~mem_bubble & ~multi_cycle_instruction;
+       OPC_AMO     : can_bypwb = ~mem_bubble & ~multi_cycle_instruction;
+       OPC_OP      : can_bypwb = ~mem_bubble & ~multi_cycle_instruction;
+       OPC_LUI     : can_bypwb = ~mem_bubble & ~multi_cycle_instruction;
+       OPC_OP32    : can_bypwb = ~mem_bubble & ~multi_cycle_instruction;
+       OPC_JALR    : can_bypwb = ~mem_bubble & ~multi_cycle_instruction;
+       OPC_JAL     : can_bypwb = ~mem_bubble & ~multi_cycle_instruction;
+       OPC_SYSTEM  : can_bypwb = ~mem_bubble & ~multi_cycle_instruction; //TODO not ALL SYSTEM
+       default     : can_bypwb = 1'b0;
     endcase
 
 
@@ -452,74 +504,104 @@ module riscv_id #(
     (* synthesis,parallel_case *)
     casex (if_opcode)
       OPC_OP_IMM  : begin
-                        id_bypex_opA <= (if_src1 == id_dst) & |id_dst & can_bypex;
-                        id_bypex_opB <= 'b0;
+                        id_bypex_opA  <= (if_src1 == id_dst ) & |id_dst & can_bypex;
+                        id_bypex_opB  <= 1'b0;
 
-                        id_bypwb_opA <= (if_src1 == ex_dst) & |ex_dst & can_bypwb;
-                        id_bypwb_opB <= 'b0;
+                        id_bypmem_opA <= (if_src1 == ex_dst ) & |ex_dst & can_bypmem;
+                        id_bypmem_opB <= 1'b0;
+
+                        id_bypwb_opA  <= (if_src1 == mem_dst) & |mem_dst & can_bypwb;
+                        id_bypwb_opB  <= 1'b0;
                     end
       OPC_OP_IMM32: begin
-                        id_bypex_opA <= (if_src1 == id_dst) & |id_dst & can_bypex;
-                        id_bypex_opB <= 'b0;
+                        id_bypex_opA  <= (if_src1 == id_dst) & |id_dst & can_bypex;
+                        id_bypex_opB  <= 1'b0;
 
-                        id_bypwb_opA <= (if_src1 == ex_dst ) & |ex_dst & can_bypwb;
-                        id_bypwb_opB <= 'b0;
+                        id_bypmem_opA <= (if_src1 == ex_dst ) & |ex_dst & can_bypmem;
+                        id_bypmem_opB <= 1'b0;
+
+                        id_bypwb_opA  <= (if_src1 == mem_dst) & |mem_dst & can_bypwb;
+                        id_bypwb_opB  <= 1'b0;
                     end
       OPC_OP      : begin
-                        id_bypex_opA <= (if_src1 == id_dst) & |id_dst & can_bypex;
-                        id_bypex_opB <= (if_src2 == id_dst) & |id_dst & can_bypex;
+                        id_bypex_opA  <= (if_src1 == id_dst ) & |id_dst  & can_bypex;
+                        id_bypex_opB  <= (if_src2 == id_dst ) & |id_dst  & can_bypex;
 
-                        id_bypwb_opA <= (if_src1 == ex_dst) & |ex_dst & can_bypwb;
-                        id_bypwb_opB <= (if_src2 == ex_dst) & |ex_dst & can_bypwb;
+                        id_bypmem_opA <= (if_src1 == ex_dst ) & |ex_dst  & can_bypmem;
+                        id_bypmem_opB <= (if_src2 == ex_dst ) & |ex_dst  & can_bypmem;
+
+                        id_bypwb_opA  <= (if_src1 == mem_dst) & |mem_dst & can_bypwb;
+                        id_bypwb_opB  <= (if_src2 == mem_dst) & |mem_dst & can_bypwb;
                     end
       OPC_OP32    : begin
-                        id_bypex_opA <= (if_src1 == id_dst ) & |id_dst & can_bypex;
-                        id_bypex_opB <= (if_src2 == id_dst ) & |id_dst & can_bypex;
+                        id_bypex_opA  <= (if_src1 == id_dst ) & |id_dst  & can_bypex;
+                        id_bypex_opB  <= (if_src2 == id_dst ) & |id_dst  & can_bypex;
 
-                        id_bypwb_opA <= (if_src1 == ex_dst ) & |ex_dst & can_bypwb;
-                        id_bypwb_opB <= (if_src2 == ex_dst ) & |ex_dst & can_bypwb;
+                        id_bypmem_opA <= (if_src1 == ex_dst ) & |ex_dst  & can_bypmem;
+                        id_bypmem_opB <= (if_src2 == ex_dst ) & |ex_dst  & can_bypmem;
+
+                        id_bypwb_opA  <= (if_src1 == mem_dst) & |mem_dst & can_bypwb;
+                        id_bypwb_opB  <= (if_src2 == mem_dst) & |mem_dst & can_bypwb;
                     end
       OPC_BRANCH  : begin
-                        id_bypex_opA <= (if_src1 == id_dst ) & |id_dst & can_bypex;
-                        id_bypex_opB <= (if_src2 == id_dst ) & |id_dst & can_bypex;
+                        id_bypex_opA  <= (if_src1 == id_dst ) & |id_dst  & can_bypex;
+                        id_bypex_opB  <= (if_src2 == id_dst ) & |id_dst  & can_bypex;
 
-                        id_bypwb_opA <= (if_src1 == ex_dst ) & |ex_dst & can_bypwb;
-                        id_bypwb_opB <= (if_src2 == ex_dst ) & |ex_dst & can_bypwb;
+                        id_bypmem_opA <= (if_src1 == ex_dst ) & |ex_dst  & can_bypmem;
+                        id_bypmem_opB <= (if_src2 == ex_dst ) & |ex_dst  & can_bypmem;
+
+                        id_bypwb_opA  <= (if_src1 == mem_dst) & |mem_dst & can_bypwb;
+                        id_bypwb_opB  <= (if_src2 == mem_dst) & |mem_dst & can_bypwb;
                     end
       OPC_JALR    : begin
-                        id_bypex_opA <= (if_src1 == id_dst ) & |id_dst & can_bypex;
-                        id_bypex_opB <= 'b0;
+                        id_bypex_opA  <= (if_src1 == id_dst ) & |id_dst  & can_bypex;
+                        id_bypex_opB  <= 1'b0;
 
-                        id_bypwb_opA <= (if_src1 == ex_dst ) & |ex_dst & can_bypwb;
-                        id_bypwb_opB <= 'b0;
+                        id_bypmem_opA <= (if_src1 == ex_dst ) & |ex_dst  & can_bypmem;
+                        id_bypmem_opB <= 1'b0;
+
+                        id_bypwb_opA  <= (if_src1 == mem_dst) & |mem_dst & can_bypwb;
+                        id_bypwb_opB  <= 1'b0;
                     end
      OPC_LOAD     : begin
-                        id_bypex_opA <= (if_src1 == id_dst ) & |id_dst & can_bypex;
-                        id_bypex_opB <= 'b0;
+                        id_bypex_opA  <= (if_src1 == id_dst ) & |id_dst  & can_bypex;
+                        id_bypex_opB  <= 1'b0;
 
-                        id_bypwb_opA <= (if_src1 == ex_dst ) & |ex_dst & can_bypwb;
-                        id_bypwb_opB <= 'b0;
+                        id_bypmem_opA <= (if_src1 == ex_dst ) & |ex_dst  & can_bypmem;
+                        id_bypmem_opB <= 1'b0;
+
+                        id_bypwb_opA  <= (if_src1 == mem_dst) & |mem_dst & can_bypwb;
+                        id_bypwb_opB  <= 1'b0;
                     end
      OPC_STORE    : begin
-                        id_bypex_opA <= (if_src1 == id_dst ) & |id_dst & can_bypex;
-                        id_bypex_opB <= (if_src2 == id_dst ) & |id_dst & can_bypex;
+                        id_bypex_opA  <= (if_src1 == id_dst ) & |id_dst  & can_bypex;
+                        id_bypex_opB  <= (if_src2 == id_dst ) & |id_dst  & can_bypex;
 
-                        id_bypwb_opA <= (if_src1 == ex_dst ) & |ex_dst & can_bypwb;
-                        id_bypwb_opB <= (if_src2 == ex_dst ) & |ex_dst & can_bypwb;
+                        id_bypmem_opA <= (if_src1 == ex_dst ) & |ex_dst  & can_bypmem;
+                        id_bypmem_opB <= (if_src2 == ex_dst ) & |ex_dst  & can_bypmem;
+
+                        id_bypwb_opA  <= (if_src1 == mem_dst) & |mem_dst & can_bypwb;
+                        id_bypwb_opB  <= (if_src2 == mem_dst) & |mem_dst & can_bypwb;
                     end
      OPC_SYSTEM   : begin
-                        id_bypex_opA <= (if_src1 == id_dst ) & |id_dst & can_bypex;
-                        id_bypex_opB <= 'b0;
+                        id_bypex_opA  <= (if_src1 == id_dst ) & |id_dst  & can_bypex;
+                        id_bypex_opB  <= 1'b0;
 
-                        id_bypwb_opA <= (if_src1 == ex_dst ) & |ex_dst & can_bypwb;
-                        id_bypwb_opB <= 'b0;
+                        id_bypmem_opA <= (if_src1 == ex_dst ) & |ex_dst  & can_bypmem;
+                        id_bypmem_opB <= 1'b0;
+
+                        id_bypwb_opA  <= (if_src1 == mem_dst) & |mem_dst & can_bypwb;
+                        id_bypwb_opB  <= 1'b0;
                     end
       default     : begin
-                        id_bypex_opA <= 'b0;
-                        id_bypex_opB <= 'b0;
+                        id_bypex_opA  <= 1'b0;
+                        id_bypex_opB  <= 1'b0;
 
-                        id_bypwb_opA <= 'b0;
-                        id_bypwb_opB <= 'b0;
+                        id_bypmem_opA <= 1'b0;
+                        id_bypmem_opB <= 1'b0;
+
+                        id_bypwb_opA  <= 1'b0;
+                        id_bypwb_opB  <= 1'b0;
                     end
     endcase
 
@@ -527,11 +609,11 @@ module riscv_id #(
   /*
    * Generate STALL
    */
+//rih: todo
   always_comb
     if      (bu_flush || st_flush || du_flush) id_stall = 'b0;        //flush overrules stall
     else if (stall                           ) id_stall = ~if_bubble; //ignore NOPs e.g. after flush or IF-stall
-/*
-    else if (id_opcode == OPC_LOAD)
+    else if (id_opcode == OPC_LOAD && !id_bubble)
       casex (if_opcode)
         OPC_OP_IMM  : id_stall = (if_src1 == id_dst);
         OPC_OP_IMM32: id_stall = (if_src1 == id_dst);
@@ -542,6 +624,33 @@ module riscv_id #(
         OPC_LOAD    : id_stall = (if_src1 == id_dst);
         OPC_STORE   : id_stall = (if_src1 == id_dst) | (if_src2 == id_dst);
         OPC_SYSTEM  : id_stall = (if_src1 == id_dst);
+        default     : id_stall = 'b0;
+      endcase
+    else if (ex_opcode == OPC_LOAD && !ex_bubble)
+      casex (if_opcode)
+        OPC_OP_IMM  : id_stall = (if_src1 == ex_dst);
+        OPC_OP_IMM32: id_stall = (if_src1 == ex_dst);
+        OPC_OP      : id_stall = (if_src1 == ex_dst) | (if_src2 == ex_dst);
+        OPC_OP32    : id_stall = (if_src1 == ex_dst) | (if_src2 == ex_dst);
+        OPC_BRANCH  : id_stall = (if_src1 == ex_dst) | (if_src2 == ex_dst);
+        OPC_JALR    : id_stall = (if_src1 == ex_dst);
+        OPC_LOAD    : id_stall = (if_src1 == ex_dst);
+        OPC_STORE   : id_stall = (if_src1 == ex_dst) | (if_src2 == ex_dst);
+        OPC_SYSTEM  : id_stall = (if_src1 == ex_dst);
+        default     : id_stall = 'b0;
+      endcase
+/*
+    else if (mem_opcode == OPC_LOAD)
+      casex (if_opcode)
+        OPC_OP_IMM  : id_stall = (if_src1 == mem_dst);
+        OPC_OP_IMM32: id_stall = (if_src1 == mem_dst);
+        OPC_OP      : id_stall = (if_src1 == mem_dst) | (if_src2 == mem_dst);
+        OPC_OP32    : id_stall = (if_src1 == mem_dst) | (if_src2 == mem_dst);
+        OPC_BRANCH  : id_stall = (if_src1 == mem_dst) | (if_src2 == mem_dst);
+        OPC_JALR    : id_stall = (if_src1 == mem_dst);
+        OPC_LOAD    : id_stall = (if_src1 == mem_dst);
+        OPC_STORE   : id_stall = (if_src1 == mem_dst) | (if_src2 == mem_dst);
+        OPC_SYSTEM  : id_stall = (if_src1 == mem_dst);
         default     : id_stall = 'b0;
       endcase
 */
