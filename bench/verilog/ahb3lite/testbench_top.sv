@@ -53,11 +53,15 @@ parameter HAS_S            = 1;
 parameter HAS_H            = 0;
 parameter HAS_MMU          = 0;
 parameter HAS_FPU          = 0;
-parameter HAS_AMO          = 0;
-parameter HAS_MULDIV       = 0;
+parameter HAS_RVA          = 0;
+parameter HAS_RVM          = 0;
 parameter MULT_LATENCY     = 0;
 parameter CORES            = 1;
+
 parameter HTIF             = 0; //Host-interface
+parameter TOHOST           = 32'h80001000;
+parameter UART_TX          = 32'h80001080;
+
 
 //caches
 parameter ICACHE_SIZE      = 0;
@@ -153,12 +157,13 @@ riscv_top_ahb3lite #(
   .HAS_USER         ( HAS_U            ),
   .HAS_SUPER        ( HAS_S            ),
   .HAS_HYPER        ( HAS_H            ),
-  .HAS_AMO          ( HAS_AMO          ),
-  .HAS_MULDIV       ( HAS_MULDIV       ),
+  .HAS_RVA          ( HAS_RVA          ),
+  .HAS_RVM          ( HAS_RVM          ),
   .MULT_LATENCY     ( MULLAT           ),
 
   .WRITEBUFFER_SIZE ( WRITEBUFFER_SIZE ),
   .ICACHE_SIZE      ( ICACHE_SIZE      ),
+  .ICACHE_WAYS      ( 1                ),
   .DCACHE_SIZE      ( DCACHE_SIZE      ),
 
   .MTVEC_DEFAULT    ( 32'h80000004     )
@@ -253,7 +258,7 @@ generate
   else
   begin
       //New MMIO interface
-      mmio_if #(XLEN, PHYS_ADDR_SIZE, 32'h80001000)
+      mmio_if #(XLEN, PHYS_ADDR_SIZE, TOHOST, UART_TX)
       mmio_if_inst (
         .HRESETn ( HRESETn ),
         .HCLK    ( HCLK    ),
@@ -281,10 +286,10 @@ begin
     $display (" |  |\\  \\ ' '-' '\\ '-'  |    |  '--.' '-' ' '-' ||  |\\ `--. ");
     $display (" `--' '--' `---'  `--`--'    `-----' `---' `-   /`--' `---' ");
     $display ("- RISC-V Regression Testbench -----------  `---'  ----------");
-    $display ("  XLEN | PRIV | MMU | FPU | AMO | MDU | MULLAT | CORES  ");
+    $display ("  XLEN | PRIV | MMU | FPU | RVA | RVM | MULLAT | CORES  ");
     $display ("   %3d | %C%C%C%C | %3d | %3d | %3d | %3d | %6d | %3d   ", 
                XLEN, "M", HAS_H > 0 ? "H" : " ", HAS_S > 0 ? "S" : " ", HAS_U > 0 ? "U" : " ",
-               HAS_MMU, HAS_FPU, HAS_AMO, HAS_MULDIV, MULLAT, CORES);
+               HAS_MMU, HAS_FPU, HAS_RVA, HAS_RVM, MULLAT, CORES);
     $display ("-------------------------------------------------------------");
     $display ("  Test   = %s", INIT_FILE);
     $display ("  ICache = %0dkB", ICACHE_SIZE);
@@ -298,7 +303,9 @@ begin
     $display("INFO: Signal dump enabled ...\n\n");
 `endif
 
-  unified_memory.read_elf2hex(INIT_FILE);
+//  unified_memory.read_elf2hex(INIT_FILE);
+  unified_memory.read_ihex(INIT_FILE);
+//  unified_memory.dump;
 
   HCLK  = 'b0;
 
@@ -309,21 +316,22 @@ begin
   HRESETn = 'b1;
 
 
-  #100;
+  #112;
   //stall CPU
   dbg_ctrl.stall;
 
   //Enable BREAKPOINT to call external debugger
-//  dbg_ctrl.write('h27D4,'h0008);
+//  dbg_ctrl.write('h0004,'h0008);
 
   //Enable Single Stepping
-  dbg_ctrl.write('h27D0,'h1000);
+  dbg_ctrl.write('h0000,'h0001);
 
   //single step through 10 instructions
   repeat (100)
   begin
       while (!dbg_ctrl.stall_cpu) @(posedge HCLK);
       repeat(15) @(posedge HCLK);
+      dbg_ctrl.write('h0001,'h0000); //clear single-step-hit
       dbg_ctrl.unstall;
   end
 
@@ -331,7 +339,8 @@ begin
   @(posedge HCLK);
   while (!dbg_ctrl.stall_cpu) @(posedge HCLK);
   //disable Single Stepping
-  dbg_ctrl.write('h27D0,'h0000);
+  dbg_ctrl.write('h0000,'h0000);
+  dbg_ctrl.write('h0001,'h0000);
   dbg_ctrl.unstall;
 
 end		
@@ -344,9 +353,10 @@ endmodule
  * MMIO Interface
  */
 module mmio_if #(
-  parameter HDATA_SIZE = 32,
-  parameter HADDR_SIZE = 32,
-  parameter CATCH_ADDR = 80001000
+  parameter HDATA_SIZE    = 32,
+  parameter HADDR_SIZE    = 32,
+  parameter CATCH_TEST    = 80001000,
+  parameter CATCH_UART_TX = 80001080
 )
 (
   input                       HRESETn,
@@ -367,7 +377,9 @@ module mmio_if #(
   // Variables
   //
   logic [HDATA_SIZE-1:0] data_reg;
-  logic                  catch;
+  logic                  catch_test,
+                         catch_uart_tx;
+
 
   logic [           1:0] dHTRANS;
   logic [HADDR_SIZE-1:0] dHADDR;
@@ -422,18 +434,32 @@ module mmio_if #(
 
 
   always @(posedge HCLK,negedge HRESETn)
-    if (!HRESETn) catch     <= 1'b0;
+    if (!HRESETn)
+    begin
+         catch_test    <= 1'b0;
+         catch_uart_tx <= 1'b0;
+    end
     else
     begin
-        catch <= dHTRANS == HTRANS_NONSEQ && dHWRITE && dHADDR == CATCH_ADDR;
-        data_reg  <= HWDATA;
+        catch_test    <= dHTRANS == HTRANS_NONSEQ && dHWRITE && dHADDR == CATCH_TEST;
+        catch_uart_tx <= dHTRANS == HTRANS_NONSEQ && dHWRITE && dHADDR == CATCH_UART_TX;
+        data_reg      <= HWDATA;
     end
 
 
-  //Generate output
+  /*
+   * Generate output
+   */
+
+  //Simulated UART Tx (prints characters on screen)
+  always @(posedge HCLK)
+    if (catch_uart_tx) $write ("%0c", data_reg);
+
+
+  //Tests ...
   always @(posedge HCLK)
   begin
-      if (watchdog_cnt > 200_000 || catch)
+      if (watchdog_cnt > 1000_000 || catch_test)
       begin
           $display("\n\n");
           $display("-------------------------------------------------------------");
