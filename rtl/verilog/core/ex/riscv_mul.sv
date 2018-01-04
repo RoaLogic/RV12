@@ -44,6 +44,7 @@ module riscv_mul #(
   input                           rstn,
   input                           clk,
 
+  input                           ex_stall,
   output reg                      mul_stall,
 
   //Instruction
@@ -247,11 +248,13 @@ generate
        */
       //Register holding instruction for multiplier-output-selector
       always @(posedge clk)
-        if (!id_bubble) mul_instr <= id_instr; 
+        if (!ex_stall) mul_instr <= id_instr;
+//        if (!id_bubble) mul_instr <= id_instr; 
 
       //Registers holding multiplier operands
       always @(posedge clk)
-        if (!id_bubble)
+        if (!ex_stall)
+//        if (!id_bubble)
         begin
             mult_opA_reg <= mult_opA;
             mult_opB_reg <= mult_opB;
@@ -329,8 +332,8 @@ endgenerate
         mul_bubble <= 1'b1;
 
         unique case (state)
-          ST_IDLE: if (!id_bubble)
-                     if (is_mul)
+          ST_IDLE: if (!ex_stall)
+                     if (!id_bubble && is_mul)
                      begin
                          if (LATENCY == 0)
                          begin
