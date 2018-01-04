@@ -45,8 +45,8 @@ module riscv_top_ahb3lite #(
   parameter            HAS_BPU            = 1,
   parameter            HAS_FPU            = 0,
   parameter            HAS_MMU            = 0,
-  parameter            HAS_MULDIV         = 0,
-  parameter            HAS_AMO            = 0,
+  parameter            HAS_RVM            = 0,
+  parameter            HAS_RVA            = 0,
   parameter            HAS_RVC            = 0,
   parameter            IS_RV32E           = 0,
 
@@ -150,15 +150,15 @@ module riscv_top_ahb3lite #(
   logic                   if_parcel_misaligned;
   logic                   if_parcel_page_fault;
 
-  logic                   mem_req;
-  logic                   mem_ack;
-  logic [XLEN       -1:0] mem_adr;
-  logic [XLEN       -1:0] mem_d,
-                          mem_q;
-  logic                   mem_we;
-  logic [XLEN/8     -1:0] mem_be;
-  logic                   mem_misaligned;
-  logic                   mem_page_fault;
+  logic                   dmem_req;
+  logic                   dmem_ack;
+  logic [XLEN       -1:0] dmem_adr;
+  logic [XLEN       -1:0] dmem_d,
+                          dmem_q;
+  logic                   dmem_we;
+  logic [XLEN/8     -1:0] dmem_be;
+  logic                   dmem_misaligned;
+  logic                   dmem_page_fault;
 
   logic [            1:0] st_prv;
 
@@ -185,8 +185,8 @@ module riscv_top_ahb3lite #(
     .HAS_BPU        ( HAS_BPU         ),
     .HAS_FPU        ( HAS_FPU         ),
     .HAS_MMU        ( HAS_MMU         ),
-    .HAS_MULDIV     ( HAS_MULDIV      ),
-    .HAS_AMO        ( HAS_AMO         ),
+    .HAS_RVM        ( HAS_RVM         ),
+    .HAS_RVA        ( HAS_RVA         ),
     .HAS_RVC        ( HAS_RVC         ),
     .IS_RV32E       ( IS_RV32E        ),
 	 
@@ -268,24 +268,36 @@ module riscv_top_ahb3lite #(
     .WAYS           ( DCACHE_WAYS        ),
     .REPLACE_ALG    ( DCACHE_REPLACE_ALG ) )
   dcache (
-    .HRESETn   ( HRESETn       ),
-    .HCLK      ( HCLK          ),
-    .HSEL      ( dat_HSEL      ),
-    .HADDR     ( dat_HADDR     ),
-    .HWDATA    ( dat_HWDATA    ),
-    .HRDATA    ( dat_HRDATA    ),
-    .HWRITE    ( dat_HWRITE    ),
-    .HSIZE     ( dat_HSIZE     ),
-    .HBURST    ( dat_HBURST    ),
-    .HPROT     ( dat_HPROT     ),
-    .HTRANS    ( dat_HTRANS    ),
-    .HMASTLOCK ( dat_HMASTLOCK ),
-    .HREADY    ( dat_HREADY    ),
-    .HRESP     ( dat_HRESP     ),
+    .HRESETn        ( HRESETn         ),
+    .HCLK           ( HCLK            ),
+    .HSEL           ( dat_HSEL        ),
+    .HADDR          ( dat_HADDR       ),
+    .HWDATA         ( dat_HWDATA      ),
+    .HRDATA         ( dat_HRDATA      ),
+    .HWRITE         ( dat_HWRITE      ),
+    .HSIZE          ( dat_HSIZE       ),
+    .HBURST         ( dat_HBURST      ),
+    .HPROT          ( dat_HPROT       ),
+    .HTRANS         ( dat_HTRANS      ),
+    .HMASTLOCK      ( dat_HMASTLOCK   ),
+    .HREADY         ( dat_HREADY      ),
+    .HRESP          ( dat_HRESP       ),
 
-    .*
+    .mem_req        ( dmem_req        ),
+    .mem_ack        ( dmem_ack        ),
+    .mem_we         ( dmem_we         ),
+    .mem_adr        ( dmem_adr        ),
+    .mem_be         ( dmem_be         ),
+    .mem_d          ( dmem_d          ),
+    .mem_q          ( dmem_q          ),
+    .mem_misaligned ( dmem_misaligned ),
+
+    .bu_cacheflush  ( bu_cacheflush   ),
+    .dcflush_rdy    ( dcflush_rdy     ),
+
+    .st_prv         ( st_prv          )
   );
-  assign mem_page_fault = 1'b0; //TODO: for now
+  assign dmem_page_fault = 1'b0; //TODO: for now
 
 endmodule
 
