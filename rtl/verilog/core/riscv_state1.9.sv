@@ -49,8 +49,8 @@ module riscv_state1_9 #(
   parameter            HAS_DFPU        = 0,
   parameter            HAS_QFPU        = 0,
   parameter            HAS_MMU         = 0,
-  parameter            HAS_MULDIV      = 0,
-  parameter            HAS_AMO         = 0,
+  parameter            HAS_RVM         = 0,
+  parameter            HAS_RVA         = 0,
   parameter            HAS_BM          = 0,
   parameter            HAS_TMEM        = 0,
   parameter            HAS_SIMD        = 0,
@@ -269,8 +269,8 @@ module riscv_state1_9 #(
   assign has_dfpu  =((FLEN       ==  64) & has_fpu) | has_qfpu;
   assign has_decfpu= 1'b0;
   assign has_mmu   = (HAS_MMU    !=   0) & has_s;
-  assign has_muldiv= (HAS_MULDIV !=   0);
-  assign has_amo   = (HAS_AMO    !=   0);
+  assign has_muldiv= (HAS_RVM    !=   0);
+  assign has_amo   = (HAS_RVA    !=   0);
   assign has_bm    = (HAS_BM     !=   0);
   assign has_tmem  = (HAS_TMEM   !=   0);
   assign has_simd  = (HAS_SIMD   !=   0);
@@ -653,7 +653,7 @@ $display ("take_interrupt");
         else if ( |(wb_exception & ~du_ie[15:0]) )
         begin
 $display("exception");
-            st_flush  <= ~du_stall & ~du_flush;
+            st_flush  <= 1'b1;
 
             if (has_n && st_prv == PRV_U && |(wb_exception & csr.medeleg))
             begin
