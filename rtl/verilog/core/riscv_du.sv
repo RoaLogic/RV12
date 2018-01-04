@@ -79,10 +79,10 @@ module riscv_du #(
                                   st_flush,
 
   input      [INSTR_SIZE    -1:0] if_instr,
-                                  ex_instr,
-  input      [EXCEPTION_SIZE-1:0] ex_exception,
-  input      [XLEN          -1:0] ex_memadr,
-  input                           mem_ack,
+                                  mem_instr,
+  input      [EXCEPTION_SIZE-1:0] mem_exception,
+  input      [XLEN          -1:0] mem_memadr,
+  input                           dmem_ack,
                                   ex_stall,
 /*
                                   mem_req,
@@ -431,8 +431,8 @@ endgenerate
   assign bp_branch_hit = dbg.ctrl.branch_break_ena & (if_instr[6:2] == OPC_BRANCH);
 
   //Memory access
-  assign mem_read  = ~|ex_exception & (ex_instr[6:2] == OPC_LOAD );
-  assign mem_write = ~|ex_exception & (ex_instr[6:2] == OPC_STORE);
+  assign mem_read  = ~|mem_exception & (mem_instr[6:2] == OPC_LOAD );
+  assign mem_write = ~|mem_exception & (mem_instr[6:2] == OPC_STORE);
 
 generate
 for (n=0; n<MAX_BREAKPOINTS; n++)
@@ -446,9 +446,9 @@ begin: gen_bp_hit
         else
           case (dbg.bp[n].ctrl.cc)
              BP_CTRL_CC_FETCH    : bp_hit[n] = (if_pc     == dbg.bp[n].data) & ~bu_flush & ~st_flush;
-             BP_CTRL_CC_LD_ADR   : bp_hit[n] = (ex_memadr == dbg.bp[n].data) & mem_ack & mem_read;
-             BP_CTRL_CC_ST_ADR   : bp_hit[n] = (ex_memadr == dbg.bp[n].data) & mem_ack & mem_write;
-             BP_CTRL_CC_LDST_ADR : bp_hit[n] = (ex_memadr == dbg.bp[n].data) & mem_ack & (mem_read | mem_write);
+             BP_CTRL_CC_LD_ADR   : bp_hit[n] = (mem_memadr == dbg.bp[n].data) & dmem_ack & mem_read;
+             BP_CTRL_CC_ST_ADR   : bp_hit[n] = (mem_memadr == dbg.bp[n].data) & dmem_ack & mem_write;
+             BP_CTRL_CC_LDST_ADR : bp_hit[n] = (mem_memadr == dbg.bp[n].data) & dmem_ack & (mem_read | mem_write);
 /*
              BP_CTRL_CC_LD_ADR   : bp_hit[n] = (mem_adr == dbg.bp[n].data) & mem_req & ~mem_we;
              BP_CTRL_CC_ST_ADR   : bp_hit[n] = (mem_adr == dbg.bp[n].data) & mem_req &  mem_we;
