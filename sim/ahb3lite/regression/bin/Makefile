@@ -47,7 +47,7 @@ SIMWAVES   = $(addsuffix _waves, $(SIMULATORS))
 MS     = -s
 
 ROOT_DIR=../../../..
-TST_SRC_DIR=$(ROOT_DIR)/../bench/regression
+TST_SRC_DIR=$(ROOT_DIR)/../bench/tests/regression
 
 
 ##########################################################################
@@ -59,13 +59,13 @@ TST_SRC_DIR=$(ROOT_DIR)/../bench/regression
 #REGRESSION_MEM_LATENCY      = 0 1 3 8
 REGRESSION_MEM_LATENCY     = 0
 #REGRESSION_XLEN             = 32 64
-REGRESSION_XLEN             = 32
+REGRESSION_XLEN             = 64
 #REGRESSION_WRITEBUFFER_SIZE = 0 2 8
 REGRESSION_WRITEBUFFER_SIZE = 0
-REGRESSION_ICACHE_SIZE = 0 4
-REGRESSION_DCACHE_SIZE = 0 4
-#REGRESSION_MULT_LATENCY = 3 2 1 0
-REGRESSION_MULT_LATENCY = 4
+REGRESSION_ICACHE_SIZE = 4
+REGRESSION_DCACHE_SIZE = 4
+REGRESSION_MULT_LATENCY = 3 2 1 0
+#REGRESSION_MULT_LATENCY = 2
 
 
 ##########################################################################
@@ -73,16 +73,16 @@ REGRESSION_MULT_LATENCY = 4
 # Tests
 #
 ##########################################################################
-XLEN    = 32
+XLEN    = 64
 HAS_RVC = 0
 HAS_U   = 1 
-HAS_S   = 1
-HAS_H   = 0
-HAS_AMO = 0
+HAS_S   = 
+HAS_H   = 
+HAS_RVA = 
 HAS_FPU =
 HAS_MMU =
-HAS_MUL = 1
-HAS_DIV = $(HAS_MUL)
+HAS_RVM = 1
+HAS_DIV = $(HAS_RVM)
 CORES   = 1
 U_INT_TESTS =	simple							\
 		add addi 						\
@@ -132,11 +132,11 @@ S_TESTS      =	csr dirty illegal ma_fetch sbreak scall wfi
 
 
 #User Mode Integer Tests
-uitst_lst  =                  $(foreach t, $(U_INT_TESTS),rv$(XLEN)ui-p-$t)
-uitst_lst += $(if $(HAS_AMO), $(foreach t, $(U_AMO_TESTS),rv$(XLEN)ua-p-$t))
-uitst_lst += $(if $(HAS_MUL), $(foreach t, $(U_MUL_TESTS),rv$(XLEN)um-p-$t))
-uitst_lst += $(if $(HAS_DIV), $(foreach t, $(U_DIV_TESTS),rv$(XLEN)um-p-$t))
-uitests    = $(if $(HAS_U) > 0, $(uitst_lst))
+uitst_lst  =                      $(foreach t, $(U_INT_TESTS),rv$(XLEN)ui-p-$t)
+#uitst_lst += $(if $(HAS_RVA) > 0, $(foreach t, $(U_AMO_TESTS),rv$(XLEN)ua-p-$t))
+uitst_lst += $(if $(HAS_RVM) > 0, $(foreach t, $(U_MUL_TESTS),rv$(XLEN)um-p-$t))
+uitst_lst += $(if $(HAS_DIV) > 0, $(foreach t, $(U_DIV_TESTS),rv$(XLEN)um-p-$t))
+uitests    = $(if $(HAS_U)   > 0, $(uitst_lst))
 
 #User Mode RVC Tests
 uctst_lst = $(if $(HAS_RVC), $(foreach t, $(U_RVC_TESTS),rv$(XLEN)uc-p-$t))
@@ -152,8 +152,8 @@ mitests   = $(foreach t, $(mitst_lst),rv$(XLEN)mi-p-$t)
 
 
 #All tests
-tests = $(uitests) $(sitests) $(mitests)
-#tests = $(sitests)
+#tests = $(uitests) $(sitests) $(mitests)
+tests = $(uitests) $(mitests)
 
 
 ##########################################################################
@@ -192,7 +192,7 @@ regression: $(logs)
 	          XLEN=$(subst XLEN,,$(word 5,$(subst @, ,$*)))				\
 	          MULT_LATENCY=$(subst MULT_LATENCY,,$(word 6,$(subst @, ,$*)))		\
 	          HAS_U=$(HAS_U) HAS_S=$(HAS_S) HAS_H=$(HAS_H)				\
-		  HAS_AMO=$(HAS_AMO) HAS_RVC=$(HAS_RVC) HAS_MULDIV=$(HAS_MUL)		\
+		  HAS_RVA=$(HAS_RVA) HAS_RVC=$(HAS_RVC) HAS_RVM=$(HAS_RVM)		\
 	          TECHNOLOGY=$(TECHNOLOGY)						\
 	          INIT_FILE=\"$(TST_SRC_DIR)/$(lastword $(subst @, ,$*)).hex\" "
 
