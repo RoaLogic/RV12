@@ -37,7 +37,7 @@
 
 module riscv_du #(
   parameter XLEN           = 32,
-  parameter INSTR_SIZE     = 32,
+  parameter ILEN           = 32,
   parameter BREAKPOINTS    = 3,
   parameter EXCEPTION_SIZE = 12
 )
@@ -78,7 +78,7 @@ module riscv_du #(
   input                           bu_flush,
                                   st_flush,
 
-  input      [INSTR_SIZE    -1:0] if_instr,
+  input      [ILEN          -1:0] if_instr,
                                   mem_instr,
   input      [EXCEPTION_SIZE-1:0] mem_exception,
   input      [XLEN          -1:0] mem_memadr,
@@ -124,8 +124,8 @@ module riscv_du #(
 
   typedef struct packed {
     dbg_ctrl_struct  ctrl;
-    logic     [               31:0] ie,
-                                    cause;
+    logic     [               31:0] ie;
+    logic     [XLEN           -1:0] cause;
     dbg_hit_struct                  hit;
     bp_struct [MAX_BREAKPOINTS-1:0] bp;
   } dbg_struct;
@@ -364,27 +364,26 @@ endgenerate
     else if (|du_exceptions[31:16]) //Interrupts
     begin
         casex ( du_exceptions[31:16])
-          16'h???1 : dbg.cause <= (1 << (XLEN-1)) |  0;
-          16'h???2 : dbg.cause <= (1 << (XLEN-1)) |  1;
-          16'h???4 : dbg.cause <= (1 << (XLEN-1)) |  2;
-          16'h???8 : dbg.cause <= (1 << (XLEN-1)) |  3;
-          16'h??10 : dbg.cause <= (1 << (XLEN-1)) |  4;
-          16'h??20 : dbg.cause <= (1 << (XLEN-1)) |  5;
-          16'h??40 : dbg.cause <= (1 << (XLEN-1)) |  6;
-          16'h??80 : dbg.cause <= (1 << (XLEN-1)) |  7;
-          16'h?100 : dbg.cause <= (1 << (XLEN-1)) |  8;
-          16'h?200 : dbg.cause <= (1 << (XLEN-1)) |  9;
-          16'h?400 : dbg.cause <= (1 << (XLEN-1)) | 10;
-          16'h?800 : dbg.cause <= (1 << (XLEN-1)) | 11;
-          16'h1000 : dbg.cause <= (1 << (XLEN-1)) | 12;
-          16'h2000 : dbg.cause <= (1 << (XLEN-1)) | 13;
-          16'h4000 : dbg.cause <= (1 << (XLEN-1)) | 14;
-          16'h8000 : dbg.cause <= (1 << (XLEN-1)) | 15;
-          default  : dbg.cause <= (1 << (XLEN-1)) |  0;
+          16'h???1 : dbg.cause <= ('h1 << (XLEN-1)) |  0;
+          16'h???2 : dbg.cause <= ('h1 << (XLEN-1)) |  1;
+          16'h???4 : dbg.cause <= ('h1 << (XLEN-1)) |  2;
+          16'h???8 : dbg.cause <= ('h1 << (XLEN-1)) |  3;
+          16'h??10 : dbg.cause <= ('h1 << (XLEN-1)) |  4;
+          16'h??20 : dbg.cause <= ('h1 << (XLEN-1)) |  5;
+          16'h??40 : dbg.cause <= ('h1 << (XLEN-1)) |  6;
+          16'h??80 : dbg.cause <= ('h1 << (XLEN-1)) |  7;
+          16'h?100 : dbg.cause <= ('h1 << (XLEN-1)) |  8;
+          16'h?200 : dbg.cause <= ('h1 << (XLEN-1)) |  9;
+          16'h?400 : dbg.cause <= ('h1 << (XLEN-1)) | 10;
+          16'h?800 : dbg.cause <= ('h1 << (XLEN-1)) | 11;
+          16'h1000 : dbg.cause <= ('h1 << (XLEN-1)) | 12;
+          16'h2000 : dbg.cause <= ('h1 << (XLEN-1)) | 13;
+          16'h4000 : dbg.cause <= ('h1 << (XLEN-1)) | 14;
+          16'h8000 : dbg.cause <= ('h1 << (XLEN-1)) | 15;
+          default  : dbg.cause <= ('h1 << (XLEN-1)) |  0;
         endcase
     end
    
-
 
   //DBG BPCTRL / DBG BPDATA
 generate
