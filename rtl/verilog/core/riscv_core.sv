@@ -40,43 +40,46 @@
 */
 
 module riscv_core #(
-  parameter            XLEN            = 32,
-  parameter [XLEN-1:0] PC_INIT         = 'h200,
-  parameter            HAS_USER        = 0,
-  parameter            HAS_SUPER       = 0,
-  parameter            HAS_HYPER       = 0,
-  parameter            HAS_BPU         = 1,
-  parameter            HAS_FPU         = 0,
-  parameter            HAS_MMU         = 0,
-  parameter            HAS_RVA         = 0,
-  parameter            HAS_RVM         = 0,
-  parameter            HAS_RVC         = 0,
-  parameter            IS_RV32E        = 0,
+  parameter            XLEN                  = 32,
+  parameter            ILEN                  = 32,
+  parameter [XLEN-1:0] PC_INIT               = 'h200,
+  parameter            HAS_USER              = 0,
+  parameter            HAS_SUPER             = 0,
+  parameter            HAS_HYPER             = 0,
+  parameter            HAS_BPU               = 1,
+  parameter            HAS_FPU               = 0,
+  parameter            HAS_MMU               = 0,
+  parameter            HAS_RVA               = 0,
+  parameter            HAS_RVM               = 0,
+  parameter            HAS_RVC               = 0,
+  parameter            IS_RV32E              = 0,
 
-  parameter            MULT_LATENCY    = 0,
+  parameter            MULT_LATENCY          = 0,
 
-  parameter            BREAKPOINTS     = 3,
+  parameter            BREAKPOINTS           = 3,
 
-  parameter            BP_GLOBAL_BITS  = 2,
-  parameter            BP_LOCAL_BITS   = 10,
+  parameter            BP_GLOBAL_BITS        = 2,
+  parameter            BP_LOCAL_BITS         = 10,
 
-  parameter            TECHNOLOGY      = "GENERIC",
+  parameter            TECHNOLOGY            = "GENERIC",
 
-  parameter            MNMIVEC_DEFAULT = PC_INIT -'h004,
-  parameter            MTVEC_DEFAULT   = PC_INIT -'h040,
-  parameter            HTVEC_DEFAULT   = PC_INIT -'h080,
-  parameter            STVEC_DEFAULT   = PC_INIT -'h0C0,
-  parameter            UTVEC_DEFAULT   = PC_INIT -'h100,
+  parameter            MNMIVEC_DEFAULT       = PC_INIT -'h004,
+  parameter            MTVEC_DEFAULT         = PC_INIT -'h040,
+  parameter            HTVEC_DEFAULT         = PC_INIT -'h080,
+  parameter            STVEC_DEFAULT         = PC_INIT -'h0C0,
+  parameter            UTVEC_DEFAULT         = PC_INIT -'h100,
 
-  parameter            VENDORID        = 16'h0001,
-  parameter            ARCHID          = (1<<XLEN) | 12,
-  parameter            REVMAJOR        = 4'h0,
-  parameter            REVMINOR        = 4'h0,
+  parameter            JEDEC_BANK            = 9,
+  parameter            JEDEC_MANUFACTURER_ID = 'h6e,
+  parameter            ARCHID                = (1<<XLEN) | 12,
+  parameter            REVPRV_MAJOR          = 1,
+  parameter            REVPRV_MINOR          = 10,
+  parameter            REVUSR_MAJOR          = 2,
+  parameter            REVUSR_MINOR          = 2,
 
-  parameter            HARTID          = 0,
+  parameter            HARTID                = 0,
 
-  parameter            PARCEL_SIZE     = 32,
-  parameter            INSTR_SIZE      = 32
+  parameter            PARCEL_SIZE           = 32
 )
 (
   input                      rstn,   //Reset
@@ -144,7 +147,7 @@ module riscv_core #(
                              mem_pc,
                              wb_pc;
 
-  logic [INSTR_SIZE    -1:0] if_instr,
+  logic [ILEN          -1:0] if_instr,
                              id_instr,
                              ex_instr,
                              mem_instr,
@@ -214,6 +217,12 @@ module riscv_core #(
                              id_bypwb_opB;
 
   //CPU state
+  logic [               1:0] st_xlen;
+  logic                      st_tvm,
+                             st_tw,
+                             st_tsr;
+  logic [XLEN          -1:0] st_mcounteren,
+                             st_scounteren;
   logic                      st_interrupt;
   logic [              11:0] ex_csr_reg;
   logic [XLEN          -1:0] ex_csr_wval,
@@ -253,8 +262,8 @@ module riscv_core #(
    */
   riscv_if #(
     .XLEN           ( XLEN           ),
+    .ILEN           ( ILEN           ),
     .PC_INIT        ( PC_INIT        ),
-    .INSTR_SIZE     ( INSTR_SIZE     ),
     .PARCEL_SIZE    ( PARCEL_SIZE    ),
     .EXCEPTION_SIZE ( EXCEPTION_SIZE ),
     .HAS_BPU        ( HAS_BPU        ) )
@@ -267,8 +276,8 @@ module riscv_core #(
    */
   riscv_id #(
     .XLEN           ( XLEN           ),
+    .ILEN           ( ILEN           ),
     .PC_INIT        ( PC_INIT        ),
-    .INSTR_SIZE     ( INSTR_SIZE     ),
     .EXCEPTION_SIZE ( EXCEPTION_SIZE ),
     .HAS_USER       ( HAS_USER       ),
     .HAS_SUPER      ( HAS_SUPER      ),
@@ -288,8 +297,8 @@ module riscv_core #(
    */
   riscv_ex #(
     .XLEN           ( XLEN           ),
+    .ILEN           ( ILEN           ),
     .PC_INIT        ( PC_INIT        ),
-    .INSTR_SIZE     ( INSTR_SIZE     ),
     .EXCEPTION_SIZE ( EXCEPTION_SIZE ),
     .HAS_RVC        ( HAS_RVC        ),
     .HAS_RVA        ( HAS_RVA        ),
@@ -307,8 +316,8 @@ module riscv_core #(
    */
   riscv_mem #(
     .XLEN           ( XLEN           ),
+    .ILEN           ( ILEN           ),
     .PC_INIT        ( PC_INIT        ),
-    .INSTR_SIZE     ( INSTR_SIZE     ),
     .EXCEPTION_SIZE ( EXCEPTION_SIZE ) )
   mem_unit   (
     .*
@@ -320,8 +329,8 @@ module riscv_core #(
    */
   riscv_wb #(
     .XLEN           ( XLEN           ),
+    .ILEN           ( ILEN           ),
     .PC_INIT        ( PC_INIT        ),
-    .INSTR_SIZE     ( INSTR_SIZE     ),
     .EXCEPTION_SIZE ( EXCEPTION_SIZE ) )
   wb_unit   (
     .wb_dst ( rf_dst[0]  ),
@@ -334,29 +343,32 @@ module riscv_core #(
   /*
    * Thread state
    */
-  riscv_state1_9 #(
-    .XLEN            ( XLEN            ),
-    .PC_INIT         ( PC_INIT         ),
-    .INSTR_SIZE      ( INSTR_SIZE      ),
-    .HAS_FPU         ( HAS_FPU         ),
-    .HAS_MMU         ( HAS_MMU         ),
-    .EXCEPTION_SIZE  ( EXCEPTION_SIZE  ),
-    .HAS_USER        ( HAS_USER        ),
-    .HAS_SUPER       ( HAS_SUPER       ),
-    .HAS_HYPER       ( HAS_HYPER       ),
+  riscv_state1_10 #(
+    .XLEN                  ( XLEN                  ),
+    .ILEN                  ( ILEN                  ),
+    .PC_INIT               ( PC_INIT               ),
+    .HAS_FPU               ( HAS_FPU               ),
+    .HAS_MMU               ( HAS_MMU               ),
+    .EXCEPTION_SIZE        ( EXCEPTION_SIZE        ),
+    .HAS_USER              ( HAS_USER              ),
+    .HAS_SUPER             ( HAS_SUPER             ),
+    .HAS_HYPER             ( HAS_HYPER             ),
 
-    .MNMIVEC_DEFAULT ( MNMIVEC_DEFAULT ),
-    .MTVEC_DEFAULT   ( MTVEC_DEFAULT   ),
-    .HTVEC_DEFAULT   ( HTVEC_DEFAULT   ),
-    .STVEC_DEFAULT   ( STVEC_DEFAULT   ),
-    .UTVEC_DEFAULT   ( UTVEC_DEFAULT   ),
+    .MNMIVEC_DEFAULT       ( MNMIVEC_DEFAULT       ),
+    .MTVEC_DEFAULT         ( MTVEC_DEFAULT         ),
+    .HTVEC_DEFAULT         ( HTVEC_DEFAULT         ),
+    .STVEC_DEFAULT         ( STVEC_DEFAULT         ),
+    .UTVEC_DEFAULT         ( UTVEC_DEFAULT         ),
 
-    .VENDORID        ( VENDORID        ),
-    .ARCHID          ( ARCHID          ),
-    .REVMAJOR        ( REVMAJOR        ),
-    .REVMINOR        ( REVMINOR        ),
+    .JEDEC_BANK            ( JEDEC_BANK            ),
+    .JEDEC_MANUFACTURER_ID ( JEDEC_MANUFACTURER_ID ),
+    .ARCHID                ( ARCHID                ),
+    .REVPRV_MAJOR          ( REVPRV_MAJOR          ),
+    .REVPRV_MINOR          ( REVPRV_MINOR          ),
+    .REVUSR_MAJOR          ( REVUSR_MAJOR          ),
+    .REVUSR_MINOR          ( REVUSR_MINOR          ),
 
-    .HARTID          ( HARTID          ) )
+    .HARTID                ( HARTID                ) )
   cpu_state    ( .* );
 
 
@@ -412,7 +424,7 @@ endgenerate
    */
   riscv_du #(
     .XLEN           ( XLEN           ),
-    .INSTR_SIZE     ( INSTR_SIZE     ),
+    .ILEN           ( ILEN           ),
     .BREAKPOINTS    ( BREAKPOINTS    ),
     .EXCEPTION_SIZE ( EXCEPTION_SIZE )
   )
