@@ -76,10 +76,13 @@ module riscv_top_ahb3lite #(
   parameter            STVEC_DEFAULT      = PC_INIT -'h0C0,
   parameter            UTVEC_DEFAULT      = PC_INIT -'h100,
 
-  parameter            VENDORID           = 16'h0001,
-  parameter            ARCHID             = (1<<XLEN) | 12,
-  parameter            REVMAJOR           = 4'h0,
-  parameter            REVMINOR           = 4'h0,
+  parameter            JEDEC_BANK            = 9,
+  parameter            JEDEC_MANUFACTURER_ID = 'h6e,
+  parameter            ARCHID                = (1<<XLEN) | 12,
+  parameter            REVPRV_MAJOR          = 1,
+  parameter            REVPRV_MINOR          = 10,
+  parameter            REVUSR_MAJOR          = 2,
+  parameter            REVUSR_MINOR          = 2,
 
   parameter            HARTID             = 0,
 
@@ -178,42 +181,45 @@ module riscv_top_ahb3lite #(
    * Instantiate RISC-V core
    */
   riscv_core #(
-    .XLEN           ( XLEN            ),
-    .HAS_USER       ( HAS_USER        ),
-    .HAS_SUPER      ( HAS_SUPER       ),
-    .HAS_HYPER      ( HAS_HYPER       ),
-    .HAS_BPU        ( HAS_BPU         ),
-    .HAS_FPU        ( HAS_FPU         ),
-    .HAS_MMU        ( HAS_MMU         ),
-    .HAS_RVM        ( HAS_RVM         ),
-    .HAS_RVA        ( HAS_RVA         ),
-    .HAS_RVC        ( HAS_RVC         ),
-    .IS_RV32E       ( IS_RV32E        ),
+    .XLEN                  ( XLEN                  ),
+    .HAS_USER              ( HAS_USER              ),
+    .HAS_SUPER             ( HAS_SUPER             ),
+    .HAS_HYPER             ( HAS_HYPER             ),
+    .HAS_BPU               ( HAS_BPU               ),
+    .HAS_FPU               ( HAS_FPU               ),
+    .HAS_MMU               ( HAS_MMU               ),
+    .HAS_RVM               ( HAS_RVM               ),
+    .HAS_RVA               ( HAS_RVA               ),
+    .HAS_RVC               ( HAS_RVC               ),
+    .IS_RV32E              ( IS_RV32E              ),
 	 
-    .MULT_LATENCY   ( MULT_LATENCY    ),
+    .MULT_LATENCY          ( MULT_LATENCY          ),
 
-    .BREAKPOINTS    ( BREAKPOINTS     ),
+    .BREAKPOINTS           ( BREAKPOINTS           ),
 
-    .BP_GLOBAL_BITS ( BP_GLOBAL_BITS  ),
-    .BP_LOCAL_BITS  ( BP_LOCAL_BITS   ),
+    .BP_GLOBAL_BITS        ( BP_GLOBAL_BITS        ),
+    .BP_LOCAL_BITS         ( BP_LOCAL_BITS         ),
 
-    .TECHNOLOGY     ( TECHNOLOGY      ),
+    .TECHNOLOGY            ( TECHNOLOGY            ),
 
-    .MNMIVEC_DEFAULT( MNMIVEC_DEFAULT ),
-    .MTVEC_DEFAULT  ( MTVEC_DEFAULT   ),
-    .HTVEC_DEFAULT  ( HTVEC_DEFAULT   ),
-    .STVEC_DEFAULT  ( STVEC_DEFAULT   ),
-    .UTVEC_DEFAULT  ( UTVEC_DEFAULT   ),
+    .MNMIVEC_DEFAULT       ( MNMIVEC_DEFAULT       ),
+    .MTVEC_DEFAULT         ( MTVEC_DEFAULT         ),
+    .HTVEC_DEFAULT         ( HTVEC_DEFAULT         ),
+    .STVEC_DEFAULT         ( STVEC_DEFAULT         ),
+    .UTVEC_DEFAULT         ( UTVEC_DEFAULT         ),
 
-    .VENDORID       ( VENDORID        ),
-    .ARCHID         ( ARCHID          ),
-    .REVMAJOR       ( REVMAJOR        ),
-    .REVMINOR       ( REVMINOR        ),
+    .JEDEC_BANK            ( JEDEC_BANK            ),
+    .JEDEC_MANUFACTURER_ID ( JEDEC_MANUFACTURER_ID ),
+    .ARCHID                ( ARCHID                ),
+    .REVPRV_MAJOR          ( REVPRV_MAJOR          ),
+    .REVPRV_MINOR          ( REVPRV_MINOR          ),
+    .REVUSR_MAJOR          ( REVUSR_MAJOR          ),
+    .REVUSR_MINOR          ( REVUSR_MINOR          ),
 
-    .HARTID         ( HARTID          ), 
+    .HARTID                ( HARTID                ), 
 
-    .PC_INIT        ( PC_INIT         ),
-    .PARCEL_SIZE    ( PARCEL_SIZE     )
+    .PC_INIT               ( PC_INIT               ),
+    .PARCEL_SIZE           ( PARCEL_SIZE           )
   )
   core (
     .*
