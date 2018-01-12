@@ -38,7 +38,6 @@
 module riscv_bp #(
   parameter            XLEN              = 32,
   parameter [XLEN-1:0] PC_INIT           = 'h200,
-  parameter            INSTR_SIZE        = 32,
   parameter            HAS_BPU           = 0,
 
   parameter            BP_GLOBAL_BITS    = 2,
