@@ -49,7 +49,7 @@ package riscv_pkg;
   parameter [31:0] INSTR_NOP  = 'h13;
   parameter [31:0] MTVEC_INIT = 'h100;
 
-  parameter        EXCEPTION_SIZE = 12;
+  parameter        EXCEPTION_SIZE = 16;
 
   /*
    * Opcodes
