@@ -37,8 +37,8 @@
 
 module riscv_if #(
   parameter            XLEN           = 32,
+  parameter            ILEN           = 32,
   parameter [XLEN-1:0] PC_INIT        = 'h200,
-  parameter            INSTR_SIZE     = 32,
   parameter            PARCEL_SIZE    = 32,
   parameter            EXCEPTION_SIZE = 12,
   parameter            HAS_BPU        = 0,
@@ -56,9 +56,10 @@ module riscv_if #(
   input                           if_parcel_misaligned, 
   input                           if_parcel_page_fault,
 
-  output reg [INSTR_SIZE    -1:0] if_instr,      //Instruction out
+  output reg [ILEN          -1:0] if_instr,      //Instruction out
   output reg                      if_bubble,     //Insert bubble in the pipe (NOP instruction)
-  output reg [EXCEPTION_SIZE-1:0] if_exception,
+  output reg [EXCEPTION_SIZE-1:0] if_exception,  //Exceptions
+
 
   input      [               1:0] bp_bp_predict, //Branch Prediction bits
   output reg [               1:0] if_bp_predict, //push down the pipe
@@ -66,10 +67,9 @@ module riscv_if #(
   input                           bu_flush,      //flush pipe & load new program counter
                                   st_flush,
                                   du_flush,      //flush pipe after debug exit
+
   input      [XLEN          -1:0] bu_nxt_pc,     //Branch Unit Next Program Counter
                                   st_nxt_pc,     //State Next Program Counter
-                                  id_pc,         //ID next program counter (used by debug unit)
-
 
   output reg [XLEN          -1:0] if_nxt_pc,     //next Program Counter
   output                          if_stall,      //stall instruction fetch BIU (cache/bus-interface)
@@ -91,8 +91,8 @@ module riscv_if #(
 
   logic                      flushes;      //OR all flush signals
 
-  logic [2*INSTR_SIZE  -1:0] parcel_shift_register;
-  logic [INSTR_SIZE    -1:0] new_parcel,
+  logic [2*ILEN        -1:0] parcel_shift_register;
+  logic [ILEN          -1:0] new_parcel,
                              active_parcel,
                              converted_instruction,
                              pd_instr;
@@ -181,9 +181,9 @@ module riscv_if #(
             3'b000:                           parcel_shift_register <= {INSTR_NOP , new_parcel};
             3'b001: if (is_16bit_instruction) parcel_shift_register <= {INSTR_NOP , new_parcel};
                     else                      parcel_shift_register <= {new_parcel, parcel_shift_register[15:0]};
-            3'b011: if (is_16bit_instruction) parcel_shift_register <= {new_parcel, parcel_shift_register[16 +: INSTR_SIZE]};
+            3'b011: if (is_16bit_instruction) parcel_shift_register <= {new_parcel, parcel_shift_register[16 +: ILEN]};
                     else                      parcel_shift_register <= {INSTR_NOP , new_parcel};
-            3'b111: if (is_16bit_instruction) parcel_shift_register <= {INSTR_NOP , parcel_shift_register[16 +: INSTR_SIZE]};
+            3'b111: if (is_16bit_instruction) parcel_shift_register <= {INSTR_NOP , parcel_shift_register[16 +: ILEN]};
                     else                      parcel_shift_register <= {new_parcel, parcel_shift_register[32 +: 16]};
         endcase
 
@@ -206,7 +206,7 @@ module riscv_if #(
                     else                      parcel_sr_valid <= {if_parcel_valid, if_parcel_valid,            1'b1}; //3'b111;
         endcase
 
-  assign active_parcel = parcel_shift_register[INSTR_SIZE-1:0];
+  assign active_parcel = parcel_shift_register[ILEN-1:0];
   assign pd_bubble     = is_16bit_instruction ? ~parcel_sr_valid[0] : ~&parcel_sr_valid[1:0];
 
   assign is_16bit_instruction = ~&active_parcel[1:0];
@@ -220,7 +220,7 @@ module riscv_if #(
     case(active_parcel)
       WFI    : pd_instr = INSTR_NOP;                                 //Implement WFI as a nop 
       default: if (is_32bit_instruction) pd_instr = active_parcel;
-               else                      pd_instr = -1;             //Illegal
+               else                      pd_instr = -1;              //Illegal
     endcase
 
 
@@ -236,7 +236,6 @@ module riscv_if #(
     else if (!id_stall) if_bubble <= pd_bubble;
 
 
-
   /*
    * Branches & Jump
    */
@@ -247,7 +246,6 @@ module riscv_if #(
 
   // Branch and Jump prediction
   always_comb
-    (* synthesis,parallel_case *)
     casex ({pd_bubble,opcode})
       {1'b0,OPC_JAL   } : begin
                              branch_taken = 1'b1;
