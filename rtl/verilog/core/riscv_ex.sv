@@ -38,7 +38,7 @@
 module riscv_ex #(
   parameter            XLEN           = 32,
   parameter [XLEN-1:0] PC_INIT        = 'h200,
-  parameter            INSTR_SIZE     = 32,
+  parameter            ILEN           = 32,
   parameter            EXCEPTION_SIZE = 12,
   parameter            BP_GLOBAL_BITS = 2,
   parameter            HAS_RVC        = 0,
@@ -67,9 +67,9 @@ module riscv_ex #(
 
   //Instruction
   input                           id_bubble,
-  input      [INSTR_SIZE    -1:0] id_instr,
+  input      [ILEN          -1:0] id_instr,
   output                          ex_bubble,
-  output reg [INSTR_SIZE    -1:0] ex_instr,
+  output reg [ILEN          -1:0] ex_instr,
 
   input      [EXCEPTION_SIZE-1:0] id_exception,
                                   mem_exception,
@@ -94,7 +94,6 @@ module riscv_ex #(
 
   //to MEM
   output reg [XLEN          -1:0] ex_r,
-//  output     [XLEN          -1:0] ex_memadr,
 
   //Bypasses
   input      [XLEN          -1:0] mem_r,
@@ -107,6 +106,7 @@ module riscv_ex #(
 
   //From State
   input      [               1:0] st_prv,
+                                  st_xlen,
   input                           st_flush,
   input      [XLEN          -1:0] st_csr_rval,
 
@@ -214,8 +214,8 @@ module riscv_ex #(
    * Execution Units
    */
   riscv_alu #(
-    .XLEN           ( XLEN           ),
-    .INSTR_SIZE     ( INSTR_SIZE     ) )
+    .XLEN ( XLEN ),
+    .ILEN ( ILEN ) )
   alu (
     .*
   );
@@ -223,20 +223,21 @@ module riscv_ex #(
   // Load-Store Unit
   riscv_lsu #(
     .XLEN           ( XLEN           ),
-    .INSTR_SIZE     ( INSTR_SIZE     ),
+    .ILEN           ( ILEN           ),
     .EXCEPTION_SIZE ( EXCEPTION_SIZE ) )
   lsu (
-//    .lsu_memadr ( ex_memadr  ),
     .*
   );
 
   // Branch Unit
   riscv_bu #(
     .XLEN           ( XLEN           ),
-    .INSTR_SIZE     ( INSTR_SIZE     ),
+    .ILEN           ( ILEN           ),
     .EXCEPTION_SIZE ( EXCEPTION_SIZE ),
     .BP_GLOBAL_BITS ( BP_GLOBAL_BITS ) )
   bu (
+    //Branch unit handles exceptions and relays ID-exceptions
+    .bu_exception ( ex_exception ),
     .*
   );
 
@@ -245,7 +246,7 @@ generate
   begin
       riscv_mul #(
         .XLEN         ( XLEN         ),
-        .INSTR_SIZE   ( INSTR_SIZE   ),
+        .ILEN         ( ILEN         ),
         .MULT_LATENCY ( MULT_LATENCY )
       )
       mul (
@@ -253,8 +254,8 @@ generate
       );
 
       riscv_div #(
-        .XLEN       ( XLEN       ),
-        .INSTR_SIZE ( INSTR_SIZE )
+        .XLEN ( XLEN ),
+        .ILEN ( ILEN )
       )
       div (
         .*
@@ -288,19 +289,5 @@ endgenerate
       3'b011 : ex_r = mul_r;
       default: ex_r = alu_r;
     endcase
-
-
-  //exceptions
-  always_comb
-  begin
-       //Branch unit handles most exceptions and relays ID-exceptions
-       ex_exception = bu_exception;
-/*
-       ex_exception[CAUSE_MISALIGNED_LOAD         ] = lsu_exception[CAUSE_MISALIGNED_LOAD         ];
-       ex_exception[CAUSE_LOAD_ACCESS_FAULT       ] = lsu_exception[CAUSE_LOAD_ACCESS_FAULT       ];
-       ex_exception[CAUSE_MISALIGNED_STORE        ] = lsu_exception[CAUSE_MISALIGNED_STORE        ];
-       ex_exception[CAUSE_STORE_ACCESS_FAULT      ] = lsu_exception[CAUSE_STORE_ACCESS_FAULT      ];
-*/
-  end
 
 endmodule 
