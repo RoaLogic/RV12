@@ -37,8 +37,8 @@
 
 module riscv_mem #(
   parameter            XLEN           = 32,
+  parameter            ILEN           = 32,
   parameter [XLEN-1:0] PC_INIT        = 'h200,
-  parameter            INSTR_SIZE     = 32,
   parameter            EXCEPTION_SIZE = 12
 )
 (
@@ -53,9 +53,9 @@ module riscv_mem #(
 
   //Instruction
   input                           ex_bubble,
-  input      [INSTR_SIZE    -1:0] ex_instr,
+  input      [ILEN          -1:0] ex_instr,
   output reg                      mem_bubble,
-  output reg [INSTR_SIZE    -1:0] mem_instr,
+  output reg [ILEN          -1:0] mem_instr,
 
   input      [EXCEPTION_SIZE-1:0] ex_exception,
                                   wb_exception,
