@@ -37,8 +37,8 @@
 
 module riscv_wb #(
   parameter            XLEN           = 32,
+  parameter            ILEN           = 32,
   parameter [XLEN-1:0] PC_INIT        = 'h200,
-  parameter            INSTR_SIZE     = 32,
   parameter            EXCEPTION_SIZE = 12
 )
 (
@@ -50,9 +50,9 @@ module riscv_wb #(
   input      [XLEN          -1:0] mem_pc,
   output reg [XLEN          -1:0] wb_pc,
 
-  input      [INSTR_SIZE    -1:0] mem_instr,
+  input      [ILEN          -1:0] mem_instr,
   input                           mem_bubble,
-  output reg [INSTR_SIZE    -1:0] wb_instr,
+  output reg [ILEN          -1:0] wb_instr,
   output reg                      wb_bubble,
 
   input      [EXCEPTION_SIZE-1:0] mem_exception,
@@ -228,9 +228,6 @@ endgenerate
         OPC_LOAD: wb_r <= m_data;
         default : wb_r <= mem_r;
       endcase
-
-
-//    if (!ex_stall) wb_r <= ex_r;
 
 
   // Register File Write
