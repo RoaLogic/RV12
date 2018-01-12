@@ -37,8 +37,8 @@
 
 module riscv_bu #(
   parameter            XLEN           = 32,
+  parameter            ILEN           = 32,
   parameter [XLEN-1:0] PC_INIT        = 'h200,
-  parameter            INSTR_SIZE     = 32,
   parameter            EXCEPTION_SIZE = 12,
   parameter            BP_GLOBAL_BITS = 2,
   parameter            HAS_RVC        = 0
@@ -63,7 +63,7 @@ module riscv_bu #(
 
   //Instruction
   input                           id_bubble,
-  input      [INSTR_SIZE    -1:0] id_instr,
+  input      [ILEN          -1:0] id_instr,
 
   input      [EXCEPTION_SIZE-1:0] id_exception,
                                   ex_exception,
