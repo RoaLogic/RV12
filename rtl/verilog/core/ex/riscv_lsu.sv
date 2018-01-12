@@ -37,7 +37,7 @@
 
 module riscv_lsu #(
   parameter XLEN           = 32,
-  parameter INSTR_SIZE     = 32,
+  parameter ILEN           = 32,
   parameter EXCEPTION_SIZE = 12,
   parameter HAS_A          = 0
 )
@@ -51,8 +51,10 @@ module riscv_lsu #(
 
   //Instruction
   input                           id_bubble,
-  input      [INSTR_SIZE    -1:0] id_instr,
+  input      [ILEN          -1:0] id_instr,
+
   output reg                      lsu_bubble,
+  output     [XLEN          -1:0] lsu_r,
 
   input      [EXCEPTION_SIZE-1:0] id_exception,
                                   ex_exception,
@@ -65,6 +67,9 @@ module riscv_lsu #(
   input      [XLEN          -1:0] opA,
                                   opB,
 
+  //From State
+  input      [               1:0] st_xlen,
+
   //To Memory
   output reg [XLEN          -1:0] dmem_adr,
                                   dmem_d,
@@ -72,7 +77,7 @@ module riscv_lsu #(
                                   dmem_we,
   output reg [XLEN/8        -1:0] dmem_be,
 
-  //From Memory
+  //From Memory (for AMO)
   input                           dmem_ack,
   input      [XLEN          -1:0] dmem_q,
   input                           dmem_misaligned,
@@ -87,7 +92,7 @@ module riscv_lsu #(
   logic [       6:2] opcode;
   logic [       2:0] func3;
   logic [       6:0] func7;
-  logic              is_rv64;
+  logic              xlen32;
 
   //Operand generation
   logic [XLEN  -1:0] immS;
@@ -116,7 +121,10 @@ module riscv_lsu #(
   assign func3  = id_instr[14:12];
   assign opcode = id_instr[ 6: 2];
 
-  assign is_rv64 = (XLEN == 64);
+  assign xlen32 = (st_xlen == RV32I);
+
+
+  assign lsu_r  = 'h0; //for AMO
 
 
   /*
@@ -136,13 +144,9 @@ module riscv_lsu #(
     end
     else
     begin
-//        lsu_bubble <= 1'b1;
         dmem_req   <= 1'b0;
 
-//if (!ex_stall)
         case (state)
-//            IDLE   : if (!ex_stall && !id_bubble && ~(|id_exception || |ex_exception || |mem_exception || |wb_exception))
-//          IDLE   : if (!id_bubble && ~(|id_exception || |ex_exception || |mem_exception || |wb_exception))
             IDLE : if (!ex_stall)
                    begin
                        if (!id_bubble && ~(|id_exception || |ex_exception || |mem_exception || |wb_exception))
@@ -177,16 +181,6 @@ module riscv_lsu #(
         endcase
     end
 
-/*
-  always @(posedge clk,negedge rstn)
-    if (!rstn) lsu_bubble <= 1'b1;
-    else if (!ex_stall)
-      case (opcode)
-        OPC_LOAD : lsu_bubble <= id_bubble;
-        OPC_STORE: lsu_bubble <= id_bubble;
-        default  : lsu_bubble <= 1'b1;
-      endcase
-*/
 
   //Memory Control Signals
   always @(posedge clk)
@@ -218,18 +212,18 @@ module riscv_lsu #(
 
   //memory address
   always_comb
-    casex ( {is_rv64,func7,func3,opcode} )
+    casex ( {xlen32,func7,func3,opcode} )
        {1'b?,LB    }: adr = opA + opB;
        {1'b?,LH    }: adr = opA + opB;
        {1'b?,LW    }: adr = opA + opB;
-       {1'b1,LD    }: adr = opA + opB;                //RV64
+       {1'b0,LD    }: adr = opA + opB;                //RV64
        {1'b?,LBU   }: adr = opA + opB;
        {1'b?,LHU   }: adr = opA + opB;
-       {1'b1,LWU   }: adr = opA + opB;                //RV64
+       {1'b0,LWU   }: adr = opA + opB;                //RV64
        {1'b?,SB    }: adr = opA + immS;
        {1'b?,SH    }: adr = opA + immS;
        {1'b?,SW    }: adr = opA + immS;
-       {1'b1,SD    }: adr = opA + immS;               //RV64
+       {1'b0,SD    }: adr = opA + immS;               //RV64
        default      : adr = opA + opB; //'hx;
     endcase
 
@@ -293,6 +287,8 @@ endgenerate
 
   /*
    * Exceptions
+   * Regular memory exceptions are caught in the WB stage
+   * However AMO accesses handle the 'load' here.
    */
   always @(posedge clk, negedge rstn)
     if      (!rstn     ) lsu_exception <= 'h0;
