@@ -90,8 +90,6 @@ module riscv_icache_core #(
   //
   // Constants
   //
-  import ahb3lite_pkg::*;
-
   localparam BLK_OFF_LSB  = 1;                                          //Instruction address boundary (min.16bits)
   localparam SETS         = (SIZE*1024) / BLOCK_SIZE / WAYS;            //Number of sets
   localparam BLK_OFF_BITS = $clog2(BLOCK_SIZE);                         //Number of BlockOffset bits
