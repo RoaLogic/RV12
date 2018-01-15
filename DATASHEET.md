@@ -200,8 +200,8 @@ The RV12 is a highly configurable 32 or 64bit RISC CPU. The core parameters and 
 | `HAS_USER`           | Integer |        0        | User Mode Enable                                                 |
 | `HAS_SUPER`          | Integer |        0        | Supervisor Mode Enable                                           |
 | `HAS_HYPER`          | Integer |        0        | Hypervisor Mode Enable                                           |
-| `HAS_MULDIV`         | Integer |        0        | “M” Extension Enable                                             |
-| `HAS_AMO`            | Integer |        0        | “A” Extension Enable                                             |
+| `HAS_RVM`            | Integer |        0        | “M” Extension Enable                                             |
+| `HAS_RVA`            | Integer |        0        | “A” Extension Enable                                             |
 | `HAS_RVC`            | Integer |        0        | “C” Extension Enable                                             |
 | `HAS_BPU`            | Integer |        1        | Branch Prediction Unit Control Enable                            |
 | `IS_RV32E`           | Integer |        0        | RV32E Base Integer Instruction Set Enable                        |
@@ -249,13 +249,13 @@ The `HAS_SUPER` parameter defines if Supervisor Privilege Level is enabled (‘1
 
 The `HAS_HYPER` parameter defines if Hypervisor Privilege Level is enabled (‘1’) or disabled (‘0’). The default value is disabled (‘0’).
 
-#### HAS\_MULDIV
+#### HAS\_RVM
 
-The `HAS_MULDIV` parameter defines if the “M” Standard Extension for Integer Multiplication and Division is enabled (‘1’) or disabled (‘0’). The default value is disabled (‘0’).
+The `HAS_RVM` parameter defines if the “M” Standard Extension for Integer Multiplication and Division is enabled (‘1’) or disabled (‘0’). The default value is disabled (‘0’).
 
-#### HAS\_AMO
+#### HAS\_RVA
 
-The `HAS_AMO` parameter defines if the “A” Standard Extension for Atomic Memory Instructions is enabled (‘1’) or disabled (‘0’). The default value is disabled (‘0’).
+The `HAS_RVA` parameter defines if the “A” Standard Extension for Atomic Memory Instructions is enabled (‘1’) or disabled (‘0’). The default value is disabled (‘0’).
 
 #### HAS\_RVC
 
@@ -273,11 +273,11 @@ RV12 supports the RV32E Base Integer Instruction Set, Version 1.9. RV32E is a re
 
 #### MULT\_LATENCY
 
-If the “M” Standard Extension for Integer Multiplication and Division is enabled via the `HAS_MULDIV` parameter (`HAS_MULDIV=1` See section 4.2.7), a hardware multiplier will be generated to support these instructions. By default (i.e. when `MULT_LATENCY=0`) the generated multiplier will be built as a purely combinatorial function.
+If the “M” Standard Extension for Integer Multiplication and Division is enabled via the `HAS_RVM` parameter (`HAS_RVM=1` See section 4.2.7), a hardware multiplier will be generated to support these instructions. By default (i.e. when `MULT_LATENCY=0`) the generated multiplier will be built as a purely combinatorial function.
 
 The performance of the hardware multiplier may be improved at the expense of increased latency of 1, 2 or 3 clock cycles by defining `MULT_LATENCY` to 1, 2 or 3 respectively.
 
-If the “M” Standard Extension is *not* enabled (`HAS_MULDIV=0`) then the MULT\_LATENCY parameter has no effect on the RV12 implementation.
+If the “M” Standard Extension is *not* enabled (`HAS_RVM=0`) then the MULT\_LATENCY parameter has no effect on the RV12 implementation.
 
 #### BPU\_LOCAL\_BITS
 
