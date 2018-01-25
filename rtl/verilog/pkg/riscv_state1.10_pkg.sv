@@ -268,6 +268,13 @@ package riscv_state_pkg;
                    IR = 2;
 
 
+  //A-encoding of PMP-CFG register
+  parameter [ 1:0] OFF   = 2'd0,
+                   TOR   = 2'd1,
+                   NA4   = 2'd2,
+                   NAPOT = 2'd3;
+
+
   //Exception causes
   parameter        CAUSE_MISALIGNED_INSTRUCTION   = 0,
                    CAUSE_INSTRUCTION_ACCESS_FAULT = 1,
