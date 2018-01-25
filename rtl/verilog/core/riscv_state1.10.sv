@@ -1284,85 +1284,148 @@ generate
 
   if (XLEN > 64)      //RV128
   begin
-      always @(posedge clk,negedge rstn)
-        if (!rstn) csr.pmpcfg <= 'h0;
-        else if ( (ex_csr_we && ex_csr_reg == PMPCFG0 && st_prv == PRV_M) ||
-                  (du_we_csr && du_addr    == PMPCFG0                   ) )
-          csr.pmpcfg <= csr_wval & {PMP_CNT{8'h9f}};
+      for (idx=0; idx<16; idx++)
+      begin: gen_pmpcfg0
+          if (idx < PMP_CNT)
+          begin
+              always @(posedge clk,negedge rstn)
+                if (!rstn) csr.pmpcfg[idx] <= 'h0;
+                else if ( (ex_csr_we && ex_csr_reg == PMPCFG0 && st_prv == PRV_M) ||
+                          (du_we_csr && du_addr    == PMPCFG0                   ) )
+                  if (!csr.pmpcfg[idx].l) csr.pmpcfg[idx] <= csr_wval[idx*8 +: 8];
+          end
+          else
+            assign csr.pmpcfg[idx] = 'h0;
+      end //next idx
+
+        //pmpaddr not defined for RV128 yet
   end
   else if (XLEN > 32) //RV64
   begin
-      always @(posedge clk,negedge rstn)
-        if (!rstn) csr.pmpcfg[7:0] <= 'h0;
-        else if ( (ex_csr_we && ex_csr_reg == PMPCFG0 && st_prv == PRV_M) ||
-                  (du_we_csr && du_addr    == PMPCFG0                   ) )
-          csr.pmpcfg[7:0] <= csr_wval & {PMP_CNT >=  8 ? 8 : PMP_CNT{8'h9f}};
+      for (idx=0; idx<7; idx++)
+      begin: gen_pmpcfg0
+          always @(posedge clk,negedge rstn)
+            if (!rstn) csr.pmpcfg[idx] <= 'h0;
+            else if ( (ex_csr_we && ex_csr_reg == PMPCFG0 && st_prv == PRV_M) ||
+                      (du_we_csr && du_addr    == PMPCFG0                   ) )
+              if (idx < PMP_CNT && !csr.pmpcfg[idx].l)
+                csr.pmpcfg[idx] <= csr_wval[0 + idx*8 +: 8];
+      end //next idx
 
-      always @(posedge clk,negedge rstn)
-        if (!rstn) csr.pmpcfg[15:8] <= 'h0;
-        else if ( (ex_csr_we && ex_csr_reg == PMPCFG2 && st_prv == PRV_M) ||
-                  (du_we_csr && du_addr    == PMPCFG2                   ) )
-          csr.pmpcfg[15:8] <= csr_wval & {PMP_CNT == 16 ? 8 : PMP_CNT%8{8'hf9}};
+      for (idx=8; idx<16; idx++)
+      begin: gen_pmpcfg2
+          always @(posedge clk,negedge rstn)
+            if (!rstn) csr.pmpcfg[idx] <= 'h0;
+            else if ( (ex_csr_we && ex_csr_reg == PMPCFG2 && st_prv == PRV_M) ||
+                      (du_we_csr && du_addr    == PMPCFG2                   ) )
+              if (idx < PMP_CNT && !csr.pmpcfg[idx].l)
+                csr.pmpcfg[idx] <= csr_wval[(idx-8)*8 +:8];
+      end //next idx
 
 
       for (idx=0; idx < 16; idx++)
       begin: gen_pmpaddr
           if (idx < PMP_CNT)
           begin
-              always @(posedge clk,negedge rstn)
-                if (!rstn) csr.pmpaddr[idx] <= 'h0;
-                else if ( (ex_csr_we && ex_csr_reg == (PMPCFG0 +idx) && st_prv == PRV_M) ||
-                          (du_we_csr && du_addr    == (PMPCFG0 +idx)                   ) )
-                  csr.pmpaddr[idx] <= {10'h0,csr_wval[53:0]};
+              if (idx == 15)
+              begin
+                  always @(posedge clk,negedge rstn)
+                    if (!rstn) csr.pmpaddr[idx] <= 'h0;
+                    else if ( (ex_csr_we && ex_csr_reg == (PMPADDR0 +idx) && st_prv == PRV_M &&
+                               !csr.pmpcfg[idx].l                                              ) ||
+                              (du_we_csr && du_addr    == (PMPADDR0 +idx)                      ) )
+                      csr.pmpaddr[idx] <= {10'h0,csr_wval[53:0]};
+              end
+              else
+              begin
+                  always @(posedge clk,negedge rstn)
+                    if (!rstn) csr.pmpaddr[idx] <= 'h0;
+                    else if ( (ex_csr_we && ex_csr_reg == (PMPADDR0 +idx) && st_prv == PRV_M &&
+                               !csr.pmpcfg[idx].l && !(csr.pmpcfg[idx+1].a==TOR && csr.pmpcfg[idx+1].l) ) ||
+                              (du_we_csr && du_addr    == (PMPADDR0 +idx)                               ) )
+                      csr.pmpaddr[idx] <= {10'h0,csr_wval[53:0]};
+              end
           end
           else
           begin
               assign csr.pmpaddr[idx] = 'h0;
           end
-      end
+      end //next idx
   end
   else //RV32
   begin
-      always @(posedge clk,negedge rstn)
-        if (!rstn) csr.pmpcfg[3:0] <= 'h0;
-        else if ( (ex_csr_we && ex_csr_reg == PMPCFG0 && st_prv == PRV_M) ||
-                  (du_we_csr && du_addr    == PMPCFG0                   ) )
-          csr.pmpcfg[3:0] <= csr_wval & {PMP_CNT >=  4 ? 4 : PMP_CNT{8'h9f}};
+      for (idx=0; idx<4; idx++)
+      begin: gen_pmpcfg0
+          always @(posedge clk,negedge rstn)
+            if (!rstn) csr.pmpcfg[idx] <= 'h0;
+            else if ( (ex_csr_we && ex_csr_reg == PMPCFG0 && st_prv == PRV_M) ||
+                      (du_we_csr && du_addr    == PMPCFG0                   ) )
+              if (idx < PMP_CNT && !csr.pmpcfg[idx].l)
+                csr.pmpcfg[idx] <= csr_wval[idx*8 +:8];
+      end //next idx
 
-      always @(posedge clk,negedge rstn)
-        if (!rstn) csr.pmpcfg[7:4] <= 'h0;
-        else if ( (ex_csr_we && ex_csr_reg == PMPCFG1 && st_prv == PRV_M) ||
-                  (du_we_csr && du_addr    == PMPCFG1                   ) )
-          csr.pmpcfg[7:4] <= csr_wval & {PMP_CNT >=  8 ? 4  :PMP_CNT%4{8'h9f}};
 
-      always @(posedge clk,negedge rstn)
-        if (!rstn) csr.pmpcfg[11:8] <= 'h0;
-        else if ( (ex_csr_we && ex_csr_reg == PMPCFG2 && st_prv == PRV_M) ||
-                  (du_we_csr && du_addr    == PMPCFG2                   ) )
-          csr.pmpcfg[11:8] <= csr_wval & {PMP_CNT >= 12 ? 4 : PMP_CNT%4{8'h9f}};
+      for (idx=4; idx<8; idx++)
+      begin: gen_pmpcfg1
+          always @(posedge clk,negedge rstn)
+            if (!rstn) csr.pmpcfg[idx] <= 'h0;
+            else if ( (ex_csr_we && ex_csr_reg == PMPCFG1 && st_prv == PRV_M) ||
+                      (du_we_csr && du_addr    == PMPCFG1                   ) )
+              if (idx < PMP_CNT && !csr.pmpcfg[idx].l)
+                csr.pmpcfg[idx] <= csr_wval[(idx-4)*8 +:8];
+      end //next idx
 
-      always @(posedge clk,negedge rstn)
-        if (!rstn) csr.pmpcfg[15:12] <= 'h0;
-        else if ( (ex_csr_we && ex_csr_reg == PMPCFG3 && st_prv == PRV_M) ||
-                  (du_we_csr && du_addr    == PMPCFG3                   ) )
-          csr.pmpcfg[15:12] <= csr_wval & {PMP_CNT == 16 ? 4 : PMP_CNT%4{8'h9f}};
+
+      for (idx=8; idx<12; idx++)
+      begin: gen_pmpcfg2
+          always @(posedge clk,negedge rstn)
+            if (!rstn) csr.pmpcfg[idx] <= 'h0;
+            else if ( (ex_csr_we && ex_csr_reg == PMPCFG2 && st_prv == PRV_M) ||
+                      (du_we_csr && du_addr    == PMPCFG2                   ) )
+              if (idx < PMP_CNT && !csr.pmpcfg[idx].l)
+                csr.pmpcfg[idx] <= csr_wval[(idx-8)*8 +:8];
+      end //next idx
+
+
+      for (idx=12; idx<16; idx++)
+      begin: gen_pmpcfg3
+          always @(posedge clk,negedge rstn)
+            if (!rstn) csr.pmpcfg[idx] <= 'h0;
+            else if ( (ex_csr_we && ex_csr_reg == PMPCFG3 && st_prv == PRV_M) ||
+                      (du_we_csr && du_addr    == PMPCFG3                   ) )
+              if (idx < PMP_CNT && !csr.pmpcfg[idx].l)
+                csr.pmpcfg[idx] <= csr_wval[(idx-12)*8 +:8];
+      end //next idx
 
 
       for (idx=0; idx < 16; idx++)
       begin: gen_pmpaddr
-          if (idx < PMP_CNT)
+         if (idx < PMP_CNT)
           begin
-              always @(posedge clk,negedge rstn)
-                if (!rstn) csr.pmpaddr[idx] <= 'h0;
-                else if ( (ex_csr_we && ex_csr_reg == (PMPADDR0 +idx) && st_prv == PRV_M) ||
-                          (du_we_csr && du_addr    == (PMPADDR0 +idx)                   ) )
-                  csr.pmpaddr[idx] <= csr_wval;
+              if (idx == 15)
+              begin
+                  always @(posedge clk,negedge rstn)
+                    if (!rstn) csr.pmpaddr[idx] <= 'h0;
+                    else if ( (ex_csr_we && ex_csr_reg == (PMPADDR0 +idx) && st_prv == PRV_M &&
+                               !csr.pmpcfg[idx].l                                              ) ||
+                              (du_we_csr && du_addr    == (PMPADDR0 +idx)                      ) )
+                      csr.pmpaddr[idx] <= csr_wval;
+              end
+              else
+              begin
+                  always @(posedge clk,negedge rstn)
+                    if (!rstn) csr.pmpaddr[idx] <= 'h0;
+                    else if ( (ex_csr_we && ex_csr_reg == (PMPADDR0 +idx) && st_prv == PRV_M &&
+                               !csr.pmpcfg[idx].l && !(csr.pmpcfg[idx+1].a==TOR && csr.pmpcfg[idx+1].l) ) ||
+                              (du_we_csr && du_addr    == (PMPADDR0 +idx)                               ) )
+                      csr.pmpaddr[idx] <= csr_wval;
+              end
           end
           else
           begin
               assign csr.pmpaddr[idx] = 'h0;
           end
-      end
+      end //next idx
 
   end
 endgenerate
