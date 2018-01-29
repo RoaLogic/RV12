@@ -35,11 +35,12 @@
 //                                                             //
 /////////////////////////////////////////////////////////////////
 
+import riscv_opcodes_pkg::*;
+import riscv_du_pkg::*;
+
 module riscv_du #(
   parameter XLEN           = 32,
-  parameter ILEN           = 32,
-  parameter BREAKPOINTS    = 3,
-  parameter EXCEPTION_SIZE = 12
+  parameter BREAKPOINTS    = 3
 )
 (
   input                           rstn,
@@ -50,7 +51,7 @@ module riscv_du #(
   input                           dbg_stall,
   input                           dbg_strb,
   input                           dbg_we,
-  input      [riscv_du_pkg::DBG_ADDR_SIZE -1:0] dbg_addr,
+  input      [DBG_ADDR_SIZE -1:0] dbg_addr,
   input      [XLEN          -1:0] dbg_dati,
   output reg [XLEN          -1:0] dbg_dato,
   output reg                      dbg_ack,
@@ -65,7 +66,7 @@ module riscv_du #(
   output reg                      du_we_frf,
   output reg                      du_we_csr,
   output reg                      du_we_pc,
-  output reg [riscv_du_pkg::DU_ADDR_SIZE-1:0] du_addr,
+  output reg [DU_ADDR_SIZE  -1:0] du_addr,
   output reg [XLEN          -1:0] du_dato,
   output     [              31:0] du_ie,
   input      [XLEN          -1:0] du_dati_rf,
@@ -80,6 +81,8 @@ module riscv_du #(
 
   input      [ILEN          -1:0] if_instr,
                                   mem_instr,
+  input                           if_bubble,
+                                  mem_bubble,
   input      [EXCEPTION_SIZE-1:0] mem_exception,
   input      [XLEN          -1:0] mem_memadr,
   input                           dmem_ack,
@@ -97,8 +100,6 @@ module riscv_du #(
   //
   // Constants
   //
-  import riscv_pkg::*;
-  import riscv_du_pkg::*;
 
   typedef struct packed {
     logic       branch_break_ena; //each branch causes a switch to the debug environment
@@ -426,12 +427,12 @@ endgenerate
    * Combinatorial generation of break-point hit logic
    * For actual registers see 'Registers' section
    */
-  assign bp_instr_hit  = dbg.ctrl.instr_break_ena  & (if_instr      != INSTR_NOP);
-  assign bp_branch_hit = dbg.ctrl.branch_break_ena & (if_instr[6:2] == OPC_BRANCH);
+  assign bp_instr_hit  = dbg.ctrl.instr_break_ena  & ~if_bubble;
+  assign bp_branch_hit = dbg.ctrl.branch_break_ena & ~if_bubble & (if_instr[6:2] == OPC_BRANCH);
 
   //Memory access
-  assign mem_read  = ~|mem_exception & (mem_instr[6:2] == OPC_LOAD );
-  assign mem_write = ~|mem_exception & (mem_instr[6:2] == OPC_STORE);
+  assign mem_read  = ~|mem_exception & ~mem_bubble & (mem_instr[6:2] == OPC_LOAD );
+  assign mem_write = ~|mem_exception & ~mem_bubble & (mem_instr[6:2] == OPC_STORE);
 
 generate
 for (n=0; n<MAX_BREAKPOINTS; n++)
