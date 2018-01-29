@@ -126,7 +126,6 @@ module riscv_wbuf #(
   //
   // Module Body
   //
-  import riscv_pkg::*;
 
   /*
    * Memory Access Fifo -- This is the write buffer
