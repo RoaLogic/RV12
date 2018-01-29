@@ -35,11 +35,13 @@
 //                                                             //
 /////////////////////////////////////////////////////////////////
 
+
+import riscv_opcodes_pkg::ILEN;
+import riscv_state_pkg::EXCEPTION_SIZE;
+
 module riscv_mem #(
-  parameter            XLEN           = 32,
-  parameter            ILEN           = 32,
-  parameter [XLEN-1:0] PC_INIT        = 'h200,
-  parameter            EXCEPTION_SIZE = 12
+  parameter            XLEN    = 32,
+  parameter [XLEN-1:0] PC_INIT = 'h200
 )
 (
   input                           rstn,
@@ -71,15 +73,6 @@ module riscv_mem #(
   output reg [XLEN          -1:0] mem_r,
   output reg [XLEN          -1:0] mem_memadr
 );
-
-  ////////////////////////////////////////////////////////////////
-  //
-  // Variables
-  //
-  import riscv_pkg::*;
-  import riscv_state_pkg::*;
-
-
   ////////////////////////////////////////////////////////////////
   //
   // Module Body
@@ -96,9 +89,8 @@ module riscv_mem #(
   /*
    * Instruction
    */
-  always @(posedge clk,negedge rstn)
-    if      (!rstn    ) mem_instr <= INSTR_NOP;
-    else if (!wb_stall) mem_instr <= ex_instr;
+  always @(posedge clk)
+    if (!wb_stall) mem_instr <= ex_instr;
 
 
   always @(posedge clk,negedge rstn)
