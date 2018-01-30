@@ -35,6 +35,7 @@
 //                                                             //
 /////////////////////////////////////////////////////////////////
 
+
 module riscv_bp #(
   parameter            XLEN              = 32,
   parameter [XLEN-1:0] PC_INIT           = 'h200,
@@ -86,7 +87,6 @@ module riscv_bp #(
   //
   // Module Body
   //
-  import riscv_pkg::*;
 
   always @(posedge clk,negedge rstn)
     if      (!rstn    ) if_parcel_pc_dly <= PC_INIT;
