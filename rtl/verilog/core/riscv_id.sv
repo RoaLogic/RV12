@@ -38,13 +38,15 @@
 /*
   Changelog: 2017-02-28
              2017-03-01: Updates for 1.9.1 priv.spec
+             2018-01-20: Updates for 1.10 priv.spec
 */
+
+import riscv_opcodes_pkg::*;
+import riscv_state_pkg::*;
 
 module riscv_id #(
   parameter            XLEN           = 32,
   parameter [XLEN-1:0] PC_INIT        = 'h200,
-  parameter            ILEN           = 32,
-  parameter            EXCEPTION_SIZE = 12,
   parameter            HAS_HYPER      = 0,
   parameter            HAS_SUPER      = 0,
   parameter            HAS_USER       = 0,
@@ -186,9 +188,6 @@ module riscv_id #(
   //
   // Module Body
   //
-  import riscv_pkg::*;
-  import riscv_state_pkg::*;
-
 
   /*
    * Program Counter
@@ -201,10 +200,11 @@ module riscv_id #(
 
   /*
    * Instruction
+   *
+   * TODO: push if-instr upon illegal-instruction
    */
-  always @(posedge clk,negedge rstn)
-    if      (!rstn ) id_instr <= INSTR_NOP;
-    else if (!stall ) id_instr <= if_instr;
+  always @(posedge clk)
+    if (!stall ) id_instr <= if_instr;
 
 
   always @(posedge clk,negedge rstn)
@@ -216,7 +216,6 @@ module riscv_id #(
 
 
   //local stall
-//  assign stall = ex_stall | (du_stall & (~id_bubble_r | |id_exception));
   assign stall     = ex_stall | (du_stall & ~|wb_exception);
   assign id_bubble = stall | bu_flush | st_flush | |ex_exception | |mem_exception | |wb_exception | id_bubble_r;
 

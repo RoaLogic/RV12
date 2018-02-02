@@ -27,12 +27,14 @@
 //                                                                 //
 /////////////////////////////////////////////////////////////////////
 
+import riscv_rv12_pkg::*;
+import riscv_opcodes_pkg::*;
+import riscv_state_pkg::*;
+
 module riscv_state1_10 #(
   parameter            XLEN            = 32,
   parameter            FLEN            = 64,    // Floating Point Data length
-  parameter            ILEN            = 32,    // Instruction length
   parameter [XLEN-1:0] PC_INIT         = 'h200,
-  parameter            EXCEPTION_SIZE  = 12,
 
   parameter            IS_RV32E        = 0,
   parameter            HAS_RVN         = 0,
@@ -146,8 +148,6 @@ module riscv_state1_10 #(
   //
   // Variables
   //
-  import riscv_pkg::*;
-  import riscv_state_pkg::*;
 
   /*
    * CSRs
