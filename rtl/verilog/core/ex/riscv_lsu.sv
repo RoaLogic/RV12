@@ -35,10 +35,12 @@
 //                                                             //
 /////////////////////////////////////////////////////////////////
 
+
+import riscv_opcodes_pkg::*;
+import riscv_state_pkg::*;
+
 module riscv_lsu #(
   parameter XLEN           = 32,
-  parameter ILEN           = 32,
-  parameter EXCEPTION_SIZE = 12,
   parameter HAS_A          = 0
 )
 (
@@ -110,9 +112,6 @@ module riscv_lsu #(
   //
   // Module Body
   //
-  import riscv_pkg::*;
-  import riscv_state_pkg::*;
-
 
   /*
    * Instruction

@@ -35,9 +35,11 @@
 //                                                             //
 /////////////////////////////////////////////////////////////////
 
+import riscv_opcodes_pkg::*;
+import riscv_state_pkg::*;
+
 module riscv_mul #(
   parameter XLEN         = 32,
-  parameter ILEN         = 32,
   parameter MULT_LATENCY = 0
 )
 (
@@ -53,7 +55,7 @@ module riscv_mul #(
 
   //Operands
   input      [XLEN-1:0] opA,
-                                  opB,
+                        opB,
 
   //from State
   input      [     1:0] st_xlen,
@@ -151,9 +153,6 @@ module riscv_mul #(
   //
   // Module Body
   //
-  import riscv_pkg::*;
-  import riscv_state_pkg::*;
-
 
   /*
    * Instruction

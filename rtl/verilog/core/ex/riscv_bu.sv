@@ -35,11 +35,13 @@
 //                                                             //
 /////////////////////////////////////////////////////////////////
 
+
+import riscv_opcodes_pkg::*;
+import riscv_state_pkg::*;
+
 module riscv_bu #(
   parameter            XLEN           = 32,
-  parameter            ILEN           = 32,
   parameter [XLEN-1:0] PC_INIT        = 'h200,
-  parameter            EXCEPTION_SIZE = 12,
   parameter            BP_GLOBAL_BITS = 2,
   parameter            HAS_RVC        = 0
 )
@@ -112,9 +114,6 @@ module riscv_bu #(
   //
   // Module Body
   //
-  import riscv_pkg::*;
-  import riscv_state_pkg::*;
-
 
   /*
    * Instruction
