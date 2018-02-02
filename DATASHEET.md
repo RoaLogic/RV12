@@ -31,7 +31,7 @@ The RV12 implements a Harvard architecture for simultaneous instruction and data
 
 Optional features include Branch Prediction, Instruction Cache, Data Cache, Debug Unit and optional Multiplier/Divider Units. Parameterized and configurable features include the instruction and data interfaces, the branch-prediction-unit configuration, and the cache size, associativity, replacement algorithms and multiplier latency. Providing the user with trade offs between performance, power, and area to optimize the core for the application.
 
-RV12 is compliant with the RISC-V User Level ISA v2.2 and Privileged Architecture v1.9.1 specifications published by the RISC-V Foundation ([www.riscv.org](http://www.riscv.org)).
+RV12 is compliant with the RISC-V User Level ISA v2.2 and Privileged Architecture v1.10 specifications published by the RISC-V Foundation ([www.riscv.org](http://www.riscv.org)).
 
 ### Features
 
@@ -87,7 +87,7 @@ RV12 is compliant with the RISC-V User Level ISA v2.2 and Privileged Architectur
 
 The RISC-V specification provides for multi-threading and multi-core implementations. A core is defined as an implementation with its own instruction fetch unit. A hardware thread, or *hart*, is defined as a processing engine with its own state. A core may contain multiple hardware threads. See [www.riscv.org](http://www.riscv.org) for the specifications[1].
 
-The RV12 implements a single core 32/64bit Reduced Instruction Set Computing (RISC) Central Processing Unit (CPU) with a single hardware thread, based on the RISC-V User Instruction Set Architecture v2.2 and Supervisor Instruction Set Architecture v1.9.1 specifications. The core is highly configurable, providing the user with a trade-off between area, power, and performance, thus allowing it to be optimized for the intended task.
+The RV12 implements a single core 32/64bit Reduced Instruction Set Computing (RISC) Central Processing Unit (CPU) with a single hardware thread, based on the RISC-V User Instruction Set Architecture v2.2 and Supervisor Instruction Set Architecture v1.10 specifications. The core is highly configurable, providing the user with a trade-off between area, power, and performance, thus allowing it to be optimized for the intended task.
 
 See Configurations section for a description of the configuration options and parameters.
 
@@ -934,7 +934,7 @@ The data master lock signal indicates if the current transfer is part of a locke
 
 ### Interrupts
 
-The RV12 supports multiple external interrupts and is designed to operate in conjunction with an external Platform Level Interrupt Controller (PLIC) as defined in Chapter 7 of the RISC-V Privilege Level specification v1.9.1.
+The RV12 supports multiple external interrupts and is designed to operate in conjunction with an external Platform Level Interrupt Controller (PLIC) as defined in Chapter 7 of the RISC-V Privilege Level specification v1.10.
 
 Dedicated pins on the RV12 core present the interrupt to the CPU which then expects the Identifier of the Source Interrupt to be presented by the PLIC at the appropriate interrupt vector upon a claim of the interrupt.
 
@@ -1227,15 +1227,15 @@ The RV12 CPU is designed to be compliant with the specifications listed below. T
 
 > “The [RISC-V Instruction Set Manual, Volume I: User-Level ISA, Document Version 2.2](https://github.com/riscv/riscv-isa-manual/blob/master/release/riscv-spec-v2.2.pdf)", Editors Andrew Waterman and Krste Asanović, RISC-V Foundation, May 2017.
 
-> “The [RISC-V Instruction Set Manual, Volume II: Privileged Architecture, Version 1.9.1](https://github.com/riscv/riscv-isa-manual/blob/master/release/riscv-privileged-v1.9.1.pdf)", Editors Andrew Waterman and Krste Asanović, RISC-V Foundation, November 2016.
+> “The [RISC-V Instruction Set Manual, Volume II: Privileged Architecture, Version 1.10](https://github.com/riscv/riscv-isa-manual/blob/master/release/riscv-privileged-v1.10.pdf)", Editors Andrew Waterman and Krste Asanović, RISC-V Foundation, May 2017.
 
 ## Revision History
 
-| Date        | Rev. | Comments                     |
-|:------------|:----:|:-----------------------------|
-| 01-Feb-2017 | v1.0 | Initial RV11 Release         |
-| 01-Nov-2017 | v1.1 | RV12 Update                  |
-| 01-Dec-2017 | v1.x | Minor Formatting Corrections |
-|             |      |                              |
+| Date        | Rev. | Comments                             |
+|:------------|:----:|:-------------------------------------|
+| 01-Feb-2017 | v1.0 | Initial RV11 Release                 |
+| 01-Nov-2017 | v1.1 | RV12 Update (v1.9.1 Privileged Spec) |
+| 01-Dec-2017 | v1.2 | Minor Formatting Corrections         |
+| 01-Feb-2018 | v1.3 | v1.10 Privileged Spec Support Update |
 
 [1] Full reference details of the specifications are documented in the References chapter
