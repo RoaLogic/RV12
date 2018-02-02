@@ -78,11 +78,6 @@ module riscv_top_ahb3lite #(
 
   parameter            JEDEC_BANK            = 9,
   parameter            JEDEC_MANUFACTURER_ID = 'h6e,
-  parameter            ARCHID                = (1<<XLEN) | 12,
-  parameter            REVPRV_MAJOR          = 1,
-  parameter            REVPRV_MINOR          = 10,
-  parameter            REVUSR_MAJOR          = 2,
-  parameter            REVUSR_MINOR          = 2,
 
   parameter            HARTID             = 0,
 
@@ -210,11 +205,6 @@ module riscv_top_ahb3lite #(
 
     .JEDEC_BANK            ( JEDEC_BANK            ),
     .JEDEC_MANUFACTURER_ID ( JEDEC_MANUFACTURER_ID ),
-    .ARCHID                ( ARCHID                ),
-    .REVPRV_MAJOR          ( REVPRV_MAJOR          ),
-    .REVPRV_MINOR          ( REVPRV_MINOR          ),
-    .REVUSR_MAJOR          ( REVUSR_MAJOR          ),
-    .REVUSR_MINOR          ( REVUSR_MINOR          ),
 
     .HARTID                ( HARTID                ), 
 
