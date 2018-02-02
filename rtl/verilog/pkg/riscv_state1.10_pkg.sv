@@ -276,6 +276,8 @@ package riscv_state_pkg;
 
 
   //Exception causes
+  parameter        EXCEPTION_SIZE                 = 16;
+
   parameter        CAUSE_MISALIGNED_INSTRUCTION   = 0,
                    CAUSE_INSTRUCTION_ACCESS_FAULT = 1,
                    CAUSE_ILLEGAL_INSTRUCTION      = 2,
