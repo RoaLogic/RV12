@@ -103,8 +103,6 @@ module riscv_nodcache_core #(
   //
   // Module Body
   //
-  import riscv_pkg::*;
-
 
   //Is this a cacheable region?
   //MSB=1 non-cacheable (IO region)
