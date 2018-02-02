@@ -35,11 +35,13 @@
 //                                                             //
 /////////////////////////////////////////////////////////////////
 
+
+import riscv_opcodes_pkg::ILEN;
+import riscv_state_pkg::EXCEPTION_SIZE;
+
 module riscv_ex #(
   parameter            XLEN           = 32,
   parameter [XLEN-1:0] PC_INIT        = 'h200,
-  parameter            ILEN           = 32,
-  parameter            EXCEPTION_SIZE = 12,
   parameter            BP_GLOBAL_BITS = 2,
   parameter            HAS_RVC        = 0,
   parameter            HAS_RVA        = 0,
@@ -164,9 +166,6 @@ module riscv_ex #(
   //
   // Module Body
   //
-  import riscv_pkg::*;
-  import riscv_state_pkg::*;
-
 
   /*
    * Program Counter
@@ -179,9 +178,8 @@ module riscv_ex #(
   /*
    * Instruction
    */
-  always @(posedge clk, negedge rstn)
-    if      (!rstn    ) ex_instr <= INSTR_NOP;
-    else if (!ex_stall) ex_instr <= id_instr;
+  always @(posedge clk)
+    if (!ex_stall) ex_instr <= id_instr;
 
 
   /*
@@ -214,17 +212,14 @@ module riscv_ex #(
    * Execution Units
    */
   riscv_alu #(
-    .XLEN ( XLEN ),
-    .ILEN ( ILEN ) )
+    .XLEN ( XLEN ) )
   alu (
     .*
   );
 
   // Load-Store Unit
   riscv_lsu #(
-    .XLEN           ( XLEN           ),
-    .ILEN           ( ILEN           ),
-    .EXCEPTION_SIZE ( EXCEPTION_SIZE ) )
+    .XLEN           ( XLEN           ) )
   lsu (
     .*
   );
@@ -232,8 +227,6 @@ module riscv_ex #(
   // Branch Unit
   riscv_bu #(
     .XLEN           ( XLEN           ),
-    .ILEN           ( ILEN           ),
-    .EXCEPTION_SIZE ( EXCEPTION_SIZE ),
     .BP_GLOBAL_BITS ( BP_GLOBAL_BITS ) )
   bu (
     //Branch unit handles exceptions and relays ID-exceptions
@@ -246,7 +239,6 @@ generate
   begin
       riscv_mul #(
         .XLEN         ( XLEN         ),
-        .ILEN         ( ILEN         ),
         .MULT_LATENCY ( MULT_LATENCY )
       )
       mul (
@@ -254,9 +246,7 @@ generate
       );
 
       riscv_div #(
-        .XLEN ( XLEN ),
-        .ILEN ( ILEN )
-      )
+        .XLEN ( XLEN ))
       div (
         .*
       );
