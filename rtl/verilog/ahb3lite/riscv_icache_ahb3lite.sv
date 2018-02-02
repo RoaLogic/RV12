@@ -88,13 +88,6 @@ module riscv_icache_ahb3lite #(
 
   //////////////////////////////////////////////////////////////////
   //
-  // Constants
-  //
-  import ahb3lite_pkg::*;
-
-
-  //////////////////////////////////////////////////////////////////
-  //
   // Variables
   //
   //From Cache Controller Core
@@ -120,8 +113,6 @@ module riscv_icache_ahb3lite #(
   //
   // Module Body
   //
-  import riscv_pkg::*;
-
 
 generate
 if (SIZE == 0)

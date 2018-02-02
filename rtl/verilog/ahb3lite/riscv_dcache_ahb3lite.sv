@@ -88,13 +88,6 @@ module riscv_dcache_ahb3lite #(
 
   //////////////////////////////////////////////////////////////////
   //
-  // Constants
-  //
-  import ahb3lite_pkg::*;
-
-
-  //////////////////////////////////////////////////////////////////
-  //
   // Variables
   //
   logic                      is_misaligned;
@@ -136,8 +129,6 @@ module riscv_dcache_ahb3lite #(
   //
   // Module Body
   //
-  import riscv_pkg::*;
-
 
   /*
    * Check if the access is misaligned

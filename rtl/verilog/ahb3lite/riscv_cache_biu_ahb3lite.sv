@@ -82,7 +82,6 @@ module riscv_cache_biu_ahb3lite #(
   // Constants
   //
   import ahb3lite_pkg::*;
-  import riscv_state_pkg::*;
 
 
   //////////////////////////////////////////////////////////////////
