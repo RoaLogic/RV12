@@ -35,11 +35,13 @@
 //                                                             //
 /////////////////////////////////////////////////////////////////
 
+
+import riscv_opcodes_pkg::*;
+import riscv_state_pkg::*;
+
 module riscv_wb #(
   parameter            XLEN           = 32,
-  parameter            ILEN           = 32,
-  parameter [XLEN-1:0] PC_INIT        = 'h200,
-  parameter            EXCEPTION_SIZE = 12
+  parameter [XLEN-1:0] PC_INIT        = 'h200
 )
 (
   input                           rstn,          //Reset
@@ -96,9 +98,6 @@ module riscv_wb #(
   //
   // Module Body
   //
-  import riscv_pkg::*;
-  import riscv_state_pkg::*;
-
 
   /*
    * Program Counter
