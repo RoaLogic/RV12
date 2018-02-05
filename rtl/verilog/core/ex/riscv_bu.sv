@@ -124,7 +124,7 @@ module riscv_bu #(
   assign func3  = id_instr[14:12];
   assign opcode = id_instr[ 6: 2];
 
-  assign has_rvc = (HAS_RVC !=  0);
+  assign has_rvc = (HAS_RVC != 0);
 
   /*
    * Exceptions

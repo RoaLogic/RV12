@@ -248,10 +248,6 @@ unified_memory (
 
 
 
-
-
-
-
 //Front-End Server
 generate
   if (HTIF)
@@ -271,7 +267,7 @@ generate
   begin     
       
       //New MMIO interface
-      mmio_if #(XLEN, PHYS_ADDR_SIZE, 32'h80001000 ) 
+      mmio_if #(XLEN, PHYS_ADDR_SIZE, 32'h80001000, 32'h00005000, 32'h00007000 ) 
       mmio_if_inst (
         .HRESETn     ( HRESETn ),
         .HCLK        ( HCLK    ),
@@ -322,13 +318,14 @@ begin
 `endif
 
   unified_memory.read_elf2hex(INIT_FILE);
-
+  //unified_memory.print_memory;
+  //unified_memory.read_ihex(INIT_FILE);
 
   // check if the test is for the rvc extension
   str_length = unified_memory.read_elf2hex.file.len();
   if(unified_memory.read_elf2hex.file.substr(str_length-7,str_length-5) == "rvc") is_rvc_test <= 1'b1;
   else    									  is_rvc_test <= 1'b0;
-
+  //is_rvc_test <= 1'b0;
 
 
 
@@ -379,7 +376,9 @@ endmodule
 module mmio_if #(
   parameter HDATA_SIZE = 32,
   parameter HADDR_SIZE = 32,
-  parameter CATCH_ADDR = 80001000
+  parameter CATCH_ADDR_TEST    = 00001000,
+  parameter CATCH_ADDR_ENDTB   = 80005000,
+  parameter CATCH_ADDR_ECLIPSE = 80007000
 )
 (
   input                       HRESETn,
@@ -402,7 +401,9 @@ module mmio_if #(
   // Variables
   //
   logic [HDATA_SIZE-1:0] data_reg;
-  logic                  catch;
+  logic                  catch_test;
+  logic 		 catch_endtb;
+  logic 		 catch_eclipse;
 
   logic [           1:0] dHTRANS;
   logic [HADDR_SIZE-1:0] dHADDR;
@@ -457,19 +458,54 @@ module mmio_if #(
 
 
   always @(posedge HCLK,negedge HRESETn)
-    if (!HRESETn) catch     <= 1'b0;
+    if (!HRESETn) 
+    begin
+	catch_test    <= 1'b0;
+	catch_eclipse <= 1'b0;
+	catch_endtb   <= 1'b0;
+    end
     else
     begin
-        catch <= dHTRANS == HTRANS_NONSEQ && dHWRITE && dHADDR == {is_rvc_test ? CATCH_ADDR + 'h2000 : CATCH_ADDR};
+        catch_test	<= dHTRANS == HTRANS_NONSEQ && dHWRITE && dHADDR == {is_rvc_test ? CATCH_ADDR_TEST + 'h2000 : CATCH_ADDR_TEST};
+	catch_endtb   	<= dHTRANS == HTRANS_NONSEQ && dHWRITE && dHADDR == CATCH_ADDR_ENDTB;
+	catch_eclipse	<= dHTRANS == HTRANS_NONSEQ && dHWRITE && dHADDR == CATCH_ADDR_ECLIPSE;
         data_reg  <= HWDATA;
     end
 
+  // catch data send from simulation 
+  always @(posedge HCLK, negedge HRESETn)
+    begin
+      if(catch_eclipse)
+      begin
+	$write("%0c", data_reg);
+	//if(data_reg == "M") unified_memory.print_memory;
 
-  //Generate output
+      end
+    end
+
+
+  // catch data from simulation and end the simulation
+  always @(posedge HCLK, negedge HRESETn)
+    begin
+      if(catch_endtb)
+      begin	      	
+	  $display("End simulation ");
+	  $display("End data: %0d", data_reg);
+	  $display("\n\n");
+	  unified_memory.print_memory;
+	  $display("Time: %0t", $time);
+          $finish();
+      end
+    end
+
+
+
+  //Generate output simulation
   always @(posedge HCLK)
   begin
-      if (watchdog_cnt > 200_000 || catch)
+      if (watchdog_cnt > 1000_000 || catch_test)
       begin
+
           $display("\n\n");
           $display("-------------------------------------------------------------");
           $display("* RISC-V test bench finished");
@@ -477,6 +513,7 @@ module mmio_if #(
           begin
               if (~|data_reg[HDATA_SIZE-1:1])
                 $display("* PASSED %0d", data_reg);
+		
               else
                 $display ("* FAILED: code: 0x%h (%0d: %s)", data_reg >> 1, data_reg >> 1, hostcode_to_string(data_reg >> 1) );
           end
@@ -528,6 +565,7 @@ module htif #(
   begin
       if (watchdog_cnt > 200_000 || host_csr_tohost[0] == 1'b1)
       begin
+	  //$display("Host: %0d", host_csr_tohost);
           $display("\n\n");
           $display("*****************************************************");
           $display("* RISC-V test bench finished");

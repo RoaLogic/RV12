@@ -159,7 +159,7 @@ module ahb3lite_checker #(
 
 
     //HTRANS must remain stable when slave not ready
-    if (!HREADY && HTRANS != prev_htrans)
+    if (!prev_hready && HTRANS != prev_htrans)
     begin
         $display ("AHB ERROR (%m): HTRANS must remain stable during wait states @%0t", $time);
     end
@@ -198,7 +198,7 @@ module ahb3lite_checker #(
     end
 
     //HSIZE must remain stable when slave not ready
-    if (!HREADY && HSIZE != prev_hsize)
+    if (!prev_hready && HSIZE != prev_hsize)
     begin
         $display ("AHB ERROR (%m): HSIZE must remain stable during wait states @%0t", $time);
     end
@@ -239,7 +239,7 @@ module ahb3lite_checker #(
     end
 
     //HWRITE must remain stable when slave not ready
-    if (!HREADY && HWRITE != prev_hwrite)
+    if (!prev_hready && HWRITE != prev_hwrite)
     begin
         $display ("AHB ERROR (%m): HWRITE must remain stable during wait states @%0t", $time);
     end
@@ -297,7 +297,7 @@ module ahb3lite_checker #(
 
 
     //HADDR must remain stable when slave not ready
-    if (!HREADY && HADDR != prev_haddr)
+    if (!prev_hready && HADDR != prev_haddr)
     begin
         $display ("AHB ERROR (%m): HADDR must remain stable during wait states @%0t", $time);
     end
@@ -310,7 +310,7 @@ module ahb3lite_checker #(
    */
   task check_hwdata;
     //HWDATA must remain stable when slave not ready
-    if (!HREADY && HWDATA != prev_hwdata)
+    if (!prev_hready && HWDATA != prev_hwdata)
     begin
         $display ("AHB ERROR (%m): HWDATA must remain stable during wait states @%0t", $time);
     end
@@ -323,14 +323,15 @@ module ahb3lite_checker #(
    */
   task check_slave_response;
     //Always zero-wait-state response to IDLE
-    if ( (prev_htrans == HTRANS_IDLE) && (!HREADY || (HRESP != HRESP_OKAY)) )
+    //Unless slave already inserted wait-states
+    if (prev_hready && (prev_htrans == HTRANS_IDLE) && (!HREADY || (HRESP != HRESP_OKAY)))
     begin
         $display ("AHB ERROR (%m): Slave must provide a zero wait state response to IDLE transfers (HREADY=%0b, HRESP=%0b) @%0t", HREADY, HRESP, $time);
     end
 
     //always zero-wait-state response to BUSY
     //unless slave already inserted wait-states
-    if ( (prev_htrans == HTRANS_BUSY) && prev_hready && (!HREADY || (HRESP != HRESP_OKAY)) )
+    if (prev_hready && (prev_htrans == HTRANS_BUSY) && (!HREADY || (HRESP != HRESP_OKAY)) )
     begin
         $display ("AHB ERROR (%m): Slave must provide a zero wait state response to BUSY transfers (HREADY=%0b, HRESP=%0b) @%0t", HREADY, HRESP, $time);
     end
@@ -355,7 +356,6 @@ module ahb3lite_checker #(
   //
   // Module Body
   //
-
 
   /*
    * Check HTRANS
