@@ -11,6 +11,7 @@ Author: Roa Logic
 
 -   [Product Brief](#product-brief)
 -   [Introduction to the RV12](#introduction-to-the-rv12)
+-   [RV12 Execution Pipeline](#rv12-execution-pipeline)
 -   [Configurations](#configurations)
 -   [Control & Status Registers](#control-status-registers)
 -   [External Interfaces](#external-interfaces)
@@ -191,6 +192,154 @@ The RV12 has a single integer pipeline that can execute one instruction per cycl
 ### Register File
 
 The Register File is made up of 32 register locations (X0-X31) each XLEN bits wide. Register X0 is always zero. The Register File has two read ports and one write port.
+
+## RV12 Execution Pipeline
+
+The RV12 implements a 32/64bit Integer modified form of the classic RISC pipeline. The pipeline consists of the Instruction Fetch, Pre-Decode, Instruction Decode, Execution, Memory Access, and Write Back stages as highlighted in the figure below.
+
+![RV12 Execution Pipeline](assets/img/Pipeline-Overview.png)
+
+### Instruction Fetch (IF)
+
+The Instruction Fetch unit loads a new parcel from the program memory. A parcel is a code field that contains one or more instructions. The address of the parcel to load is held by the Program Counter (PC). The Program Counter is either 32 or 64bits wide, depending on the XLEN parameter. The Program Counter is updated whenever the Instruction Pipeline is not stalled.
+
+If the pipeline is flushed the Program Counter is restarted from the given address.
+
+![Instruction Fetch Stage Implementation](assets/img/Pipeline-IF.png)
+
+| **Signal**     | **Direction** |  **To/From**  | **Description**                              |
+|:---------------|:-------------:|:-------------:|:---------------------------------------------|
+| `if_nxt_pc`    |       to      | Bus Interface | Next address to fetch parcel from            |
+| `parcel_pc`    |      from     | Bus Interface | Fetch parcel’s address                       |
+| `parcel_valid` |      from     | Bus Interface | Valid indicators for parcel                  |
+| `parcel`       |      from     | Bus Interface | Fetched parcel                               |
+|                |               |               |                                              |
+| `Flush`        |      from     |    EX/State   | When asserted flushes the pipe               |
+| `Stall`        |      from     |       PD      | When asserted stalls the pipe                |
+| `pd_branch_pc` |      from     |       PD      | New program counter for a branch instruction |
+| `if_pc`        |       to      |       PD      | Instruction Fetch program counter            |
+| `if_instr`     |       to      |       PD      | Instruction Fetch instruction                |
+| `if_bubble`    |       to      |       PD      | Instruction Fetch bubble                     |
+| `if_exception` |       to      |       PD      | Instruction Fetch exception status           |
+
+### Pre-Decode (PD)
+
+The Pre-Decode unit translates 16-bit compressed instructions to the base 32bit RISC-V instructions and then processes Program Counter modifying instructions like Jump-And-Link and Branch. This avoids waiting for the Execution stage to trigger the update and reduces the demand for pipeline flushes. The destination address for branches is predicted based on the data provided by the optional Branch Prediction Unit or determined statically based on the offset.
+
+![Instruction Pre-Decode Stage](assets/img/Pipeline-PD.png)
+
+| **Signal**     | **Direction** | **To/From** | **Description**                               |
+|:---------------|:-------------:|:-----------:|:----------------------------------------------|
+| `if_pc`        |      from     |      IF     | Instruction Fetch program counter             |
+| `if_instr`     |      from     |      IF     | Instruction Fetch instruction                 |
+| `if_bubble`    |      from     |      IF     | Instruction Fetch bubble                      |
+| `if_exception` |      from     |      IF     | Instruction Fetch exception status            |
+| `pd_branch_pc` |       to      |      IF     | New PC (for a branch instruction)             |
+|                |               |             |                                               |
+| `bu_predict`   |      from     |      BP     | Branch prediction from Branch Prediction Unit |
+| `pd_predict `  |       to      |      ID     | Forwarded branch prediction                   |
+| `pd_pc`        |       to      |      ID     | Pre-Decode program counter                    |
+| `pd_instr`     |       to      |      ID     | Pre-Decode instruction                        |
+| `pd_bubble`    |       to      |      ID     | Pre-Decode bubble                             |
+| `pd_exception` |       to      |      ID     | Pre-Decode exception status                   |
+
+### Instruction Decode (ID)
+
+The Instruction Decode unit ensures the operands for the execution units are available. It accesses the Register File, calculates immediate values, sets bypasses, and checks for illegal opcodes and opcode combinations.
+
+![Instruction Decode Stage Implementation](assets/img/Pipeline-ID.png)
+
+| **Signal**     | **Direction** | **To/From** | **Description**                     |
+|:---------------|:-------------:|:-----------:|:------------------------------------|
+| `pd_pc`        |      from     |      PD     | Pre-Decode program counter          |
+| `pd_instr`     |      from     |      PD     | Pre-Decode instruction              |
+| `pd_bubble`    |      from     |      PD     | Pre-Decode bubble                   |
+| `pd_exception` |      from     |      PD     | Pre-Decode exception status         |
+|                |               |             |                                     |
+| `src1`         |       to      |      RF     | Source Register1 index              |
+| `src2`         |       to      |      RF     | Source Register2 Index              |
+|                |               |             |                                     |
+| `id_bypassA`   |       to      |      EX     | Bypass signals for srcA             |
+| `id_bypassB`   |       to      |      EX     | Bypass signals for srcB             |
+| `id_opA`       |       to      |      EX     | Calculated operandA                 |
+| `id_opB`       |       to      |      EX     | Calculated operandB                 |
+| `id_pc`        |       to      |      EX     | Instruction Decode program counter  |
+| `id_instr`     |       to      |      EX     | Instruction Decode instruction      |
+| `id_bubble`    |       to      |      EX     | Instruction Decode bubble           |
+| `id_exception` |       to      |      EX     | Instruction Decode exception status |
+
+### Execute (EX)
+
+The Execute stage performs the required operation on the data provided by the Instruction Decode stage. The Execution stage has multiple execution units, each with a unique function. The ALU performs logical and arithmetic operations. The Multiplier unit calculates signed/unsigned multiplications. The Divider unit calculates signed/unsigned division and remainder. The Load-Store Unit accesses the data memory. The Branch Unit calculates jump and branch addresses and validates the predicted branches.
+
+Only one operation can be executed per clock cycle. Most operations complete in one clock cycle, except for the divide instructions, which always take multiple clock cycles to complete. The multiplier supports configurable latencies, to improve performance.
+
+![Execute Stage Implementation](assets/img/Pipeline-EX.png)
+
+| **Signal**     | **Direction** | **To/From** | **Description**                     |
+|:---------------|:-------------:|:-----------:|:------------------------------------|
+| `id_pc`        |      from     |      ID     | Instruction Decode program counter  |
+| `id_instr`     |      from     |      ID     | Instruction Decode instruction      |
+| `id_bubble`    |      from     |      ID     | Instruction Decode bubble           |
+| `id_exception` |      from     |      ID     | Instruction Decode exception status |
+|                |               |             |                                     |
+| `opA`          |      from     |      RF     | Source Register1 value              |
+| `opB`          |      from     |      RF     | Source Register2 value              |
+|                |               |             |                                     |
+| `id_bypassA`   |      from     |      ID     | Bypass signals for srcA             |
+| `id_bypassB`   |      from     |      ID     | Bypass signals for srcB             |
+| `id_opA`       |      from     |      ID     | Calculated operandA                 |
+| `id_opB`       |      from     |      ID     | Calculated operandB                 |
+| `ex_stall`     |       to      |      ID     | Stall ID (and higher) stages        |
+| `ex_flush`     |       to      |   ID/PD/IF  | Flush ID (and higher) pipe stages   |
+| `ex_r`         |       to      |     MEM     | Result from execution units         |
+| `ex_pc`        |       to      |     MEM     | Execute program counter             |
+| `ex_instr`     |       to      |     MEM     | Execute instruction                 |
+| `ex_bubble`    |       to      |     MEM     | Execute bubble                      |
+| `ex_exception` |       to      |     MEM     | Execute exception status            |
+
+### Memory-Access (MEM)
+
+The Memory Access stage waits for a memory read access to complete. When memory is accessed, address, data, and control signals are calculated during the Execute stage. The memory latches these signals and then performs the actual access. This means that read-data won’t be available until 1 clock cycle later. This would be at the end of the Write-Back stage, and hence too late. Therefore the Memory-Access stage is added.
+
+![Memory Stage Implementation](assets/img/Pipeline-MEM.png)
+
+| **Signal**      | **Direction** | **To/From** | **Description**                |
+|:----------------|:-------------:|:-----------:|:-------------------------------|
+| `ex_r`          |      from     |      EX     | Result from Execution stage    |
+| `ex_pc`         |      from     |      EX     | Execute program counter        |
+| `ex_instr`      |      from     |      EX     | Execute instruction            |
+| `ex_bubble`     |      from     |      EX     | Execute bubble                 |
+| `ex_exception`  |      from     |      EX     | Execute stage exception status |
+|                 |               |             |                                |
+| `mem_r`         |       to      |    WB/EX    | Memory Access result           |
+| `mem_instr`     |       to      |    WB/ID    | Memory Access instruction      |
+| `mem_bubble`    |       to      |    WB/ID    | Memory Access bubble           |
+| `mem_exception` |       to      |   WB/ID/EX  | Memory Access exception status |
+
+### Write-Back (WB)
+
+The Write-Back stage writes the results from the Execution Units and memory-read operations into the Register File.
+
+![Write-back Stage Implementation](assets/img/Pipeline-WB.png)
+
+| **Signal**      | **Direction** | **To/From** | **Description**                 |
+|:----------------|:-------------:|:-----------:|:--------------------------------|
+| `mem_r`         |      from     |     MEM     | Result from Memory Access stage |
+| `mem_pc`        |      from     |     MEM     | Memory Access program counter   |
+| `mem_instr`     |      from     |     MEM     | Memory Access instruction       |
+| `mem_exception` |      from     |     MEM     | Memory Access exception status  |
+| `mem_bubble`    |      from     |     MEM     | Memory Access bubble            |
+| `dmem_q`        |      from     | Data Memory | Result from Data Memory         |
+| `dmem_ack`      |      from     | Data Memory | Data Memory acknowledge         |
+|                 |               |             |                                 |
+| `wb_r`          |       to      |   RF/ID/EX  | Result to be written to RF      |
+| `wb_dst`        |       to      |      RF     | Destination register index      |
+| `wb_we`         |       to      |      RF     | Write enable                    |
+| `wb_pc`         |       to      |    State    | WriteBack program counter       |
+| `wb_instr`      |       to      |   State/ID  | WriteBack instruction           |
+| `wb_bubble`     |       to      |   State/ID  | WriteBack bubble                |
+| `wb_exception`  |       to      | State/ID/EX | WriteBack exception status      |
 
 ## Configurations
 
