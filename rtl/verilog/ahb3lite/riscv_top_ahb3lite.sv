@@ -76,7 +76,7 @@ module riscv_top_ahb3lite #(
   parameter            STVEC_DEFAULT      = PC_INIT -'h0C0,
   parameter            UTVEC_DEFAULT      = PC_INIT -'h100,
 
-  parameter            JEDEC_BANK            = 9,
+  parameter            JEDEC_BANK            = 10,
   parameter            JEDEC_MANUFACTURER_ID = 'h6e,
 
   parameter            HARTID             = 0,

@@ -467,7 +467,7 @@ module riscv_state1_10 #(
                                   a: has_amo,
                                   default : 1'b0};
 
-  assign csr.mvendorid.bank    = JEDEC_BANK;
+  assign csr.mvendorid.bank    = JEDEC_BANK -1;
   assign csr.mvendorid.offset  = JEDEC_MANUFACTURER_ID[6:0];
   assign csr.marchid           = ARCHID;
   assign csr.mimpid[    31:24] = REVPRV_MAJOR;
