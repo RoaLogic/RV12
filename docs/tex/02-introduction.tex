@@ -11,7 +11,7 @@ documented in the References chapter}.
 The RV12 implements a single core 32/64bit Reduced Instruction Set Computing
 (RISC) Central Processing Unit (CPU) with a single hardware thread, based on
 the RISC-V User Instruction Set Architecture v2.2 and Supervisor Instruction
-Set Architecture v1.9.1 specifications.  The core is highly configurable,
+Set Architecture v1.10 specifications.  The core is highly configurable,
 providing the user with a trade-off between area, power, and performance, thus
 allowing it to be optimized for the intended task.
 
@@ -56,7 +56,7 @@ parts of the Supervisor Mode.
 
 \section{Execution Pipeline}\label{execution-pipeline}
 
-The RV12 implements an optimizing 4-stage folded pipeline.  The classic RISC
+The RV12 implements an optimizing 6-stage folded pipeline.  The classic RISC
 pipeline consists of 5 stages; instruction fetch (IF), instruction decode (ID),
 execute (EX), memory access (MEM), and register write-back (WB).
 
@@ -90,15 +90,19 @@ Fetch (IF) stage.
   \caption{Overlapping Execution Stages}
 \end{figure}
 
-\subsection{Instruction Fetch/Pre-Decode(IF/PD)} \label{instruction-fetchpre-decode-ifpd}
+\subsection{Instruction Fetch (IF)} \label{instruction-fetch-if}
 
-During the instruction fetch stage one instruction is read from the instruction
-memory, a 16bit-compressed instruction is decoded, and the program counter is
-updated to point to the next instruction.
+During the Instruction Fetch stage one instruction is read from the instruction
+memory and the program counter is updated to point to the next instruction..
+
+\subsection{Instruction Pre-Decode (PD)} \label{instruction-pre-decode-pd}
+
+When RVC Support is enabled, the Instruction Pre-Decode stage decodes a
+16bit-compressed instruction into a native 32bit instruction.
 
 \subsection{Instruction Decode (ID)} \label{instruction-decode-id}
 
-During the instruction decode stage the Register File is accessed and the bypass
+During the Instruction Decode stage the Register File is accessed and the bypass
 controls are determined.
 
 \subsection{Execute (EX)} \label{execute-ex}
@@ -106,6 +110,11 @@ controls are determined.
 During the Execute stage the result is calculated for an ALU, MUL, DIV
 instruction, the memory accessed for a Load/Store instruction, and branches and
 jumps are calculated and checked against their predicted outcomes.
+
+\subsection{Memory (MEM)} \label{memory-mem}
+
+During the Memory stage, memory access by the pipeline is completed. Inclusion
+of this stage ensures high performance of the pipeline.
 
 \subsection{Write Back (WB)} \label{write-back-wb}
 

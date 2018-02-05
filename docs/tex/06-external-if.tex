@@ -30,7 +30,7 @@ Interfaces.
 	\texttt{DHADDR}     & \texttt{XLEN} & Output    & Data address\tabularnewline
 	\texttt{DHRDATA}    & \texttt{XLEN} & Input     & Data read data\tabularnewline
 	\texttt{DHWDATA}    & \texttt{XLEN} & Output    & Data write data\tabularnewline
-	\texttt{DHWRITE}    & 1             & Output    & Instruction write\tabularnewline
+	\texttt{DHWRITE}    & 1             & Output    & Data write\tabularnewline
 	\texttt{DHSIZE}     & 3             & Output    & Transfer size\tabularnewline
 	\texttt{DHBURST}    & 3             & Output    & Transfer burst size\tabularnewline
 	\texttt{DHPROT}     & 4             & Output    & Transfer protection level\tabularnewline
@@ -310,7 +310,7 @@ transfer completed.
 The RV12 supports multiple external interrupts and is designed to
 operate in conjunction with an external Platform Level Interrupt
 Controller (PLIC) as defined in Chapter 7 of the RISC-V Privilege Level
-specification v1.9.1.
+specification v1.10.
 
 Dedicated pins on the RV12 core present the interrupt to the CPU which
 then expects the Identifier of the Source Interrupt to be presented by
