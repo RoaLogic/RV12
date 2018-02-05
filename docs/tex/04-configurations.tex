@@ -28,47 +28,72 @@ configuration options are described in this section.
 	\endlastfoot
 \fi
 
-\texttt{XLEN}                 & Integer & 32                      & Datapath width\tabularnewline
-\texttt{PC\_INIT}             & Address & \texttt{h200}           & Program Counter Initialisation Vector\tabularnewline
-\texttt{PHYS\_ADDR\_SIZE}     & Integer & \texttt{XLEN}           & Physical Address Size\tabularnewline
-\texttt{HAS\_USER}            & Integer & 0                       & User Mode Enable\tabularnewline
-\texttt{HAS\_SUPER}           & Integer & 0                       & Supervisor Mode Enable\tabularnewline
-\texttt{HAS\_HYPER}           & Integer & 0                       & Hypervisor Mode Enable\tabularnewline
-\texttt{HAS\_RVM}             & Integer & 0                       & ``M'' Extension Enable\tabularnewline
-\texttt{HAS\_RVA}             & Integer & 0                       & ``A'' Extension Enable\tabularnewline
-\texttt{HAS\_RVC}             & Integer & 0                       & ``C'' Extension Enable\tabularnewline
-\texttt{HAS\_BPU}             & Integer & 1                       & Branch Prediction Unit Control Enable\tabularnewline
-\texttt{IS\_RV32E}            & Integer & 0                       & RV32E Base Integer Instruction Set Enable\tabularnewline
-\texttt{MULT\_LATENCY}        & Integer & 0                       & Hardware Multiplier Latency (if ``M'' Extension enabled)\tabularnewline
-\texttt{BP\_LOCAL\_BITS}      & Integer & 10                      & Number of local predictor bits\tabularnewline
-\texttt{BP\_GLOBAL\_BITS}     & Integer & 2                       & Number of global predictor bits\tabularnewline
-\texttt{HARTID}               & Integer & 0                       & Hart Identifier\tabularnewline
-\texttt{ICACHE\_SIZE}         & Integer & 16                      & Instruction Cache size in Kbytes\tabularnewline
-\texttt{ICACHE\_BLOCK\_SIZE}  & Integer & 32                      & Instruction Cache block length in bytes\tabularnewline
-\texttt{ICACHE\_WAYS}         & Integer & 2                       & Instruction Cache associativity\tabularnewline
-\texttt{ICACHE\_REPLACE\_ALG} & Integer & 0                       & Instruction Cache replacement algorithm
+\texttt{JEDEC\_BANK}             & Integer & 0x0A                    & JEDEC Bank\tabularnewline
+\texttt{JEDEC\_MANUFACTURER\_ID} & Integer & 0x6E                    & JEDEC Manufacturer ID\tabularnewline
+\texttt{XLEN}                    & Integer & 32                      & Datapath width\tabularnewline
+\texttt{PC\_INIT}                & Address & \texttt{h200}           & Program Counter Initialisation Vector\tabularnewline
+\texttt{PHYS\_ADDR\_SIZE}        & Integer & \texttt{XLEN}           & Physical Address Size\tabularnewline
+\texttt{HAS\_USER}               & Integer & 0                       & User Mode Enable\tabularnewline
+\texttt{HAS\_SUPER}              & Integer & 0                       & Supervisor Mode Enable\tabularnewline
+\texttt{HAS\_HYPER}              & Integer & 0                       & Hypervisor Mode Enable\tabularnewline
+\texttt{HAS\_RVM}                & Integer & 0                       & ``M'' Extension Enable\tabularnewline
+\texttt{HAS\_RVA}                & Integer & 0                       & ``A'' Extension Enable\tabularnewline
+\texttt{HAS\_RVC}                & Integer & 0                       & ``C'' Extension Enable\tabularnewline
+\texttt{HAS\_BPU}                & Integer & 1                       & Branch Prediction Unit Control Enable\tabularnewline
+\texttt{IS\_RV32E}               & Integer & 0                       & RV32E Base Integer Instruction Set Enable\tabularnewline
+\texttt{MULT\_LATENCY}           & Integer & 0                       & Hardware Multiplier Latency (if ``M'' Extension enabled)\tabularnewline
+\texttt{BP\_LOCAL\_BITS}         & Integer & 10                      & Number of local predictor bits\tabularnewline
+\texttt{BP\_GLOBAL\_BITS}        & Integer & 2                       & Number of global predictor bits\tabularnewline
+\texttt{HARTID}                  & Integer & 0                       & Hart Identifier\tabularnewline
+\texttt{ICACHE\_SIZE}            & Integer & 16                      & Instruction Cache size in Kbytes\tabularnewline
+\texttt{ICACHE\_BLOCK\_SIZE}     & Integer & 32                      & Instruction Cache block length in bytes\tabularnewline
+\texttt{ICACHE\_WAYS}            & Integer & 2                       & Instruction Cache associativity\tabularnewline
+\texttt{ICACHE\_REPLACE\_ALG}    & Integer & 0                       & Instruction Cache replacement algorithm
 \newline0: Random
 \newline1: FIFO
 \newline2: LRU\tabularnewline
-\texttt{DCACHE\_SIZE}         & Integer & 16                      & Data Cache size in Kbytes\tabularnewline
-\texttt{DCACHE\_BLOCK\_SIZE}  & Integer & 32                      & Data Cache block length in bytes\tabularnewline
-\texttt{DCACHE\_WAYS}         & Integer & 2                       & Data Cache associativity\tabularnewline
-\texttt{DCACHE\_REPLACE\_ALG} & Integer & 0                       & Data Cache replacement algorithm
+\texttt{DCACHE\_SIZE}            & Integer & 16                      & Data Cache size in Kbytes\tabularnewline
+\texttt{DCACHE\_BLOCK\_SIZE}     & Integer & 32                      & Data Cache block length in bytes\tabularnewline
+\texttt{DCACHE\_WAYS}            & Integer & 2                       & Data Cache associativity\tabularnewline
+\texttt{DCACHE\_REPLACE\_ALG}    & Integer & 0                       & Data Cache replacement algorithm
 \newline0: Random
 \newline1: FIFO
 \newline2: LRU\tabularnewline
-\texttt{BREAKPOINTS}          & Integer & 3                       & Number of hardware breakpoints\tabularnewline
-\texttt{TECHNOLOGY}           & String  & \texttt{GENERIC}        & Target Silicon Technology\tabularnewline
-\texttt{MNMIVEC\_DEFAULT}     & Address & \texttt{PC\_INIT-`h004} & Machine Mode Non-Maskable Interrupt vector address\tabularnewline
-\texttt{MTVEC\_DEFAULT}       & Address & \texttt{PC\_INIT-`h040} & Machine Mode Interrupt vector address\tabularnewline
-\texttt{HTVEC\_DEFAULT}       & Address & \texttt{PC\_INIT-`h080} & Hypervisor Mode Interrupt vector address\tabularnewline
-\texttt{STVEC\_DEFAULT}       & Address & \texttt{PC\_INIT-`h0C0} & Supervisor Mode Interrupt vector address\tabularnewline
-\texttt{UTVEC\_DEFAULT}       & Address & \texttt{PC\_INIT-`h100} & User Mode Interrupt vector address\tabularnewline
+\texttt{BREAKPOINTS}             & Integer & 3                       & Number of hardware breakpoints\tabularnewline
+\texttt{TECHNOLOGY}              & String  & \texttt{GENERIC}        & Target Silicon Technology\tabularnewline
+\texttt{MNMIVEC\_DEFAULT}        & Address & \texttt{PC\_INIT-`h004} & Machine Mode Non-Maskable Interrupt vector address\tabularnewline
+\texttt{MTVEC\_DEFAULT}          & Address & \texttt{PC\_INIT-`h040} & Machine Mode Interrupt vector address\tabularnewline
+\texttt{HTVEC\_DEFAULT}          & Address & \texttt{PC\_INIT-`h080} & Hypervisor Mode Interrupt vector address\tabularnewline
+\texttt{STVEC\_DEFAULT}          & Address & \texttt{PC\_INIT-`h0C0} & Supervisor Mode Interrupt vector address\tabularnewline
+\texttt{UTVEC\_DEFAULT}          & Address & \texttt{PC\_INIT-`h100} & User Mode Interrupt vector address\tabularnewline
 \bottomrule
 \caption{IP Core Configuration}
 \label{tab:ip-core-configuration}
 \end{longtable}
 
+\subsection{JEDEC\_BANK and JEDEC\_MANUFACTURER\_ID}
+
+The \texttt{JEDEC\_BANK} and \texttt{JEDEC\_MANUFACTURER\_ID} parameters
+together set the manufacturer ID of the RV12 core. The official Roa Logic JEDEC
+ID is:
+
+ \indent\indent\texttt{7F 7F 7F 7F 7F 7F 7F 7F 7F 6E}
+
+ \noindent This ID is specified via the \texttt{JEDEC\_BANK} and
+ \texttt{JEDEC\_MANUFACTURER\_ID} parameters as:
+
+ \indent\indent\texttt{JEDEC\_BANK = 0x0A} (Corresponding to number of bytes)
+
+ \indent\indent\texttt{JEDEC\_MANUFACTURER\_ID = 0x6E} (Single byte JEDEC ID)
+
+\noindent These parameters are then encoded into a single value stored in the
+\texttt{mvendorid} CSR per the RISC-V v1.10 Privileged Specification.
+
+\ifdefined\MARKDOWN
+See branch prediction unit section for more details.
+\else
+See section \ref{vendor-id-register-mvendorid} \nameref{vendor-id-register-mvendorid} for more details.
+\fi
 
 \subsection{XLEN}\label{xlen}
 
@@ -364,22 +389,20 @@ Program Counter Initialisation vector \texttt{PC\_INIT} as follows:
 
 \texttt{UTVEC\_DEFAULT = PC\_INIT - 'h100}
 
-\section{Non User-Modifiable Parameters} \label{non-user-modifiable-parameters}
+% \section{Non User-Modifiable Parameters} \label{non-user-modifiable-parameters}
 
-The RV12 features a number of parameters that are not intended to be
-modified in a user design. For completeness these parameters and their
-defined values are specified below:
+% The RV12 features a number of parameters that are not intended to be
+% modified in a user design. For completeness these parameters and their
+% defined values are specified below:
 
-\begin{longtable}[]{@{}llcl@{}}
-\toprule
-Parameter         & Type        & Value                                 & Description\tabularnewline
-\midrule
-\endhead
-\texttt{VENDORID} & Vector (16) & 16'H0001                              & Roa Logic Vendor ID\tabularnewline
-\texttt{ARCHID}   & Vector (16) & 1\textless\textless XLEN \textbar\ 12 & RV12 Architecture ID\tabularnewline
-\texttt{REVMAJOR} & Vector (4)  & 4'h0                                  & RV12 Major Revision Number\tabularnewline
-\texttt{REVMINOR} & Vector (4)  & 4'h0                                  & RV12 Minor Revision Number\tabularnewline
-\bottomrule
-\caption{Non-Modifiable Parameters}
-\label{tab:nonmod-parameters}
-\end{longtable}
+% \begin{longtable}[]{@{}llcl@{}}
+% \toprule
+% Parameter                      & Type       & Value & Description\tabularnewline
+% \midrule
+% \endhead
+% \texttt{JEDEC_BANK}            & Integer    & 0x09  & JEDEC Bank\tabularnewline
+% \texttt{JEDEC_MANUFACTURER_ID} & Integer    & 0x6E  & JEDEC Manufacturer ID\tabularnewline
+% \bottomrule
+% \caption{Non-Modifiable Parameters}
+% \label{tab:nonmod-parameters}
+% \end{longtable}

@@ -27,7 +27,7 @@ The RV12 is a highly configurable single-issue, single-core RV32I, RV64I complia
 
 ![RV12 Architecture](assets/img/RV12_Arch.png)
 
-The RV12 implements a Harvard architecture for simultaneous instruction and data memory accesses. It features an optimizing folded 4-stage pipeline, which optimizes overlaps between the execution and memory accesses, thereby reducing stalls and improving efficiency.
+The RV12 implements a Harvard architecture for simultaneous instruction and data memory accesses. It features an optimizing folded 6-stage pipeline, which optimizes overlaps between the execution and memory accesses, thereby reducing stalls and improving efficiency.
 
 Optional features include Branch Prediction, Instruction Cache, Data Cache, Debug Unit and optional Multiplier/Divider Units. Parameterized and configurable features include the instruction and data interfaces, the branch-prediction-unit configuration, and the cache size, associativity, replacement algorithms and multiplier latency. Providing the user with trade offs between performance, power, and area to optimize the core for the application.
 
@@ -47,7 +47,7 @@ RV12 is compliant with the RISC-V User Level ISA v2.2 and Privileged Architectur
 
 -   Single cycle execution
 
--   Optimizing folded 4-stage pipeline
+-   Optimizing folded 6-stage pipeline
 
 -   Optional/Parameterized branch-prediction-unit
 
@@ -110,7 +110,7 @@ The RV12 always implements Machine mode and optionally implements User mode and 
 
 ### Execution Pipeline
 
-The RV12 implements an optimizing 4-stage folded pipeline. The classic RISC pipeline consists of 5 stages; instruction fetch (IF), instruction decode (ID), execute (EX), memory access (MEM), and register write-back (WB).
+The RV12 implements an optimizing 6-stage folded pipeline. The classic RISC pipeline consists of 5 stages; instruction fetch (IF), instruction decode (ID), execute (EX), memory access (MEM), and register write-back (WB).
 
 ![Classic RISC Pipeline](assets/img/Pipeline-Reg.png)
 
@@ -122,17 +122,25 @@ The RV12 pipeline is capable of executing one instruction per clock cycle by ove
 
 ![Overlapping Execution Stages](assets/img/Pipeline-Overlap.png)
 
-#### Instruction Fetch/Pre-Decode(IF/PD)
+#### Instruction Fetch (IF)
 
-During the instruction fetch stage one instruction is read from the instruction memory, a 16bit-compressed instruction is decoded, and the program counter is updated to point to the next instruction.
+During the Instruction Fetch stage one instruction is read from the instruction memory and the program counter is updated to point to the next instruction..
+
+#### Instruction Pre-Decode (PD)
+
+When RVC Support is enabled, the Instruction Pre-Decode stage decodes a 16bit-compressed instruction into a native 32bit instruction.
 
 #### Instruction Decode (ID)
 
-During the instruction decode stage the Register File is accessed and the bypass controls are determined.
+During the Instruction Decode stage the Register File is accessed and the bypass controls are determined.
 
 #### Execute (EX)
 
 During the Execute stage the result is calculated for an ALU, MUL, DIV instruction, the memory accessed for a Load/Store instruction, and branches and jumps are calculated and checked against their predicted outcomes.
+
+#### Memory (MEM)
+
+During the Memory stage, memory access by the pipeline is completed. Inclusion of this stage ensures high performance of the pipeline.
 
 #### Write Back (WB)
 
@@ -192,38 +200,56 @@ The RV12 is a highly configurable 32 or 64bit RISC CPU. The core parameters and 
 
 ### Core Parameters
 
-| Parameter            |   Type  |     Default     | Description                                                      |
-|:---------------------|:-------:|:---------------:|:-----------------------------------------------------------------|
-| `XLEN`               | Integer |        32       | Datapath width                                                   |
-| `PC_INIT`            | Address |      `h200`     | Program Counter Initialisation Vector                            |
-| `PHYS_ADDR_SIZE`     | Integer |      `XLEN`     | Physical Address Size                                            |
-| `HAS_USER`           | Integer |        0        | User Mode Enable                                                 |
-| `HAS_SUPER`          | Integer |        0        | Supervisor Mode Enable                                           |
-| `HAS_HYPER`          | Integer |        0        | Hypervisor Mode Enable                                           |
-| `HAS_RVM`            | Integer |        0        | “M” Extension Enable                                             |
-| `HAS_RVA`            | Integer |        0        | “A” Extension Enable                                             |
-| `HAS_RVC`            | Integer |        0        | “C” Extension Enable                                             |
-| `HAS_BPU`            | Integer |        1        | Branch Prediction Unit Control Enable                            |
-| `IS_RV32E`           | Integer |        0        | RV32E Base Integer Instruction Set Enable                        |
-| `MULT_LATENCY`       | Integer |        0        | Hardware Multiplier Latency (if “M” Extension enabled)           |
-| `BP_LOCAL_BITS`      | Integer |        10       | Number of local predictor bits                                   |
-| `BP_GLOBAL_BITS`     | Integer |        2        | Number of global predictor bits                                  |
-| `HARTID`             | Integer |        0        | Hart Identifier                                                  |
-| `ICACHE_SIZE`        | Integer |        16       | Instruction Cache size in Kbytes                                 |
-| `ICACHE_BLOCK_SIZE`  | Integer |        32       | Instruction Cache block length in bytes                          |
-| `ICACHE_WAYS`        | Integer |        2        | Instruction Cache associativity                                  |
-| `ICACHE_REPLACE_ALG` | Integer |        0        | Instruction Cache replacement algorithm 0: Random 1: FIFO 2: LRU |
-| `DCACHE_SIZE`        | Integer |        16       | Data Cache size in Kbytes                                        |
-| `DCACHE_BLOCK_SIZE`  | Integer |        32       | Data Cache block length in bytes                                 |
-| `DCACHE_WAYS`        | Integer |        2        | Data Cache associativity                                         |
-| `DCACHE_REPLACE_ALG` | Integer |        0        | Data Cache replacement algorithm 0: Random 1: FIFO 2: LRU        |
-| `BREAKPOINTS`        | Integer |        3        | Number of hardware breakpoints                                   |
-| `TECHNOLOGY`         |  String |    `GENERIC`    | Target Silicon Technology                                        |
-| `MNMIVEC_DEFAULT`    | Address | `PC_INIT-‘h004` | Machine Mode Non-Maskable Interrupt vector address               |
-| `MTVEC_DEFAULT`      | Address | `PC_INIT-‘h040` | Machine Mode Interrupt vector address                            |
-| `HTVEC_DEFAULT`      | Address | `PC_INIT-‘h080` | Hypervisor Mode Interrupt vector address                         |
-| `STVEC_DEFAULT`      | Address | `PC_INIT-‘h0C0` | Supervisor Mode Interrupt vector address                         |
-| `UTVEC_DEFAULT`      | Address | `PC_INIT-‘h100` | User Mode Interrupt vector address                               |
+| Parameter               |   Type  |     Default     | Description                                                      |
+|:------------------------|:-------:|:---------------:|:-----------------------------------------------------------------|
+| `JEDEC_BANK`            | Integer |       0x0A      | JEDEC Bank                                                       |
+| `JEDEC_MANUFACTURER_ID` | Integer |       0x6E      | JEDEC Manufacturer ID                                            |
+| `XLEN`                  | Integer |        32       | Datapath width                                                   |
+| `PC_INIT`               | Address |      `h200`     | Program Counter Initialisation Vector                            |
+| `PHYS_ADDR_SIZE`        | Integer |      `XLEN`     | Physical Address Size                                            |
+| `HAS_USER`              | Integer |        0        | User Mode Enable                                                 |
+| `HAS_SUPER`             | Integer |        0        | Supervisor Mode Enable                                           |
+| `HAS_HYPER`             | Integer |        0        | Hypervisor Mode Enable                                           |
+| `HAS_RVM`               | Integer |        0        | “M” Extension Enable                                             |
+| `HAS_RVA`               | Integer |        0        | “A” Extension Enable                                             |
+| `HAS_RVC`               | Integer |        0        | “C” Extension Enable                                             |
+| `HAS_BPU`               | Integer |        1        | Branch Prediction Unit Control Enable                            |
+| `IS_RV32E`              | Integer |        0        | RV32E Base Integer Instruction Set Enable                        |
+| `MULT_LATENCY`          | Integer |        0        | Hardware Multiplier Latency (if “M” Extension enabled)           |
+| `BP_LOCAL_BITS`         | Integer |        10       | Number of local predictor bits                                   |
+| `BP_GLOBAL_BITS`        | Integer |        2        | Number of global predictor bits                                  |
+| `HARTID`                | Integer |        0        | Hart Identifier                                                  |
+| `ICACHE_SIZE`           | Integer |        16       | Instruction Cache size in Kbytes                                 |
+| `ICACHE_BLOCK_SIZE`     | Integer |        32       | Instruction Cache block length in bytes                          |
+| `ICACHE_WAYS`           | Integer |        2        | Instruction Cache associativity                                  |
+| `ICACHE_REPLACE_ALG`    | Integer |        0        | Instruction Cache replacement algorithm 0: Random 1: FIFO 2: LRU |
+| `DCACHE_SIZE`           | Integer |        16       | Data Cache size in Kbytes                                        |
+| `DCACHE_BLOCK_SIZE`     | Integer |        32       | Data Cache block length in bytes                                 |
+| `DCACHE_WAYS`           | Integer |        2        | Data Cache associativity                                         |
+| `DCACHE_REPLACE_ALG`    | Integer |        0        | Data Cache replacement algorithm 0: Random 1: FIFO 2: LRU        |
+| `BREAKPOINTS`           | Integer |        3        | Number of hardware breakpoints                                   |
+| `TECHNOLOGY`            |  String |    `GENERIC`    | Target Silicon Technology                                        |
+| `MNMIVEC_DEFAULT`       | Address | `PC_INIT-‘h004` | Machine Mode Non-Maskable Interrupt vector address               |
+| `MTVEC_DEFAULT`         | Address | `PC_INIT-‘h040` | Machine Mode Interrupt vector address                            |
+| `HTVEC_DEFAULT`         | Address | `PC_INIT-‘h080` | Hypervisor Mode Interrupt vector address                         |
+| `STVEC_DEFAULT`         | Address | `PC_INIT-‘h0C0` | Supervisor Mode Interrupt vector address                         |
+| `UTVEC_DEFAULT`         | Address | `PC_INIT-‘h100` | User Mode Interrupt vector address                               |
+
+#### JEDEC\_BANK and JEDEC\_MANUFACTURER\_ID
+
+The `JEDEC_BANK` and `JEDEC_MANUFACTURER_ID` parameters together set the manufacturer ID of the RV12 core. The official Roa Logic JEDEC ID is:
+
+`7F 7F 7F 7F 7F 7F 7F 7F 7F 6E`
+
+This ID is specified via the `JEDEC_BANK` and `JEDEC_MANUFACTURER_ID` parameters as:
+
+`JEDEC_BANK = 0x0A` (Corresponding to number of bytes)
+
+`JEDEC_MANUFACTURER_ID = 0x6E` (Single byte JEDEC ID)
+
+These parameters are then encoded into a single value stored in the `mvendorid` CSR per the RISC-V v1.10 Privileged Specification.
+
+See branch prediction unit section for more details.
 
 #### XLEN
 
@@ -392,17 +418,6 @@ The `STVEC_DEFAULT` parameter defines the interrupt vector address for the Super
 The `UTVEC_DEFAULT` parameter defines the interrupt vector address for the User Privilege Level. The default vector is defined relative to the Program Counter Initialisation vector `PC_INIT` as follows:
 
 `UTVEC_DEFAULT = PC_INIT - ’h100`
-
-### Non User-Modifiable Parameters
-
-The RV12 features a number of parameters that are not intended to be modified in a user design. For completeness these parameters and their defined values are specified below:
-
-| Parameter  | Type        |       Value       | Description                |
-|:-----------|:------------|:-----------------:|:---------------------------|
-| `VENDORID` | Vector (16) |      16’H0001     | Roa Logic Vendor ID        |
-| `ARCHID`   | Vector (16) | 1&lt;&lt;XLEN  12 | RV12 Architecture ID       |
-| `REVMAJOR` | Vector (4)  |        4’h0       | RV12 Major Revision Number |
-| `REVMINOR` | Vector (4)  |        4’h0       | RV12 Minor Revision Number |
 
 ## Control & Status Registers
 
