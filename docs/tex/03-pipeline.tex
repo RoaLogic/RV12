@@ -11,12 +11,7 @@ The pipeline consists of the Instruction Fetch, Pre-Decode, Instruction Decode, 
 
 \pagebreak
 
-\section{Instruction Fetch (IF)}\label{instruction-fetch-if}
-
-\begin{figure}[h]
-  \includegraphics{assets/img/Pipeline-IF}
-  \caption{Instruction Fetch Stage Implementation}
-\end{figure}
+\section{Instruction Fetch (IF)}\label{instr-fetch-if}
 
 The Instruction Fetch unit loads a new parcel from the program memory.
 A parcel is a code field that contains one or more instructions.
@@ -25,6 +20,11 @@ The Program Counter is either 32 or 64bits wide, depending on the XLEN parameter
 The Program Counter is updated whenever the Instruction Pipeline is not stalled.
 
 If the pipeline is flushed the Program Counter is restarted from the given address.
+
+\begin{figure}[h]
+  \includegraphics{assets/img/Pipeline-IF}
+  \caption{Instruction Fetch Stage Implementation}
+\end{figure}
 
 \begin{longtable}[]{@{}lccl@{}}
 	\toprule
@@ -242,6 +242,11 @@ The Memory Access stage waits for a memory read access to complete.
 When memory is accessed, address, data, and control signals are calculated during the Execute stage.
 The memory latches these signals and then performs the actual access. This means that read-data won't be available until 1 clock cycle later.
 This would be at the end of the Write-Back stage, and hence too late. Therefore the Memory-Access stage is added.
+
+\begin{figure}[h]
+  \includegraphics{assets/img/Pipeline-MEM}
+  \caption{Memory Stage Implementation}
+\end{figure}
 
 \begin{longtable}[]{@{}lccl@{}}
 	\toprule
