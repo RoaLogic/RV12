@@ -1,10 +1,14 @@
 #!/usr/bin/perl
+#
+# Run: perl riscv_test
+#
+#
 
 ##########################################
 #	REGRESSION VARIABLES
 ##########################################
 
-my @REGRESSION_MEM_LATENCY 	= qw(15);
+my @REGRESSION_MEM_LATENCY 	= qw(3);
 my @REGRESSION_XLEN 	   	= qw(64);
 my @REGRESSION_WRITEBUFFER_SIZE = qw(0);
 my @REGRESSION_ICACHE_SIZE	= qw(0);
@@ -116,7 +120,7 @@ foreach $XLEN(@REGRESSION_XLEN){
 	
 	# User mode tests
 	# TODO:  ADD Vector testing when implemented
-	# TODO:  ADD Floating point testen when implemented, single, double, quad precision
+	# TODO:  ADD Floating point tests when implemented, single, double, quad precision
 
 	if($HAS_U == 1)
 	{	
@@ -198,10 +202,9 @@ $cpu_variables =" HAS_U=".$HAS_U.
 		" TECHNOLOGY=".$TECHNOLOGY;
 
 
-
 ##########################################
 # 	Regression variables
-# Run tests with all regression variables
+# Run tests for all regression variables
 ##########################################
 
 foreach $writebuffer_size(@REGRESSION_WRITEBUFFER_SIZE){

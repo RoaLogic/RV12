@@ -110,17 +110,17 @@ module riscv_noicache_core #(
   //
   // Variables
   //
-  logic        is_cacheable;
+  logic                         is_cacheable;
 
-  logic  [1:0] biu_stb_cnt;
-  fifo_struct  biu_fifo[3];
-  pc_struct    pc_fifo[3];
-  logic        if_flush_dly;
+  logic  [1:0]                  biu_stb_cnt;
+  fifo_struct                   biu_fifo[3];
+  pc_struct                     pc_fifo[3];
+  logic                         if_flush_dly;
 
-  logic		lsb_valid;
-  logic		msb_valid;
-  logic [XLEN		-1:0] if_nxt_pc_dly;
-  logic [XLEN		-1:0] asked_pc_previous;
+  logic		                lsb_valid;
+  logic		                msb_valid;
+  logic [XLEN		  -1:0] if_nxt_pc_dly;
+  logic [XLEN		  -1:0] asked_pc_previous;
 
 
   //////////////////////////////////////////////////////////////////
@@ -236,18 +236,19 @@ module riscv_noicache_core #(
   assign if_parcel          = biu_fifo[0].dat[ if_parcel_pc[$clog2(XLEN/32)+1:1]*16 +: PARCEL_SIZE ];  
 
   always @(posedge clk, negedge rstn)
-	if	(if_parcel_valid[0] | if_parcel_valid[1])  	asked_pc_previous <= pc_fifo[0].pc;
-	else 	 						asked_pc_previous <= asked_pc_previous;
+	if	(if_flush)                                    asked_pc_previous <= 'h00000000;
+	else if	(if_parcel_valid[0] | if_parcel_valid[1])     asked_pc_previous <= pc_fifo[0].pc;
+	else 	                                              asked_pc_previous <= asked_pc_previous;
 
   always_comb // @(posedge clk, negedge rstn)
-	if 	(biu_fifo[0].adr == pc_fifo[0].pc)		lsb_valid <= 1'b1;
-	else if	(biu_fifo[0].adr == asked_pc_previous + 'h2)	lsb_valid <= 1'b1;
-	else 							lsb_valid <= 1'b0;
+	if 	(biu_fifo[0].adr == pc_fifo[0].pc)            lsb_valid <= 1'b1;
+	else if	(biu_fifo[0].adr == asked_pc_previous + 'h2)  lsb_valid <= 1'b1;
+	else                                                  lsb_valid <= 1'b0;
 
   always_comb // @(posedge clk, negedge rstn)
-	if	(biu_fifo[0].adr + 'h2 == pc_fifo[0].pc +'h2)  msb_valid <= 1'b1;
-	else if (biu_fifo[0].adr       == pc_fifo[0].pc -'h2)	msb_valid <= 1'b1;
- 	else				   	      		msb_valid <= 1'b0;
+	if	(biu_fifo[0].adr + 'h2 == pc_fifo[0].pc +'h2) msb_valid <= 1'b1;
+	else if (biu_fifo[0].adr       == pc_fifo[0].pc -'h2) msb_valid <= 1'b1;
+ 	else	                                              msb_valid <= 1'b0;
 
         
 

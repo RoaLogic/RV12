@@ -163,8 +163,8 @@ module memory_model_ahb3lite #(
                        for (i=0; i<byte_cnt; i++)
                        begin
                            mem_array[ base_addr+address+ (i & ~(DATA_WIDTH/8 -1)) ][ (i%(DATA_WIDTH/8))*8+:8 ] = data[i];
-//$display ("write %2h to %8h (base_addr=%8h, address=%4h, i=%2h)", data[i], base_addr+address+ (i & ~(DATA_WIDTH/8 -1)), base_addr, address, i);
-//$display ("(%8h)=%8h",base_addr+address+4*(i/4), mem_array[ base_addr+address+4*(i/4) ]);
+$display ("write %2h to %8h (base_addr=%8h, address=%4h, i=%2h)", data[i], base_addr+address+ (i & ~(DATA_WIDTH/8 -1)), base_addr, address, i);
+$display ("(%8h)=%8h",base_addr+address+4*(i/4), mem_array[ base_addr+address+4*(i/4) ]);
                        end
                    end
           8'h01  : eof = 1;
@@ -192,7 +192,6 @@ module memory_model_ahb3lite #(
     reg [127:0] data;
     addr_type   base_addr = BASE;
 
-
     fd = $fopen(file, "r"); //open file
     if (fd < 32'h8000_0000)
     begin
@@ -212,14 +211,30 @@ module memory_model_ahb3lite #(
 
         for (i=0; i< 128/DATA_WIDTH; i++)
         begin
-//$display("[%8h]:%8h",base_addr,data[i*DATA_WIDTH +: DATA_WIDTH]);
+	    //$display("[%8h]:%8h",base_addr,data[i*DATA_WIDTH +: DATA_WIDTH]);
             mem_array[ base_addr ] = data[i*DATA_WIDTH +: DATA_WIDTH];
             base_addr = base_addr + (DATA_WIDTH/8);
         end
+	
     end
+
     
     //close file
     $fclose(fd);
+  endtask
+
+  task print_memory;
+    integer i;
+    addr_type  base_addr = BASE;
+    
+    for(i = 0;i < 16; i++)
+    begin
+      if( i == 0) base_addr = BASE+ 'h10000; 
+      else if (i == 8) base_addr = BASE + 'h12700;
+      else base_addr = base_addr + DATA_WIDTH/2;
+
+      $display("[%8h]: %8h, %8h, %8h, %8h", base_addr, mem_array[base_addr], mem_array[base_addr +4], mem_array[base_addr +8], mem_array[base_addr +12]);
+    end
   endtask
 
 

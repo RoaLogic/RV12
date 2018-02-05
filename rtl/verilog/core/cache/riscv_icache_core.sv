@@ -204,11 +204,12 @@ module riscv_icache_core #(
                            filling;
   logic [IDX_BITS    -1:0] cnt, nxt_cnt;
   
-  logic 	           active_burst;
-  logic			   lsb_valid;
-  logic			   msb_valid;
-  pc_struct    		   pc_fifo[3];
-  logic [XLEN	     -1:0] asked_pc_previous;
+  logic                    active_burst;
+  logic	                   lsb_valid;
+  logic	                   msb_valid;
+  pc_struct                pc_fifo[3];
+  logic [XLEN        -1:0] asked_pc_previous;
+  logic                    pc_fifo_double;
 
   enum logic [2:0] {FLUSH=3'b000,WAIT4DCACHE=3'b001,ARMED=3'b010,FILL=3'b100} wr_state;
 
@@ -223,8 +224,7 @@ module riscv_icache_core #(
   //Is this a cacheable region?
   //MSB=1 non-cacheable (IO region)
   //MSB=0 cacheabel (instruction/data region)
-  //VERANDERD!
-  assign is_cacheable = if_nxt_pc[PHYS_ADDR_SIZE-1];
+  assign is_cacheable = ~if_nxt_pc[PHYS_ADDR_SIZE-1];
  
   always @(posedge clk)
     if      ( if_flush_dly                ) is_cacheable_dly <= is_cacheable;
@@ -234,19 +234,22 @@ module riscv_icache_core #(
   
   assign if_parcel_misaligned = pc[0]; //send out together with instruction
   
-  
+  always_comb
+    if	    (!pc_fifo[0].valid)                 pc_fifo_double <= 1'b0;
+    else if ( if_nxt_pc == pc_fifo[0].pc)       pc_fifo_double <= 1'b1;
+    else if ( if_nxt_pc + 'h2 == pc_fifo[0].pc) pc_fifo_double <= 1'b1;  
+    else                                        pc_fifo_double <= 1'b0;  
+
   //delay IF-flush
   always @(posedge clk,negedge rstn)
     if      (!rstn    ) if_flush_dly <= 1'b0;
     else if (!if_stall) if_flush_dly <= if_flush;
 
-  //assign fetch_pc = if_out_order ? if_nxt_pc + 'h2 : if_nxt_pc;
- 
  //Register fetch pc
   always @(posedge clk,negedge rstn)
-    if      (!rstn                        ) pc <= PC_INIT;
-    //else if ( if_flush_dly                ) pc <= if_nxt_pc; //if_nxt_pc is updated by if_flush, so valid 1 cycle later
-    else if (!if_stall && !if_stall_nxt_pc) pc <= if_nxt_pc;
+    if      (!rstn)                                        pc <= PC_INIT;
+    //else if ( if_flush                			 ) pc <= if_nxt_pc; //if_nxt_pc is updated by if_flush, so valid 1 cycle later
+    else if (!if_stall && !if_stall_nxt_pc | if_flush_dly) pc <= if_nxt_pc;
 
   // fifo buffer for program counter
   always @(posedge clk, negedge rstn)
@@ -264,7 +267,7 @@ module riscv_icache_core #(
 	end
     else 
 	if(!if_stall)
-	case({!if_stall_nxt_pc, if_parcel_valid[1] | if_parcel_valid[0]})
+	case({(!if_stall_nxt_pc && !if_stall) & !pc_fifo_double | if_flush_dly, if_parcel_valid[1] | if_parcel_valid[0]})
 	  2'b00: ; // no write, no read -> nothing to do
 	  
 	  // read from buffer
@@ -284,7 +287,7 @@ module riscv_icache_core #(
 			     pc_fifo[2].valid <= 1'b1;
 			   end
 		  2'b01:   begin
-			     pc_fifo[1].pc    <= if_out_order ? if_nxt_pc +'h2 : if_nxt_pc;
+ 			     pc_fifo[1].pc    <= if_out_order ? if_nxt_pc +'h2 : if_nxt_pc;
 			     pc_fifo[1].valid <= 1'b1; 
 			   end
 		  default: begin
@@ -306,9 +309,10 @@ module riscv_icache_core #(
 			   end
 
 		 3'b01? :  begin
+			     			     
 			     pc_fifo[1].pc    <= if_out_order ? if_nxt_pc + 'h2 : if_nxt_pc;
 			     pc_fifo[1].valid <= 1'b1;
-			
+			      
 			     pc_fifo[0].pc    <= pc_fifo[1].pc;
 			     pc_fifo[0].valid <= pc_fifo[1].valid;
 
@@ -328,31 +332,31 @@ module riscv_icache_core #(
 		endcase
 	endcase
 
-
-  always @(posedge clk, negedge rstn)
-	if	(~if_stall & (if_parcel_valid[0] | if_parcel_valid[1]))  	asked_pc_previous <= pc_fifo[0].pc;
-	else 	 								asked_pc_previous <= asked_pc_previous;
+  always @(posedge clk)
+	if	(if_flush)                                              asked_pc_previous <= 'h00000000;
+	else if	(~if_stall & (if_parcel_valid[0] | if_parcel_valid[1])) asked_pc_previous <= pc_fifo[0].pc;
+	else 	                                                        asked_pc_previous <= asked_pc_previous;
 
   always_comb // @(posedge clk, negedge rstn)
 	case(wr_state)
 	  FILL  :
 	    begin
-		if 	(biu_adro == pc_fifo[0].pc)		lsb_valid <= 1'b1;
+		if 	(biu_adro == pc_fifo[0].pc)	        lsb_valid <= 1'b1;
 		else if	(biu_adro == asked_pc_previous + 'h2)	lsb_valid <= 1'b1;
-		else 						lsb_valid <= 1'b0;
+		else                                            lsb_valid <= 1'b0;
 	    end
 	  ARMED : 
 	    begin
-		if      (pc == pc_fifo[0].pc) 			lsb_valid <= 1'b1;
-		else if (pc == asked_pc_previous + 'h2)		lsb_valid <= 1'b1;
-		else 						lsb_valid <= 1'b0;
+		if      (pc == pc_fifo[0].pc)                   lsb_valid <= 1'b1;
+		else if (pc == asked_pc_previous + 'h2)	        lsb_valid <= 1'b1;
+		else                                            lsb_valid <= 1'b0;
 	    end
 	
 	  default :
 	    begin
-		if 	(biu_fifo[0].adr == pc_fifo[0].pc)		lsb_valid <= 1'b1;
-		else if	(biu_fifo[0].adr == asked_pc_previous + 'h2)	lsb_valid <= 1'b1;
-		else 							lsb_valid <= 1'b0;
+		if 	(biu_fifo[0].adr == pc_fifo[0].pc)           lsb_valid <= 1'b1;
+		else if	(biu_fifo[0].adr == asked_pc_previous + 'h2) lsb_valid <= 1'b1;
+		else                                                 lsb_valid <= 1'b0;
 	    end
 	endcase
 	
@@ -361,23 +365,23 @@ module riscv_icache_core #(
 	case(wr_state)
 	  FILL :
 	   begin 
-		if	(biu_adro + 'h2 == pc_fifo[0].pc +'h2)  msb_valid <= 1'b1;
-	     	else if (biu_adro       == pc_fifo[0].pc -'h2)	msb_valid <= 1'b1;
- 		else				   	      	msb_valid <= 1'b0;  
+		if      (biu_adro + 'h2 == pc_fifo[0].pc +'h2) msb_valid <= 1'b1;
+	     	else if (biu_adro       == pc_fifo[0].pc -'h2) msb_valid <= 1'b1;
+ 		else                                           msb_valid <= 1'b0;  
 	   end
 
 	 ARMED: 
 	   begin
-		if	(pc + 'h2 == pc_fifo[0].pc + 'h2)	msb_valid <= 1'b1;
-		else if (pc	  == pc_fifo[0].pc - 'h2)	msb_valid <= 1'b1;
-		else						msb_valid <= 1'b0;
+		if      (pc + 'h2 == pc_fifo[0].pc + 'h2)      msb_valid <= 1'b1;
+		else if (pc	  == pc_fifo[0].pc - 'h2)      msb_valid <= 1'b1;
+		else                                           msb_valid <= 1'b0;
 	   end
 
           default:
 	    begin
-		if	(biu_fifo[0].adr + 'h2 == pc_fifo[0].pc +'h2)   msb_valid <= 1'b1;
-		else if (biu_fifo[0].adr       == pc_fifo[0].pc -'h2)	msb_valid <= 1'b1;
- 		else				   	      		msb_valid <= 1'b0;  
+		if      (biu_fifo[0].adr + 'h2 == pc_fifo[0].pc +'h2) msb_valid <= 1'b1;
+		else if (biu_fifo[0].adr       == pc_fifo[0].pc -'h2) msb_valid <= 1'b1;
+ 		else                                                  msb_valid <= 1'b0;  
   	   end
 	endcase
  
@@ -663,9 +667,9 @@ endgenerate
                                                            : ~if_flush & ~if_stall & ~biu_fifo[1].valid;
                      if_stall_nxt_pc    = is_cacheable     ? ~(if_flush | if_flush_dly) & ~cache_hit
                                                            : ~biu_stb_ack | biu_fifo[1].valid;
-                     if_parcel_valid[0] = is_cacheable_dly ? ~(if_flush | if_flush_dly) &  cache_hit & lsb_valid
+                     if_parcel_valid[0] = is_cacheable_dly ? ~(if_flush | if_flush_dly) &  cache_hit & lsb_valid & pc_fifo[0].valid 
                                                            : ~(if_flush | if_flush_dly) & ~if_stall & biu_fifo[0].valid & lsb_valid;
-                     if_parcel_valid[1] = is_cacheable_dly ? ~(if_flush | if_flush_dly) &  cache_hit & msb_valid
+                     if_parcel_valid[1] = is_cacheable_dly ? ~(if_flush | if_flush_dly) &  cache_hit & msb_valid & pc_fifo[0].valid 
                                                            : ~(if_flush | if_flush_dly) & ~if_stall & biu_fifo[0].valid & msb_valid ;
                      if_parcel_pc       = is_cacheable_dly ? pc
                                                            : { {XLEN-PHYS_ADDR_SIZE{1'b0}},biu_fifo[0].adr};
