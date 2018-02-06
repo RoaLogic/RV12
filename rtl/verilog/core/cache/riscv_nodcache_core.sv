@@ -49,7 +49,7 @@ module riscv_nodcache_core #(
                                   mem_d,       //from CPU
   input                           mem_req,
                                   mem_we,
-  input      [XLEN/8        -1:0] mem_be,
+  input      [               2:0] mem_size,
   output reg [XLEN          -1:0] mem_q,       //to CPU
   output reg                      mem_ack,
   input                           bu_cacheflush,
@@ -61,7 +61,7 @@ module riscv_nodcache_core #(
   input                           biu_stb_ack,
   output     [PHYS_ADDR_SIZE-1:0] biu_adri,
   input      [PHYS_ADDR_SIZE-1:0] biu_adro,
-  output     [XLEN/8        -1:0] biu_be,       //Byte enables
+  output     [               2:0] biu_size,     //transfer size
   output reg [               2:0] biu_type,     //burst type -AHB style
   output                          biu_lock,
   output                          biu_we,
@@ -94,7 +94,7 @@ module riscv_nodcache_core #(
   logic              hold_mem_we;
   logic [XLEN  -1:0] hold_mem_adr,
                      hold_mem_d;
-  logic [XLEN/8-1:0] hold_mem_be;
+  logic [       2:0] hold_mem_size;
 
   logic [       1:0] write_pending_cnt;
 
@@ -120,10 +120,10 @@ module riscv_nodcache_core #(
   always @(posedge clk)
     if (mem_req)
     begin
-        hold_mem_we     <= mem_we;
-        hold_mem_adr    <= mem_adr;
-        hold_mem_d      <= mem_d;
-        hold_mem_be     <= mem_be;
+        hold_mem_we   <= mem_we;
+        hold_mem_adr  <= mem_adr;
+        hold_mem_d    <= mem_d;
+        hold_mem_size <= mem_size;
     end
 
 
@@ -216,11 +216,11 @@ module riscv_nodcache_core #(
       default : biu_stb = mem_req | hold_mem_req;
     endcase
 
-  assign biu_adri  = hold_mem_req ? hold_mem_adr : mem_adr;
-  assign biu_be    = hold_mem_req ? hold_mem_be  : mem_be;
+  assign biu_adri  = hold_mem_req ? hold_mem_adr  : mem_adr;
+  assign biu_be    = hold_mem_req ? hold_mem_size : mem_size;
   assign biu_lock  = 1'b0;
-  assign biu_we    = hold_mem_req ? hold_mem_we  : mem_we;
-  assign biu_di    = hold_mem_req ? hold_mem_d   : mem_d;
+  assign biu_we    = hold_mem_req ? hold_mem_we   : mem_we;
+  assign biu_di    = hold_mem_req ? hold_mem_d    : mem_d;
   assign biu_type  = 3'h0; //single access
 
 

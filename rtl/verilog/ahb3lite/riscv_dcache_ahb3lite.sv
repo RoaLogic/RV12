@@ -77,6 +77,7 @@ module riscv_dcache_ahb3lite #(
   input                           mem_req,
                                   mem_we,
   input      [XLEN/8        -1:0] mem_be,
+  input      [               2:0] mem_size,
   output     [XLEN          -1:0] mem_q,       //to CPU
   output                          mem_ack,
   output                          mem_misaligned,
@@ -101,7 +102,7 @@ module riscv_dcache_ahb3lite #(
   logic                      cache_we;         //cache write enable
   logic [XLEN          -1:0] cache_d,          //cache write data
                              cache_q;          //cache read data
-  logic [XLEN/8        -1:0] cache_be;         //cache byte enable
+  logic [               2:0] cache_size;       //cache transfer size
   logic [               1:0] cache_prv;        //piped st_prv
   logic                      cache_flush;      //piped bu_cacheflush
 
@@ -110,7 +111,7 @@ module riscv_dcache_ahb3lite #(
   logic                      biu_stb_ack;
   logic [PHYS_ADDR_SIZE-1:0] biu_adro,
                              biu_adri;  
-  logic [XLEN/8        -1:0] biu_be;       //Byte enables
+  logic [               2:0] biu_size;     //transfer size
   logic [               2:0] biu_type;     //burst type -AHB style
   logic                      biu_lock;
   logic                      biu_we;
@@ -141,7 +142,7 @@ module riscv_dcache_ahb3lite #(
     .clk            ( HCLK           ),
     .mem_req        ( mem_req        ),
     .mem_adr        ( mem_adr        ),
-    .mem_be         ( mem_be         ),
+    .mem_size       ( mem_size       ),
     .mem_misaligned ( mem_misaligned ),
     .is_misaligned  ( is_misaligned  )
   );
@@ -182,7 +183,7 @@ generate
       assign cache_req      = wbuf_mem_req;
       assign cache_adr      = mem_adr;
       assign cache_we       = mem_we;
-      assign cache_be       = mem_be;
+      assign cache_size     = mem_size;
       assign cache_d        = mem_d;
       assign mem_q          = cache_q;
       assign wbuf_mem_ack   = cache_ack;
@@ -208,19 +209,19 @@ begin
   )
   nodcache_core_inst (
     //common signals
-    .rstn                 ( HRESETn ),
-    .clk                  ( HCLK    ),
+    .rstn           ( HRESETn     ),
+    .clk            ( HCLK        ),
 
     //from CPU Core
-    .mem_adr        ( cache_adr        ),
-    .mem_d          ( cache_d          ),
-    .mem_req        ( cache_req        ),
-    .mem_we         ( cache_we         ),
-    .mem_be         ( cache_be         ),
-    .mem_q          ( cache_q          ),
-    .mem_ack        ( cache_ack        ),
-    .st_prv         ( cache_prv        ),
-    .bu_cacheflush  ( cache_flush      ),
+    .mem_adr        ( cache_adr   ),
+    .mem_d          ( cache_d     ),
+    .mem_req        ( cache_req   ),
+    .mem_we         ( cache_we    ),
+    .mem_size       ( cache_size  ),
+    .mem_q          ( cache_q     ),
+    .mem_ack        ( cache_ack   ),
+    .st_prv         ( cache_prv   ),
+    .bu_cacheflush  ( cache_flush ),
  
 
     //To BIU
@@ -244,18 +245,18 @@ begin
   )
   dcache_core_inst (
     //common signals
-    .rstn                 ( HRESETn ),
-    .clk                  ( HCLK    ),
+    .rstn           ( HRESETn     ),
+    .clk            ( HCLK        ),
 
     //from WriteBuffer Core
-    .mem_adr        ( cache_adr        ),
-    .mem_d          ( cache_d          ),
-    .mem_req        ( cache_req        ),
-    .mem_we         ( cache_we         ),
-    .mem_be         ( cache_be         ),
-    .mem_q          ( cache_q          ),
-    .mem_ack        ( cache_ack        ),
-    .bu_cacheflush  ( cache_flush      ),
+    .mem_adr        ( cache_adr   ),
+    .mem_d          ( cache_d     ),
+    .mem_req        ( cache_req   ),
+    .mem_we         ( cache_we    ),
+    .mem_size       ( cache_size  ),
+    .mem_q          ( cache_q     ),
+    .mem_ack        ( cache_ack   ),
+    .bu_cacheflush  ( cache_flush ),
 
     //To BIU
     .*

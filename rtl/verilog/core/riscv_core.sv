@@ -99,7 +99,7 @@ module riscv_core #(
                              dmem_d,
   input  [XLEN         -1:0] dmem_q,
   output                     dmem_we,
-  output [XLEN/8       -1:0] dmem_be,
+  output [              2:0] dmem_size,
   output                     dmem_req,
   input                      dmem_ack,
                              dmem_misaligned,

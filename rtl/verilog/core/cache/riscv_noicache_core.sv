@@ -62,7 +62,7 @@ module riscv_noicache_core #(
   input                           biu_stb_ack,
   output     [PHYS_ADDR_SIZE-1:0] biu_adri,
   input      [PHYS_ADDR_SIZE-1:0] biu_adro,
-  output     [XLEN/8        -1:0] biu_be,       //Byte enables
+  output     [               2:0] biu_size,     //transfer size
   output reg [               2:0] biu_type,     //burst type -AHB style
   output                          biu_lock,
   output                          biu_we,
@@ -131,7 +131,7 @@ module riscv_noicache_core #(
    */
   assign biu_stb   = dcflush_rdy & ~if_flush & ~if_stall & ~biu_fifo[1].valid; //TODO when is ~biu_fifo[1] required?
   assign biu_adri  = if_nxt_pc[PHYS_ADDR_SIZE -1:0];
-  assign biu_be    = {$bits(biu_be){1'b1}};
+  assign biu_size  = XLEN==64 ? DWORD : WORD;
   assign biu_lock  = 1'b0;
   assign biu_we    = 1'b0; //no writes
   assign biu_di    =  'h0;

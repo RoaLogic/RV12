@@ -95,7 +95,7 @@ module riscv_icache_ahb3lite #(
   logic                      biu_stb_ack;
   logic [PHYS_ADDR_SIZE-1:0] biu_adro,
                              biu_adri;  
-  logic [XLEN/8        -1:0] biu_be;       //Byte enables
+  logic [               2:0] biu_size;     //transfer size
   logic [               2:0] biu_type;     //burst type -AHB style
   logic                      biu_lock;
   logic                      biu_we;

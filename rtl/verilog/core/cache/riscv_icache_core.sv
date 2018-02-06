@@ -35,6 +35,9 @@
 //                                                             //
 /////////////////////////////////////////////////////////////////
 
+import riscv_constants_pkg::*;
+
+
 module riscv_icache_core #(
   parameter            XLEN           = 32,
   parameter [XLEN-1:0] PC_INIT        = 'h200,
@@ -73,7 +76,7 @@ module riscv_icache_core #(
   input                           biu_stb_ack,
   output     [PHYS_ADDR_SIZE-1:0] biu_adri,
   input      [PHYS_ADDR_SIZE-1:0] biu_adro,
-  output     [XLEN/8        -1:0] biu_be,       //Byte enables
+  output     [               2:0] biu_size,     //transfer size
   output reg [               2:0] biu_type,     //burst type -AHB style
   output                          biu_lock,
   output                          biu_we,
@@ -565,7 +568,7 @@ endgenerate
    * External Interface
    */
   assign biu_adri  = ~is_cacheable ? if_nxt_pc[PHYS_ADDR_SIZE -1:0] : pc[PHYS_ADDR_SIZE -1:0];
-  assign biu_be    = {$bits(biu_be){1'b1}};
+  assign biu_size  = XLEN==64 ? DWORD : WORD;
   assign biu_lock  = 1'b0;
   assign biu_we    = 1'b0; //no writes
   assign biu_di    =  'h0;

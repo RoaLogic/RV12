@@ -117,7 +117,7 @@ module riscv_ex #(
                                   dmem_d,
   output                          dmem_req,
                                   dmem_we,
-  output     [XLEN/8        -1:0] dmem_be,
+  output     [               2:0] dmem_size,
   input                           dmem_ack,
   input      [XLEN          -1:0] dmem_q,
   input                           dmem_misaligned,

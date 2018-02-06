@@ -62,7 +62,7 @@ module riscv_cache_biu_ahb3lite #(
   output                          biu_stb_ack,
   input      [PHYS_ADDR_SIZE-1:0] biu_adri,
   output reg [PHYS_ADDR_SIZE-1:0] biu_adro,  
-  input      [XLEN/8        -1:0] biu_be,       //Byte enables
+  input      [               2:0] biu_size,     //transfer size
   input      [               2:0] biu_type,     //burst type -AHB style
   input                           biu_lock,
   input                           biu_we,
@@ -82,45 +82,23 @@ module riscv_cache_biu_ahb3lite #(
   // Constants
   //
   import ahb3lite_pkg::*;
+  import riscv_constants_pkg::*;
 
 
   //////////////////////////////////////////////////////////////////
   //
-  // Typedefs
+  // Functions
   //
-  function [2:0] be2hsize;
-    input [XLEN/8-1:0] be;
+  function [2:0] size2hsize;
+    input [2:0] size;
 
-    if (XLEN==32)
-      case (be)
-        4'b0001: be2hsize = HSIZE_BYTE;
-        4'b0010: be2hsize = HSIZE_BYTE;
-        4'b0100: be2hsize = HSIZE_BYTE;
-        4'b1000: be2hsize = HSIZE_BYTE;
-        4'b0011: be2hsize = HSIZE_HWORD;
-        4'b1100: be2hsize = HSIZE_HWORD;
-        4'b1111: be2hsize = HSIZE_WORD;
-        default: be2hsize = 'hx; // OOPSSS
-      endcase
-    else //RV64
-      case (be)
-        8'b0000_0001: be2hsize = HSIZE_BYTE;
-        8'b0000_0010: be2hsize = HSIZE_BYTE;
-        8'b0000_0100: be2hsize = HSIZE_BYTE;
-        8'b0000_1000: be2hsize = HSIZE_BYTE;
-        8'b0001_0000: be2hsize = HSIZE_BYTE;
-        8'b0010_0000: be2hsize = HSIZE_BYTE;
-        8'b0100_0000: be2hsize = HSIZE_BYTE;
-        8'b1000_0000: be2hsize = HSIZE_BYTE;
-        8'b0000_0011: be2hsize = HSIZE_HWORD;
-        8'b0000_1100: be2hsize = HSIZE_HWORD;
-        8'b0011_0000: be2hsize = HSIZE_HWORD;
-        8'b1100_0000: be2hsize = HSIZE_HWORD;
-        8'b0000_1111: be2hsize = HSIZE_WORD;
-        8'b1111_0000: be2hsize = HSIZE_WORD;
-        8'b1111_1111: be2hsize = HSIZE_DWORD;
-        default     : be2hsize = 'hx; // OOPSSS
-      endcase
+    case (size)
+      BYTE   : size2hsize = HSIZE_BYTE;
+      HWORD  : size2hsize = HSIZE_HWORD;
+      WORD   : size2hsize = HSIZE_WORD;
+      DWORD  : size2hsize = HSIZE_DWORD;
+      default: size2hsize = 'hx; //OOPSS
+    endcase
   endfunction
 
 
@@ -214,7 +192,7 @@ module riscv_cache_biu_ahb3lite #(
                     HTRANS      <= HTRANS_NONSEQ; //start of burst
                     HADDR       <= biu_adri;
                     HWRITE      <= biu_we;
-                    HSIZE       <= be2hsize(biu_be);
+                    HSIZE       <= size2hsize(biu_size);
                     HBURST      <= biu_type;
                     HPROT       <= (biu_prv==PRV_U     ? HPROT_USER      : HPROT_PRIVILEGED   ) |
                                    (biu_is_instruction ? HPROT_OPCODE    : HPROT_DATA         ) |

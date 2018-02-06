@@ -154,7 +154,7 @@ module riscv_top_ahb3lite #(
   logic [XLEN       -1:0] dmem_d,
                           dmem_q;
   logic                   dmem_we;
-  logic [XLEN/8     -1:0] dmem_be;
+  logic [            2:0] dmem_size;
   logic                   dmem_misaligned;
   logic                   dmem_page_fault;
 
@@ -283,7 +283,7 @@ module riscv_top_ahb3lite #(
     .mem_ack        ( dmem_ack        ),
     .mem_we         ( dmem_we         ),
     .mem_adr        ( dmem_adr        ),
-    .mem_be         ( dmem_be         ),
+    .mem_size       ( dmem_size       ),
     .mem_d          ( dmem_d          ),
     .mem_q          ( dmem_q          ),
     .mem_misaligned ( dmem_misaligned ),
