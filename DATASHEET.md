@@ -606,50 +606,94 @@ In RV64I, the CSR instructions can manipulate 64-bit CSRs. In particular, the RD
 
 The following sections describe each of the register functions as specifically implemented in RV12.
 
-Note: These descriptions are derived from “The RISC-V Instruction Set Manual, Volume II: Privileged Architecture, Version 1.9.1", Editors Andrew Waterman and Krste Asanović, RISC-V Foundation, November 4, 2016, and released under the Creative Commons Attribution 4.0 International License
+Note: These descriptions are derived from “The RISC-V Instruction Set Manual, Volume II: Privileged Architecture, Version 1.10", Editors Andrew Waterman and Krste Asanović, RISC-V Foundation, May 7, 2017, and released under the Creative Commons Attribution 4.0 International License
 
-| **Address** | **Privilege** |   **Name**  | **Description**                           |
-|:-----------:|:-------------:|:-----------:|:------------------------------------------|
-|    0xF11    |      MRO      | `mvendorid` | Vendor ID                                 |
-|    0xF12    |      MRO      |  `marchid`  | Architecture ID                           |
-|    0xF13    |      MRO      |   `mimpid`  | Implementation ID                         |
-|    0xF14    |      MRO      |  `mhartid`  | Hardware thread ID                        |
-|    0x300    |      MRW      |  `mstatus`  | Machine status register                   |
-|    0x301    |      MRW      |    `misa`   | ISA and extensions                        |
-|    0x302    |      MRW      |  `medeleg`  | Machine exception delegation register     |
-|    0x303    |      MRW      |  `mideleg`  | Machine interrupt delegation register     |
-|    0x304    |      MRW      |    `mie`    | Machine interrupt-enable register         |
-|    0x305    |      MRW      |   `mtvec`   | Machine trap-handler base address         |
-|    0x7c0    |      MRW      |  `mnmivec`  | Machine non-maskable interrupt vector     |
-|    0x340    |      MRW      |  `mscratch` | Scratch register for machine trap handler |
-|    0x341    |      MRW      |    `mepc`   | Machine exception program counter         |
-|    0x342    |      MRW      |   `mcause`  | Machine trap cause                        |
-|    0x343    |      MRW      |  `mbadaddr` | Machine bad address                       |
-|    0x344    |      MRW      |    `mip`    | Machine interrupt pending                 |
-|    0xB00    |      MRW      |   `mcycle`  | Machine cycle counter                     |
-|    0xB02    |      MRW      |  `minstret` | Machine instructions-retired counter      |
-|    0xB80    |      MRW      |  `mcycleh`  | Upper 32 bits of `mcycle`, RV32I only     |
-|    0xB82    |      MRW      | `minstreth` | Upper 32 bits of `minstret`, RV32I only   |
+| **Address** | **Privilege** | **Name**         | **Description**                               |
+|:-----------:|:-------------:|:-----------------|:----------------------------------------------|
+|    0xF11    |      MRO      | `mvendorid`      | Vendor ID                                     |
+|    0xF12    |      MRO      | `marchid`        | Architecture ID                               |
+|    0xF13    |      MRO      | `mimpid`         | Implementation ID                             |
+|    0xF14    |      MRO      | `mhartid`        | Hardware thread ID                            |
+|    0x300    |      MRW      | `mstatus`        | Machine status register                       |
+|    0x301    |      MRW      | `misa`           | ISA and extensions                            |
+|    0x302    |      MRW      | `medeleg`        | Machine exception delegation register         |
+|    0x303    |      MRW      | `mideleg`        | Machine interrupt delegation register         |
+|    0x304    |      MRW      | `mie`            | Machine interrupt-enable register             |
+|    0x305    |      MRW      | `mtvec`          | Machine trap-handler base address             |
+|    0x306    |      MRW      | `mcounteren`     | Machine counter enable                        |
+|    0x7c0    |      MRW      | `mnmivec`        | Machine non-maskable interrupt vector         |
+|    0x340    |      MRW      | `mscratch`       | Scratch register for machine trap handler     |
+|    0x341    |      MRW      | `mepc`           | Machine exception program counter             |
+|    0x342    |      MRW      | `mcause`         | Machine trap cause                            |
+|    0x343    |      MRW      | `mtval`          | Machine bad address or instruction            |
+|    0x344    |      MRW      | `mip`            | Machine interrupt pending                     |
+|    0xB00    |      MRW      | `mcycle`         | Machine cycle counter                         |
+|    0xB02    |      MRW      | `minstret`       | Machine instructions-retired counter          |
+|    0xB03    |      MRW      | `mhpmcounter3`   | Machine performance-monitoring counter        |
+|    0xB04    |      MRW      | `mhpmcounter4`   | Machine performance-monitoring counter        |
+|             |               |                  |                                               |
+|    0xB1F    |      MRW      | `mhpmcounter31`  | Machine performance-monitoring counter        |
+|    0xB80    |      MRW      | `mcycleh`        | Upper 32 bits of `mcycle`, RV32I only         |
+|    0xB82    |      MRW      | `minstreth`      | Upper 32 bits of `minstret`, RV32I only       |
+|    0xB83    |      MRW      | `mhpmcounter3h`  | Upper 32 bits of mhpmcounter3, RV32I only     |
+|    0xB84    |      MRW      | `mhpmcounter3h`  | Upper 32 bits of mhpmcounter4, RV32I only     |
+|             |               |                  |                                               |
+|    0xB9F    |      MRW      | `mhpmcounter31h` | Upper 32 bits of mhpmcounter31, RV32I only    |
+|    0x323    |      MRW      | `mhpevent3`      | Machine performance-monitoring event selector |
+|    0x324    |      MRW      | `mhpevent4`      | Machine performance-monitoring event selector |
+|             |               |                  |                                               |
+|    0x33F    |      MRW      | `mhpevent31`     | Machine performance-monitoring event selector |
 
-| **Address** | **Privilege** |  **Name**  | **Description**                          |
-|:-----------:|:-------------:|:----------:|:-----------------------------------------|
-|    0x100    |      SRW      |  `sstatus` | Supervisor status register               |
-|    0x102    |      SRW      |  `sedeleg` | Supervisor exception delegation register |
-|    0x103    |      SRW      |  `sideleg` | Supervisor interrupt delegation register |
-|    0x104    |      SRW      |    `sie`   | Supervisor interrupt-enable register     |
-|    0x105    |      SRW      |   `stvec`  | Supervisor trap handler base address     |
-|    0x140    |      SRW      | `sscratch` | Scratch register for trap handler        |
-|    0x141    |      SRW      |   `sepc`   | Supervisor exception program counter     |
-|    0x142    |      SRO      |  `scause`  | Supervisor trap cause                    |
-|    0x143    |      SRO      | `sbadaddr` | Supervisor bad address                   |
-|    0x144    |      SRW      |    `sip`   | Supervisor interrupt pending register    |
+| **Address** | **Privilege** | **Name**     | **Description**                          |
+|:-----------:|:-------------:|:-------------|:-----------------------------------------|
+|    0x100    |      SRW      | `sstatus`    | Supervisor status register               |
+|    0x102    |      SRW      | `sedeleg`    | Supervisor exception delegation register |
+|    0x103    |      SRW      | `sideleg`    | Supervisor interrupt delegation register |
+|    0x104    |      SRW      | `sie`        | Supervisor interrupt-enable register     |
+|    0x105    |      SRW      | `stvec`      | Supervisor trap handler base address     |
+|    0x106    |      SRW      | `scounteren` | Supervisor counter enable                |
+|    0x140    |      SRW      | `sscratch`   | Scratch register for trap handler        |
+|    0x141    |      SRW      | `sepc`       | Supervisor exception program counter     |
+|    0x142    |      SRO      | `scause`     | Supervisor trap cause                    |
+|    0x143    |      SRO      | `sbadaddr`   | Supervisor bad address                   |
+|    0x144    |      SRW      | `sip`        | Supervisor interrupt pending register    |
+|    0x180    |      SRW      | `satp`       |                                          |
 
-| **Address** | **Privilege** |   **Name**  | **Description**                            |
-|:-----------:|:-------------:|:-----------:|:-------------------------------------------|
-|    0xC00    |      URO      |   `cycle`   | Cycle counter for `RDCYCLE` instruction    |
-|    0xC02    |      URO      |  `instret`  | Instruction-retire counter for `RDINSTRET` |
-|    0xC80    |      URO      |   `cycleh`  | Upper 32bits of `cycle`, RV32I only        |
-|    0xC82    |      URO      | `instret` h | Upper 32bit of `instret`, RV32I only       |
+| **Address** | **Privilege** | **Name**        | **Description**                            |
+|:-----------:|:-------------:|:----------------|:-------------------------------------------|
+|    0x000    |      URW      | `ustatus`       | User status register                       |
+|    0x004    |      URW      | `uie`           | User interrupt-enable register             |
+|    0x005    |      URW      | `utvec`         | User trap-handler base address             |
+|    0x040    |      URW      | `uscratch`      | Scratch register for User trap handler     |
+|    0x041    |      URW      | `uepc`          | User exception program counter             |
+|    0x042    |      URW      | `ucause`        | User trap cause                            |
+|    0x043    |      URW      | `utval`         | User bad address                           |
+|    0x044    |      URW      | `uip`           | User interrupt pending                     |
+|    0xC00    |      URO      | `cycle`         | Cycle counter for `RDCYCLE` instruction    |
+|    0xC01    |      URO      | `time`          | Timer for RDTIME instruction               |
+|    0xC02    |      URO      | `instret`       | Instruction-retire counter for `RDINSTRET` |
+|    0xC03    |      URO      | `hpmcounter3`   | Performance-monitoring counter             |
+|    0xC04    |      URO      | `hpmcounter4`   | Performance-monitoring counter             |
+|             |               |                 |                                            |
+|    0xC1F    |      URO      | `hpmcounter31`  | Performance-monitoring counter             |
+|    0xC80    |      URO      | `cycleh`        | Upper 32bits of `cycle`, RV32I only        |
+|    0xC81    |      URO      | `timeh`         | Upper 32bits of `time`, RV32I only         |
+|    0xC82    |      URO      | `instreth`      | Upper 32bit of `instret`, RV32I only       |
+|    0xC83    |      URO      | `hpmcounter3h`  | Upper 32bit of `hpmcounter3`, RV32I only   |
+|    0xC84    |      URO      | `hpmcounter4h`  | Upper 32bit of `hpmcounter4`, RV32I only   |
+|             |               |                 |                                            |
+|    0xC9F    |      URO      | `hpmcounter31h` | Upper 32bit of `hpmcounter31`, RV32I only  |
+
+| **Address** | **Privilege** | **Name**    | **Description**                                     |
+|:-----------:|:-------------:|:------------|:----------------------------------------------------|
+|    0x3A0    |       ??      | `pmpcfg0`   | Physical memory protection configuration            |
+|    0x3A1    |       ??      | `pmpcfg1`   | Physical memory protection configuration, RV32 Only |
+|    0x3A2    |       ??      | `pmpcfg2`   | Physical memory protection configuration            |
+|    0x3A3    |       ??      | `pmpcfg3`   | Physical memory protection configuration,RV32 Only  |
+|    0x3B0    |       ??      | `pmpaddr0`  | Physical memory protection address register         |
+|    0x3B1    |       ??      | `pmpaddr1`  | Physical memory protection address register         |
+|             |               |             |                                                     |
+|    0x3BF    |       ??      | `pmpaddr15` | Physical memory protection address register         |
 
 ### Machine Level CSRs
 
@@ -672,9 +716,19 @@ The Base field encodes the native base integer ISA width as shown:
 
 #### Vendor ID Register (`mvendorid`)
 
-The `mvendorid` read-only register is an XLEN-bit register encoding the manufacturer of the device.
+The `mvendorid` read-only register is an XLEN-bit register encoding the JEDEC manufacturer ID of the provider of the core.
 
-Non-Zero vendor IDs will be allocated by the RISC-V Foundation.
+The Roa Logic JEDEC ID is:
+
+`7F 7F 7F 7F 7F 7F 7F 7F 7F 6E`
+
+This ID is specified via the `JEDEC_BANK` and `JEDEC_MANUFACTURER_ID` configuration parameters
+
+`mvendorid` encodes the number of one-byte continuation codes of the `JEDEC_BANK` parameter in the Bank field, and encodes the final `JEDEC_MANUFACTURER_ID` byte in the Offset field, discarding the parity bit.
+
+For the Roa Logic JEDEC manufacturer ID, this translates as:
+
+`mvendorid` = {`JEDEC_BANK-1`, `JEDEC_MANUFACTURER_ID[6:0]`} = 0x4EE
 
 #### Architecture ID Register (`marchid`)
 

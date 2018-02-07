@@ -154,12 +154,12 @@ The following sections describe each of the register functions as
 specifically implemented in RV12.
 
 Note: These descriptions are derived from ``The RISC-V Instruction Set
-Manual, Volume II: Privileged Architecture, Version 1.10", Editors
-Andrew Waterman and Krste Asanović, RISC-V Foundation, May 7, 2017,
+Manual, Volume II: Privileged Architecture, Version 1.9.1", Editors
+Andrew Waterman and Krste Asanović, RISC-V Foundation, November 4, 2016,
 and released under the Creative Commons Attribution 4.0 International
 License
 
-\begin{longtable}[]{@{\extracolsep{\fill}}ccll@{}}
+\begin{longtable}[]{@{}cccl@{}}
 	\toprule
 	\textbf{Address} & \textbf{Privilege} & \textbf{Name} & \textbf{Description}\tabularnewline
 	\midrule
@@ -197,14 +197,13 @@ License
 	\rowcolor{rltable}\multicolumn{4}{c}{\emph{\textbf{Machine Trap Setup}}}\tabularnewline
 \fi
 
-	0x300 & MRW & \texttt{mstatus}    & Machine status register\tabularnewline
-	0x301 & MRW & \texttt{misa}       & ISA and extensions\tabularnewline
-	0x302 & MRW & \texttt{medeleg}    & Machine exception delegation register\tabularnewline
-	0x303 & MRW & \texttt{mideleg}    & Machine interrupt delegation register\tabularnewline
-	0x304 & MRW & \texttt{mie}        & Machine interrupt-enable register\tabularnewline
-	0x305 & MRW & \texttt{mtvec}      & Machine trap-handler base address\tabularnewline
-	0x306 & MRW & \texttt{mcounteren} & Machine counter enable\tabularnewline
-	0x7c0 & MRW & \texttt{mnmivec}    & Machine non-maskable interrupt vector\tabularnewline
+	0x300 & MRW & \texttt{mstatus} & Machine status register\tabularnewline
+	0x301 & MRW & \texttt{misa}    & ISA and extensions\tabularnewline
+	0x302 & MRW & \texttt{medeleg} & Machine exception delegation register\tabularnewline
+	0x303 & MRW & \texttt{mideleg} & Machine interrupt delegation register\tabularnewline
+	0x304 & MRW & \texttt{mie}     & Machine interrupt-enable register\tabularnewline
+	0x305 & MRW & \texttt{mtvec}   & Machine trap-handler base address\tabularnewline
+	0x7c0 & MRW & \texttt{mnmivec} & Machine non-maskable interrupt vector\tabularnewline
 
 \ifdefined\MARKDOWN
 % Skip Row
@@ -215,7 +214,7 @@ License
 	0x340 & MRW & \texttt{mscratch} & Scratch register for machine trap handler\tabularnewline
 	0x341 & MRW & \texttt{mepc}     & Machine exception program counter\tabularnewline
 	0x342 & MRW & \texttt{mcause}   & Machine trap cause\tabularnewline
-	0x343 & MRW & \texttt{mtval}    & Machine bad address or instruction\tabularnewline
+	0x343 & MRW & \texttt{mbadaddr} & Machine bad address\tabularnewline
 	0x344 & MRW & \texttt{mip}      & Machine interrupt pending\tabularnewline
 
 \ifdefined\MARKDOWN
@@ -224,36 +223,16 @@ License
 	\rowcolor{rltable}\multicolumn{4}{c}{\emph{\textbf{Machine Counter/Timers}}}\tabularnewline
 \fi
 
-	0xB00 & MRW & \texttt{mcycle}         & Machine cycle counter\tabularnewline
-	0xB02 & MRW & \texttt{minstret}       & Machine instructions-retired counter\tabularnewline
-	0xB03 & MRW & \texttt{mhpmcounter3}   & Machine performance-monitoring counter\\
-	0xB04 & MRW & \texttt{mhpmcounter4}   & Machine performance-monitoring counter\\
-	      &     & \vdots                  & \\
-	0xB1F & MRW & \texttt{mhpmcounter31}  & Machine performance-monitoring counter\\
-	0xB80 & MRW & \texttt{mcycleh}        & Upper 32 bits of \texttt{mcycle}, RV32I only\tabularnewline
-	0xB82 & MRW & \texttt{minstreth}      & Upper 32 bits of \texttt{minstret}, RV32I only\tabularnewline
-	0xB83 & MRW & \texttt{mhpmcounter3h}  & Upper 32 bits of mhpmcounter3, RV32I only\\
-	0xB84 & MRW & \texttt{mhpmcounter3h}  & Upper 32 bits of mhpmcounter4, RV32I only\\
-	      &     & \vdots                  & \\
-	0xB9F & MRW & \texttt{mhpmcounter31h} & Upper 32 bits of mhpmcounter31, RV32I only\\
-
-\ifdefined\MARKDOWN
-% Skip Row
-\else
-	\rowcolor{rltable}\multicolumn{4}{c}{\emph{\textbf{Machine Counter Setup}}}\tabularnewline
-\fi
-
-	0x323 & MRW & \texttt{mhpevent3}      & Machine performance-monitoring event selector\\
-	0x324 & MRW & \texttt{mhpevent4}      & Machine performance-monitoring event selector\\
-	      &     & \vdots                  & \\
-	0x33F & MRW & \texttt{mhpevent31}     & Machine performance-monitoring event selector\\
-
+	0xB00 & MRW & \texttt{mcycle}    & Machine cycle counter\tabularnewline
+	0xB02 & MRW & \texttt{minstret}  & Machine instructions-retired counter\tabularnewline
+	0xB80 & MRW & \texttt{mcycleh}   & Upper 32 bits of \texttt{mcycle}, RV32I only\tabularnewline
+	0xB82 & MRW & \texttt{minstreth} & Upper 32 bits of \texttt{minstret}, RV32I only\tabularnewline
 \bottomrule
 \caption{Machine Mode CSRs}
 \label{tab:machine-csrs}
 \end{longtable}
 
-\begin{longtable}[]{@{\extracolsep{\fill}}ccll@{}}
+\begin{longtable}[]{@{}cccl@{}}
 	\toprule
 	\textbf{Address} & \textbf{Privilege} & \textbf{Name} & \textbf{Description}\tabularnewline
 	\midrule
@@ -278,12 +257,11 @@ License
 	\rowcolor{rltable}\multicolumn{4}{c}{\emph{\textbf{Supervisor Trap Handling}}}\tabularnewline
 \fi
 
-	0x100 & SRW & \texttt{sstatus}    & Supervisor status register\tabularnewline
-	0x102 & SRW & \texttt{sedeleg}    & Supervisor exception delegation register\tabularnewline
-	0x103 & SRW & \texttt{sideleg}    & Supervisor interrupt delegation register\tabularnewline
-	0x104 & SRW & \texttt{sie}        & Supervisor interrupt-enable register\tabularnewline
-	0x105 & SRW & \texttt{stvec}      & Supervisor trap handler base address\tabularnewline
-	0x106 & SRW & \texttt{scounteren} & Supervisor counter enable\tabularnewline
+	0x100 & SRW & \texttt{sstatus} & Supervisor status register\tabularnewline
+	0x102 & SRW & \texttt{sedeleg} & Supervisor exception delegation register\tabularnewline
+	0x103 & SRW & \texttt{sideleg} & Supervisor interrupt delegation register\tabularnewline
+	0x104 & SRW & \texttt{sie}     & Supervisor interrupt-enable register\tabularnewline
+	0x105 & SRW & \texttt{stvec}   & Supervisor trap handler base address\tabularnewline
 
 \ifdefined\MARKDOWN
 % Skip Row
@@ -296,22 +274,13 @@ License
 	0x142 & SRO & \texttt{scause}   & Supervisor trap cause\tabularnewline
 	0x143 & SRO & \texttt{sbadaddr} & Supervisor bad address\tabularnewline
 	0x144 & SRW & \texttt{sip}      & Supervisor interrupt pending register\tabularnewline
-
-\ifdefined\MARKDOWN
-% Skip Row
-\else
-	\rowcolor{rltable}\multicolumn{4}{c}{\emph{\textbf{Supervisor Protection and Translation}}}\tabularnewline
-\fi
-
-	0x180 & SRW & \texttt{satp} & \tabularnewline
-
 	\bottomrule
 	\caption{Supervisor Mode CSRs}
 	\label{tab:supervisor-csrs}
 \end{longtable}
 
 
-\begin{longtable}[]{@{\extracolsep{\fill}}ccll@{}}
+\begin{longtable}[]{@{}cccl@{}}
 	\toprule
 	\textbf{Address} & \textbf{Privilege} & \textbf{Name} & \textbf{Description}\tabularnewline
 	\midrule
@@ -330,28 +299,6 @@ License
 	\endfoot
 	\endlastfoot
 \fi
-
-\ifdefined\MARKDOWN
-% Skip Row
-\else
-	\rowcolor{rltable}\multicolumn{4}{c}{\emph{\textbf{User Trap Setup}}}\tabularnewline
-\fi
-
-	0x000 & URW & \texttt{ustatus} & User status register\tabularnewline
-	0x004 & URW & \texttt{uie}     & User interrupt-enable register\tabularnewline
-	0x005 & URW & \texttt{utvec}   & User trap-handler base address\tabularnewline
-
-\ifdefined\MARKDOWN
-% Skip Row
-\else
-	\rowcolor{rltable}\multicolumn{4}{c}{\emph{\textbf{User Trap Handling}}}\tabularnewline
-\fi
-
-	0x040 & URW & \texttt{uscratch} & Scratch register for User trap handler\tabularnewline
-	0x041 & URW & \texttt{uepc}     & User exception program counter\tabularnewline
-	0x042 & URW & \texttt{ucause}   & User trap cause\tabularnewline
-	0x043 & URW & \texttt{utval}    & User bad address\tabularnewline
-	0x044 & URW & \texttt{uip}      & User interrupt pending\tabularnewline
 
 \ifdefined\MARKDOWN
 % Skip Row
@@ -359,70 +306,13 @@ License
 	\rowcolor{rltable}\multicolumn{4}{c}{\emph{\textbf{User Counter / Timers}}}\tabularnewline
 \fi
 
-	0xC00 & URO & \texttt{cycle}         & Cycle counter for \texttt{RDCYCLE} instruction\tabularnewline
-	0xC01 & URO & \texttt{time}          & Timer for RDTIME instruction\tabularnewline
-	0xC02 & URO & \texttt{instret}       & Instruction-retire counter for \texttt{RDINSTRET}\tabularnewline
-	0xC03 & URO & \texttt{hpmcounter3}   & Performance-monitoring counter\tabularnewline
-	0xC04 & URO & \texttt{hpmcounter4}   & Performance-monitoring counter\tabularnewline
-	      &     & \vdots                 & \tabularnewline
-	0xC1F & URO & \texttt{hpmcounter31}  & Performance-monitoring counter\tabularnewline
-	0xC80 & URO & \texttt{cycleh}        & Upper 32bits of \texttt{cycle}, RV32I only\tabularnewline
-	0xC81 & URO & \texttt{timeh}         & Upper 32bits of \texttt{time}, RV32I only\tabularnewline
-	0xC82 & URO & \texttt{instreth}      & Upper 32bit of \texttt{instret}, RV32I only\tabularnewline
-	0xC83 & URO & \texttt{hpmcounter3h}  & Upper 32bit of \texttt{hpmcounter3}, RV32I only\tabularnewline
-	0xC84 & URO & \texttt{hpmcounter4h}  & Upper 32bit of \texttt{hpmcounter4}, RV32I only\tabularnewline
-	      &     & \vdots                 & \tabularnewline
-	0xC9F & URO & \texttt{hpmcounter31h} & Upper 32bit of \texttt{hpmcounter31}, RV32I only\tabularnewline
+	0xC00 & URO & \texttt{cycle} & Cycle counter for \texttt{RDCYCLE} instruction\tabularnewline
+	0xC02 & URO & \texttt{instret} & Instruction-retire counter for \texttt{RDINSTRET}\tabularnewline
+	0xC80 & URO & \texttt{cycleh} & Upper 32bits of \texttt{cycle}, RV32I only\tabularnewline
+	0xC82 & URO & \texttt{instret} h& Upper 32bit of \texttt{instret}, RV32I only\tabularnewline
 	\bottomrule
 	\caption{User Mode CSRs}
 	\label{tab:user-csrs}
-\end{longtable}
-
-\begin{longtable}[]{@{\extracolsep{\fill}}ccll@{}}
-	\toprule
-	\textbf{Address} & \textbf{Privilege} & \textbf{Name} & \textbf{Description}\tabularnewline
-	\midrule
-
-\ifdefined\MARKDOWN
-	\endhead
-\else
-
-	\endfirsthead
-	\multicolumn{4}{c}{{(Continued from previous page)}} \\
-	\toprule
-	\textbf{Address} & \textbf{Privilege} & \textbf{Name} & \textbf{Description}\tabularnewline
-	\midrule
-	\endhead
-	\midrule \multicolumn{4}{c}{{\tablename\ \thetable{} continued on next page\ldots}} \\
-	\endfoot
-	\endlastfoot
-\fi
-
-\ifdefined\MARKDOWN
-% Skip Row
-\else
-	\rowcolor{rltable}\multicolumn{4}{c}{\emph{\textbf{Memory Protection Configuration}}}\tabularnewline
-\fi
-
-	0x3A0 & ?? & \texttt{pmpcfg0} & Physical memory protection configuration\tabularnewline
-	0x3A1 & ?? & \texttt{pmpcfg1} & Physical memory protection configuration, RV32 Only\tabularnewline
-	0x3A2 & ?? & \texttt{pmpcfg2} & Physical memory protection configuration\tabularnewline
-	0x3A3 & ?? & \texttt{pmpcfg3} & Physical memory protection configuration,RV32 Only\tabularnewline
-
-\ifdefined\MARKDOWN
-% Skip Row
-\else
-	\rowcolor{rltable}\multicolumn{4}{c}{\emph{\textbf{Memory Protection Addressing}}}\tabularnewline
-\fi
-
-	0x3B0 & ?? & \texttt{pmpaddr0}  & Physical memory protection address register\tabularnewline
-	0x3B1 & ?? & \texttt{pmpaddr1}  & Physical memory protection address register\tabularnewline
-	      &    & \vdots             & \tabularnewline
-	0x3BF & ?? & \texttt{pmpaddr15} & Physical memory protection address register\tabularnewline
-
-	\bottomrule
-	\caption{Memory Protection CSRs}
-	\label{tab:pmp-csrs}
 \end{longtable}
 
 \section{Machine Level CSRs}\label{machine-level-csrs}
@@ -486,7 +376,8 @@ Value & Description\tabularnewline
 
 \subsection{Vendor ID Register (\texttt{mvendorid})}\label{vendor-id-register-mvendorid}
 
-The \texttt{mvendorid} read-only register is an XLEN-bit register encoding the JEDEC manufacturer ID of the provider of the core.
+The \texttt{mvendorid} read-only register is an XLEN-bit register encoding the
+manufacturer of the device.
 
 \ifdefined\MARKDOWN
 % Skip Table
@@ -494,39 +385,24 @@ The \texttt{mvendorid} read-only register is an XLEN-bit register encoding the J
 
 \begin{figure*}[htb]
 	{\footnotesize
-	\begin{center}
-	\begin{tabular}{JS}
-	\instbitrange{XLEN-1}{7} &
-	\instbitrange{6}{0} \\
-	\hline
-	\multicolumn{1}{|c|}{Bank} &
-	\multicolumn{1}{c|}{Offset} \\
-	\hline
-	XLEN-7 & 7 \\
-	\end{tabular}
-	\end{center}
-	}	\vspace{-0.1in}
+		\begin{center}
+			\begin{tabular}{J}
+				\instbitrange{XLEN-1}{0} \\
+				\hline
+				\multicolumn{1}{|c|}{Vendor} \\
+				\hline
+				XLEN \\
+			\end{tabular}
+		\end{center}
+	}
+	\vspace{-0.1in}
 	\caption{Vendor ID register (\texttt{mvendorid}).}
 	\label{fig:mvendorreg}
 \end{figure*}
 
 \fi
 
-The Roa Logic JEDEC ID is:
-
-\indent\indent\texttt{7F 7F 7F 7F 7F 7F 7F 7F 7F 6E}
-
-This ID is specified via the \texttt{JEDEC\_BANK} and
-\texttt{JEDEC\_MANUFACTURER\_ID} configuration parameters
-
-\texttt{mvendorid} encodes the number of one-byte continuation codes of
-the \texttt{JEDEC\_BANK} parameter in the Bank field, and encodes the
-final \texttt{JEDEC\_MANUFACTURER\_ID} byte in the Offset field,
-discarding the parity bit.
-
-For the Roa Logic JEDEC manufacturer ID, this translates as:
-
-\indent\indent\texttt{mvendorid} = \{\texttt{JEDEC\_BANK-1}, \texttt{JEDEC\_MANUFACTURER\_ID[6:0]}\} = 0x4EE
+Non-Zero vendor IDs will be allocated by the RISC-V Foundation.
 
 \subsection{Architecture ID Register
 (\texttt{marchid})}\label{architecture-id-register-marchid}
