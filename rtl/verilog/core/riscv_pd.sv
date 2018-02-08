@@ -1,17 +1,17 @@
 /////////////////////////////////////////////////////////////////
 //                                                             //
-//    ██████╗  ██████╗  █████╗                                 //
-//    ██╔══██╗██╔═══██╗██╔══██╗                                //
-//    ██████╔╝██║   ██║███████║                                //
-//    ██╔══██╗██║   ██║██╔══██║                                //
-//    ██║  ██║╚██████╔╝██║  ██║                                //
-//    ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝                                //
-//          ██╗      ██████╗  ██████╗ ██╗ ██████╗              //
-//          ██║     ██╔═══██╗██╔════╝ ██║██╔════╝              //
-//          ██║     ██║   ██║██║  ███╗██║██║                   //
-//          ██║     ██║   ██║██║   ██║██║██║                   //
-//          ███████╗╚██████╔╝╚██████╔╝██║╚██████╗              //
-//          ╚══════╝ ╚═════╝  ╚═════╝ ╚═╝ ╚═════╝              //
+//    ???????  ???????  ??????                                 //
+//    ?????????????????????????                                //
+//    ???????????   ???????????                                //
+//    ???????????   ???????????                                //
+//    ???  ???????????????  ???                                //
+//    ???  ??? ??????? ???  ???                                //
+//          ???      ???????  ??????? ??? ???????              //
+//          ???     ????????????????? ???????????              //
+//          ???     ???   ??????  ??????????                   //
+//          ???     ???   ??????   ?????????                   //
+//          ?????????????????????????????????????              //
+//          ???????? ???????  ??????? ??? ???????              //
 //                                                             //
 //    RISC-V                                                   //
 //    Pre-decode                                               //
@@ -60,10 +60,11 @@ module riscv_pd #(
                                   du_flush,      //flush pipe after debug exit
 
   // Inputs from instruction fetch
-  input reg [XLEN           -1:0] if_pc,	 //Program counter for the instruction to id 
-  input reg [INSTR_SIZE     -1:0] if_instr,	 //Instruction output to instruction decode
-  input reg                       if_bubble, 	 //Insert bublle in the pipe (NOP instruction)
+  input reg [XLEN           -1:0] if_pc,	  //Program counter for the instruction to id 
+  input reg [INSTR_SIZE     -1:0] if_instr,	  //Instruction output to instruction decode
+  input reg                       if_bubble, 	  //Insert bublle in the pipe (NOP instruction)
   input reg [EXCEPTION_SIZE -1:0] if_exception,   //Exception bit for down the pipe
+  input reg                       if_valid_instr, //Check which part of incoming data is valid, for use with 16bit instructions
   
   // Type of instruction
   input                           is_16bit_instruction,
@@ -132,7 +133,6 @@ module riscv_pd #(
 
   //All flush signals combined
   assign flushes = bu_flush | st_flush | du_flush;
-
 
   // Decoding rvc instructions according to their instruction formats
   // function decoding 
@@ -221,7 +221,6 @@ module riscv_pd #(
                    else                       decoded_instr <= -1;             //Illegal
     endcase
 
-
   // Program counter 
   always @(posedge clk, negedge rstn)
     if	        (!rstn      ) pd_pc <= PC_INIT;
@@ -229,23 +228,23 @@ module riscv_pd #(
 
   // Assign decoded instruction to instruction decode
   always @(posedge clk, negedge rstn)
-    if	    (!rstn      ) pd_instr <= INSTR_NOP;
-    else if ( flushes 	) pd_instr <= INSTR_NOP;
-    else if (!id_stall 	) pd_instr <= decoded_instr;
+    if	    (!rstn      )  pd_instr <= INSTR_NOP;
+    else if ( flushes 	)  pd_instr <= INSTR_NOP;
+    else if (!id_stall 	)  pd_instr <= decoded_instr;
 
   // Instruction bubble to instruction decode bubble
   always @(posedge clk, negedge rstn)
-    if      (!rstn      ) pd_bubble <= 1'b1;
-    else if ( flushes 	) pd_bubble <= 1'b1;
-    else if (!id_stall  ) pd_bubble <= if_bubble;
+    if      (!rstn      )  pd_bubble <= 1'b1;
+    else if ( flushes 	)  pd_bubble <= 1'b1;
+    else if (!id_stall  )  pd_bubble <= if_bubble;
 
   // Branches and jumps
   assign immB = {{XLEN-12{decoded_instr[31]}},decoded_instr[ 7],decoded_instr[30:25],decoded_instr[11: 8],1'b0};
   assign immJ = {{XLEN-20{decoded_instr[31]}},decoded_instr[19:12],decoded_instr[20],decoded_instr[30:25],decoded_instr[24:21],1'b0};
 
   assign opcode       = decoded_instr[6:2];
-  assign branch_taken = pd_branch_taken; 	//CHANGE NAMING!
-  assign branch_pc    = pd_branch_pc;		//CHANGE NAMING!
+  assign branch_taken = pd_branch_taken; 	
+  assign branch_pc    = pd_branch_pc;		
 
   //branch and jump prediction
   always_comb
