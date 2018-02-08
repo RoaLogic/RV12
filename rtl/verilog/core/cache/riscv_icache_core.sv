@@ -509,7 +509,8 @@ endgenerate
                                                         : ~(if_flush | if_flush_dly) & ~if_stall & biu_fifo[0].valid;
                      if_parcel_pc    = is_cacheable_dly ? pc
                                                         : { {XLEN-PHYS_ADDR_SIZE{1'b0}},biu_fifo[0].adr};
-                     nxt_cnt         = !cache_hit ? BURST_SIZE -1 : cnt;
+                     nxt_cnt         = !cache_hit ? (bu_cacheflush || hold_bu_cacheflush) ? {IDX_BITS{1'b1}} :BURST_SIZE -1
+                                                  : cnt;
                  end
 
         FLUSH  : begin
