@@ -1,0 +1,77 @@
+Riviera-PRO 2017.02.99.6498(Linux) 2018-02-08 14:34:19
+
+Elaboration top modules:
+Verilog Module                testbench_top
+SystemVerilog Package         riscv_state_pkg
+SystemVerilog Package         ahb3lite_pkg
+SystemVerilog Package         riscv_du_pkg
+SystemVerilog Package         riscv_pkg
+SystemVerilog Class           \*assocarray#([]bit,[]logic) \
+
+
+-----------------------------------------------------------------------------------------------------
+Verilog Module                 | Library | Info | Compiler Version   | Compilation Options
+-----------------------------------------------------------------------------------------------------
+testbench_top                  | work    |      | 2017.02.99 (Linux) | -sv2k9 +define+SIM +libext+.v
+riscv_top_ahb3lite             | work    |      | 2017.02.99 (Linux) | -sv2k9 +define+SIM +libext+.v
+dbg_bfm                        | work    |      | 2017.02.99 (Linux) | -sv2k9 +define+SIM +libext+.v
+memory_model_ahb3lite          | work    |      | 2017.02.99 (Linux) | -sv2k9 +define+SIM +libext+.v
+htif                           | work    |      | 2017.02.99 (Linux) | -sv2k9 +define+SIM +libext+.v
+mmio_if                        | work    |      | 2017.02.99 (Linux) | -sv2k9 +define+SIM +libext+.v
+riscv_core                     | work    |      | 2017.02.99 (Linux) | -sv2k9 +define+SIM +libext+.v
+riscv_icache_ahb3lite          | work    |      | 2017.02.99 (Linux) | -sv2k9 +define+SIM +libext+.v
+ahb3lite_checker               | work    |      | 2017.02.99 (Linux) | -sv2k9 +define+SIM +libext+.v
+riscv_dcache_ahb3lite          | work    |      | 2017.02.99 (Linux) | -sv2k9 +define+SIM +libext+.v
+riscv_if                       | work    |      | 2017.02.99 (Linux) | -sv2k9 +define+SIM +libext+.v
+riscv_pd                       | work    |      | 2017.02.99 (Linux) | -sv2k9 +define+SIM +libext+.v
+riscv_id                       | work    |      | 2017.02.99 (Linux) | -sv2k9 +define+SIM +libext+.v
+riscv_ex                       | work    |      | 2017.02.99 (Linux) | -sv2k9 +define+SIM +libext+.v
+riscv_memwb                    | work    |      | 2017.02.99 (Linux) | -sv2k9 +define+SIM +libext+.v
+riscv_state1_9                 | work    |      | 2017.02.99 (Linux) | -sv2k9 +define+SIM +libext+.v
+riscv_rf                       | work    |      | 2017.02.99 (Linux) | -sv2k9 +define+SIM +libext+.v
+riscv_du                       | work    |      | 2017.02.99 (Linux) | -sv2k9 +define+SIM +libext+.v
+riscv_bp                       | work    |      | 2017.02.99 (Linux) | -sv2k9 +define+SIM +libext+.v
+rl_ram_1r1w                    | work    |      | 2017.02.99 (Linux) | -sv2k9 +define+SIM +libext+.v
+rl_ram_1r1w_easic_n3xs         | work    |      | 2017.02.99 (Linux) | -sv2k9 +define+SIM +libext+.v
+rl_ram_1r1w_easic_n3x          | work    |      | 2017.02.99 (Linux) | -sv2k9 +define+SIM +libext+.v
+rl_ram_1r1w_generic            | work    |      | 2017.02.99 (Linux) | -sv2k9 +define+SIM +libext+.v
+riscv_alu                      | work    |      | 2017.02.99 (Linux) | -sv2k9 +define+SIM +libext+.v
+riscv_lsu                      | work    |      | 2017.02.99 (Linux) | -sv2k9 +define+SIM +libext+.v
+riscv_bu                       | work    |      | 2017.02.99 (Linux) | -sv2k9 +define+SIM +libext+.v
+riscv_mul                      | work    | SVA  | 2017.02.99 (Linux) | -sv2k9 +define+SIM +libext+.v
+riscv_div                      | work    |      | 2017.02.99 (Linux) | -sv2k9 +define+SIM +libext+.v
+riscv_cache_biu_ahb3lite       | work    |      | 2017.02.99 (Linux) | -sv2k9 +define+SIM +libext+.v
+riscv_noicache_core            | work    |      | 2017.02.99 (Linux) | -sv2k9 +define+SIM +libext+.v
+riscv_icache_core              | work    |      | 2017.02.99 (Linux) | -sv2k9 +define+SIM +libext+.v
+riscv_memmisaligned            | work    |      | 2017.02.99 (Linux) | -sv2k9 +define+SIM +libext+.v
+riscv_wbuf                     | work    |      | 2017.02.99 (Linux) | -sv2k9 +define+SIM +libext+.v
+riscv_nodcache_core            | work    |      | 2017.02.99 (Linux) | -sv2k9 +define+SIM +libext+.v
+riscv_dcache_core              | work    |      | 2017.02.99 (Linux) | -sv2k9 +define+SIM +libext+.v
+-----------------------------------------------------------------------------------------------------
+
+-----------------------------------------------------------------------------------------------------
+SystemVerilog Package          | Library | Info | Compiler Version   | Compilation Options
+-----------------------------------------------------------------------------------------------------
+riscv_state_pkg                | work    |      | 2017.02.99 (Linux) | -sv2k9 +define+SIM +libext+.v
+ahb3lite_pkg                   | work    |      | 2017.02.99 (Linux) | -sv2k9 +define+SIM +libext+.v
+riscv_du_pkg                   | work    |      | 2017.02.99 (Linux) | -sv2k9 +define+SIM +libext+.v
+riscv_pkg                      | work    |      | 2017.02.99 (Linux) | -sv2k9 +define+SIM +libext+.v
+-----------------------------------------------------------------------------------------------------
+
+-----------------------------------------------------------------------------------------------------
+SystemVerilog Class            | Library | Info | Compiler Version   | Compilation Options
+-----------------------------------------------------------------------------------------------------
+\*assocarray#([]bit,[]logic) \ | work    |      | 2017.02.99 (Linux) | -sv2k9 +define+SIM +libext+.v
+-----------------------------------------------------------------------------------------------------
+
+-----------------------------------------------------------------------------------------------------
+Library                        | Comment
+-----------------------------------------------------------------------------------------------------
+work                           | None
+-----------------------------------------------------------------------------------------------------
+
+
+Simulation Options: asim -ses -O2 "-threads 4" +notimingchecks testbench_top +access +r -gDCACHE_SIZE=1 -gICACHE_SIZE=1 -gMEM_LATENCY=0 -gWRITEBUFFER_SIZE=0 -gXLEN=32 -gMULT_LATENCY=0 -gHAS_U=1 -gHAS_S=1 -gHAS_H=0 -gHAS_AMO=0 -gHAS_RVC=1 -gHAS_MULDIV=1 -gCORES=1 -gTECHNOLOGY="GENERIC" -gINIT_FILE="../../../../../bench/regression/rv32uc-rvc.hex"
+
+
+The performance of simulation is reduced. Version LV
