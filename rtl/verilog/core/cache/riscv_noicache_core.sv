@@ -146,111 +146,15 @@ module riscv_noicache_core #(
     if (!rstn) if_flush_dly <= 1'b0;
     else       if_flush_dly <= if_flush;
 
-  // fifo buffer for program counter
-  always @(posedge clk, negedge rstn)
-    if(!rstn)
-	begin 
-	  pc_fifo[0].valid <= 1'b0;  
-	  pc_fifo[1].valid <= 1'b0;
-	  pc_fifo[2].valid <= 1'b0;
-   	end
-    else if( if_flush)
-	begin
-	  pc_fifo[0].valid <= 1'b0;
-	  pc_fifo[1].valid <= 1'b0;
-	  pc_fifo[2].valid <= 1'b0;
-	end
-    else 
-	case({!if_stall_nxt_pc, if_parcel_valid[1] | if_parcel_valid[0]})
-	  2'b00: ; // no write, no read -> nothing to do
-	  
-	  // read from buffer
-	  2'b01: begin 
-		   pc_fifo[0].pc    <= pc_fifo[1].pc; 
-		   pc_fifo[0].valid <= pc_fifo[1].valid;
-		   pc_fifo[1].pc    <= pc_fifo[2].pc;
-		   pc_fifo[1].valid <= pc_fifo[2].valid;
-		   pc_fifo[2].pc    <= 'hx;
-		   pc_fifo[2].valid <= 1'b0;
-		 end
-	  
-	  2'b10: // write from buffer
-		case({pc_fifo[1].valid, pc_fifo[0].valid})
-	  	  2'b11:   begin
-	 		     pc_fifo[2].pc    <= if_out_order ? if_nxt_pc + 'h2 : if_nxt_pc;
-			     pc_fifo[2].valid <= 1'b1;
-			   end
-		  2'b01:   begin
-			     pc_fifo[1].pc    <= if_out_order ? if_nxt_pc +'h2 : if_nxt_pc;
-			     pc_fifo[1].valid <= 1'b1; 
-			   end
-		  default: begin
-			     pc_fifo[0].pc    <= if_out_order ? if_nxt_pc +'h2: if_nxt_pc;
-			     pc_fifo[0].valid <= 1'b1;
-			   end
-		 endcase
-
-	  2'b11: // read and write from buffer
-		casex({pc_fifo[2].valid, pc_fifo[1].valid, pc_fifo[0].valid})
-		  3'b1?? : begin
-			     pc_fifo[2].pc    <= if_out_order ? if_nxt_pc + 'h2 : if_nxt_pc;
-			     pc_fifo[2].valid <= 1'b1; 
-		
-			     pc_fifo[0].pc    <= pc_fifo[1].pc;
-			     pc_fifo[0].valid <= pc_fifo[1].valid;
-			     pc_fifo[1].pc    <= pc_fifo[2].pc;
-			     pc_fifo[1].valid <= pc_fifo[2].valid;
-			   end
-
-		 3'b01? :  begin
-			     pc_fifo[1].pc    <= if_out_order ? if_nxt_pc + 'h2 : if_nxt_pc;
-			     pc_fifo[1].valid <= 1'b1;
-			
-			     pc_fifo[0].pc    <= pc_fifo[1].pc;
-			     pc_fifo[0].valid <= pc_fifo[1].valid;
-
-			     pc_fifo[2].pc    <= 'hx;
-			     pc_fifo[2].valid <= 1'b0;
-			   end
-
-		 default:  begin
-			     pc_fifo[0].pc    <= if_out_order ? if_nxt_pc + 'h2 : if_nxt_pc;
-			     pc_fifo[0].valid <= 1'b1;
-
-			     pc_fifo[1].pc    <= 'hx;
-			     pc_fifo[1].valid <= 1'b0;
-			     pc_fifo[2].pc    <= 'hx;
-			     pc_fifo[2].valid <= 1'b0;
-			   end
-		endcase
-	endcase
-		
 
   /*
    * To CPU
    */
   assign if_stall_nxt_pc    = ~dcflush_rdy | ~biu_stb_ack | biu_fifo[1].valid & ~if_stall;
-  assign if_parcel_valid[0] = dcflush_rdy & ~(if_flush | if_flush_dly) & ~if_stall & biu_fifo[0].valid & lsb_valid;
-  assign if_parcel_valid[1] = dcflush_rdy & ~(if_flush | if_flush_dly) & ~if_stall & biu_fifo[0].valid & msb_valid;
+  assign if_parcel_valid[0] = dcflush_rdy & ~(if_flush | if_flush_dly) & ~if_stall & biu_fifo[0].valid;
+  assign if_parcel_valid[1] = dcflush_rdy & ~(if_flush | if_flush_dly) & ~if_stall & biu_fifo[0].valid & ~biu_fifo[0].adr[1];
   assign if_parcel_pc       = {{XLEN-PHYS_ADDR_SIZE{1'b0}}, biu_fifo[0].adr};
-  assign if_parcel          = biu_fifo[0].dat[ if_parcel_pc[$clog2(XLEN/32)+1:1]*16 +: PARCEL_SIZE ];  
-
-  always @(posedge clk, negedge rstn)
-	if	(if_flush)                                    asked_pc_previous <= 'h00000000;
-	else if	(if_parcel_valid[0] | if_parcel_valid[1])     asked_pc_previous <= pc_fifo[0].pc;
-	else 	                                              asked_pc_previous <= asked_pc_previous;
-
-  always_comb // @(posedge clk, negedge rstn)
-	if 	(biu_fifo[0].adr == pc_fifo[0].pc)            lsb_valid <= 1'b1;
-	else if	(biu_fifo[0].adr == asked_pc_previous + 'h2)  lsb_valid <= 1'b1;
-	else                                                  lsb_valid <= 1'b0;
-
-  always_comb // @(posedge clk, negedge rstn)
-	if	(biu_fifo[0].adr + 'h2 == pc_fifo[0].pc +'h2) msb_valid <= 1'b1;
-	else if (biu_fifo[0].adr       == pc_fifo[0].pc -'h2) msb_valid <= 1'b1;
- 	else	                                              msb_valid <= 1'b0;
-
-        
+  assign if_parcel          = biu_fifo[0].dat[ if_parcel_pc[$clog2(XLEN/32)+1:1]*16 +: PARCEL_SIZE ];    
 
 
   /*
@@ -258,7 +162,7 @@ module riscv_noicache_core #(
    */
   assign biu_stb   = dcflush_rdy & ~if_flush & ~if_stall & ~biu_fifo[1].valid; //TODO when is ~biu_fifo[1] required?
   assign biu_adri  = if_nxt_pc[PHYS_ADDR_SIZE -1:0];
-  assign biu_be    = {$bits(biu_be){1'b1}};
+  assign biu_be    = if_nxt_pc[1] ? 'h3 : {$bits(biu_be){1'b1}}; // changed to get 16bit data when if_nxt_pc[1] is set
   assign biu_lock  = 1'b0;
   assign biu_we    = 1'b0; //no writes
   assign biu_di    =  'h0;

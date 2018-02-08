@@ -8,11 +8,11 @@
 #	REGRESSION VARIABLES
 ##########################################
 
-my @REGRESSION_MEM_LATENCY 	= qw(3);
-my @REGRESSION_XLEN 	   	= qw(64);
-my @REGRESSION_WRITEBUFFER_SIZE = qw(0);
-my @REGRESSION_ICACHE_SIZE	= qw(0);
-my @REGRESSION_DCACHE_SIZE	= qw(0);
+my @REGRESSION_MEM_LATENCY 	= qw(1 8 9);
+my @REGRESSION_XLEN 	   	= qw(32 64);
+my @REGRESSION_WRITEBUFFER_SIZE = qw(1 4 8 9);
+my @REGRESSION_ICACHE_SIZE	= qw(1 4 9 16);
+my @REGRESSION_DCACHE_SIZE	= qw(1 4 9 16);
 my @REGRESSION_MULT_LATENCY 	= qw(4);
 
 ##########################################
@@ -61,7 +61,7 @@ my @U_INT64_TESTS = qw(
 	sd
 	sllw slliw
 	sllu sltui
-	sraw swaiw
+	sraw 
 	srlw srliw
 	subw
 );
@@ -104,7 +104,7 @@ my @M32_TEST = qw(shamt);
 
 #	Supervisor mode tests
 my @S_TESTS = qw(
-	csr dirty illegal
+	csr dirty 
 	ma_fetch sbreak 
 	scall wfi
 );
