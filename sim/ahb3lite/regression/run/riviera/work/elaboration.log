@@ -1,4 +1,4 @@
-Riviera-PRO 2017.02.99.6498(Linux) 2018-02-08 13:07:30
+Riviera-PRO 2017.02.99.6498(Linux) 2018-02-08 14:34:19
 
 Elaboration top modules:
 Verilog Module                testbench_top
@@ -71,7 +71,7 @@ work                           | None
 -----------------------------------------------------------------------------------------------------
 
 
-Simulation Options: asim -ses -O2 "-threads 4" +notimingchecks testbench_top +access +r -gDCACHE_SIZE=4 -gICACHE_SIZE=1 -gMEM_LATENCY=1 -gWRITEBUFFER_SIZE=1 -gXLEN=32 -gMULT_LATENCY=0 -gHAS_U=1 -gHAS_S=1 -gHAS_H=0 -gHAS_AMO=0 -gHAS_RVC=1 -gHAS_MULDIV=1 -gCORES=1 -gTECHNOLOGY="GENERIC" -gINIT_FILE="../../../../../bench/regression/rv32ui-p-fence_i.hex"
+Simulation Options: asim -ses -O2 "-threads 4" +notimingchecks testbench_top +access +r -gDCACHE_SIZE=1 -gICACHE_SIZE=1 -gMEM_LATENCY=0 -gWRITEBUFFER_SIZE=0 -gXLEN=32 -gMULT_LATENCY=0 -gHAS_U=1 -gHAS_S=1 -gHAS_H=0 -gHAS_AMO=0 -gHAS_RVC=1 -gHAS_MULDIV=1 -gCORES=1 -gTECHNOLOGY="GENERIC" -gINIT_FILE="../../../../../bench/regression/rv32uc-rvc.hex"
 
 
 The performance of simulation is reduced. Version LV
