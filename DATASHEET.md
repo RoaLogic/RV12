@@ -13,7 +13,7 @@ Author: Roa Logic
 -   [Introduction to the RV12](#introduction-to-the-rv12)
 -   [RV12 Execution Pipeline](#rv12-execution-pipeline)
 -   [Configurations](#configurations)
--   [Control & Status Registers](#control-status-registers)
+-   [Control and Status Registers](#control-and-status-registers)
 -   [External Interfaces](#external-interfaces)
 -   [Debug Unit](#debug-unit)
 -   [Resources](#resources)
@@ -568,7 +568,7 @@ The `UTVEC_DEFAULT` parameter defines the interrupt vector address for the User 
 
 `UTVEC_DEFAULT = PC_INIT - ’h100`
 
-## Control & Status Registers
+## Control and Status Registers
 
 ### Introduction
 
@@ -636,7 +636,7 @@ Note: These descriptions are derived from “The RISC-V Instruction Set Manual, 
 |    0xB80    |      MRW      | `mcycleh`        | Upper 32 bits of `mcycle`, RV32I only         |
 |    0xB82    |      MRW      | `minstreth`      | Upper 32 bits of `minstret`, RV32I only       |
 |    0xB83    |      MRW      | `mhpmcounter3h`  | Upper 32 bits of mhpmcounter3, RV32I only     |
-|    0xB84    |      MRW      | `mhpmcounter3h`  | Upper 32 bits of mhpmcounter4, RV32I only     |
+|    0xB84    |      MRW      | `mhpmcounter4h`  | Upper 32 bits of mhpmcounter4, RV32I only     |
 |             |               |                  |                                               |
 |    0xB9F    |      MRW      | `mhpmcounter31h` | Upper 32 bits of mhpmcounter31, RV32I only    |
 |    0x323    |      MRW      | `mhpevent3`      | Machine performance-monitoring event selector |
@@ -657,7 +657,6 @@ Note: These descriptions are derived from “The RISC-V Instruction Set Manual, 
 |    0x142    |      SRO      | `scause`     | Supervisor trap cause                    |
 |    0x143    |      SRO      | `sbadaddr`   | Supervisor bad address                   |
 |    0x144    |      SRW      | `sip`        | Supervisor interrupt pending register    |
-|    0x180    |      SRW      | `satp`       |                                          |
 
 | **Address** | **Privilege** | **Name**        | **Description**                            |
 |:-----------:|:-------------:|:----------------|:-------------------------------------------|
@@ -734,13 +733,21 @@ For the Roa Logic JEDEC manufacturer ID, this translates as:
 
 The `marched` CSR is an XLEN-bit read-only register encoding the base microarchitecture of the hart. For the RV12 CPU this is defined as:
 
+The Architecture ID for the RV12 CPU is defined as 0x12.
+
 Note: Open-source project architecture IDs are allocated globally by the RISC-V Foundation, and have non-zero architecture IDs with a zero most-significant-bit (MSB). Commercial architecture IDs are allocated by each commercial vendor independently and have the MSB set.
 
 #### Implementation ID Register (`mimpid`)
 
-The `mimpid` read-only register provides hardware version information for the CPU. In the Roa Logic implementation, the 2 least significant bytes encode the major and minor code revisions.
+`mimpid` is an XLEN-sized read-only register provides hardware version information for the CPU.
 
-The `mimpid` register is an XLEN size register, but the RV12 only implements the lower 32 bits. For an RV64 implementation the MSBs are zero extended.
+The contents of `mimpid` are defined by the supplier/developer of the CPU core. In the Roa Logic implementation, this register is used to define the User and Privilege specifications supported by the CPU; the 2 most signficant bytes encoding the Privilege Specification, the 2 least significant bytes encoding the User Specification, as follows:
+
+`mimpid` = {REVPRV\_MAJOR,REVPRV\_MINOR,REVUSR\_MAJOR,REVUSR\_MINOR}
+
+The RV12 supports Privileged Specification v1.10 and User Specification v2.2, and is therefore predefined as:
+
+`mimpid` = {1,10,2,2} = 0x1A22
 
 #### Hardware Thread ID Register (`mhartid`)
 
@@ -764,39 +771,53 @@ The `MPRV` bit modifies the privilege level at which loads and stores execute. W
 
 Virtualization and Context Extensions are not supported by the RV12 v1.0 implementation. The value of these fields will therefore be permanently set to 0.
 
+#### Machine Trap-Handler Base Address Register (`mtvec`)
+
+The `mtvec` register is an XLEN-bit read/write register that holds trap vector configuration, consisting of a vector base address (BASE) and a vector mode (MODE).
+
+The encoding of the MODE field is shown in Table \[mtvec-mode\]. When MODE=Direct, all traps into machine mode cause the `pc` to be set to the address in the BASE field. When MODE=Vectored, all synchronous exceptions into machine mode cause the `pc` to be set to the address in the BASE field, whereas interrupts cause the `pc` to be set to the address in the BASE field plus four times the interrupt cause number.
+
+|  Value|   Name   | Description                                       |
+|------:|:--------:|:--------------------------------------------------|
+|      0|  Direct  | All exceptions set `pc` to BASE.                  |
+|      1| Vectored | Asynchronous interrupts set `pc` to BASE+4×cause. |
+|     ≥2|     —    | *Reserved*                                        |
+
 #### Machine Delegation Registers (`medeleg` & `mideleg`)
 
-Individual read/write bits within `medeleg` and `mideleg` registers indicate that lower privilege levels should directly process certain exceptions and interrupts.
+The machine exception delegation register (`medeleg`) and machine interrupt delegation register (`mideleg`) are XLEN-bit read/write registers used to indicate that certain exceptions and interrupts should be processed directly by a lower privilege level.
 
-When a trap is delegated to a less-privileged mode `x`, the `xcause` register is written with the trap cause; the `xepc` register is written with the virtual address of the instruction that took the trap; the `xPP` field of `mstatus` is written with the active privilege mode at the time of the trap; the `xPIE` field of `mstatus` is written with the value of the active interrupt-enable bit at the time of the trap; and the `xIE` field of `mstatus` is cleared. The `mcause` and `mepc` registers and the `MPP` and `MPIE` fields of `mstatus` are not written.
+When a trap is delegated to a less-privileged mode *x*, the *x*`cause` register is written with the trap cause; the *x*`epc` register is written with the virtual address of the instruction that took the trap; the *x*PP field of `mstatus` is written with the active privilege mode at the time of the trap; the *x*PIE field of `mstatus` is written with the value of the active interrupt-enable bit at the time of the trap; and the *x*IE field of `mstatus` is cleared. The `mcause` and `mepc` registers and the MPP and MPIE fields of `mstatus` are not written.
 
-`medeleg` has a bit position allocated for every synchronous exception with the index of the bit position equal to the value returned in the `mcause` register (I.e. setting bit 8 allows user-mode environment calls to be delegated to a lower-privilege trap handler).
+`medeleg` has a bit position allocated for every synchronous exception with the index of the bit position equal to the value returned in the `mcause` register (i.e. setting bit 8 allows user-mode environment calls to be delegated to a lower-privilege trap handler).
 
-`mideleg` holds trap delegation bits for individual interrupts, with the layout of bits matching those in the `mip` register (I.e. `STIP` interrupt delegation control is located in bit 5).
+`mideleg` holds trap delegation bits for individual interrupts, with the layout of bits matching those in the `mip` register (i.e. `STIP` interrupt delegation control is located in bit 5).
 
 #### Machine Interrupt Registers (`mie`, `mip`)
 
-The `mip` register is an `XLEN`-bit read/write register containing information on pending interrupts, while `mie` is the corresponding `XLEN`-bit read/write register containing interrupt enable bits. Only the bits corresponding to lower-privilege software interrupts (`USIP`, `SSIP`) and timer interrupts (`UTIP`, `STIP`) in `mip` are writable through this CSR address; the remaining bits are read- only.
+The `mip` register is an XLEN-bit read/write register containing information on pending interrupts, while `mie` is the corresponding XLEN- bit read/write register containing interrupt enable bits. Only the bits corresponding to lower-privilege software interrupts (USIP, SSIP), timer interrupts (UTIP, STIP), and external interrupts (UEIP, SEIP) in `mip` are writable through this CSR address; the remaining bits are read-only.
 
-Restricted views of the `mip` and `mie` registers appear as the `sip/sie`, and `uip/uie` registers in S-mode, and U-mode respectively. If an interrupt is delegated to privilege mode `x` by setting a bit in the `mideleg` register, it becomes visible in the `xip` register and is maskable using the `xie`register. Otherwise, the corresponding bits in `xip` and `x`ie appear to be hardwired to zero.
+Restricted views of the `mip` and `mie` registers appear as the `sip`/`sie`, and `uip`/`uie` registers in S-mode and U-mode respectively. If an interrupt is delegated to privilege mode *x* by setting a bit in the `mideleg` register, it becomes visible in the *x*`ip` register and is maskable using the *x*`ie` register. Otherwise, the corresponding bits in *x*`ip` and *x*`ie` appear to be hardwired to zero.
 
-The `MTIP`, `STIP`, `UTIP` bits correspond to timer interrupt-pending bits for machine, supervisor, and user timer interrupts, respectively. The `MTIP` bit is read-only and is cleared by writing to the memory-mapped machine-mode timer compare register. The `UTIP` and `STIP` bits may be written by M-mode software to deliver timer interrupts to lower privilege levels. User and supervisor software may clear the `UTIP` and `STIP` bits with calls to the AEE or SEE respectively.
+The MTIP, STIP, UTIP bits correspond to timer interrupt-pending bits for machine, supervisor, and user timer interrupts, respectively. The MTIP bit is read-only and is cleared by writing to the memory-mapped machine-mode timer compare register. The UTIP and STIP bits may be written by M-mode software to deliver timer interrupts to lower privilege levels. User and supervisor software may clear the UTIP and STIP bits with calls to the AEE and SEE respectively.
 
-There is a separate timer interrupt-enable bit, named `MTIE`, `STIE`, and `UTIE` for M-mode, S-mode, and U-mode timer interrupts respectively.
+There is a separate timer interrupt-enable bit, named MTIE, STIE, and UTIE for M-mode, S-mode, and U-mode timer interrupts respectively.
 
-Each lower privilege level has a separate software interrupt-pending bit (`SSIP`, `USIP`), which can be both read and written by CSR accesses from code running on the local hart at the associated or any higher privilege level. The machine-level `MSIP` bits are written by accesses to memory-mapped control registers, which are used by remote harts to provide machine-mode interprocessor interrupts. Interprocessor interrupts for lower privilege levels are implemented through ABI or SBI calls to the AEE or SEE respectively, which might ultimately result in a machine- mode write to the receiving hart’s `MSIP` bit. A hart can write its own `MSIP` bit using the same memory-mapped control register.
+Each lower privilege level has a separate software interrupt-pending bit (SSIP, USIP), which can be both read and written by CSR accesses from code running on the local hart at the associated or any higher privilege level. The machine-level MSIP bits are written by accesses to memory-mapped control registers, which are used by remote harts to provide machine-mode interprocessor interrupts.
 
-The `MEIP`, `SEIP`, `UEIP` bits correspond to external interrupt-pending bits for machine, supervisor, and user external interrupts, respectively. These bits are read-only and are set and cleared by a platform- specific interrupt controller. There is a separate external interrupt-enable bit, named `MEIE`, `SEIE`, and `UEIE` for M-mode, S-mode, and U-mode external interrupts respectively.
+The MEIP field in `mip` is a read-only bit that indicates a machine-mode external interrupt is pending. MEIP is set and cleared by a platform-specific interrupt controller. The MEIE field in `mie` enables machine external interrupts when set.
 
-An interrupt` i` will be taken if bit `i` is set in both `mip` and `mie`, and if interrupts are globally enabled. By default, M-mode interrupts are globally enabled if the hart’s current privilege mode is less than M, or if the current privilege mode is M and the `MIE` bit in the `mstatus` register is set. If bit `i` in `mideleg` is set, however, interrupts are considered to be globally enabled if the hart’s current privilege mode equals the delegated privilege mode (S, or U) and that mode’s interrupt enable bit (`SIE` or `UIE` in `mstatus`) is set, or if the current privilege mode is less than the delegated privilege mode.
+The SEIP field in `mip` contains a single read-write bit. SEIP may be written by M-mode software to indicate to S-mode that an external interrupt is pending.
 
-Multiple simultaneous interrupts and traps at the same privilege level are handled in the following decreasing priority order: external interrupts, software interrupts, timer interrupts, and then finally any synchronous traps.
+The UEIP field in `mip` provides user-mode external interrupts when the N extension for user-mode interrupts is implemented. It is defined analogously to SEIP.
 
-#### Machine Trap-Handler Base Address Register (`mtvec`)
+The MEIE, SEIE, and UEIE fields in the `mie` CSR enable M-mode external interrupts, S-mode external interrupts, and U-mode external interrupts, respectively.
 
-The mtvec register is an XLEN-bit read/write register that holds the base address of the M-mode trap vector.
+For all the various interrupt types (software, timer, and external), if a privilege level is not supported, the associated pending and interrupt-enable bits are hardwired to zero in the `mip` and `mie` registers respectively.
 
-All traps into machine mode cause the pc to be set to the value in `mtvec`. Additional trap vector entry points can be defined by implementations to allow more rapid identification and service of certain trap causes.
+An interrupt *i* will be taken if bit *i* is set in both `mip` and `mie`, and if interrupts are globally enabled. By default, M-mode interrupts are globally enabled if the hart’s current privilege mode is less than M, or if the current privilege mode is M and the MIE bit in the `mstatus` register is set. If bit *i* in `mideleg` is set, however, interrupts are considered to be globally enabled if the hart’s current privilege mode equals the delegated privilege mode (S or U) and that mode’s interrupt enable bit (SIE or UIE in `mstatus`) is set, or if the current privilege mode is less than the delegated privilege mode.
+
+Multiple simultaneous interrupts and traps at the same privilege level are handled in the following decreasing priority order: external interrupts, software interrupts, timer interrupts, then finally any synchronous traps.
 
 #### Machine Non-Maskable Interrupt Vector (`mnmivec`)
 
@@ -818,23 +839,45 @@ The `mcause` register is an XLEN-bit read-write register. The Interrupt bit is s
 
 See PDF Datasheet for further details
 
-#### Machine Bad Address Register (`mbadaddr`)
+#### Machine Trap Value Register (`mtval`)
 
-`mbadaddr` is an XLEN-bit read-write register. When a hardware breakpoint is triggered, or an instruction-fetch, load, or store address-misaligned or access exception occurs, `mbadaddr` is written with the faulting address. `mbadaddr` is not modified for other exceptions.
+The `mtval` register is an XLEN-bit read-write register formatted as shown in Figure \[fig:mtvalreg\].
 
-For instruction-fetch access faults with variable-length instructions, `mbadaddr` will point to the portion of the instruction that caused the fault while `mepc` will point to the beginning of the instruction.
+When a trap is taken into M-mode, `mtval` is written with exception-specific information to assist software in handling the trap. Otherwise, `mtval` is never written by the implementation, though it may be explicitly written by software.
 
-#### Machine Cycle Counter (mcycle, `mcycleh`)
+When a hardware breakpoint is triggered, or an instruction-fetch, load, or store address-misaligned, access, or page-fault exception occurs, `mtval` is written with the faulting effective address. On an illegal instruction trap, `mtval` is written with the first XLEN bits of the faulting instruction as described below. For other exceptions, `mtval` is set to zero, but a future standard may redefine `mtval`’s setting for other exceptions.
+
+For instruction-fetch access faults with variable-length instructions, `mtval` will point to the portion of the instruction that caused the fault while `mepc` will point to the beginning of the instruction.
+
+#### Counter-Enable Registers (`[m|s]counteren`)
+
+Note: Machine performnce counters are currently unsupported and therefore all HPM*n* bits are hardwired to ’0’.
+
+The counter-enable registers `mcounteren` and `scounteren` control the availability of the hardware performance monitoring counters to the next-lowest privileged mode.
+
+When the CY, TM or IR bit in the `mcounteren` register is clear, attempts to read the `cycle`, `time`, or `instret` register while executing in S-mode or U-mode will cause an illegal instruction exception. When one of these bits is set, access to the corresponding register is permitted in the next implemented privilege mode (S-mode if implemented, otherwise U-mode).
+
+If S-mode is implemented, the same bit positions in the `scounteren` register analogously control access to these registers while executing in U-mode. If S-mode is permitted to access a counter register and the corresponding bit is set in `scounteren`, then U-mode is also permitted to access that register.
+
+#### Machine Cycle Counter (`mcycle`, `mcycleh`)
 
 The `mcycle` CSR holds a count of the number of cycles the hart has executed since some arbitrary time in the past. The `mcycle` register has 64-bit precision on all RV32 and RV64 systems.
 
 On RV32 only, reads of the `mcycle` CSR returns the low 32 bits, while reads of the `mcycleh` CSR returns bits 63–32.
 
-#### Machine Instructions-Retired counter (minstret, `minstreth`)
+#### Machine Instructions-Retired counter (`minstret`, `minstreth`)
 
 The `minstret` CSR holds a count of the number of instructions the hart has retired since some arbitrary time in the past. The `minstret` register has 64-bit precision on all RV32 and RV64 systems.
 
 On RV32 only, reads of the `minstret` CSR returns the low 32 bits, while reads of the `minstreth` CSR returns bits 63–32.
+
+#### Machine Performance counters (`mhpmcounter`, `mhpmcounter`)
+
+The Machine High Performance counters `mhpmcounter3-31, mhpmcounter3-31h` are implemented but unsupported in the current RV12 implementation.
+
+#### Machine Performance event selectors (`mhpevent`)
+
+The Machine High Performance event selector CSRs `mhpevent3-31` are implemented but unsupported in the current RV12 implementation.
 
 ### Supervisor Mode CSRs
 
@@ -856,31 +899,47 @@ The `PUM` (Protect User Memory) bit modifies the privilege with which S-mode loa
 
 #### Supervisor Trap Delegation Registers (`sedeleg`, `sideleg`)
 
-The machine exception delegation register (`sedeleg`) and machine interrupt delegation register (`sideleg`) are XLEN-bit read/write registers.
+The supervisor exception delegation register (`sedeleg`) and supervisor interrupt delegation register (`sideleg`) are XLEN-bit read/write registers.
+
+In systems with all three privilege modes (M/S/U), setting a bit in `medeleg` or `mideleg` will delegate the corresponding trap in S-mode or U-mode to the S-mode trap handler. If U-mode traps are supported, S-mode may in turn set corresponding bits in the `sedeleg` and `sideleg` registers to delegate traps that occur in U-mode to the U-mode trap handler.
 
 #### Supervisor Interrupt Registers (sip, sie)
 
-The `sip` register is an XLEN-bit read/write register containing information on pending interrupts; `sie` is the corresponding XLEN-bit read/write register containing interrupt enable bits.
+The `sip` register is an XLEN-bit read/write register containing information on pending interrupts, while `sie` is the corresponding XLEN-bit read/write register containing interrupt enable bits.
 
-Three types of interrupts are defined: software interrupts, timer interrupts, and external interrupts. A supervisor-level software interrupt is triggered on the current *hart* by writing 1 to its supervisor software interrupt- pending (`SSIP`) bit in the `sip` register. A pending supervisor- level software interrupt can be cleared by writing 0 to the `SSIP` bit in `sip`. Supervisor-level software interrupts are disabled when the `SSIE` bit in the `sie` register is clear.
+Three types of interrupts are defined: software interrupts, timer interrupts, and external interrupts. A supervisor-level software interrupt is triggered on the current hart by writing 1 to its supervisor software interrupt-pending (SSIP) bit in the `sip` register. A pending supervisor-level software interrupt can be cleared by writing 0 to the SSIP bit in `sip`. Supervisor-level software interrupts are disabled when the SSIE bit in the `sie` register is clear.
 
-Interprocessor interrupts are sent to other harts by means of *SBI* calls, which will ultimately cause the `SSIP` bit to be set in the recipient *hart’s* `sip` register.
+Interprocessor interrupts are sent to other harts by means of SBI calls, which will ultimately cause the SSIP bit to be set in the recipient hart’s `sip` register.
 
-A user-level software interrupt is triggered on the current *hart* by writing 1 to its user software interrupt-pending (`USIP`) bit in the sip register. A pending user-level software interrupt can be cleared by writing 0 to the `USIP` bit in `sip`. User-level software interrupts are disabled when the `USIE` bit in the `sie` register is clear.
+A user-level software interrupt is triggered on the current hart by writing 1 to its user software interrupt-pending (USIP) bit in the `sip` register. A pending user-level software interrupt can be cleared by writing 0 to the USIP bit in `sip`. User-level software interrupts are disabled when the USIE bit in the `sie` register is clear. If user-level interrupts are not supported, USIP and USIE are hardwired to zero.
 
-All bits besides `SSIP` and `USIP` in the `sip` register are read-only.
+All bits besides SSIP, USIP, and UEIP in the `sip` register are read-only.
 
-A supervisor-level timer interrupt is pending if the `STIP` bit in the `sip` register is set. Supervisor-level timer interrupts are disabled when the `STIE` bit in the `sie` register is clear. An *SBI* call to the SEE may be used to clear the pending timer interrupt.
+A supervisor-level timer interrupt is pending if the STIP bit in the `sip` register is set. Supervisor-level timer interrupts are disabled when the STIE bit in the `sie` register is clear. An SBI call to the SEE may be used to clear the pending timer interrupt.
 
-A user-level timer interrupt is pending if the `UTIP` bit in the `sip` register is set. User-level timer interrupts are disabled when the `UTIE` bit in the `sie` register is clear. If user-level interrupts are supported, the *ABI* should provide a facility for scheduling timer interrupts in terms of real-time counter values.
+A user-level timer interrupt is pending if the UTIP bit in the `sip` register is set. User-level timer interrupts are disabled when the UTIE bit in the `sie` register is clear. If user-level interrupts are supported, the ABI should provide a facility for scheduling timer interrupts in terms of real-time counter values. If user-level interrupts are not supported, UTIP and UTIE are hardwired to zero.
 
-A supervisor-level external interrupt is pending if the `SEIP` bit in the `sip` register is set. Supervisor-level external interrupts are disabled when the `SEIE` bit in the `sie` register is clear. The *SBI* should provide facilities to mask, unmask, and query the cause of external interrupts.
+A supervisor-level external interrupt is pending if the SEIP bit in the `sip` register is set. Supervisor-level external interrupts are disabled when the SEIE bit in the `sie` register is clear. The SBI should provide facilities to mask, unmask, and query the cause of external interrupts.
 
-A user-level external interrupt is pending if the `UEIP` bit in the `sip` register is set. User-level external interrupts are disabled when the `UEIE` bit in the `sie` register is clear.
+The UEIP field in `sip` contains a single read-write bit. UEIP may be written by S-mode software to indicate to U-mode that an external interrupt is pending. Additionally, the platform-level interrupt controller may generate user-level external interrupts. The logical-OR of the software-writeable bit and the signal from the external interrupt controller are used to generate external interrupts for user mode. When the UEIP bit is read with a CSRRW, CSRRS, or CSRRC instruction, the value returned in the `rd` destination register contains the logical-OR of the software-writable bit and the interrupt signal from the interrupt controller. However, the value used in the read-modify-write sequence of a CSRRS or CSRRC instruction is only the software-writable UEIP bit, ignoring the interrupt value from the external interrupt controller.
+
+User-level external interrupts are disabled when the UEIE bit in the `sie` register is clear. If the N extension for user-level interrupts is not implemented, UEIP and UEIE are hardwired to zero.
 
 #### Supervisor Trap Vector Register (`stvec`)
 
 The `stvec` register is an XLEN-bit read/write register that holds the base address of the S-mode trap vector. When an exception occurs, the pc is set to `stvec`. The `stvec` register is always aligned to a 4-byte boundary.
+
+The `stvec` register is an XLEN-bit read/write register that holds trap vector configuration, consisting of a vector base address (BASE) and a vector mode (MODE).
+
+The BASE field in `stvec` is a  field that can hold any valid virtual or physical address, subject to the following alignment constraints: the address must always be at least 4-byte aligned, and the MODE setting may impose additional alignment constraints on the value in the BASE field.
+
+|  Value|   Name   | Description                                       |
+|------:|:--------:|:--------------------------------------------------|
+|      0|  Direct  | All exceptions set `pc` to BASE.                  |
+|      1| Vectored | Asynchronous interrupts set `pc` to BASE+4×cause. |
+|     ≥2|     —    | *Reserved*                                        |
+
+The encoding of the MODE field is shown in Table \[stvec-mode\]. When MODE=Direct, all traps into supervisor mode cause the `pc` to be set to the address in the BASE field. When MODE=Vectored, all synchronous exceptions into supervisor mode cause the `pc` to be set to the address in the BASE field, whereas interrupts cause the `pc` to be set to the address in the BASE field plus four times the interrupt cause number.
 
 #### Supervisor Scratch Register (`sscratch`) 
 
@@ -898,31 +957,66 @@ The `scause` register is an XLEN-bit read-only register. The Interrupt bit is se
 |:---------:|:--------------:|:-------------------------------|
 |     1     |        0       | User software interrupt        |
 |     1     |        1       | Supervisor software interrupt  |
-|     1     |       2-3      | *Reserved*                     |
+|     1     |       2–3      | *Reserved*                     |
 |     1     |        4       | User timer interrupt           |
 |     1     |        5       | Supervisor timer interrupt     |
-|     1     |       6-7      | *Reserved*                     |
+|     1     |       6–7      | *Reserved*                     |
 |     1     |        8       | User external interrupt        |
 |     1     |        9       | Supervisor external interrupt  |
-|     1     |       ≤10      | *Reserved*                     |
+|     1     |       ≥10      | *Reserved*                     |
 |     0     |        0       | Instruction address misaligned |
 |     0     |        1       | Instruction access fault       |
-|     0     |        2       | Illegal Instruction            |
+|     0     |        2       | Illegal instruction            |
 |     0     |        3       | Breakpoint                     |
 |     0     |        4       | *Reserved*                     |
 |     0     |        5       | Load access fault              |
 |     0     |        6       | AMO address misaligned         |
 |     0     |        7       | Store/AMO access fault         |
 |     0     |        8       | Environment call               |
-|     0     |       ≤9       | *Reserved*                     |
+|     0     |      9–11      | *Reserved*                     |
+|     0     |       12       | Instruction page fault         |
+|     0     |       13       | Load page fault                |
+|     0     |       14       | *Reserved*                     |
+|     0     |       15       | Store/AMO page fault           |
+|     0     |       ≥16      | *Reserved*                     |
 
-#### Supervisor Bad Address Register (`sbadaddr`)
+#### Supervisor Trap Value Register (`stval`)
 
-`sbadaddr` is an XLEN-bit read/write register. When a hardware breakpoint is triggered, or an instruction-fetch, load, or store access exception occurs, or an instruction-fetch or AMO address-misaligned exception occurs, `sbadaddr` is written with the faulting address. `sbadaddr` is not modified for other exceptions.
+The `stval` register is an XLEN-bit read-write register formatted as shown in Figure \[fig:stval\]. When a trap is taken into S-mode, `stval` is written with exception-specific information to assist software in handling the trap. Otherwise, `stval` is never written by the implementation, though it may be explicitly written by software.
 
-For instruction fetch access faults on RISC-V systems with variable-length instructions, `sbadaddr` will point to the portion of the instruction that caused the fault while `sepc` will point to the beginning of the instruction.
+When a hardware breakpoint is triggered, or an instruction-fetch, load, or store access or page-fault exception occurs, or an instruction-fetch or AMO address-misaligned exception occurs, `stval` is written with the faulting address. For other exceptions, `stval` is set to zero, but a future standard may redefine `stval`’s setting for other exceptions.
+
+For instruction-fetch access faults and page faults on RISC-V systems with variable-length instructions, `stval` will point to the portion of the instruction that caused the fault while `sepc` will point to the beginning of the instruction.
+
+The `stval` register can optionally also be used to return the faulting instruction bits on an illegal instruction exception (<span> sepc</span> points to the faulting instruction in memory).
+
+After an illegal instruction trap, <span> stval</span> will contain the entire faulting instruction provided the instruction is no longer than XLEN bits. If the instruction is less than XLEN bits long, the upper bits of `stval` are cleared to zero. If the instruction is more than XLEN bits long, `stval` will contain the first XLEN bits of the instruction.
+
+#### Counter-Enable Register (`scounteren`)
+
+The counter-enable register `scounteren` controls the availability of the hardware performance monitoring counters to U-mode.
+
+When the CY, TM, or IR bit in the `scounteren` register is clear, attempts to read the `cycle`, `time` or `instret` register while executing in U-mode will cause an illegal instruction exception. When one of these bits is set, access to the corresponding register is permitted.
 
 ### User Mode CSRs
+
+#### User Trap Setup & Handling CSRs
+
+The following CSRs are shadow registers of their Machine and Supervisor Mode counterparts, providing access only to User Mode bits where relevant. See the Machine Mode and Supervisor Mode descriptions for more information
+
+`ustatus`
+
+`uie & uip`
+
+`utvec`
+
+`uscratch`
+
+`uepc`
+
+`ucause`
+
+`utval`
 
 #### Cycle counter for RDCYCLE instruction (`cycle`)
 
@@ -932,17 +1026,77 @@ For instruction fetch access faults on RISC-V systems with variable-length instr
 
 `instret` is an XLEN-bit read-only register. The RDINSTRET pseudo-instruction reads the low XLEN bits of the `instret` CSR, which counts the number of instructions retired by this hardware thread from some arbitrary start point in the past.
 
+#### High Performance Monitoring Counters (`hpmcounter`)
+
+`hpmcounter3` – `hpmcounter31` are implemented but unsupported in RV12.
+
 #### Upper 32bits of cycle (`cycleh` - RV32I only)
 
 `cycleh` is a read-only register that contains bits 63-32 of the counter of the number of clock cycles executed by the processor.
 
 `RDCYCLEH` is an RV32I-only instruction providing access to this register.
 
-#### Upper 32bit of instret (`instreth` - RV32I only)
+#### Upper 32bits of instret (`instreth` - RV32I only)
 
 `instreth` is a read-only register that contains bits 63-32 of the instruction counter.
 
 `RDINSTRETH` is an RV32I-only instruction providing access to this register
+
+#### Upper 32bits of hpmcounter (`hpmcounterh` - RV32I only)
+
+`hpmcounter3h` – `hpmcounter31h` are implemented but unsupported in RV12.
+
+### Physical Memory Protection CSRs
+
+PMP entries are described by an 8-bit configuration register and one XLEN-bit address register supporting up to 16 PMP entries. PMP CSRs are only accessible to M-mode.
+
+The PMP configuration registers are densely packed into CSRs to minimize context-switch time. For RV32, four CSRs, `pmpcfg0`–`pmpcfg3`, hold the configurations `pmp0cfg`–`pmp15cfg` for the 16 PMP entries, as shown in Figure \[pmpcfg-rv32\]. For RV64, `pmpcfg0` and `pmpcfg2` hold the configurations for the 16 PMP entries, as shown in Figure \[pmpcfg-rv64\]; `pmpcfg1` and `pmpcfg3` are illegal.
+
+The PMP address registers are CSRs named `pmpaddr0`–`pmpaddr15`. Each PMP address register encodes bits 33–2 of a 34-bit physical address for RV32, as shown in Figure \[pmpaddr-rv32\]. For RV64, each PMP address register encodes bits 55–2 of a 56-bit physical address, as shown in Figure \[pmpaddr-rv64\].
+
+Figure \[pmpcfg\] shows the layout of a PMP configuration register. The R, W, and X bits, when set, indicate that the PMP entry permits read, write, and instruction execution, respectively. When one of these bits is clear, the corresponding access type is denied. The remaining two fields, A and L, are described in the following sections.
+
+#### Address Matching
+
+The A field in a PMP entry’s configuration register encodes the address-matching mode of the associated PMP address register. The encoding of this field is shown in Table \[pmpcfg-a\]. When A=0, this PMP entry is disabled and matches no addresses. Two other address-matching modes are supported: naturally aligned power-of-2 regions (NAPOT), including the special case of naturally aligned four-byte regions (NA4); and the top boundary of an arbitrary range (TOR). These modes support four-byte granularity.
+
+|    A|  Name | Description                                     |
+|----:|:-----:|:------------------------------------------------|
+|    0|  OFF  | Null region (disabled)                          |
+|    1|  TOR  | Top of range                                    |
+|    2|  NA4  | Naturally aligned four-byte region              |
+|    3| NAPOT | Naturally aligned power-of-two region, ≥8 bytes |
+
+NAPOT ranges make use of the low-order bits of the associated address register to encode the size of the range, as shown in Table \[pmpcfg-napot\].
+
+|   `pmpaddr`   | `pmpcfg`.A | Match type and size                           |
+|:-------------:|:----------:|:----------------------------------------------|
+| `aaaa...aaaa` |     NA4    | 4-byte NAPOT range                            |
+| `aaaa...aaa0` |    NAPOT   | 8-byte NAPOT range                            |
+| `aaaa...aa01` |    NAPOT   | 16-byte NAPOT range                           |
+| `aaaa...a011` |    NAPOT   | 32-byte NAPOT range                           |
+|               |      …     |                                               |
+| `aa01...1111` |    NAPOT   | 2<sup>*X**L**E**N*</sup>-byte NAPOT range     |
+| `a011...1111` |    NAPOT   | 2<sup>*X**L**E**N* + 1</sup>-byte NAPOT range |
+| `0111...1111` |    NAPOT   | 2<sup>*X**L**E**N* + 2</sup>-byte NAPOT range |
+
+If TOR is selected, the associated address register forms the top of the address range, and the preceding PMP address register forms the bottom of the address range. If PMP entry *i*’s A field is set to TOR, the entry matches any address *a* such that `pmpaddr`<sub>*i* − 1</sub> ≤ *a* &lt; `pmpaddr`<sub>*i*</sub>. If PMP entry 0’s A field is set to TOR, zero is used for the lower bound, and so it matches any address *a* &lt; `pmpaddr`<sub>0</sub>.
+
+#### Locking and Privilege Mode
+
+The L bit indicates that the PMP entry is locked, i.e., writes to the configuration register and associated address registers are ignored. Locked PMP entries may only be unlocked with a system reset. If PMP entry *i* is locked, writes to `pmp`*i*`cfg` and `pmpaddr`*i* are ignored. Additionally, if `pmp`*i*`cfg`.A is set to TOR, writes to <span>pmpaddr</span>*i*-1 are ignored.
+
+In addition to locking the PMP entry, the L bit indicates whether the R/W/X permissions are enforced on M-mode accesses. When the L bit is set, these permissions are enforced for all privilege modes. When the L bit is clear, any M-mode access matching the PMP entry will succeed; the R/W/X permissions apply only to S and U modes.
+
+#### Priority and Matching Logic
+
+PMP entries are statically prioritized. The lowest-numbered PMP entry that matches any byte of an access determines whether that access succeeds or fails. The matching PMP entry must match all bytes of an access, or the access fails, irrespective of the L, R, W, and X bits. For example, if a PMP entry is configured to match the four-byte range `0xC`–`0xF`, then an 8-byte access to the range `0x8`–`0xF` will fail, assuming that PMP entry is the highest-priority entry that matches those addresses.
+
+If a PMP entry matches all bytes of an access, then the L, R, W, and X bits determine whether the access succeeds or fails. If the L bit is clear and the privilege mode of the access is M, the access succeeds. Otherwise, if the L bit is set or the privilege mode of the access is S or U, then the access succeeds only if the R, W, or X bit corresponding to the access type is set.
+
+If no PMP entry matches an M-mode access, the access succeeds. If no PMP entry matches an S-mode or U-mode access, but at least one PMP entry is implemented, the access fails.
+
+Failed accesses generate a load, store, or instruction access exception. Note that a single instruction may generate multiple accesses, which may not be mutually atomic. An access exception is generated if at least one access generated by an instruction fails, though other accesses generated by that instruction may succeed with visible side effects. Notably, instructions that reference virtual memory are decomposed into multiple accesses.
 
 ## External Interfaces
 
