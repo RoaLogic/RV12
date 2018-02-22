@@ -741,13 +741,14 @@ Note: Open-source project architecture IDs are allocated globally by the RISC-V 
 
 `mimpid` is an XLEN-sized read-only register provides hardware version information for the CPU.
 
-The contents of `mimpid` are defined by the supplier/developer of the CPU core. In the Roa Logic implementation, this register is used to define the User and Privilege specifications supported by the CPU; the 2 most signficant bytes encoding the Privilege Specification, the 2 least significant bytes encoding the User Specification, as follows:
+The RISC-V specification calls for the contents of `mimpid` to be defined by the supplier/developer of the CPU core. In the Roa Logic implementation, this register is used to define the User Specification, Privilege Specification and Extension Specifications supported by that specific version of the RV12 core.
 
-`mimpid` = {REVPRV\_MAJOR,REVPRV\_MINOR,REVUSR\_MAJOR,REVUSR\_MINOR}
+The value held within the `mimpid` CSR is an integer as defined by the following table:
 
-The RV12 supports Privileged Specification v1.10 and User Specification v2.2, and is therefore predefined as:
-
-`mimpid` = {1,10,2,2} = 0x1A22
+| mimpid Value | User Spec. | Privilege Spec. | C-Extension Spec. |
+|:------------:|:----------:|:---------------:|:-----------------:|
+|       0      |    v2.2    |      v1.10      |         –         |
+|       1      |    v2.2    |      v1.10      |        v1.7       |
 
 #### Hardware Thread ID Register (`mhartid`)
 
@@ -1021,6 +1022,10 @@ The following CSRs are shadow registers of their Machine and Supervisor Mode cou
 #### Cycle counter for RDCYCLE instruction (`cycle`)
 
 `cycle` is an XLEN-bit read-only register. The `RDCYCLE` pseudo-instruction reads the low XLEN bits of the `cycle` CSR that holds a count of the number of clock cycles executed by the processor on which the hardware thread is running from an arbitrary start time in the past.
+
+#### Time counter for RDTIME instruction (`time`)
+
+`time` is an XLEN-bit read-only register. The `RDTIME` pseudo-instruction reads the `time` CSR, where the underlying action causes a trap and enables the ABI return the time value.
 
 #### Instruction-retire counter for RDINSTRET instruction (`instret`)
 

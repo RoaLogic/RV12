@@ -596,18 +596,27 @@ information for the CPU.
 
 \fi
 
-The contents of \texttt{mimpid} are defined by the supplier/developer of the CPU
-core. In the Roa Logic implementation, this register is used to define the User
-and Privilege specifications supported by the CPU; the 2 most signficant bytes
-encoding the Privilege Specification, the 2 least significant bytes encoding the
-User Specification, as follows:
+The RISC-V specification calls for the contents of \texttt{mimpid} to be defined
+by the supplier/developer of the CPU core. In the Roa Logic implementation, this
+register is used to define the User Specification, Privilege Specification and
+Extension Specifications supported by that specific version of the RV12 core.
 
-\texttt{mimpid} = \{REVPRV\_MAJOR,REVPRV\_MINOR,REVUSR\_MAJOR,REVUSR\_MINOR\}
+The value held within the \texttt{mimpid} CSR is an integer as defined by the
+following table:
 
-The RV12 supports Privileged Specification v1.10 and User Specification v2.2,
-and is therefore predefined as:
+\begin{longtable}[]{@{}cccc@{}}
+\toprule
+mimpid Value & User Spec. & Privilege Spec.& C-Extension Spec.\tabularnewline
+\midrule
+\endhead
+0 & v2.2 & v1.10 & --\tabularnewline
+1 & v2.2 & v1.10 & v1.7\tabularnewline
+\bottomrule
+\caption{Supported \texttt{mimpid} values}
+\label{tab:mimpid-values}
+\end{longtable}
 
-\texttt{mimpid} = \{1,10,2,2\} = 0x1A22
+
 
 \subsection{Hardware Thread ID Register
 (\texttt{mhartid})}\label{hardware-thread-id-register-mhartid}
@@ -796,7 +805,7 @@ into machine mode cause the \texttt{pc} to be set to the address in the BASE
 field, whereas interrupts cause the \texttt{pc} to be set to the address in
 the BASE field plus four times the interrupt cause number.
 
-\begin{table*}[h!]
+\begin{table*}[ht!]
 \begin{center}
 \begin{tabular}{|r|c|l|}
 \hline
@@ -1149,7 +1158,7 @@ center bits will read zero
 \ifdefined\MARKDOWN
 % Skip Row
 \else
-\begin{figure*}[!ht]
+\begin{figure}[!ht]
 	{\footnotesize
 		\begin{center}
 			\begin{tabular}{c@{}U}
@@ -1166,7 +1175,7 @@ center bits will read zero
 	\vspace{-0.1in}
 	\caption{Machine Cause register \texttt{mcause}.}
 	\label{fig:mcausereg}
-\end{figure*}
+\end{figure}
 \fi
 
 \ifdefined\MARKDOWN
@@ -1276,7 +1285,7 @@ fault while \texttt{mepc} will point to the beginning of the instruction.
 \ifdefined\MARKDOWN
 % Exclude Table
 \else
-\begin{figure*}[h!]
+\begin{figure*}[ht!]
 {\footnotesize
 \begin{center}
 \setlength{\tabcolsep}{4pt}
@@ -1479,7 +1488,7 @@ XLEN-bit read/write register containing interrupt enable bits.
 \ifdefined\MARKDOWN
 % Exclude Table
 \else
-\begin{figure*}[h!]
+\begin{figure*}[ht!]
 {\footnotesize
 \begin{center}
 \setlength{\tabcolsep}{4pt}
@@ -1513,7 +1522,7 @@ XLEN-10 & 1 & 1 & 2 & 1 & 1 & 2 & 1 & 1 \\
 \label{sipreg}
 \end{figure*}
 
-\begin{figure*}[h!]
+\begin{figure*}[ht!]
 {\footnotesize
 \begin{center}
 \setlength{\tabcolsep}{4pt}
@@ -1645,7 +1654,7 @@ vector mode (MODE).
 % Skip Row
 \else
 
-\begin{figure*}[h!]
+\begin{figure*}[ht!]
 {\footnotesize
 \begin{center}
 \begin{tabular}{J@{}R}
@@ -1672,7 +1681,7 @@ address must always be at least 4-byte aligned, and the MODE
 setting may impose additional alignment constraints on the value in the BASE
 field.
 
-\begin{table*}[h!]
+\begin{table*}[ht!]
 \begin{center}
 \begin{tabular}{|r|c|l|}
 \hline
@@ -1907,7 +1916,7 @@ will contain the first XLEN bits of the instruction.
 \ifdefined\MARKDOWN
 % Exclude Table
 \else
-\begin{figure*}[h!]
+\begin{figure*}[ht!]
 {\footnotesize
 \begin{center}
 \setlength{\tabcolsep}{4pt}
@@ -1985,6 +1994,11 @@ reads the low XLEN bits of the \texttt{cycle} CSR that holds a count of the
 number of clock cycles executed by the processor on which the hardware
 thread is running from an arbitrary start time in the past.
 
+\subsection{Time counter for RDTIME instruction (\texttt{time})} \label{time-counter-for-rdtime-instruction}
+
+\texttt{time} is an XLEN-bit read-only register. The \texttt{RDTIME} pseudo-instruction
+reads the \texttt{time} CSR, where the underlying action causes a trap and enables the ABI return the time value.
+
 \subsection{Instruction-retire counter for RDINSTRET instruction
 (\texttt{instret})}\label{instruction-retire-counter-for-rdinstret-instruction-instret}
 
@@ -2037,7 +2051,7 @@ Figure~\ref{pmpcfg-rv64}; \texttt{pmpcfg1} and \texttt{pmpcfg3} are illegal.
 \ifdefined\MARKDOWN
 % Exclude Table
 \else
-\begin{figure}[h!]
+\begin{figure}[ht!]
 {\footnotesize
 \begin{center}
 \begin{tabular}{@{}Y@{}Y@{}Y@{}Yl}
@@ -2097,7 +2111,7 @@ Figure~\ref{pmpcfg-rv64}; \texttt{pmpcfg1} and \texttt{pmpcfg3} are illegal.
 \label{pmpcfg-rv32}
 \end{figure}
 
-\begin{figure}[h!]
+\begin{figure}[ht!]
 {\footnotesize
 \begin{center}
 \begin{tabular}{@{}Y@{}Y@{}Y@{}Y@{}Y@{}Y@{}Y@{}Yl}
