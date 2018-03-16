@@ -407,10 +407,10 @@ License
 	\rowcolor{rltable}\multicolumn{4}{c}{\emph{\textbf{Memory Protection Configuration}}}\tabularnewline
 \fi
 
-	0x3A0 & ?? & \texttt{pmpcfg0} & Physical memory protection configuration\tabularnewline
-	0x3A1 & ?? & \texttt{pmpcfg1} & Physical memory protection configuration, RV32 Only\tabularnewline
-	0x3A2 & ?? & \texttt{pmpcfg2} & Physical memory protection configuration\tabularnewline
-	0x3A3 & ?? & \texttt{pmpcfg3} & Physical memory protection configuration,RV32 Only\tabularnewline
+	0x3A0 & MRW & \texttt{pmpcfg0} & Physical memory protection configuration\tabularnewline
+	0x3A1 & MRW & \texttt{pmpcfg1} & Physical memory protection configuration, RV32 Only\tabularnewline
+	0x3A2 & MRW & \texttt{pmpcfg2} & Physical memory protection configuration\tabularnewline
+	0x3A3 & MRW & \texttt{pmpcfg3} & Physical memory protection configuration,RV32 Only\tabularnewline
 
 \ifdefined\MARKDOWN
 % Skip Row
@@ -418,10 +418,10 @@ License
 	\rowcolor{rltable}\multicolumn{4}{c}{\emph{\textbf{Memory Protection Addressing}}}\tabularnewline
 \fi
 
-	0x3B0 & ?? & \texttt{pmpaddr0}  & Physical memory protection address register\tabularnewline
-	0x3B1 & ?? & \texttt{pmpaddr1}  & Physical memory protection address register\tabularnewline
+	0x3B0 & MRW & \texttt{pmpaddr0}  & Physical memory protection address register\tabularnewline
+	0x3B1 & MRW & \texttt{pmpaddr1}  & Physical memory protection address register\tabularnewline
 	      &    & \vdots             & \tabularnewline
-	0x3BF & ?? & \texttt{pmpaddr15} & Physical memory protection address register\tabularnewline
+	0x3BF & MRW & \texttt{pmpaddr15} & Physical memory protection address register\tabularnewline
 
 	\bottomrule
 	\caption{Memory Protection CSRs}
@@ -601,16 +601,17 @@ by the supplier/developer of the CPU core. In the Roa Logic implementation, this
 register is used to define the User Specification, Privilege Specification and
 Extension Specifications supported by that specific version of the RV12 core.
 
-The value held within the \texttt{mimpid} CSR is an integer as defined by the
-following table:
+The value held within the \texttt{mimpid} CSR is an integer denoting
+Specification and Extension support as defined in the following table:
 
-\begin{longtable}[]{@{}cccc@{}}
+\begin{longtable}[]{@{}cccccc@{}}
 \toprule
-mimpid Value & User Spec. & Privilege Spec.& C-Extension Spec.\tabularnewline
+\texttt{mimpid} & User Spec. & Privilege Spec. & A-Ext. & C-Ext. & M-Ext. \\
 \midrule
 \endhead
-0 & v2.2 & v1.10 & --\tabularnewline
-1 & v2.2 & v1.10 & v1.7\tabularnewline
+0               & v2.2       & v1.10           & v2.0   & --     & v2.0   \\
+1               & v2.2       & v1.10           & v2.0   & v1.7   & v2.0   \\
+2               & v2.2       & v1.11           & v2.0   & v1.7   & v2.0   \\
 \bottomrule
 \caption{Supported \texttt{mimpid} values}
 \label{tab:mimpid-values}
@@ -648,119 +649,248 @@ The \texttt{mhartid} read-only register indicates the hardware thread that is
 running the code. The RV12 implements a single thread, therefore this
 register always reads zero.
 
-\subsection{Machine Status Register
-(\texttt{mstatus})}\label{machine-status-register-mstatus}
+\subsection{Machine Status Register ({\tt mstatus})}
 
-The \texttt{mstatus} register is an \texttt{XLEN}-bit read/write register that keeps track
-of and controls the \emph{hart's} current operating state.
-
-\subsubsection{Privilege and Global Interrupt-Enable Stack in mstatus register}
-
-Interrupt-enable bits, \texttt{MIE}, \texttt{SIE}, and \texttt{UIE}, are provided for each
-privilege mode. These bits are primarily used to guarantee atomicity
-with respect to interrupt handlers at the current privilege level. When
-a hart is executing in privilege mode \emph{x}, interrupts are enabled
-when \texttt{\emph{x}IE=1}. Interrupts for lower privilege modes are always
-disabled, whereas interrupts for higher privilege modes are always
-enabled. Higher-privilege-level code can use separate per-interrupt
-enable bits to disable selected interrupts before ceding control to a
-lower privilege level.
+The {\tt mstatus} register is an XLEN-bit read/write register
+formatted as shown in Figure~\ref{mstatusreg-rv32} for RV32 and
+Figure~\ref{mstatusreg} for RV64.  The {\tt mstatus}
+register keeps track of and controls the hart's current operating
+state.  Restricted views of the {\tt mstatus} register appear as the
+{\tt sstatus} and {\tt ustatus} registers in the S-level and U-level
+ISAs respectively.
 
 \ifdefined\MARKDOWN
 % Skip Table
 \else
 
-\begin{figure*}[htb]
-	{\footnotesize
-		\begin{center}
-			\setlength{\tabcolsep}{4pt}
-			\begin{tabular}{cEccccccc}
-				\\
-				\instbit{XLEN-1} &
-				\instbitrange{XLEN-2}{29} &
-				\instbitrange{28}{24} &
-				\instbitrange{23}{20} &
-				\instbit{19} &
-				\instbit{18} &
-				\instbit{17} &
-				\instbitrange{16}{15} &
-				\\
-				\hline
-				\multicolumn{1}{|c|}{SD} &
-				\multicolumn{1}{c|}{\wpri} &
-				\multicolumn{1}{c|}{VM[4:0]\,(\warl)} &
-				\multicolumn{1}{c|}{\wpri} &
-				\multicolumn{1}{c|}{MXR} &
-				\multicolumn{1}{c|}{PUM} &
-				\multicolumn{1}{c|}{MPRV} &
-				\multicolumn{1}{c|}{XS[1:0]} &
-				\\
-				\hline
-				1 & XLEN-30 & 5 & 4 & 1 & 1 & 1 & 2 & \\
-			\end{tabular}
-			\begin{tabular}{ccccccccccccc}
-				\\
-				&
-				\instbitrange{14}{13} &
-				\instbitrange{12}{11} &
-				\instbitrange{10}{9} &
-				\instbit{8} &
-				\instbit{7} &
-				\instbit{6} &
-				\instbit{5} &
-				\instbit{4} &
-				\instbit{3} &
-				\instbit{2} &
-				\instbit{1} &
-				\instbit{0} \\
-				\hline
-				&
-				\multicolumn{1}{|c|}{FS[1:0]} &
-				\multicolumn{1}{c|}{MPP[1:0]} &
-				\multicolumn{1}{c|}{HPP[1:0]} &
-				\multicolumn{1}{c|}{SPP} &
-				\multicolumn{1}{c|}{MPIE} &
-				\multicolumn{1}{c|}{HPIE} &
-				\multicolumn{1}{c|}{SPIE} &
-				\multicolumn{1}{c|}{UPIE} &
-				\multicolumn{1}{c|}{MIE} &
-				\multicolumn{1}{c|}{HIE} &
-				\multicolumn{1}{c|}{SIE} &
-				\multicolumn{1}{c|}{UIE} \\
-				\hline
-				& 2 & 2 & 2 & 1 & 1 & 1 & 1 & 1 & 1 & 1 & 1 & 1 \\
-			\end{tabular}
-		\end{center}
-	}
-	\vspace{-0.1in}
-	\caption{Machine-mode status register (\texttt{mstatus}).}
-	\label{fig:mstatusreg}
+\begin{figure*}[ht!]
+{\footnotesize
+\begin{center}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{cKccccccc}
+\\
+\instbit{31} &
+\instbitrange{30}{23} &
+\instbit{22} &
+\instbit{21} &
+\instbit{20} &
+\instbit{19} &
+\instbit{18} &
+\instbit{17} &
+ \\
+\hline
+\multicolumn{1}{|c|}{SD} &
+\multicolumn{1}{c|}{\wpri} &
+\multicolumn{1}{c|}{TSR} &
+\multicolumn{1}{c|}{TW} &
+\multicolumn{1}{c|}{TVM} &
+\multicolumn{1}{c|}{MXR} &
+\multicolumn{1}{c|}{SUM} &
+\multicolumn{1}{c|}{MPRV} &
+ \\
+\hline
+1 & 8 & 1 & 1 & 1 & 1 & 1 & 1 & \\
+\end{tabular}
+\begin{tabular}{cccccccccccccc}
+\\
+&
+\instbitrange{16}{15} &
+\instbitrange{14}{13} &
+\instbitrange{12}{11} &
+\instbitrange{10}{9} &
+\instbit{8} &
+\instbit{7} &
+\instbit{6} &
+\instbit{5} &
+\instbit{4} &
+\instbit{3} &
+\instbit{2} &
+\instbit{1} &
+\instbit{0} \\
+\hline
+ &
+\multicolumn{1}{|c|}{XS[1:0]} &
+\multicolumn{1}{c|}{FS[1:0]} &
+\multicolumn{1}{c|}{MPP[1:0]} &
+\multicolumn{1}{c|}{\wpri} &
+\multicolumn{1}{c|}{SPP} &
+\multicolumn{1}{c|}{MPIE} &
+\multicolumn{1}{c|}{\wpri} &
+\multicolumn{1}{c|}{SPIE} &
+\multicolumn{1}{c|}{UPIE} &
+\multicolumn{1}{c|}{MIE} &
+\multicolumn{1}{c|}{\wpri} &
+\multicolumn{1}{c|}{SIE} &
+\multicolumn{1}{c|}{UIE} \\
+\hline
+ & 2 & 2 & 2 & 2 & 1 & 1 & 1 & 1 & 1 & 1 & 1 & 1 & 1 \\
+\end{tabular}
+\end{center}
+}
+\vspace{-0.1in}
+\caption{Machine-mode status register ({\tt mstatus}) for RV32.}
+\label{mstatusreg-rv32}
+\end{figure*}
+
+\begin{figure*}[ht!]
+{\footnotesize
+\begin{center}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{cYccYccccccc}
+\\
+\instbit{XLEN-1} &
+\instbitrange{XLEN-2}{36} &
+\instbitrange{35}{34} &
+\instbitrange{33}{32} &
+\instbitrange{31}{23} &
+\instbit{22} &
+\instbit{21} &
+\instbit{20} &
+\instbit{19} &
+\instbit{18} &
+\instbit{17} &
+ \\
+\hline
+\multicolumn{1}{|c|}{SD} &
+\multicolumn{1}{c|}{\wpri} &
+\multicolumn{1}{c|}{SXL[1:0]} &
+\multicolumn{1}{c|}{UXL[1:0]} &
+\multicolumn{1}{c|}{\wpri} &
+\multicolumn{1}{c|}{TSR} &
+\multicolumn{1}{c|}{TW} &
+\multicolumn{1}{c|}{TVM} &
+\multicolumn{1}{c|}{MXR} &
+\multicolumn{1}{c|}{SUM} &
+\multicolumn{1}{c|}{MPRV} &
+ \\
+\hline
+1 & XLEN-37 & 2 & 2 & 9 & 1 & 1 & 1 & 1 & 1 & 1 & \\
+\end{tabular}
+\begin{tabular}{cccccccccccccc}
+\\
+&
+\instbitrange{16}{15} &
+\instbitrange{14}{13} &
+\instbitrange{12}{11} &
+\instbitrange{10}{9} &
+\instbit{8} &
+\instbit{7} &
+\instbit{6} &
+\instbit{5} &
+\instbit{4} &
+\instbit{3} &
+\instbit{2} &
+\instbit{1} &
+\instbit{0} \\
+\hline
+ &
+\multicolumn{1}{|c|}{XS[1:0]} &
+\multicolumn{1}{c|}{FS[1:0]} &
+\multicolumn{1}{c|}{MPP[1:0]} &
+\multicolumn{1}{c|}{\wpri} &
+\multicolumn{1}{c|}{SPP} &
+\multicolumn{1}{c|}{MPIE} &
+\multicolumn{1}{c|}{\wpri} &
+\multicolumn{1}{c|}{SPIE} &
+\multicolumn{1}{c|}{UPIE} &
+\multicolumn{1}{c|}{MIE} &
+\multicolumn{1}{c|}{\wpri} &
+\multicolumn{1}{c|}{SIE} &
+\multicolumn{1}{c|}{UIE} \\
+\hline
+ & 2 & 2 & 2 & 2 & 1 & 1 & 1 & 1 & 1 & 1 & 1 & 1 & 1 \\
+\end{tabular}
+\end{center}
+}
+\vspace{-0.1in}
+\caption{Machine-mode status register ({\tt mstatus}) for RV64 and RV128.}
+\label{mstatusreg}
 \end{figure*}
 
 \fi
 
-The \texttt{MRET}, \texttt{SRET}, or \texttt{URET} instructions are used to
-return from traps in M-mode, S-mode, or U-mode respectively. When executing an
-\texttt{\emph{x}RET} instruction, supposing \texttt{\emph{x}PP} holds the value
-\texttt{\emph{y}}, \texttt{\emph{y}IE} is set to \texttt{\emph{x}PIE}; the
-privilege mode is changed to \texttt{\emph{y}}; \texttt{\emph{x}PIE} is set to
-1; and \texttt{\emph{x}PP} is set to U.
 
-\subsubsection{Memory Privilege in \texttt{mstatus} Register
-}\label{memory-privilege-in-mstatus-register}
+\subsection{Privilege and Global Interrupt-Enable Stack in {\tt mstatus} register}
+\label{privstack}
 
-The \texttt{MPRV} bit modifies the privilege level at which loads and stores
-execute. When \texttt{MPRV}='0', translation and protection behave as normal.
-When \texttt{MPRV}='1', data memory addresses are translated and protected as
-though \texttt{PRV} were set to the current value of the \texttt{PRV1} field. Instruction
-address-translation and protection are unaffected. When an exception
-occurs, \texttt{MPRV} is reset to 0.
+Interrupt-enable bits, MIE, SIE, and UIE, are provided for each privilege
+mode.  These bits are primarily used to guarantee atomicity with respect to
+interrupt handlers at the current privilege level.  When a hart is executing
+in privilege mode {\em x}, interrupts are enabled when {\em x}\,IE=1.
+Interrupts for lower privilege modes are always disabled, whereas interrupts
+for higher privilege modes are always enabled.  Higher-privilege-level code
+can use separate per-interrupt enable bits to disable selected interrupts
+before ceding control to a lower privilege level.
+
+To support nested traps, each privilege mode {\em x} has a two-level
+stack of interrupt-enable bits and privilege modes.  {\em x}\,PIE
+holds the value of the interrupt-enable bit active prior to the trap,
+and {\em x}\,PP holds the previous privilege mode.  The {\em x}\,PP
+fields can only hold privilege modes up to {\em x}, so MPP is
+two bits wide, SPP is one bit wide, and UPP is implicitly zero.  When
+a trap is taken from privilege mode {\em y} into privilege mode {\em
+  x}, {\em x}\,PIE is set to the value of {\em x}\,IE; {\em x}\,IE is set to
+0; and {\em x}\,PP is set to {\em y}.
+
+The MRET, SRET, or URET instructions are used to return from
+traps in M-mode, S-mode, or U-mode respectively.  When
+executing an {\em x}RET instruction, supposing {\em x}\,PP holds the
+value {\em y}, {\em x}\,IE is set to {\em x}\,PIE; the privilege mode
+is changed to {\em y}; {\em x}\,PIE is set to 1; and {\em x}\,PP is
+set to U (or M if user-mode is not supported).
+
+{\em x}\,PP fields are \wlrl\ fields that need only be able to store
+supported privilege modes, including {\em x} and any implemented
+privilege mode lower than {\em x}.
+
+User-level interrupts are an optional extension and have been
+allocated the ISA extension letter N.
+If user-level interrupts are omitted, the
+UIE and UPIE bits are hardwired to zero.  For all other supported
+privilege modes {\em x}, the {\em x}\,IE and {\em x}\,PIE must not
+be hardwired.
+
+\subsection{Base ISA Control in {\tt mstatus} Register}
+
+For RV64 systems, the SXL and UXL fields are \warl\ fields
+that control the value of XLEN for S-mode and U-mode,
+respectively. The encoding of these fields is the same as the MXL
+field of {\tt misa}.  The effective
+XLEN in S-mode and U-mode are termed {\em S-XLEN} and {\em U-XLEN},
+respectively.
+
+For RV32 systems, the SXL and UXL fields do not exist, and
+S-XLEN~=~32 and U-XLEN~=~32.
+
+\subsection{Memory Privilege in {\tt mstatus} Register}
+
+The MPRV (Modify PRiVilege) bit modifies the privilege level at which
+loads and stores execute in all privilege modes.  When MPRV=0,
+translation and protection behave as normal.  When MPRV=1, load and
+store memory addresses are translated and protected as though the
+current privilege mode were set to MPP.  Instruction
+address-translation and protection are unaffected.  MPRV is hardwired
+to 0 if U-mode is not supported.
+
+The MXR (Make eXecutable Readable) bit modifies the privilege with which loads
+access virtual memory.  When MXR=0, only loads from pages marked readable will
+succeed.  When MXR=1, loads from pages marked
+either readable or executable (R=1 or X=1) will succeed. MXR is hardwired to 0 if
+S-mode is not supported.
+
+The SUM (permit Supervisor User Memory access) bit modifies the privilege with
+which S-mode loads, stores, and instruction fetches access virtual memory.
+When SUM=0, S-mode memory accesses to pages that are accessible by U-mode will fault.  When SUM=1, these accesses are
+permitted.  SUM has no effect when page-based virtual memory is not in effect.
+Note that, while SUM is ordinarily ignored when not executing in S-mode, it
+{\em is} in effect when MPRV=1 and MPP=S.  SUM is hardwired to 0 if S-mode is
+not supported.
 
 \subsubsection{Virtualization Management \& Context Extension Fields in
 \texttt{mstatus} Register
 }\label{virtualization-management-context-extension-fields-in-mstatus-register}
 
-Virtualization and Context Extensions are not supported by the RV12 v1.0
+Virtualization and Context Extensions are not supported by the RV12 v1.x
 implementation. The value of these fields will therefore be permanently
 set to 0.
 
@@ -2213,7 +2343,7 @@ Figure~\ref{pmpaddr-rv64}.
 Figure~\ref{pmpcfg} shows the layout of a PMP configuration register.  The R,
 W, and X bits, when set, indicate that the PMP entry permits read, write, and
 instruction execution, respectively.  When one of these bits is clear, the
-corresponding access type is denied.  The remaining two fields, A and L, are
+corresponding access type is denied.  The remaining 3 fields, A, L and C, are
 described in the following sections.
 
 \ifdefined\MARKDOWN
@@ -2222,9 +2352,10 @@ described in the following sections.
 \begin{figure}[ht!]
 {\footnotesize
 \begin{center}
-\begin{tabular}{YSSYYY}
+\begin{tabular}{FFFRFFF}
 \instbit{7} &
-\instbitrange{6}{5} &
+\instbit{6} &
+\instbit{5} &
 \instbitrange{4}{3} &
 \instbit{2} &
 \instbit{1} &
@@ -2232,13 +2363,14 @@ described in the following sections.
 \hline
 \multicolumn{1}{|c|}{L (\warl)} &
 \multicolumn{1}{c|}{\wiri} &
+\multicolumn{1}{c|}{C \warl} &
 \multicolumn{1}{c|}{A (\warl)} &
 \multicolumn{1}{c|}{X (\warl)} &
 \multicolumn{1}{c|}{W (\warl)} &
 \multicolumn{1}{c|}{R (\warl)}
 \\
 \hline
-1 & 2 & 2 & 1 & 1 & 1 \\
+1 & 1 & 1 & 2 & 1 & 1 & 1 \\
 \end{tabular}
 \end{center}
 }
@@ -2320,6 +2452,11 @@ permissions are enforced on M-mode accesses.  When the L bit is set, these
 permissions are enforced for all privilege modes.  When the L bit is clear,
 any M-mode access matching the PMP entry will succeed; the R/W/X
 permissions apply only to S and U modes.
+
+\subsection{Cacheability}
+
+The C bit indicates if the memory area is cacheable or not. When the C bit is
+set the corresponding memory area is cacheable.
 
 \subsection{Priority and Matching Logic}
 

@@ -50,6 +50,8 @@ RV12 is compliant with the RISC-V User Level ISA v2.2 and Privileged Architectur
 
 -   Optimizing folded 6-stage pipeline
 
+-   Memory Protection Support
+
 -   Optional/Parameterized branch-prediction-unit
 
 -   Optional/Parameterized caches
@@ -685,14 +687,14 @@ Note: These descriptions are derived from “The RISC-V Instruction Set Manual, 
 
 | **Address** | **Privilege** | **Name**    | **Description**                                     |
 |:-----------:|:-------------:|:------------|:----------------------------------------------------|
-|    0x3A0    |       ??      | `pmpcfg0`   | Physical memory protection configuration            |
-|    0x3A1    |       ??      | `pmpcfg1`   | Physical memory protection configuration, RV32 Only |
-|    0x3A2    |       ??      | `pmpcfg2`   | Physical memory protection configuration            |
-|    0x3A3    |       ??      | `pmpcfg3`   | Physical memory protection configuration,RV32 Only  |
-|    0x3B0    |       ??      | `pmpaddr0`  | Physical memory protection address register         |
-|    0x3B1    |       ??      | `pmpaddr1`  | Physical memory protection address register         |
+|    0x3A0    |      MRW      | `pmpcfg0`   | Physical memory protection configuration            |
+|    0x3A1    |      MRW      | `pmpcfg1`   | Physical memory protection configuration, RV32 Only |
+|    0x3A2    |      MRW      | `pmpcfg2`   | Physical memory protection configuration            |
+|    0x3A3    |      MRW      | `pmpcfg3`   | Physical memory protection configuration,RV32 Only  |
+|    0x3B0    |      MRW      | `pmpaddr0`  | Physical memory protection address register         |
+|    0x3B1    |      MRW      | `pmpaddr1`  | Physical memory protection address register         |
 |             |               |             |                                                     |
-|    0x3BF    |       ??      | `pmpaddr15` | Physical memory protection address register         |
+|    0x3BF    |      MRW      | `pmpaddr15` | Physical memory protection address register         |
 
 ### Machine Level CSRs
 
@@ -743,34 +745,51 @@ Note: Open-source project architecture IDs are allocated globally by the RISC-V 
 
 The RISC-V specification calls for the contents of `mimpid` to be defined by the supplier/developer of the CPU core. In the Roa Logic implementation, this register is used to define the User Specification, Privilege Specification and Extension Specifications supported by that specific version of the RV12 core.
 
-The value held within the `mimpid` CSR is an integer as defined by the following table:
+The value held within the `mimpid` CSR is an integer denoting Specification and Extension support as defined in the following table:
 
-| mimpid Value | User Spec. | Privilege Spec. | C-Extension Spec. |
-|:------------:|:----------:|:---------------:|:-----------------:|
-|       0      |    v2.2    |      v1.10      |         –         |
-|       1      |    v2.2    |      v1.10      |        v1.7       |
+| `mimpid` | User Spec. | Privilege Spec. | A-Ext. | C-Ext. | M-Ext. |
+|:--------:|:----------:|:---------------:|:------:|:------:|:------:|
+|     0    |    v2.2    |      v1.10      |  v2.0  |    –   |  v2.0  |
+|     1    |    v2.2    |      v1.10      |  v2.0  |  v1.7  |  v2.0  |
+|     2    |    v2.2    |      v1.11      |  v2.0  |  v1.7  |  v2.0  |
 
 #### Hardware Thread ID Register (`mhartid`)
 
 The `mhartid` read-only register indicates the hardware thread that is running the code. The RV12 implements a single thread, therefore this register always reads zero.
 
-#### Machine Status Register (`mstatus`)
+#### Machine Status Register (<span>mstatus</span>)
 
-The `mstatus` register is an `XLEN`-bit read/write register that keeps track of and controls the *hart’s* current operating state.
+The <span>mstatus</span> register is an XLEN-bit read/write register formatted as shown in Figure \[mstatusreg-rv32\] for RV32 and Figure \[mstatusreg\] for RV64. The <span>mstatus</span> register keeps track of and controls the hart’s current operating state. Restricted views of the <span>mstatus</span> register appear as the <span>sstatus</span> and <span>ustatus</span> registers in the S-level and U-level ISAs respectively.
 
-##### Privilege and Global Interrupt-Enable Stack in mstatus register
+#### Privilege and Global Interrupt-Enable Stack in <span>mstatus</span> register
 
-Interrupt-enable bits, `MIE`, `SIE`, and `UIE`, are provided for each privilege mode. These bits are primarily used to guarantee atomicity with respect to interrupt handlers at the current privilege level. When a hart is executing in privilege mode *x*, interrupts are enabled when `xIE=1`. Interrupts for lower privilege modes are always disabled, whereas interrupts for higher privilege modes are always enabled. Higher-privilege-level code can use separate per-interrupt enable bits to disable selected interrupts before ceding control to a lower privilege level.
+Interrupt-enable bits, MIE, SIE, and UIE, are provided for each privilege mode. These bits are primarily used to guarantee atomicity with respect to interrupt handlers at the current privilege level. When a hart is executing in privilege mode <span>*x*</span>, interrupts are enabled when <span>*x*</span>IE=1. Interrupts for lower privilege modes are always disabled, whereas interrupts for higher privilege modes are always enabled. Higher-privilege-level code can use separate per-interrupt enable bits to disable selected interrupts before ceding control to a lower privilege level.
 
-The `MRET`, `SRET`, or `URET` instructions are used to return from traps in M-mode, S-mode, or U-mode respectively. When executing an `xRET` instruction, supposing `xPP` holds the value `y`, `yIE` is set to `xPIE`; the privilege mode is changed to `y`; `xPIE` is set to 1; and `xPP` is set to U.
+To support nested traps, each privilege mode <span>*x*</span> has a two-level stack of interrupt-enable bits and privilege modes. <span>*x*</span>PIE holds the value of the interrupt-enable bit active prior to the trap, and <span>*x*</span>PP holds the previous privilege mode. The <span>*x*</span>PP fields can only hold privilege modes up to <span>*x*</span>, so MPP is two bits wide, SPP is one bit wide, and UPP is implicitly zero. When a trap is taken from privilege mode <span>*y*</span> into privilege mode <span> *x*</span>, <span>*x*</span>PIE is set to the value of <span>*x*</span>IE; <span>*x*</span>IE is set to 0; and <span>*x*</span>PP is set to <span>*y*</span>.
 
-##### Memory Privilege in `mstatus` Register 
+The MRET, SRET, or URET instructions are used to return from traps in M-mode, S-mode, or U-mode respectively. When executing an <span>*x*</span>RET instruction, supposing <span>*x*</span>PP holds the value <span>*y*</span>, <span>*x*</span>IE is set to <span>*x*</span>PIE; the privilege mode is changed to <span>*y*</span>; <span>*x*</span>PIE is set to 1; and <span>*x*</span>PP is set to U (or M if user-mode is not supported).
 
-The `MPRV` bit modifies the privilege level at which loads and stores execute. When `MPRV`=’0’, translation and protection behave as normal. When `MPRV`=’1’, data memory addresses are translated and protected as though `PRV` were set to the current value of the `PRV1` field. Instruction address-translation and protection are unaffected. When an exception occurs, `MPRV` is reset to 0.
+<span>*x*</span>PP fields are  fields that need only be able to store supported privilege modes, including <span>*x*</span> and any implemented privilege mode lower than <span>*x*</span>.
+
+User-level interrupts are an optional extension and have been allocated the ISA extension letter N. If user-level interrupts are omitted, the UIE and UPIE bits are hardwired to zero. For all other supported privilege modes <span>*x*</span>, the <span>*x*</span>IE and <span>*x*</span>PIE must not be hardwired.
+
+#### Base ISA Control in <span>mstatus</span> Register
+
+For RV64 systems, the SXL and UXL fields are  fields that control the value of XLEN for S-mode and U-mode, respectively. The encoding of these fields is the same as the MXL field of <span>misa</span>. The effective XLEN in S-mode and U-mode are termed <span>*S-XLEN*</span> and <span>*U-XLEN*</span>, respectively.
+
+For RV32 systems, the SXL and UXL fields do not exist, and S-XLEN = 32 and U-XLEN = 32.
+
+#### Memory Privilege in <span>mstatus</span> Register
+
+The MPRV (Modify PRiVilege) bit modifies the privilege level at which loads and stores execute in all privilege modes. When MPRV=0, translation and protection behave as normal. When MPRV=1, load and store memory addresses are translated and protected as though the current privilege mode were set to MPP. Instruction address-translation and protection are unaffected. MPRV is hardwired to 0 if U-mode is not supported.
+
+The MXR (Make eXecutable Readable) bit modifies the privilege with which loads access virtual memory. When MXR=0, only loads from pages marked readable will succeed. When MXR=1, loads from pages marked either readable or executable (R=1 or X=1) will succeed. MXR is hardwired to 0 if S-mode is not supported.
+
+The SUM (permit Supervisor User Memory access) bit modifies the privilege with which S-mode loads, stores, and instruction fetches access virtual memory. When SUM=0, S-mode memory accesses to pages that are accessible by U-mode will fault. When SUM=1, these accesses are permitted. SUM has no effect when page-based virtual memory is not in effect. Note that, while SUM is ordinarily ignored when not executing in S-mode, it <span>*is*</span> in effect when MPRV=1 and MPP=S. SUM is hardwired to 0 if S-mode is not supported.
 
 ##### Virtualization Management & Context Extension Fields in `mstatus` Register 
 
-Virtualization and Context Extensions are not supported by the RV12 v1.0 implementation. The value of these fields will therefore be permanently set to 0.
+Virtualization and Context Extensions are not supported by the RV12 v1.x implementation. The value of these fields will therefore be permanently set to 0.
 
 #### Machine Trap-Handler Base Address Register (`mtvec`)
 
@@ -1059,7 +1078,7 @@ The PMP configuration registers are densely packed into CSRs to minimize context
 
 The PMP address registers are CSRs named `pmpaddr0`–`pmpaddr15`. Each PMP address register encodes bits 33–2 of a 34-bit physical address for RV32, as shown in Figure \[pmpaddr-rv32\]. For RV64, each PMP address register encodes bits 55–2 of a 56-bit physical address, as shown in Figure \[pmpaddr-rv64\].
 
-Figure \[pmpcfg\] shows the layout of a PMP configuration register. The R, W, and X bits, when set, indicate that the PMP entry permits read, write, and instruction execution, respectively. When one of these bits is clear, the corresponding access type is denied. The remaining two fields, A and L, are described in the following sections.
+Figure \[pmpcfg\] shows the layout of a PMP configuration register. The R, W, and X bits, when set, indicate that the PMP entry permits read, write, and instruction execution, respectively. When one of these bits is clear, the corresponding access type is denied. The remaining 3 fields, A, L and C, are described in the following sections.
 
 #### Address Matching
 
@@ -1092,6 +1111,10 @@ If TOR is selected, the associated address register forms the top of the address
 The L bit indicates that the PMP entry is locked, i.e., writes to the configuration register and associated address registers are ignored. Locked PMP entries may only be unlocked with a system reset. If PMP entry *i* is locked, writes to `pmp`*i*`cfg` and `pmpaddr`*i* are ignored. Additionally, if `pmp`*i*`cfg`.A is set to TOR, writes to <span>pmpaddr</span>*i*-1 are ignored.
 
 In addition to locking the PMP entry, the L bit indicates whether the R/W/X permissions are enforced on M-mode accesses. When the L bit is set, these permissions are enforced for all privilege modes. When the L bit is clear, any M-mode access matching the PMP entry will succeed; the R/W/X permissions apply only to S and U modes.
+
+#### Cacheability
+
+The C bit indicates if the memory area is cacheable or not. When the C bit is set the corresponding memory area is cacheable.
 
 #### Priority and Matching Logic
 

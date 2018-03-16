@@ -6,7 +6,7 @@ Roa Logic’s 32/64bit CPU family based on the industry standard [RISC-V
 instruction set](https://riscv.org/)
 
 The RV12 implements a Harvard architecture for simultaneous instruction and data
-memory accesses. It features an optimizing folded 4-stage pipeline, which
+memory accesses. It features an optimizing 6-stage pipeline, which
 optimizes overlaps between the execution and memory accesses, thereby reducing
 stalls and improving efficiency.
 
@@ -30,7 +30,8 @@ between performance, power, and area to optimize the core for the application
 - Fast, precise interrupts
 - Custom instructions enable integration of proprietary hardware accelerators
 - Single cycle execution
-- Optimizing folded 4-stage pipeline
+- Optimizing folded 6-stage pipeline
+- Memory Protection Support
 - Optional/Parameterized branch-prediction-unit
 - Optional/Parameterized caches
 
@@ -39,7 +40,7 @@ between performance, power, and area to optimize the core for the application
 The RV12 is compatible with the following RISC-V Foundation  specifications:
 
 - [User Mode Specifications v2.2](https://github.com/riscv/riscv-isa-manual/releases/download/riscv-user-2.2/riscv-spec-v2.2.pdf)
-- [Privilege Mode Specifications v1.9.1](https://github.com/riscv/riscv-isa-manual/blob/master/release/riscv-privileged-v1.9.1.pdf)
+- [Privilege Mode Specifications v1.10](https://github.com/riscv/riscv-isa-manual/blob/master/release/riscv-privileged-v1.10.pdf)
 
 ## Interfaces
 
