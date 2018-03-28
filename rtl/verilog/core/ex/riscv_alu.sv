@@ -107,6 +107,8 @@ module riscv_alu #(
   logic [            31:0] opB32;
   logic [SBITS       -1:0] shamt;
   logic [             4:0] shamt32;
+  logic [XLEN        -1:0] csri;
+
 
   ////////////////////////////////////////////////////////////////
   //
@@ -241,32 +243,33 @@ module riscv_alu #(
    * CSR
    */
   assign ex_csr_reg = id_instr[31:20];
+  assign csri = {{XLEN-5{1'b0}},opB[4:0]};
 
   always_comb
     casex ( {id_bubble,func7,func3,opcode} )
       {1'b0,CSRRW } : begin
                           ex_csr_we   = 'b1;
-                          ex_csr_wval = opA32;
+                          ex_csr_wval = opA;
                       end
       {1'b0,CSRRWI} : begin
-                          ex_csr_we   = |opB32;
-                          ex_csr_wval = opB32;
+                          ex_csr_we   = |csri;
+                          ex_csr_wval = csri;
                       end
       {1'b0,CSRRS } : begin
-                          ex_csr_we   = |opA32;
-                          ex_csr_wval = st_csr_rval | opA32;
+                          ex_csr_we   = |opA;
+                          ex_csr_wval = st_csr_rval | opA;
                       end
       {1'b0,CSRRSI} : begin
-                          ex_csr_we   = |opB32;
-                          ex_csr_wval = st_csr_rval | opB32;
+                          ex_csr_we   = |csri;
+                          ex_csr_wval = st_csr_rval | csri;
                       end
       {1'b0,CSRRC } : begin
-                          ex_csr_we   = |opA32;
-                          ex_csr_wval = st_csr_rval & ~opA32;
+                          ex_csr_we   = |opA;
+                          ex_csr_wval = st_csr_rval & ~opA;
                       end
       {1'b0,CSRRCI} : begin
-                          ex_csr_we   = |opB32;
-                          ex_csr_wval = st_csr_rval & ~opB32;
+                          ex_csr_we   = |csri;
+                          ex_csr_wval = st_csr_rval & ~csri;
                       end
       default       : begin
                           ex_csr_we   = 'b0;
