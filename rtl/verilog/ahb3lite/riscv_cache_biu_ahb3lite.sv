@@ -1,39 +1,34 @@
-/////////////////////////////////////////////////////////////////
-//                                                             //
-//    ██████╗  ██████╗  █████╗                                 //
-//    ██╔══██╗██╔═══██╗██╔══██╗                                //
-//    ██████╔╝██║   ██║███████║                                //
-//    ██╔══██╗██║   ██║██╔══██║                                //
-//    ██║  ██║╚██████╔╝██║  ██║                                //
-//    ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝                                //
-//          ██╗      ██████╗  ██████╗ ██╗ ██████╗              //
-//          ██║     ██╔═══██╗██╔════╝ ██║██╔════╝              //
-//          ██║     ██║   ██║██║  ███╗██║██║                   //
-//          ██║     ██║   ██║██║   ██║██║██║                   //
-//          ███████╗╚██████╔╝╚██████╔╝██║╚██████╗              //
-//          ╚══════╝ ╚═════╝  ╚═════╝ ╚═╝ ╚═════╝              //
-//                                                             //
-//    RISC-V                                                   //
-//    Cache Bus Interface Unit - AHB3Lite                      //
-//                                                             //
-/////////////////////////////////////////////////////////////////
-//                                                             //
-//             Copyright (C) 2014-2017 ROA Logic BV            //
-//             www.roalogic.com                                //
-//                                                             //
-//    Unless specifically agreed in writing, this software is  //
-//  licensed under the RoaLogic Non-Commercial License         //
-//  version-1.0 (the "License"), a copy of which is included   //
-//  with this file or may be found on the RoaLogic website     //
-//  http://www.roalogic.com. You may not use the file except   //
-//  in compliance with the License.                            //
-//                                                             //
-//    THIS SOFTWARE IS PROVIDED "AS IS" AND WITHOUT ANY        //
-//  EXPRESS OF IMPLIED WARRANTIES OF ANY KIND.                 //
-//  See the License for permissions and limitations under the  //
-//  License.                                                   //
-//                                                             //
-/////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////
+//   ,------.                    ,--.                ,--.          //
+//   |  .--. ' ,---.  ,--,--.    |  |    ,---. ,---. `--' ,---.    //
+//   |  '--'.'| .-. |' ,-.  |    |  |   | .-. | .-. |,--.| .--'    //
+//   |  |\  \ ' '-' '\ '-'  |    |  '--.' '-' ' '-' ||  |\ `--.    //
+//   `--' '--' `---'  `--`--'    `-----' `---' `-   /`--' `---'    //
+//                                             `---'               //
+//    RISC-V                                                       //
+//    Bus Interface Unit - AHB3Lite                                //
+//                                                                 //
+/////////////////////////////////////////////////////////////////////
+//                                                                 //
+//             Copyright (C) 2014-2018 ROA Logic BV                //
+//             www.roalogic.com                                    //
+//                                                                 //
+//     Unless specifically agreed in writing, this software is     //
+//   licensed under the RoaLogic Non-Commercial License            //
+//   version-1.0 (the "License"), a copy of which is included      //
+//   with this file or may be found on the RoaLogic website        //
+//   http://www.roalogic.com. You may not use the file except      //
+//   in compliance with the License.                               //
+//                                                                 //
+//     THIS SOFTWARE IS PROVIDED "AS IS" AND WITHOUT ANY           //
+//   EXPRESS OF IMPLIED WARRANTIES OF ANY KIND.                    //
+//   See the License for permissions and limitations under the     //
+//   License.                                                      //
+//                                                                 //
+/////////////////////////////////////////////////////////////////////
+
+import ahb3lite_pkg::*;
+import riscv_constants_pkg::*;
 
 module riscv_cache_biu_ahb3lite #(
   parameter XLEN           = 32,
@@ -62,7 +57,7 @@ module riscv_cache_biu_ahb3lite #(
   output                          biu_stb_ack,
   input      [PHYS_ADDR_SIZE-1:0] biu_adri,
   output reg [PHYS_ADDR_SIZE-1:0] biu_adro,  
-  input      [               2:0] biu_size,     //transfer size
+  input      mem_size_t           biu_size,     //transfer size
   input      [               2:0] biu_type,     //burst type -AHB style
   input                           biu_lock,
   input                           biu_we,
@@ -70,6 +65,7 @@ module riscv_cache_biu_ahb3lite #(
   output     [XLEN          -1:0] biu_do,
   output                          biu_wack,     //data acknowledge, 1 per data
                                   biu_rack,
+                                  biu_ack,
   output reg                      biu_err,      //data error
 
   input                           biu_is_cacheable,
@@ -81,8 +77,6 @@ module riscv_cache_biu_ahb3lite #(
   //
   // Constants
   //
-  import ahb3lite_pkg::*;
-  import riscv_constants_pkg::*;
 
 
   //////////////////////////////////////////////////////////////////
@@ -90,7 +84,7 @@ module riscv_cache_biu_ahb3lite #(
   // Functions
   //
   function [2:0] size2hsize;
-    input [2:0] size;
+    input mem_size_t size;
 
     case (size)
       BYTE   : size2hsize = HSIZE_BYTE;
@@ -251,6 +245,7 @@ module riscv_cache_biu_ahb3lite #(
   assign biu_do   = HRDATA;
   assign biu_wack = HREADY &   HWRITE &  data_ena;
   assign biu_rack = HREADY & ~dHWRITE & ddata_ena;
+  assign biu_ack  = HREADY & ddata_ena;
   assign biu_stb_ack = HREADY & ~|burst_cnt & biu_stb & ~biu_err;
 endmodule
 
