@@ -82,10 +82,19 @@ package riscv_state_pkg;
   } mie_struct;
 
 
+  //PMP-CFG register
+  typedef enum logic [1:0] {
+    OFF   = 2'd0,
+    TOR   = 2'd1,
+    NA4   = 2'd2,
+    NAPOT = 2'd3
+  } pmpcfg_a_t;
+
   typedef struct packed {
     logic       l;
-    logic [1:0] reserved;
-    logic [1:0] a;
+    logic       c;
+    logic       reserved;
+    pmpcfg_a_t  a;
     logic       x,
                 w,
                 r;
@@ -268,11 +277,6 @@ package riscv_state_pkg;
                    IR = 2;
 
 
-  //A-encoding of PMP-CFG register
-  parameter [ 1:0] OFF   = 2'd0,
-                   TOR   = 2'd1,
-                   NA4   = 2'd2,
-                   NAPOT = 2'd3;
 
 
   //Exception causes
