@@ -60,67 +60,62 @@ module riscv_state1_10 #(
 
   parameter            JEDEC_BANK            = 9,
   parameter            JEDEC_MANUFACTURER_ID = 'h8a,
-  parameter            ARCHID                = (1<<XLEN) | 12,
-  parameter            REVPRV_MAJOR          = 1,
-  parameter            REVPRV_MINOR          = 10,
-  parameter            REVUSR_MAJOR          = 2,
-  parameter            REVUSR_MINOR          = 2,
 
-  parameter            PMP_CNT               = 16,    //number of PMP CSR blocks
-                                                      //max.16
-
+  parameter            PMP_CNT               = 16,    //number of PMP CSR blocks (max.16)
   parameter            HARTID                = 0      //hardware thread-id
 )
 (
-  input                           rstn,
-  input                           clk,
+  input                                 rstn,
+  input                                 clk,
 
-  input      [XLEN          -1:0] id_pc,
-  input                           id_bubble,
-  input      [ILEN          -1:0] id_instr,
-  input                           id_stall,
+  input            [XLEN          -1:0] id_pc,
+  input                                 id_bubble,
+  input            [ILEN          -1:0] id_instr,
+  input                                 id_stall,
 
-  input                           bu_flush,
-  input      [XLEN          -1:0] bu_nxt_pc,
-  output reg                      st_flush,
-  output reg [XLEN          -1:0] st_nxt_pc,
+  input                                 bu_flush,
+  input            [XLEN          -1:0] bu_nxt_pc,
+  output reg                            st_flush,
+  output reg       [XLEN          -1:0] st_nxt_pc,
 
-  input      [XLEN          -1:0] wb_pc,
-  input                           wb_bubble,
-  input      [ILEN          -1:0] wb_instr,
-  input      [EXCEPTION_SIZE-1:0] wb_exception,
-  input      [XLEN          -1:0] wb_badaddr,
+  input            [XLEN          -1:0] wb_pc,
+  input                                 wb_bubble,
+  input            [ILEN          -1:0] wb_instr,
+  input            [EXCEPTION_SIZE-1:0] wb_exception,
+  input            [XLEN          -1:0] wb_badaddr,
 
-  output reg                      st_interrupt,
-  output reg [               1:0] st_prv,        //Privilege level
-  output reg [               1:0] st_xlen,       //Active Architecture
-  output                          st_tvm,        //trap on satp access or SFENCE.VMA
-                                  st_tw,         //trap on WFI (after time >=0)
-                                  st_tsr,        //trap SRET
-  output     [XLEN          -1:0] st_mcounteren,
-                                  st_scounteren,
+  output reg                            st_interrupt,
+  output reg       [               1:0] st_prv,        //Privilege level
+  output reg       [               1:0] st_xlen,       //Active Architecture
+  output                                st_tvm,        //trap on satp access or SFENCE.VMA
+                                        st_tw,         //trap on WFI (after time >=0)
+                                        st_tsr,        //trap SRET
+  output           [XLEN          -1:0] st_mcounteren,
+                                        st_scounteren,
+  output pmpcfg_struct           [15:0] st_pmpcfg,
+  output     [15:0][XLEN          -1:0] st_pmpaddr,
 
 
   //interrupts (3=M-mode, 0=U-mode)
-  input      [               3:0] ext_int,       //external interrupt (per privilege mode; determined by PIC)
-  input                           ext_tint,      //machine timer interrupt
-                                  ext_sint,      //machine software interrupt (for ipi)
-  input                           ext_nmi,       //non-maskable interrupt
+  input            [               3:0] ext_int,       //external interrupt (per privilege mode; determined by PIC)
+  input                                 ext_tint,      //machine timer interrupt
+                                        ext_sint,      //machine software interrupt (for ipi)
+  input                                 ext_nmi,       //non-maskable interrupt
 
   //CSR interface
-  input      [              11:0] ex_csr_reg,
-  input                           ex_csr_we,
-  input      [XLEN          -1:0] ex_csr_wval,
-  output reg [XLEN          -1:0] st_csr_rval,
+  input            [              11:0] ex_csr_reg,
+  input                                 ex_csr_we,
+  input            [XLEN          -1:0] ex_csr_wval,
+  output reg       [XLEN          -1:0] st_csr_rval,
 
   //Debug interface
-  input                           du_stall,
-                                  du_flush,
-                                  du_we_csr,
-  input      [XLEN          -1:0] du_dato,       //output from debug unit
-  input      [              11:0] du_addr,
-  input      [              31:0] du_ie,
-  output     [              31:0] du_exceptions
+  input                                 du_stall,
+                                        du_flush,
+                                        du_we_csr,
+  input            [XLEN          -1:0] du_dato,       //output from debug unit
+  input            [              11:0] du_addr,
+  input            [              31:0] du_ie,
+  output           [              31:0] du_exceptions
 );
   ////////////////////////////////////////////////////////////////
   //
@@ -230,7 +225,7 @@ module riscv_state1_10 #(
 
     //Machine protection and Translation
     pmpcfg_struct [15:0] pmpcfg;
-    logic [15:0][XLEN -1:0] pmpaddr;
+    logic         [15:0][XLEN -1:0] pmpaddr;
 
     //Machine counters/Timers
     timer_struct       mcycle,     //timer for MCYCLE
@@ -469,7 +464,7 @@ module riscv_state1_10 #(
 
   assign csr.mvendorid.bank    = JEDEC_BANK -1;
   assign csr.mvendorid.offset  = JEDEC_MANUFACTURER_ID[6:0];
-  assign csr.marchid           = ARCHID;
+  assign csr.marchid           = (1 << (XLEN-1)) | ARCHID;
   assign csr.mimpid[    31:24] = REVPRV_MAJOR;
   assign csr.mimpid[    23:16] = REVPRV_MINOR;
   assign csr.mimpid[    15: 8] = REVUSR_MAJOR;
@@ -1302,7 +1297,7 @@ generate
   end
   else if (XLEN > 32) //RV64
   begin
-      for (idx=0; idx<7; idx++)
+      for (idx=0; idx<8; idx++)
       begin: gen_pmpcfg0
           always @(posedge clk,negedge rstn)
             if (!rstn) csr.pmpcfg[idx] <= 'h0;
@@ -1429,6 +1424,11 @@ generate
 
   end
 endgenerate
+
+
+  assign st_pmpcfg  = csr.pmpcfg;
+  assign st_pmpaddr = csr.pmpaddr;
+
 
 
   ////////////////////////////////////////////////////////////////
