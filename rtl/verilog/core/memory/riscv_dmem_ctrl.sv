@@ -460,7 +460,7 @@ generate
         .PHYS_ADDR_SIZE ( PLEN )
       )
       nodcache_core_inst (
-        .rst_ni             ( reset_ni      ),
+        .rst_ni             ( rst_ni        ),
         .clk_i              ( clk_i         ),
 
         .mem_req_i          ( wbuf_req      ),
