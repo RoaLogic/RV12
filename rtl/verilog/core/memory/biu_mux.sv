@@ -81,7 +81,7 @@ module biu_mux #(
   //
   // Constants
   //
-  parameter PORT_SIZE = PORTS==0 ? 1 : $clog2(PORTS-1);
+  localparam PORT_SIZE = PORTS==0 ? 1 : $clog2(PORTS-1);
 
 
   //////////////////////////////////////////////////////////////////
