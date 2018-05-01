@@ -147,12 +147,13 @@ module riscv_top_ahb3lite #(
   logic                                 if_parcel_page_fault;
 
   logic                                 dmem_req;
-  logic                                 dmem_ack;
   logic               [XLEN       -1:0] dmem_adr;
+  biu_size_t                            dmem_size;
+  logic                                 dmem_we;
   logic               [XLEN       -1:0] dmem_d,
                                         dmem_q;
-  logic                                 dmem_we;
-  biu_size_t                            dmem_size;
+  logic                                 dmem_ack,
+                                        dmem_err;
   logic                                 dmem_misaligned;
   logic                                 dmem_page_fault;
 
