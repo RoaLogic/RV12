@@ -38,7 +38,7 @@
 
 import riscv_opcodes_pkg::*;
 import riscv_state_pkg::*;
-import riscv_constants_pkg::*;
+import biu_constants_pkg::*;
 
 module riscv_lsu #(
   parameter XLEN           = 32,
@@ -78,7 +78,7 @@ module riscv_lsu #(
                                   dmem_d,
   output reg                      dmem_req,
                                   dmem_we,
-  output reg [               2:0] dmem_size,
+  output biu_size_t               dmem_size,
 
   //From Memory (for AMO)
   input                           dmem_ack,
@@ -102,11 +102,11 @@ module riscv_lsu #(
 
 
   //FSM
-  enum logic [1:0] {IDLE=2'b00, REQ=2'b01, WAIT4ACK=2'b10} state;
+  enum logic [1:0] {IDLE=2'b00} state;
 
   logic [XLEN  -1:0] adr,
                      d;
-  logic [       2:0] size;
+  biu_size_t         size;
 
 
   ////////////////////////////////////////////////////////////////
@@ -154,22 +154,30 @@ module riscv_lsu #(
                            case (opcode)
                               OPC_LOAD : begin
                                              dmem_req   <= 1'b1;
+                                             lsu_stall  <= 1'b0;
                                              lsu_bubble <= 1'b0;
+                                             state      <= IDLE;
                                          end
                               OPC_STORE: begin
                                              dmem_req   <= 1'b1;
+                                             lsu_stall  <= 1'b0;
                                              lsu_bubble <= 1'b0;
+                                             state      <= IDLE;
                                          end
                               default  : begin
                                              dmem_req   <= 1'b0;
+                                             lsu_stall  <= 1'b0;
                                              lsu_bubble <= 1'b1;
+                                             state      <= IDLE;
                                          end
                            endcase
                        end
                        else
                        begin
                            dmem_req   <= 1'b0;
+                           lsu_stall  <= 1'b0;
                            lsu_bubble <= 1'b1;
+                           state      <= IDLE;
                        end
                    end
 
@@ -177,6 +185,7 @@ module riscv_lsu #(
                        dmem_req   <= 1'b0;
                        lsu_stall  <= 1'b0;
                        lsu_bubble <= 1'b1;
+                       state      <= IDLE;
                    end
         endcase
     end
@@ -200,9 +209,10 @@ module riscv_lsu #(
                                   dmem_d    <= d;
                               end
                  endcase
+
       default: begin
                     dmem_we   <= 1'bx;
-                    dmem_size <=  'hx;
+                    dmem_size <= UNDEF_SIZE;
                     dmem_adr  <=  'hx;
                     dmem_d    <=  'hx;
                 end
@@ -245,7 +255,7 @@ generate
         SH     : size = HWORD;
         SW     : size = WORD;
         SD     : size = DWORD;
-        default: size = 'hx;
+        default: size = UNDEF_SIZE;
       endcase
 
 
@@ -271,7 +281,7 @@ generate
         SB     : size = BYTE;
         SH     : size = HWORD;
         SW     : size = WORD;
-        default: size = 'hx;
+        default: size = UNDEF_SIZE;
       endcase
 
 
