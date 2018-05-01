@@ -1,39 +1,31 @@
-/////////////////////////////////////////////////////////////////
-//                                                             //
-//    ██████╗  ██████╗  █████╗                                 //
-//    ██╔══██╗██╔═══██╗██╔══██╗                                //
-//    ██████╔╝██║   ██║███████║                                //
-//    ██╔══██╗██║   ██║██╔══██║                                //
-//    ██║  ██║╚██████╔╝██║  ██║                                //
-//    ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝                                //
-//          ██╗      ██████╗  ██████╗ ██╗ ██████╗              //
-//          ██║     ██╔═══██╗██╔════╝ ██║██╔════╝              //
-//          ██║     ██║   ██║██║  ███╗██║██║                   //
-//          ██║     ██║   ██║██║   ██║██║██║                   //
-//          ███████╗╚██████╔╝╚██████╔╝██║╚██████╗              //
-//          ╚══════╝ ╚═════╝  ╚═════╝ ╚═╝ ╚═════╝              //
-//                                                             //
-//    RISC-V                                                   //
-//    Instruction Cache                                        //
-//                                                             //
-/////////////////////////////////////////////////////////////////
-//                                                             //
-//             Copyright (C) 2014-2017 ROA Logic BV            //
-//             www.roalogic.com                                //
-//                                                             //
-//    Unless specifically agreed in writing, this software is  //
-//  licensed under the RoaLogic Non-Commercial License         //
-//  version-1.0 (the "License"), a copy of which is included   //
-//  with this file or may be found on the RoaLogic website     //
-//  http://www.roalogic.com. You may not use the file except   //
-//  in compliance with the License.                            //
-//                                                             //
-//    THIS SOFTWARE IS PROVIDED "AS IS" AND WITHOUT ANY        //
-//  EXPRESS OF IMPLIED WARRANTIES OF ANY KIND.                 //
-//  See the License for permissions and limitations under the  //
-//  License.                                                   //
-//                                                             //
-/////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////
+//   ,------.                    ,--.                ,--.          //
+//   |  .--. ' ,---.  ,--,--.    |  |    ,---. ,---. `--' ,---.    //
+//   |  '--'.'| .-. |' ,-.  |    |  |   | .-. | .-. |,--.| .--'    //
+//   |  |\  \ ' '-' '\ '-'  |    |  '--.' '-' ' '-' ||  |\ `--.    //
+//   `--' '--' `---'  `--`--'    `-----' `---' `-   /`--' `---'    //
+//                                             `---'               //
+//    RISC-V                                                       //
+//    Instruction Memory Access Block                              //
+//                                                                 //
+/////////////////////////////////////////////////////////////////////
+//                                                                 //
+//             Copyright (C) 2014-2018 ROA Logic BV                //
+//             www.roalogic.com                                    //
+//                                                                 //
+//     Unless specifically agreed in writing, this software is     //
+//   licensed under the RoaLogic Non-Commercial License            //
+//   version-1.0 (the "License"), a copy of which is included      //
+//   with this file or may be found on the RoaLogic website        //
+//   http://www.roalogic.com. You may not use the file except      //
+//   in compliance with the License.                               //
+//                                                                 //
+//     THIS SOFTWARE IS PROVIDED "AS IS" AND WITHOUT ANY           //
+//   EXPRESS OF IMPLIED WARRANTIES OF ANY KIND.                    //
+//   See the License for permissions and limitations under the     //
+//   License.                                                      //
+//                                                                 //
+/////////////////////////////////////////////////////////////////////
 
 module riscv_icache_ahb3lite #(
   parameter XLEN           = 32,
@@ -71,7 +63,6 @@ module riscv_icache_ahb3lite #(
   input                           HRESP,
 
   //CPU side
-//  input      [XLEN       -1:0] non_cacheable_mask, 
   output                       if_stall_nxt_pc,
   input                        if_stall,
                                if_flush,
@@ -93,15 +84,17 @@ module riscv_icache_ahb3lite #(
   //From Cache Controller Core
   logic                      biu_stb;
   logic                      biu_stb_ack;
+  logic                      biu_d_ack;
   logic [PHYS_ADDR_SIZE-1:0] biu_adro,
                              biu_adri;  
-  logic [               2:0] biu_size;     //transfer size
-  logic [               2:0] biu_type;     //burst type -AHB style
+  biu_size_t                 biu_size;
+  biu_type_t                 biu_type;
   logic                      biu_lock;
+  biu_prot_t                 biu_prot;
   logic                      biu_we;
   logic [XLEN          -1:0] biu_di;
   logic [XLEN          -1:0] biu_do;
-  logic                      biu_rack;     //data acknowledge, 1 per data
+  logic                      biu_ack;      //data acknowledge, 1 per data
   logic                      biu_err;      //data error,
 
   logic                      biu_is_cacheable,
@@ -167,13 +160,26 @@ endgenerate
   /*
    * Instantiate BIU
    */
-  riscv_cache_biu_ahb3lite #(
-    .XLEN           ( XLEN           ),
-    .PHYS_ADDR_SIZE ( PHYS_ADDR_SIZE )
+  biu_ahb3lite #(
+    .DATA_SIZE ( XLEN           ),
+    .ADDR_SIZE ( PHYS_ADDR_SIZE )
   )
   biu_inst (
-    .biu_wack( ),
-    .biu_prv ( st_prv ),
+    .biu_stb_i     ( biu_stb     ),
+    .biu_stb_ack_o ( biu_stb_ack ),
+    .biu_d_ack_o   ( biu_d_ack   ),
+    .biu_adri_i    ( biu_adri    ),
+    .biu_adro_o    ( biu_adro    ),
+    .biu_size_i    ( biu_size    ),
+    .biu_type_i    ( biu_type    ),
+    .biu_prot_i    ( biu_prot    ),
+    .biu_lock_i    ( biu_lock    ),
+    .biu_we_i      ( biu_we      ),
+    .biu_d_i       ( biu_di      ),
+    .biu_q_o       ( biu_do      ),
+    .biu_ack_o     ( biu_ack     ),
+    .biu_err_o     ( biu_err     ),
+
     .*
   );
 
