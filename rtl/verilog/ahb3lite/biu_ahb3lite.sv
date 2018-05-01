@@ -39,41 +39,42 @@ import ahb3lite_pkg::*;
 import biu_constants_pkg::*;
 
 module biu_ahb3lite #(
-  parameter XLEN           = 32,
-  parameter PHYS_ADDR_SIZE = XLEN
+  parameter DATA_SIZE = 32,
+  parameter ADDR_SIZE = DATA_SIZE
 )
 (
-  input                           HRESETn,
-  input                           HCLK,
+  input                      HRESETn,
+  input                      HCLK,
  
   //AHB3 Lite Bus
-  output                          HSEL,
-  output reg [PHYS_ADDR_SIZE-1:0] HADDR,
-  input  reg [XLEN          -1:0] HRDATA,
-  output reg [XLEN          -1:0] HWDATA,
-  output reg                      HWRITE,
-  output reg [               2:0] HSIZE,
-  output reg [               2:0] HBURST,
-  output reg [               3:0] HPROT,
-  output reg [               1:0] HTRANS,
-  output reg                      HMASTLOCK,
-  input                           HREADY,
-  input                           HRESP,
+  output                     HSEL,
+  output reg [ADDR_SIZE-1:0] HADDR,
+  input  reg [DATA_SIZE-1:0] HRDATA,
+  output reg [DATA_SIZE-1:0] HWDATA,
+  output reg                 HWRITE,
+  output reg [          2:0] HSIZE,
+  output reg [          2:0] HBURST,
+  output reg [          3:0] HPROT,
+  output reg [          1:0] HTRANS,
+  output reg                 HMASTLOCK,
+  input                      HREADY,
+  input                      HRESP,
 
   //From Cache Controller Core
-  input                           biu_stb_i,      //strobe
-  output                          biu_stb_ack_o,  //strobe acknowledge; can send new strobe
-  input      [PHYS_ADDR_SIZE-1:0] biu_adri_i,
-  output reg [PHYS_ADDR_SIZE-1:0] biu_adro_o,  
-  input  biu_size_t               biu_size_i,     //transfer size
-  input  biu_type_t               biu_type_i,     //burst type
-  input  biu_prot_t               biu_prot_i,     //protection
-  input                           biu_lock_i,
-  input                           biu_we_i,
-  input      [XLEN          -1:0] biu_d_i,
-  output     [XLEN          -1:0] biu_q_o,
-  output                          biu_ack_o,      //transfer acknowledge
-  output reg                      biu_err_o       //transfer error
+  input                      biu_stb_i,      //strobe
+  output                     biu_stb_ack_o,  //strobe acknowledge; can send new strobe
+  output                     biu_d_ack_o,    //data acknwoledge (send new biu_d_i); for pipelined buses
+  input      [ADDR_SIZE-1:0] biu_adri_i,
+  output reg [ADDR_SIZE-1:0] biu_adro_o,  
+  input  biu_size_t          biu_size_i,     //transfer size
+  input  biu_type_t          biu_type_i,     //burst type
+  input  biu_prot_t          biu_prot_i,     //protection
+  input                      biu_lock_i,
+  input                      biu_we_i,
+  input      [DATA_SIZE-1:0] biu_d_i,
+  output     [DATA_SIZE-1:0] biu_q_o,
+  output                     biu_ack_o,      //transfer acknowledge
+  output reg                 biu_err_o       //transfer error
 );
 
   //////////////////////////////////////////////////////////////////
@@ -144,20 +145,20 @@ module biu_ahb3lite #(
 
 
   //convert burst type to counter length (actually length -1)
-  function [PHYS_ADDR_SIZE-1:0] nxt_addr;
-    input [PHYS_ADDR_SIZE-1:0] addr;   //current address
+  function [ADDR_SIZE-1:0] nxt_addr;
+    input [ADDR_SIZE-1:0] addr;   //current address
     input [               3:0] hburst; //AHB HBURST
 
 
     //next linear address
-    if (XLEN==32) nxt_addr = (addr + 'h4) & ~'h3;
-    else          nxt_addr = (addr + 'h8) & ~'h7;
+    if (DATA_SIZE==32) nxt_addr = (addr + 'h4) & ~'h3;
+    else               nxt_addr = (addr + 'h8) & ~'h7;
 
     //wrap?
     case (hburst)
-      HBURST_WRAP4 : nxt_addr = (XLEN==32) ? {addr[PHYS_ADDR_SIZE-1: 4],nxt_addr[3:0]} : {addr[PHYS_ADDR_SIZE-1:5],nxt_addr[4:0]};
-      HBURST_WRAP8 : nxt_addr = (XLEN==32) ? {addr[PHYS_ADDR_SIZE-1: 5],nxt_addr[4:0]} : {addr[PHYS_ADDR_SIZE-1:6],nxt_addr[5:0]};
-      HBURST_WRAP16: nxt_addr = (XLEN==32) ? {addr[PHYS_ADDR_SIZE-1: 6],nxt_addr[5:0]} : {addr[PHYS_ADDR_SIZE-1:7],nxt_addr[6:0]};
+      HBURST_WRAP4 : nxt_addr = (DATA_SIZE==32) ? {addr[ADDR_SIZE-1: 4],nxt_addr[3:0]} : {addr[ADDR_SIZE-1:5],nxt_addr[4:0]};
+      HBURST_WRAP8 : nxt_addr = (DATA_SIZE==32) ? {addr[ADDR_SIZE-1: 5],nxt_addr[4:0]} : {addr[ADDR_SIZE-1:6],nxt_addr[5:0]};
+      HBURST_WRAP16: nxt_addr = (DATA_SIZE==32) ? {addr[ADDR_SIZE-1: 6],nxt_addr[5:0]} : {addr[ADDR_SIZE-1:7],nxt_addr[6:0]};
     endcase
   endfunction: nxt_addr
 
@@ -166,11 +167,11 @@ module biu_ahb3lite #(
   //
   // Variables
   //
-  logic [     3:0] burst_cnt;
-  logic            data_ena,
-                   ddata_ena;
-  logic [XLEN-1:0] biu_di_dly;
-  logic            dHWRITE;
+  logic [          3:0] burst_cnt;
+  logic                 data_ena,
+                        ddata_ena;
+  logic [DATA_SIZE-1:0] biu_di_dly;
+  logic                 dHWRITE;
 
 
   //////////////////////////////////////////////////////////////////
@@ -270,9 +271,10 @@ module biu_ahb3lite #(
   always @(posedge HCLK)
     if (HREADY) dHWRITE <= HWRITE;
 
-  assign biu_q_o       = HRDATA;
-  assign biu_ack_o     = HREADY & ddata_ena;
-  assign biu_stb_ack_o = HREADY & ~|burst_cnt & biu_stb_i & ~biu_err_o;
+  assign biu_q_o        = HRDATA;
+  assign biu_ack_o      = HREADY & ddata_ena;
+  assign biu_d_ack_o    = HREADY & data_ena;
+  assign biu_stb_ack_o  = HREADY & ~|burst_cnt & biu_stb_i & ~biu_err_o;
 endmodule
 
 
