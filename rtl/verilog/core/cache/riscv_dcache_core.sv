@@ -228,8 +228,7 @@ module riscv_dcache_core #(
   enum logic [1:0] {NOP=0, WRITE_WAY=1, READ_WAY=2} biucmd;
 
   logic                       flushing,
-                              filling,
-                              writing;
+                              filling;
 
 
 
@@ -275,7 +274,8 @@ module riscv_dcache_core #(
    */
   enum logic [             1:0] {IDLE, WAIT4BIU, BURST} biufsm_state;
   logic                         biucmd_ack,
-                                biufsm_ack;
+                                biufsm_ack,
+                                biufsm_err;
   logic      [BLK_BITS    -1:0] biu_sr;
 
   logic                         biu_we_hold;
@@ -467,7 +467,6 @@ module riscv_dcache_core #(
                           // because writing is delayed (must check 'cache_hit' first)
                           // therefore move to RECOVER state
                           memfsm_state <= RECOVER;
-//$display ("DataCache: Read-after-Write @%0t", $time);
                       end
                       else if (cache_req_dly && !cache_hit) //it takes 1 cycle to read TAG
                       begin
@@ -490,6 +489,7 @@ module riscv_dcache_core #(
        FLUSH        : if (cache_dirty) 
                       begin
                           //There are dirty ways in this set
+                          //TODO
                       end
                       else
                       begin
@@ -497,20 +497,38 @@ module riscv_dcache_core #(
                          flushing     <= 1'b0;
                       end
 
-        WAIT4BIUCMD1 : if (biufsm_ack) //wait for WRITE_WAY to complete
-                       begin
-                           memfsm_state <= WAIT4BIUCMD0;
-                           biucmd       <= READ_WAY;
-                           filling      <= 1'b1;
-                       end
+        WAIT4BIUCMD1: if (biufsm_err)
+                      begin
+                          memfsm_state <= RECOVER;
+                          biucmd       <= NOP;
+                          filling      <= 1'b0;
+                      end
+                      else if (biufsm_ack) //wait for WRITE_WAY to complete
+                      begin
+                          memfsm_state <= WAIT4BIUCMD0;
+                          biucmd       <= READ_WAY;
+                          filling      <= 1'b1;
+                      end
 
-        WAIT4BIUCMD0: if (biucmd_ack)
+        WAIT4BIUCMD0: if (biufsm_err)
+                      begin
+                          memfsm_state <= RECOVER;
+                          biucmd       <= NOP;
+                          filling      <= 1'b0;
+                      end
+                      else if (biucmd_ack)
                       begin
                           memfsm_state <= WAIT4BIUACK;
                           biucmd       <= NOP;
                       end
 
-        WAIT4BIUACK : if (biufsm_ack)
+        WAIT4BIUACK : if (biufsm_err)
+                      begin
+                          memfsm_state <= RECOVER;
+                          biucmd       <= NOP;
+                          filling      <= 1'b0;
+                      end
+                      else if (biufsm_ack)
                       begin
                           memfsm_state <= RECOVER;
                           filling      <= 1'b0;
@@ -534,6 +552,9 @@ module riscv_dcache_core #(
       WAIT4BIUACK: cache_ack = biu_ack_i & biu_adro_eq_cache_adr_dly;
       default    : cache_ack = 1'b0;
     endcase
+
+
+  assign cache_err = biu_err_i;
 
 
   //Assign mem_q
@@ -851,7 +872,7 @@ endgenerate
                          biufsm_state <= BURST;
                      end
 
-          BURST    : if (~|burst_cnt && biu_ack_i)
+          BURST    : if (biu_err_i || (~|burst_cnt && biu_ack_i))
                      begin
                          //write complete
                          biufsm_state <= IDLE;
@@ -897,6 +918,9 @@ endgenerate
               endcase
       BURST : if (biu_ack_i) burst_cnt <= burst_cnt -1;
     endcase
+
+
+  assign biufsm_err = biu_err_i;
 
 
   //output BIU signals asynchronously for speed reasons. BIU will synchronize ...
