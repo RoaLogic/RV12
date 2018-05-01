@@ -31,7 +31,7 @@
 import riscv_state_pkg::*;
 import biu_constants_pkg::*;
 
-module riscv_dcache_ahb3lite #(
+module riscv_dmem_ctrl #(
   parameter XLEN             = 32,
   parameter PLEN             = XLEN, // XLEN==32 ? 34 : 56
 
