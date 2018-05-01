@@ -68,7 +68,7 @@ module riscv_noicache_core #(
   output                          biu_we,
   output     [XLEN          -1:0] biu_di,
   input      [XLEN          -1:0] biu_do,
-  input                           biu_rack,     //data acknowledge, 1 per data
+  input                           biu_ack,      //data acknowledge, 1 per data
   input                           biu_err,      //data error
 
   output                          biu_is_cacheable,
@@ -167,7 +167,7 @@ module riscv_noicache_core #(
         biu_fifo[2].valid <= 1'b0;
     end
     else
-      case ({biu_rack,if_parcel_valid})
+      case ({biu_ack,if_parcel_valid})
         2'b00: ; //no action
         2'b10:   //FIFO write
                case ({biu_fifo[1].valid,biu_fifo[0].valid})
@@ -198,7 +198,7 @@ module riscv_noicache_core #(
 
   //Address & Data
   always @(posedge clk)
-    case ({biu_rack,if_parcel_valid})
+    case ({biu_ack,if_parcel_valid})
         2'b00: ;
         2'b10: case({biu_fifo[1].valid,biu_fifo[0].valid})
                  2'b11 : begin
