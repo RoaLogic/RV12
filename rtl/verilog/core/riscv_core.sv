@@ -1,39 +1,31 @@
-/////////////////////////////////////////////////////////////////
-//                                                             //
-//    ██████╗  ██████╗  █████╗                                 //
-//    ██╔══██╗██╔═══██╗██╔══██╗                                //
-//    ██████╔╝██║   ██║███████║                                //
-//    ██╔══██╗██║   ██║██╔══██║                                //
-//    ██║  ██║╚██████╔╝██║  ██║                                //
-//    ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝                                //
-//          ██╗      ██████╗  ██████╗ ██╗ ██████╗              //
-//          ██║     ██╔═══██╗██╔════╝ ██║██╔════╝              //
-//          ██║     ██║   ██║██║  ███╗██║██║                   //
-//          ██║     ██║   ██║██║   ██║██║██║                   //
-//          ███████╗╚██████╔╝╚██████╔╝██║╚██████╗              //
-//          ╚══════╝ ╚═════╝  ╚═════╝ ╚═╝ ╚═════╝              //
-//                                                             //
-//    RISC-V                                                   //
-//    Core                                                     //
-//                                                             //
-/////////////////////////////////////////////////////////////////
-//                                                             //
-//             Copyright (C) 2014-2017 ROA Logic BV            //
-//             www.roalogic.com                                //
-//                                                             //
-//    Unless specifically agreed in writing, this software is  //
-//  licensed under the RoaLogic Non-Commercial License         //
-//  version-1.0 (the "License"), a copy of which is included   //
-//  with this file or may be found on the RoaLogic website     //
-//  http://www.roalogic.com. You may not use the file except   //
-//  in compliance with the License.                            //
-//                                                             //
-//    THIS SOFTWARE IS PROVIDED "AS IS" AND WITHOUT ANY        //
-//  EXPRESS OF IMPLIED WARRANTIES OF ANY KIND.                 //
-//  See the License for permissions and limitations under the  //
-//  License.                                                   //
-//                                                             //
-/////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////
+//   ,------.                    ,--.                ,--.          //
+//   |  .--. ' ,---.  ,--,--.    |  |    ,---. ,---. `--' ,---.    //
+//   |  '--'.'| .-. |' ,-.  |    |  |   | .-. | .-. |,--.| .--'    //
+//   |  |\  \ ' '-' '\ '-'  |    |  '--.' '-' ' '-' ||  |\ `--.    //
+//   `--' '--' `---'  `--`--'    `-----' `---' `-   /`--' `---'    //
+//                                             `---'               //
+//    RISC-V                                                       //
+//    CPU Core                                                     //
+//                                                                 //
+/////////////////////////////////////////////////////////////////////
+//                                                                 //
+//             Copyright (C) 2014-2018 ROA Logic BV                //
+//             www.roalogic.com                                    //
+//                                                                 //
+//     Unless specifically agreed in writing, this software is     //
+//   licensed under the RoaLogic Non-Commercial License            //
+//   version-1.0 (the "License"), a copy of which is included      //
+//   with this file or may be found on the RoaLogic website        //
+//   http://www.roalogic.com. You may not use the file except      //
+//   in compliance with the License.                               //
+//                                                                 //
+//     THIS SOFTWARE IS PROVIDED "AS IS" AND WITHOUT ANY           //
+//   EXPRESS OF IMPLIED WARRANTIES OF ANY KIND.                    //
+//   See the License for permissions and limitations under the     //
+//   License.                                                      //
+//                                                                 //
+/////////////////////////////////////////////////////////////////////
 
 /*
   Changelog: 2017-12-15: Added MEM stage to improve memory access performance
@@ -41,6 +33,7 @@
 
 import riscv_rv12_pkg::*;
 import riscv_du_pkg::*;
+import biu_constants_pkg::*;
 
 module riscv_core #(
   parameter            XLEN                  = 32,
@@ -59,6 +52,7 @@ module riscv_core #(
   parameter            MULT_LATENCY          = 0,
 
   parameter            BREAKPOINTS           = 3,
+  parameter            PMP_CNT               = 16,
 
   parameter            BP_GLOBAL_BITS        = 2,
   parameter            BP_LOCAL_BITS         = 10,
@@ -79,52 +73,55 @@ module riscv_core #(
   parameter            PARCEL_SIZE           = 32
 )
 (
-  input                      rstn,   //Reset
-  input                      clk,    //Clock
+  input                            rstn,   //Reset
+  input                            clk,    //Clock
 
 
   //Instruction Memory Access bus
-  input                      if_stall_nxt_pc,
-  output [XLEN         -1:0] if_nxt_pc,
-  output                     if_stall,
-                             if_flush,
-  input  [PARCEL_SIZE  -1:0] if_parcel,
-  input  [XLEN         -1:0] if_parcel_pc,
-  input                      if_parcel_valid,
-  input                      if_parcel_misaligned,
-  input                      if_parcel_page_fault,
+  input                            if_stall_nxt_pc,
+  output       [XLEN         -1:0] if_nxt_pc,
+  output                           if_stall,
+                                   if_flush,
+  input        [PARCEL_SIZE  -1:0] if_parcel,
+  input        [XLEN         -1:0] if_parcel_pc,
+  input                            if_parcel_valid,
+  input                            if_parcel_misaligned,
+  input                            if_parcel_page_fault,
 
   //Data Memory Access bus
-  output [XLEN         -1:0] dmem_adr,
-                             dmem_d,
-  input  [XLEN         -1:0] dmem_q,
-  output                     dmem_we,
-  output [              2:0] dmem_size,
-  output                     dmem_req,
-  input                      dmem_ack,
-                             dmem_misaligned,
-                             dmem_page_fault,
+  output       [XLEN         -1:0] dmem_adr,
+                                   dmem_d,
+  input        [XLEN         -1:0] dmem_q,
+  output                           dmem_we,
+  output       biu_size_t          dmem_size,
+  output                           dmem_req,
+  input                            dmem_ack,
+                                   dmem_misaligned,
+                                   dmem_page_fault,
 
   //cpu state
-  output [              1:0] st_prv,
-  output                     bu_cacheflush,
+  output       [              1:0] st_prv,
+  output pmpcfg_struct      [15:0] st_pmpcfg,
+  output [15:0][XLEN         -1:0] st_pmpaddr,
+
+  output                           bu_cacheflush,
 
   //Interrupts
-  input                      ext_nmi,
-                             ext_tint,
-                             ext_sint,
-  input  [              3:0] ext_int,
+  input                            ext_nmi,
+                                   ext_tint,
+                                   ext_sint,
+  input        [              3:0] ext_int,
 
 
   //Debug Interface
-  input                      dbg_stall,
-  input                      dbg_strb,
-  input                      dbg_we,
-  input  [riscv_du_pkg::DBG_ADDR_SIZE-1:0] dbg_addr,
-  input  [XLEN         -1:0] dbg_dati,
-  output [XLEN         -1:0] dbg_dato,
-  output                     dbg_ack,
-  output                     dbg_bp
+  input                            dbg_stall,
+  input                            dbg_strb,
+  input                            dbg_we,
+  input        [DBG_ADDR_SIZE-1:0] dbg_addr,
+  input        [XLEN         -1:0] dbg_dati,
+  output       [XLEN         -1:0] dbg_dato,
+  output                           dbg_ack,
+  output                           dbg_bp
 );
 
 
@@ -158,7 +155,6 @@ module riscv_core #(
 
   logic                      id_stall,
                              ex_stall,
-                             mem_stall,
                              wb_stall,
                              du_stall,
                              du_stall_dly;
@@ -316,11 +312,11 @@ module riscv_core #(
     .XLEN           ( XLEN           ),
     .PC_INIT        ( PC_INIT        ) )
   wb_unit   (
-    .wb_dst ( rf_dst[0]  ),
-    .wb_we  ( rf_we[0]   ),
     .*
   );
+ assign rf_dst [0] = wb_dst;
  assign rf_dstv[0] = wb_r;
+ assign rf_we  [0] = wb_we;
 
 
   /*
@@ -343,12 +339,8 @@ module riscv_core #(
 
     .JEDEC_BANK            ( JEDEC_BANK            ),
     .JEDEC_MANUFACTURER_ID ( JEDEC_MANUFACTURER_ID ),
-    .ARCHID                ( (1<<XLEN) | ARCHID    ),
-    .REVPRV_MAJOR          ( REVPRV_MAJOR          ),
-    .REVPRV_MINOR          ( REVPRV_MINOR          ),
-    .REVUSR_MAJOR          ( REVUSR_MAJOR          ),
-    .REVUSR_MINOR          ( REVUSR_MINOR          ),
 
+    .PMP_CNT               ( PMP_CNT               ),
     .HARTID                ( HARTID                ) )
   cpu_state    ( .* );
 
