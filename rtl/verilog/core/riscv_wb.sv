@@ -1,77 +1,71 @@
-/////////////////////////////////////////////////////////////////
-//                                                             //
-//    ██████╗  ██████╗  █████╗                                 //
-//    ██╔══██╗██╔═══██╗██╔══██╗                                //
-//    ██████╔╝██║   ██║███████║                                //
-//    ██╔══██╗██║   ██║██╔══██║                                //
-//    ██║  ██║╚██████╔╝██║  ██║                                //
-//    ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝                                //
-//          ██╗      ██████╗  ██████╗ ██╗ ██████╗              //
-//          ██║     ██╔═══██╗██╔════╝ ██║██╔════╝              //
-//          ██║     ██║   ██║██║  ███╗██║██║                   //
-//          ██║     ██║   ██║██║   ██║██║██║                   //
-//          ███████╗╚██████╔╝╚██████╔╝██║╚██████╗              //
-//          ╚══════╝ ╚═════╝  ╚═════╝ ╚═╝ ╚═════╝              //
-//                                                             //
-//    RISC-V                                                   //
-//    Data Memory Access / Write Back                          //
-//                                                             //
-/////////////////////////////////////////////////////////////////
-//                                                             //
-//             Copyright (C) 2014-2017 ROA Logic BV            //
-//             www.roalogic.com                                //
-//                                                             //
-//    Unless specifically agreed in writing, this software is  //
-//  licensed under the RoaLogic Non-Commercial License         //
-//  version-1.0 (the "License"), a copy of which is included   //
-//  with this file or may be found on the RoaLogic website     //
-//  http://www.roalogic.com. You may not use the file except   //
-//  in compliance with the License.                            //
-//                                                             //
-//    THIS SOFTWARE IS PROVIDED "AS IS" AND WITHOUT ANY        //
-//  EXPRESS OF IMPLIED WARRANTIES OF ANY KIND.                 //
-//  See the License for permissions and limitations under the  //
-//  License.                                                   //
-//                                                             //
-/////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////
+//   ,------.                    ,--.                ,--.          //
+//   |  .--. ' ,---.  ,--,--.    |  |    ,---. ,---. `--' ,---.    //
+//   |  '--'.'| .-. |' ,-.  |    |  |   | .-. | .-. |,--.| .--'    //
+//   |  |\  \ ' '-' '\ '-'  |    |  '--.' '-' ' '-' ||  |\ `--.    //
+//   `--' '--' `---'  `--`--'    `-----' `---' `-   /`--' `---'    //
+//                                             `---'               //
+//    RISC-V                                                       //
+//    Data Memory Access - Write Back                              //
+//                                                                 //
+/////////////////////////////////////////////////////////////////////
+//                                                                 //
+//             Copyright (C) 2014-2018 ROA Logic BV                //
+//             www.roalogic.com                                    //
+//                                                                 //
+//     Unless specifically agreed in writing, this software is     //
+//   licensed under the RoaLogic Non-Commercial License            //
+//   version-1.0 (the "License"), a copy of which is included      //
+//   with this file or may be found on the RoaLogic website        //
+//   http://www.roalogic.com. You may not use the file except      //
+//   in compliance with the License.                               //
+//                                                                 //
+//     THIS SOFTWARE IS PROVIDED "AS IS" AND WITHOUT ANY           //
+//   EXPRESS OF IMPLIED WARRANTIES OF ANY KIND.                    //
+//   See the License for permissions and limitations under the     //
+//   License.                                                      //
+//                                                                 //
+/////////////////////////////////////////////////////////////////////
+
+import riscv_opcodes_pkg::*;
+import riscv_state_pkg::*;
 
 module riscv_wb #(
-  parameter            XLEN           = 32,
-  parameter [XLEN-1:0] PC_INIT        = 'h200,
-  parameter            INSTR_SIZE     = 32,
-  parameter            EXCEPTION_SIZE = 12
+  parameter            XLEN    = 32,
+  parameter [XLEN-1:0] PC_INIT = 'h200
 )
 (
-  input                           rstn,          //Reset
-  input                           clk,           //Clock
+  input  logic                      rst_ni,        //Reset
+  input  logic                      clk_i,         //Clock
 
-  output reg                      wb_stall,      //Stall on memory-wait
+  output logic                      wb_stall_o,    //Stall on memory-wait
 
-  input      [XLEN          -1:0] mem_pc,
-  output reg [XLEN          -1:0] wb_pc,
+  input  logic [XLEN          -1:0] mem_pc_i,
+  output logic [XLEN          -1:0] wb_pc_o,
 
-  input      [INSTR_SIZE    -1:0] mem_instr,
-  input                           mem_bubble,
-  output reg [INSTR_SIZE    -1:0] wb_instr,
-  output reg                      wb_bubble,
+  input  logic [ILEN          -1:0] mem_instr_i,
+  input  logic                      mem_bubble_i,
+  output logic [ILEN          -1:0] wb_instr_o,
+  output logic                      wb_bubble_o,
 
-  input      [EXCEPTION_SIZE-1:0] mem_exception,
-  output reg [EXCEPTION_SIZE-1:0] wb_exception,
-  output reg [XLEN          -1:0] wb_badaddr,
+  input  logic [EXCEPTION_SIZE-1:0] mem_exception_i,
+  output logic [EXCEPTION_SIZE-1:0] wb_exception_o,
+  output logic [XLEN          -1:0] wb_badaddr_o,
 
-  input      [XLEN          -1:0] mem_r,
-                                  mem_memadr,
+  input  logic [XLEN          -1:0] mem_r_i,
+                                    mem_memadr_i,
 
   //From Memory System
-  input                           dmem_ack,
-  input      [XLEN          -1:0] dmem_q,
-  input                           dmem_misaligned,
-                                  dmem_page_fault,
+  input  logic                      dmem_ack_i,
+                                    dmem_err_i,
+  input  logic [XLEN          -1:0] dmem_q_i,
+  input  logic                      dmem_misaligned_i,
+                                    dmem_page_fault_i,
 
   //To Register File
-  output reg [               4:0] wb_dst,
-  output reg [XLEN          -1:0] wb_r,
-  output reg                      wb_we
+  output logic [               4:0] wb_dst_o,
+  output logic [XLEN          -1:0] wb_r_o,
+  output logic                      wb_we_o
 );
 
 
@@ -96,30 +90,27 @@ module riscv_wb #(
   //
   // Module Body
   //
-  import riscv_pkg::*;
-  import riscv_state_pkg::*;
-
 
   /*
    * Program Counter
    */
-  always @(posedge clk, negedge rstn)
-    if      (!rstn    ) wb_pc <= PC_INIT;
-    else if (!wb_stall) wb_pc <= mem_pc;
+  always @(posedge clk_i, negedge rst_ni)
+    if      (!rst_ni    ) wb_pc_o <= PC_INIT;
+    else if (!wb_stall_o) wb_pc_o <= mem_pc_i;
 
 
   /*
    * Instruction
    */
-  always @(posedge clk, negedge rstn)
-    if      (!rstn    ) wb_instr <= INSTR_NOP;
-    else if (!wb_stall) wb_instr <= mem_instr;
+  always @(posedge clk_i, negedge rst_ni)
+    if      (!rst_ni    ) wb_instr_o <= INSTR_NOP;
+    else if (!wb_stall_o) wb_instr_o <= mem_instr_i;
 
  
-  assign func7      = mem_instr[31:25];
-  assign func3      = mem_instr[14:12];
-  assign opcode     = mem_instr[ 6: 2];
-  assign dst        = mem_instr[11: 7];
+  assign func7  = mem_instr_i[31:25];
+  assign func3  = mem_instr_i[14:12];
+  assign opcode = mem_instr_i[ 6: 2];
+  assign dst    = mem_instr_i[11: 7];
 
 
   /*
@@ -127,47 +118,55 @@ module riscv_wb #(
    */
   always_comb
     begin
-        exception = mem_exception;
+        exception = mem_exception_i;
 
-        if (opcode == OPC_LOAD && dmem_ack)
-          exception[CAUSE_MISALIGNED_LOAD   ] = dmem_misaligned;
+        if (opcode == OPC_LOAD && dmem_ack_i)
+          exception[CAUSE_MISALIGNED_LOAD   ] = dmem_misaligned_i;
 
-        if (opcode == OPC_STORE && dmem_ack)
-          exception[CAUSE_MISALIGNED_STORE  ] = dmem_misaligned;
+        if (opcode == OPC_STORE && dmem_ack_i)
+          exception[CAUSE_MISALIGNED_STORE  ] = dmem_misaligned_i;
 
         if (opcode == OPC_LOAD)
-          exception[CAUSE_LOAD_ACCESS_FAULT ] = dmem_page_fault;
+          exception[CAUSE_LOAD_ACCESS_FAULT ] = dmem_err_i;
 
         if (opcode == OPC_STORE)
-          exception[CAUSE_STORE_ACCESS_FAULT] = dmem_page_fault;
+          exception[CAUSE_STORE_ACCESS_FAULT] = dmem_err_i;
+         
+        if (opcode == OPC_LOAD)
+          exception[CAUSE_LOAD_PAGE_FAULT   ] = dmem_page_fault_i;
+
+        if (opcode == OPC_STORE)
+          exception[CAUSE_STORE_PAGE_FAULT  ] = dmem_page_fault_i;
     end
 
 
-  always @(posedge clk, negedge rstn)
-    if      (!rstn    ) wb_exception <= 'h0;
-    else if (!wb_stall) wb_exception <= exception;
+  always @(posedge clk_i, negedge rst_ni)
+    if      (!rst_ni    ) wb_exception_o <= 'h0;
+    else if (!wb_stall_o) wb_exception_o <= exception;
 
 
-  always @(posedge clk, negedge rstn)
-    if (!rstn)
-      wb_badaddr <= 'h0;
-    else if (exception[CAUSE_MISALIGNED_LOAD   ] |
-             exception[CAUSE_MISALIGNED_STORE  ] |
-             exception[CAUSE_LOAD_ACCESS_FAULT ] |
-             exception[CAUSE_STORE_ACCESS_FAULT] )
-      wb_badaddr <= mem_memadr;
+  always @(posedge clk_i, negedge rst_ni)
+    if (!rst_ni)
+      wb_badaddr_o <= 'h0;
+    else if (exception[CAUSE_MISALIGNED_LOAD   ] ||
+             exception[CAUSE_MISALIGNED_STORE  ] ||
+             exception[CAUSE_LOAD_ACCESS_FAULT ] ||
+             exception[CAUSE_STORE_ACCESS_FAULT] ||
+             exception[CAUSE_LOAD_PAGE_FAULT   ] ||
+             exception[CAUSE_STORE_PAGE_FAULT  ] )
+      wb_badaddr_o <= mem_memadr_i;
     else
-      wb_badaddr <= mem_pc;
+      wb_badaddr_o <= mem_pc_i;
 
 
   /*
    * From Memory
    */
   always_comb
-    casex ( {mem_bubble,|mem_exception, opcode} )
-      {2'b00,OPC_LOAD }: wb_stall = ~dmem_ack;
-      {2'b00,OPC_STORE}: wb_stall = ~dmem_ack;
-      default         : wb_stall = 1'b0;
+    casex ( {mem_bubble_i,|mem_exception_i, opcode} )
+      {2'b00,OPC_LOAD }: wb_stall_o = ~(dmem_ack_i | dmem_err_i);
+      {2'b00,OPC_STORE}: wb_stall_o = ~(dmem_ack_i | dmem_err_i);
+      default          : wb_stall_o = 1'b0;
     endcase
 
 
@@ -177,10 +176,10 @@ generate
   begin
       logic [XLEN-1:0] m_qd;
 
-      assign m_qb = dmem_q >> (8* mem_memadr[2:0]);
-      assign m_qh = dmem_q >> (8* mem_memadr[2:0]);
-      assign m_qw = dmem_q >> (8* mem_memadr[2:0]);
-      assign m_qd = dmem_q;
+      assign m_qb = dmem_q_i >> (8* mem_memadr_i[2:0]);
+      assign m_qh = dmem_q_i >> (8* mem_memadr_i[2:0]);
+      assign m_qw = dmem_q_i >> (8* mem_memadr_i[2:0]);
+      assign m_qd = dmem_q_i;
 
       always_comb
         casex ( {func7,func3,opcode} )
@@ -196,9 +195,9 @@ generate
   end
   else
   begin
-      assign m_qb = dmem_q >> (8* mem_memadr[1:0]);
-      assign m_qh = dmem_q >> (8* mem_memadr[1:0]);
-      assign m_qw = dmem_q;
+      assign m_qb = dmem_q_i >> (8* mem_memadr_i[1:0]);
+      assign m_qh = dmem_q_i >> (8* mem_memadr_i[1:0]);
+      assign m_qw = dmem_q_i;
 
       always_comb
         casex ( {func7,func3,opcode} )
@@ -217,41 +216,38 @@ endgenerate
    * Register File Write Back
    */
   // Destination register
-  always @(posedge clk)
-    if (!wb_stall) wb_dst <= dst;
+  always @(posedge clk_i)
+    if (!wb_stall_o) wb_dst_o <= dst;
 
 
   // Result
-  always @(posedge clk)
-    if (!wb_stall)
+  always @(posedge clk_i)
+    if (!wb_stall_o)
       casex (opcode)
-        OPC_LOAD: wb_r <= m_data;
-        default : wb_r <= mem_r;
+        OPC_LOAD: wb_r_o <= m_data;
+        default : wb_r_o <= mem_r_i;
       endcase
 
 
-//    if (!ex_stall) wb_r <= ex_r;
-
-
   // Register File Write
-  always @(posedge clk, negedge rstn)
-    if      (!rstn     ) wb_we <= 'b0;
-    else if (|exception) wb_we <= 'b0;
+  always @(posedge clk_i, negedge rst_ni)
+    if      (!rst_ni   ) wb_we_o <= 'b0;
+    else if (|exception) wb_we_o <= 'b0;
     else casex (opcode)
-      OPC_MISC_MEM: wb_we <= 'b0;
-      OPC_LOAD    : wb_we <= ~mem_bubble & |dst & ~wb_stall;
-      OPC_STORE   : wb_we <= 'b0;
-      OPC_STORE_FP: wb_we <= 'b0;
-      OPC_BRANCH  : wb_we <= 'b0;
+      OPC_MISC_MEM: wb_we_o <= 'b0;
+      OPC_LOAD    : wb_we_o <= ~mem_bubble_i & |dst & ~wb_stall_o;
+      OPC_STORE   : wb_we_o <= 'b0;
+      OPC_STORE_FP: wb_we_o <= 'b0;
+      OPC_BRANCH  : wb_we_o <= 'b0;
 //      OPC_SYSTEM  : wb_we <= 'b0;
-      default     : wb_we <= ~mem_bubble & |dst;
+      default     : wb_we_o <= ~mem_bubble_i & |dst;
     endcase
 
 
   // Write Back Bubble
-  always @(posedge clk, negedge rstn)
-    if (!rstn) wb_bubble <= 1'b1;
-    else       wb_bubble <= mem_bubble;
+  always @(posedge clk_i, negedge rst_ni)
+    if      (!rst_ni    ) wb_bubble_o <= 1'b1;
+    else if (!wb_stall_o) wb_bubble_o <= mem_bubble_i;
 
 endmodule
 

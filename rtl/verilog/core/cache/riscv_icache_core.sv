@@ -35,6 +35,9 @@
 //                                                             //
 /////////////////////////////////////////////////////////////////
 
+
+import biu_constants_pkg::*;
+
 module riscv_icache_core #(
   parameter            XLEN           = 32,
   parameter [XLEN-1:0] PC_INIT        = 'h200,
@@ -73,13 +76,13 @@ module riscv_icache_core #(
   input                           biu_stb_ack,
   output     [PHYS_ADDR_SIZE-1:0] biu_adri,
   input      [PHYS_ADDR_SIZE-1:0] biu_adro,
-  output     [XLEN/8        -1:0] biu_be,       //Byte enables
+  output     biu_size_t           biu_size,     //transfer size
   output reg [               2:0] biu_type,     //burst type -AHB style
   output                          biu_lock,
   output                          biu_we,
   output     [XLEN          -1:0] biu_di,
   input      [XLEN          -1:0] biu_do,
-  input                           biu_rack,      //data acknowledge, 1 per data
+  input                           biu_ack,      //data acknowledge, 1 per data
   input                           biu_err,      //data error
 
   output                          biu_is_cacheable,
@@ -90,8 +93,6 @@ module riscv_icache_core #(
   //
   // Constants
   //
-  import ahb3lite_pkg::*;
-
   localparam BLK_OFF_LSB  = 1;                                          //Instruction address boundary (min.16bits)
   localparam SETS         = (SIZE*1024) / BLOCK_SIZE / WAYS;            //Number of sets
   localparam BLK_OFF_BITS = $clog2(BLOCK_SIZE);                         //Number of BlockOffset bits
@@ -205,8 +206,6 @@ module riscv_icache_core #(
   //
   // Module Body
   //
-  import riscv_pkg::*;
-
 
   //Is this a cacheable region?
   //MSB=1 non-cacheable (IO region)
@@ -361,7 +360,7 @@ endgenerate
                          flushing <= 1'b1;
                          filling  <= 1'b0;
                      end
-                     else if (~|cnt & biu_rack) //TODO: pre-read 1 line
+                     else if (~|cnt & biu_ack) //TODO: pre-read 1 line
                      begin
                          wr_state <= ARMED;
                          flushing <= 1'b0;
@@ -412,13 +411,13 @@ generate
   for (way=0; way<WAYS; way++)
   begin: gen_way_we
       if      (REPLACE_ALG == 0) //Random
-        assign tag_we[way] = flushing | (filling & fill_way_select[way] & biu_rack & ~|cnt);  //update way being filled
+        assign tag_we[way] = flushing | (filling & fill_way_select[way] & biu_ack & ~|cnt);  //update way being filled
       else if (REPLACE_ALG == 1) //FIFO
-        assign tag_we[way] = flushing | (filling & biu_rack & (~|cnt));                       //update all ways upon filling
+        assign tag_we[way] = flushing | (filling & biu_ack & (~|cnt));                       //update all ways upon filling
       else if (REPLACE_ALG == 2) //LRU
-        assign tag_we[way] = flushing | (filling & biu_rack & (~|cnt)) | dcache_hit;          //update all ways upon filling and reading (1 cycle later)
+        assign tag_we[way] = flushing | (filling & biu_ack & (~|cnt)) | dcache_hit;          //update all ways upon filling and reading (1 cycle later)
 
-      assign dat_we[way] = filling & fill_way_select[way] & biu_rack;
+      assign dat_we[way] = filling & fill_way_select[way] & biu_ack;
   end
 endgenerate
 
@@ -510,7 +509,8 @@ endgenerate
                                                         : ~(if_flush | if_flush_dly) & ~if_stall & biu_fifo[0].valid;
                      if_parcel_pc    = is_cacheable_dly ? pc
                                                         : { {XLEN-PHYS_ADDR_SIZE{1'b0}},biu_fifo[0].adr};
-                     nxt_cnt         = !cache_hit ? BURST_SIZE -1 : cnt;
+                     nxt_cnt         = !cache_hit ? (bu_cacheflush || hold_bu_cacheflush) ? {IDX_BITS{1'b1}} :BURST_SIZE -1
+                                                  : cnt;
                  end
 
         FLUSH  : begin
@@ -527,10 +527,10 @@ endgenerate
         FILL   : begin
                      biu_stb         = 1'b0;
                      //TODO: if_stall_nxt_pc: what if if_nxt_pc is non-cacheable??
-                     if_stall_nxt_pc = ~(~if_flush_dly & biu_rack & (biu_adro == pc)) & (hold_if_flush ? |cnt : 1'b1);
-                     if_parcel_valid = ~(if_flush | if_flush_dly) &  (biu_rack & (biu_adro == pc));
+                     if_stall_nxt_pc = ~(~if_flush_dly & biu_ack & (biu_adro == pc)) & (hold_if_flush ? |cnt : 1'b1);
+                     if_parcel_valid = ~(if_flush | if_flush_dly) &  (biu_ack & (biu_adro == pc));
                      if_parcel_pc    = { {XLEN-PHYS_ADDR_SIZE{1'b0}},biu_adro};
-                     nxt_cnt         = (bu_cacheflush | hold_bu_cacheflush) ? {IDX_BITS{1'b1}} : biu_rack ? cnt -1 : cnt;
+                     nxt_cnt         = (bu_cacheflush | hold_bu_cacheflush) ? {IDX_BITS{1'b1}} : biu_ack ? cnt -1 : cnt;
                  end
 
         default: begin
@@ -569,7 +569,7 @@ endgenerate
    * External Interface
    */
   assign biu_adri  = ~is_cacheable ? if_nxt_pc[PHYS_ADDR_SIZE -1:0] : pc[PHYS_ADDR_SIZE -1:0];
-  assign biu_be    = {$bits(biu_be){1'b1}};
+  assign biu_size  = XLEN==64 ? DWORD : WORD;
   assign biu_lock  = 1'b0;
   assign biu_we    = 1'b0; //no writes
   assign biu_di    =  'h0;
@@ -612,7 +612,7 @@ endgenerate
         biu_fifo[2].valid <= 1'b0;
     end
     else
-      case ({biu_rack,if_parcel_valid})
+      case ({biu_ack,if_parcel_valid})
         2'b00: ; //no action
         2'b10:   //FIFO write
                case ({biu_fifo[1].valid,biu_fifo[0].valid})
@@ -643,7 +643,7 @@ endgenerate
 
   //Address & Data
   always @(posedge clk)
-    case ({biu_rack,if_parcel_valid})
+    case ({biu_ack,if_parcel_valid})
         2'b00: ;
         2'b10: case({biu_fifo[1].valid,biu_fifo[0].valid})
                  2'b11 : begin

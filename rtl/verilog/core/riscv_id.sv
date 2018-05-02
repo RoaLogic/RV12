@@ -1,50 +1,44 @@
-/////////////////////////////////////////////////////////////////
-//                                                             //
-//    ██████╗  ██████╗  █████╗                                 //
-//    ██╔══██╗██╔═══██╗██╔══██╗                                //
-//    ██████╔╝██║   ██║███████║                                //
-//    ██╔══██╗██║   ██║██╔══██║                                //
-//    ██║  ██║╚██████╔╝██║  ██║                                //
-//    ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝                                //
-//          ██╗      ██████╗  ██████╗ ██╗ ██████╗              //
-//          ██║     ██╔═══██╗██╔════╝ ██║██╔════╝              //
-//          ██║     ██║   ██║██║  ███╗██║██║                   //
-//          ██║     ██║   ██║██║   ██║██║██║                   //
-//          ███████╗╚██████╔╝╚██████╔╝██║╚██████╗              //
-//          ╚══════╝ ╚═════╝  ╚═════╝ ╚═╝ ╚═════╝              //
-//                                                             //
-//    RISC-V                                                   //
-//    Instruction Decoder                                      //
-//                                                             //
-/////////////////////////////////////////////////////////////////
-//                                                             //
-//             Copyright (C) 2014-2017 ROA Logic BV            //
-//             www.roalogic.com                                //
-//                                                             //
-//    Unless specifically agreed in writing, this software is  //
-//  licensed under the RoaLogic Non-Commercial License         //
-//  version-1.0 (the "License"), a copy of which is included   //
-//  with this file or may be found on the RoaLogic website     //
-//  http://www.roalogic.com. You may not use the file except   //
-//  in compliance with the License.                            //
-//                                                             //
-//    THIS SOFTWARE IS PROVIDED "AS IS" AND WITHOUT ANY        //
-//  EXPRESS OF IMPLIED WARRANTIES OF ANY KIND.                 //
-//  See the License for permissions and limitations under the  //
-//  License.                                                   //
-//                                                             //
-/////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////
+//   ,------.                    ,--.                ,--.          //
+//   |  .--. ' ,---.  ,--,--.    |  |    ,---. ,---. `--' ,---.    //
+//   |  '--'.'| .-. |' ,-.  |    |  |   | .-. | .-. |,--.| .--'    //
+//   |  |\  \ ' '-' '\ '-'  |    |  '--.' '-' ' '-' ||  |\ `--.    //
+//   `--' '--' `---'  `--`--'    `-----' `---' `-   /`--' `---'    //
+//                                             `---'               //
+//    RISC-V                                                       //
+//    Instruction Decoder                                          //
+//                                                                 //
+/////////////////////////////////////////////////////////////////////
+//                                                                 //
+//             Copyright (C) 2014-2018 ROA Logic BV                //
+//             www.roalogic.com                                    //
+//                                                                 //
+//     Unless specifically agreed in writing, this software is     //
+//   licensed under the RoaLogic Non-Commercial License            //
+//   version-1.0 (the "License"), a copy of which is included      //
+//   with this file or may be found on the RoaLogic website        //
+//   http://www.roalogic.com. You may not use the file except      //
+//   in compliance with the License.                               //
+//                                                                 //
+//     THIS SOFTWARE IS PROVIDED "AS IS" AND WITHOUT ANY           //
+//   EXPRESS OF IMPLIED WARRANTIES OF ANY KIND.                    //
+//   See the License for permissions and limitations under the     //
+//   License.                                                      //
+//                                                                 //
+/////////////////////////////////////////////////////////////////////
 
 /*
   Changelog: 2017-02-28
              2017-03-01: Updates for 1.9.1 priv.spec
+             2018-01-20: Updates for 1.10 priv.spec
 */
+
+import riscv_opcodes_pkg::*;
+import riscv_state_pkg::*;
 
 module riscv_id #(
   parameter            XLEN           = 32,
   parameter [XLEN-1:0] PC_INIT        = 'h200,
-  parameter            INSTR_SIZE     = 32,
-  parameter            EXCEPTION_SIZE = 12,
   parameter            HAS_HYPER      = 0,
   parameter            HAS_SUPER      = 0,
   parameter            HAS_USER       = 0,
@@ -56,16 +50,18 @@ module riscv_id #(
 (
   input                           rstn,
   input                           clk,
+
   output reg                      id_stall,
+  input                           ex_stall,
+                                  du_stall,
 
   input                           bu_flush,
                                   st_flush,
                                   du_flush,
+
   input      [XLEN          -1:0] bu_nxt_pc,
                                   st_nxt_pc,
-                                  du_dato,
-  input                           ex_stall,
-                                  du_stall,
+
 
   //Program counter
   input      [XLEN          -1:0] if_pc,
@@ -75,15 +71,15 @@ module riscv_id #(
 
 
   //Instruction
-  input      [INSTR_SIZE    -1:0] if_instr,
+  input      [ILEN          -1:0] if_instr,
   input                           if_bubble,
-  output reg [INSTR_SIZE    -1:0] id_instr,
+  output reg [ILEN          -1:0] id_instr,
   output reg                      id_bubble,
-  input      [INSTR_SIZE    -1:0] ex_instr,
+  input      [ILEN          -1:0] ex_instr,
   input                           ex_bubble,
-  input      [INSTR_SIZE    -1:0] mem_instr,
+  input      [ILEN          -1:0] mem_instr,
   input                           mem_bubble,
-  input      [INSTR_SIZE    -1:0] wb_instr,
+  input      [ILEN          -1:0] wb_instr,
   input                           wb_bubble,
 
   //Exceptions
@@ -93,8 +89,16 @@ module riscv_id #(
                                   wb_exception,
   output reg [EXCEPTION_SIZE-1:0] id_exception,
 
+
   //From State
   input      [               1:0] st_prv,
+                                  st_xlen,
+  input                           st_tvm,
+                                  st_tw,
+                                  st_tsr,
+  input      [XLEN          -1:0] st_mcounteren,
+                                  st_scounteren,
+
 
   //To RF
   output     [               4:0] id_src1,
@@ -113,7 +117,7 @@ module riscv_id #(
                                   id_bypwb_opA,
                                   id_bypwb_opB,
 
-  //from WB
+  //from MEM/WB
   input      [XLEN          -1:0] mem_r,
   input      [XLEN          -1:0] wb_r
 );
@@ -142,13 +146,15 @@ module riscv_id #(
   logic [               2:0] if_func3;
   logic [               6:0] if_func7;
 
-  logic                      is_rv64,
-                             has_fp,
+  logic                      xlen,      //Current CPU state XLEN
+                             xlen64,    //Is the CPU state set to RV64?
+                             xlen32,    //Is the CPU state set to RV32?
+                             has_fpu,
                              has_muldiv,
                              has_amo,
-                             has_user,
-                             has_super,
-                             has_hyper;
+                             has_u,
+                             has_s,
+                             has_h;
 
   logic [               4:0] if_src1,
                              if_src2,
@@ -174,9 +180,6 @@ module riscv_id #(
   //
   // Module Body
   //
-  import riscv_pkg::*;
-  import riscv_state_pkg::*;
-
 
   /*
    * Program Counter
@@ -189,10 +192,11 @@ module riscv_id #(
 
   /*
    * Instruction
+   *
+   * TODO: push if-instr upon illegal-instruction
    */
-  always @(posedge clk,negedge rstn)
-    if      (!rstn ) id_instr <= INSTR_NOP;
-    else if (!stall ) id_instr <= if_instr;
+  always @(posedge clk)
+    if (!stall ) id_instr <= if_instr;
 
 
   always @(posedge clk,negedge rstn)
@@ -202,8 +206,8 @@ module riscv_id #(
       if  (id_stall) id_bubble_r <= 1'b1;
       else           id_bubble_r <= if_bubble;
 
+
   //local stall
-//  assign stall = ex_stall | (du_stall & (~id_bubble_r | |id_exception));
   assign stall     = ex_stall | (du_stall & ~|wb_exception);
   assign id_bubble = stall | bu_flush | st_flush | |ex_exception | |mem_exception | |wb_exception | id_bubble_r;
 
@@ -221,13 +225,15 @@ module riscv_id #(
   assign mem_dst    = mem_instr[11:7];
   assign wb_dst     = wb_instr [11:7];
 
-  assign is_rv64    = (XLEN       == 64);
-  assign has_fp     = (HAS_FPU    !=  0);
-  assign has_muldiv = (HAS_RVM    !=  0);
-  assign has_amo    = (HAS_RVA    !=  0);
-  assign has_user   = (HAS_USER   !=  0);
-  assign has_super  = (HAS_SUPER  !=  0);
-  assign has_hyper  = (HAS_HYPER  !=  0);
+  assign has_fpu    = (HAS_FPU    !=   0);
+  assign has_muldiv = (HAS_RVM    !=   0);
+  assign has_amo    = (HAS_RVA    !=   0);
+  assign has_u      = (HAS_USER   !=   0);
+  assign has_s      = (HAS_SUPER  !=   0);
+  assign has_h      = (HAS_HYPER  !=   0);
+
+  assign xlen64     = st_xlen == RV64I;
+  assign xlen32     = st_xlen == RV32I;
 
 
   always @(posedge clk)
@@ -246,9 +252,9 @@ module riscv_id #(
             id_exception                            <= if_exception;
             id_exception[CAUSE_ILLEGAL_INSTRUCTION] <= ~if_bubble & illegal_instr;
             id_exception[CAUSE_BREAKPOINT         ] <= ~if_bubble & (if_instr == EBREAK);
-            id_exception[CAUSE_UMODE_ECALL        ] <= ~if_bubble & (if_instr == ECALL ) & (st_prv == PRV_U) & has_user;
-            id_exception[CAUSE_SMODE_ECALL        ] <= ~if_bubble & (if_instr == ECALL ) & (st_prv == PRV_S) & has_super;
-            id_exception[CAUSE_HMODE_ECALL        ] <= ~if_bubble & (if_instr == ECALL ) & (st_prv == PRV_H) & has_hyper;
+            id_exception[CAUSE_UMODE_ECALL        ] <= ~if_bubble & (if_instr == ECALL ) & (st_prv == PRV_U) & has_u;
+            id_exception[CAUSE_SMODE_ECALL        ] <= ~if_bubble & (if_instr == ECALL ) & (st_prv == PRV_S) & has_s;
+            id_exception[CAUSE_HMODE_ECALL        ] <= ~if_bubble & (if_instr == ECALL ) & (st_prv == PRV_H) & has_h;
             id_exception[CAUSE_MMODE_ECALL        ] <= ~if_bubble & (if_instr == ECALL ) & (st_prv == PRV_M);
         end
 
@@ -279,7 +285,6 @@ module riscv_id #(
   //generate Load-WB-result
   //result might fall inbetween wb_r and data available in Register File
   always_comb
-    (* synthesis,parallel_case *)
     casex (wb_opcode)
        OPC_LOAD    : can_ldwb = ~wb_bubble;
        OPC_OP_IMM  : can_ldwb = ~wb_bubble;
@@ -421,27 +426,26 @@ module riscv_id #(
   always @(posedge clk,negedge rstn)
     if (!rstn) multi_cycle_instruction <= 1'b0;
     else if (!stall)
-    casex ( {is_rv64,if_func7,if_func3,if_opcode} )
+    casex ( {xlen32,if_func7,if_func3,if_opcode} )
       {1'b?,MUL   } : multi_cycle_instruction <= MULT_LATENCY > 0 ? has_muldiv : 1'b0;
       {1'b?,MULH  } : multi_cycle_instruction <= MULT_LATENCY > 0 ? has_muldiv : 1'b0;
-      {1'b1,MULW  } : multi_cycle_instruction <= MULT_LATENCY > 0 ? has_muldiv : 1'b0;
+      {1'b0,MULW  } : multi_cycle_instruction <= MULT_LATENCY > 0 ? has_muldiv : 1'b0;
       {1'b?,MULHSU} : multi_cycle_instruction <= MULT_LATENCY > 0 ? has_muldiv : 1'b0;
       {1'b?,MULHU } : multi_cycle_instruction <= MULT_LATENCY > 0 ? has_muldiv : 1'b0;
       {1'b?,DIV   } : multi_cycle_instruction <= has_muldiv;
-      {1'b1,DIVW  } : multi_cycle_instruction <= has_muldiv;
+      {1'b0,DIVW  } : multi_cycle_instruction <= has_muldiv;
       {1'b?,DIVU  } : multi_cycle_instruction <= has_muldiv;
-      {1'b1,DIVUW } : multi_cycle_instruction <= has_muldiv;
+      {1'b0,DIVUW } : multi_cycle_instruction <= has_muldiv;
       {1'b?,REM   } : multi_cycle_instruction <= has_muldiv;
-      {1'b1,REMW  } : multi_cycle_instruction <= has_muldiv;
+      {1'b0,REMW  } : multi_cycle_instruction <= has_muldiv;
       {1'b?,REMU  } : multi_cycle_instruction <= has_muldiv;
-      {1'b1,REMUW } : multi_cycle_instruction <= has_muldiv;
+      {1'b0,REMUW } : multi_cycle_instruction <= has_muldiv;
       default       : multi_cycle_instruction <= 1'b0;
     endcase
 
 
   //Check for each stage if the result should be used
   always_comb
-    (* synthesis,parallel_case *)
     casex (id_opcode)
        OPC_LOAD    : can_bypex = ~id_bubble;
        OPC_OP_IMM  : can_bypex = ~id_bubble;
@@ -459,7 +463,6 @@ module riscv_id #(
 
 
   always_comb
-    (* synthesis,parallel_case *)
     casex (ex_opcode)
        OPC_LOAD    : can_bypmem = ~ex_bubble & ~multi_cycle_instruction;
        OPC_OP_IMM  : can_bypmem = ~ex_bubble & ~multi_cycle_instruction;
@@ -477,7 +480,6 @@ module riscv_id #(
 
 
   always_comb
-    (* synthesis,parallel_case *)
     casex (mem_opcode)
        OPC_LOAD    : can_bypwb = ~mem_bubble & ~multi_cycle_instruction;
        OPC_OP_IMM  : can_bypwb = ~mem_bubble & ~multi_cycle_instruction;
@@ -501,7 +503,6 @@ module riscv_id #(
   */
   always @(posedge clk)
     if (!stall)
-    (* synthesis,parallel_case *)
     casex (if_opcode)
       OPC_OP_IMM  : begin
                         id_bypex_opA  <= (if_src1 == id_dst ) & |id_dst & can_bypex;
@@ -676,13 +677,11 @@ module riscv_id #(
        FENCE_I: illegal_alu_instr = 1'b0;
        ECALL  : illegal_alu_instr = 1'b0;
        EBREAK : illegal_alu_instr = 1'b0;
-       URET   : illegal_alu_instr = has_user  ? 1'b0            : 1'b1;
-       SRET   : illegal_alu_instr = has_super ? st_prv <  PRV_S : 1'b1;
-       HRET   : illegal_alu_instr = has_hyper ? st_prv <  PRV_H : 1'b1;
+       URET   : illegal_alu_instr = ~has_u;
+       SRET   : illegal_alu_instr = ~has_s || st_prv <  PRV_S || (st_prv == PRV_S && st_tsr);
        MRET   : illegal_alu_instr = st_prv != PRV_M;
        default:
-            (* synthesis,parallel_case *)
-            casex ( {is_rv64,if_func7,if_func3,if_opcode} )
+            casex ( {xlen32,if_func7,if_func3,if_opcode} )
               {1'b?,LUI   }: illegal_alu_instr = 1'b0;
               {1'b?,AUIPC }: illegal_alu_instr = 1'b0;
               {1'b?,JAL   }: illegal_alu_instr = 1'b0;
@@ -695,31 +694,31 @@ module riscv_id #(
               {1'b?,BGEU  }: illegal_alu_instr = 1'b0;
               {1'b?,ADDI  }: illegal_alu_instr = 1'b0;
               {1'b?,ADD   }: illegal_alu_instr = 1'b0;
-              {1'b1,ADDIW }: illegal_alu_instr = 1'b0;                   //RV64
-              {1'b1,ADDW  }: illegal_alu_instr = 1'b0;                   //RV64
+              {1'b0,ADDIW }: illegal_alu_instr = 1'b0;                   //RV64
+              {1'b0,ADDW  }: illegal_alu_instr = 1'b0;                   //RV64
               {1'b?,SUB   }: illegal_alu_instr = 1'b0;
-              {1'b1,SUBW  }: illegal_alu_instr = 1'b0;                   //RV64
+              {1'b0,SUBW  }: illegal_alu_instr = 1'b0;                   //RV64
               {1'b?,XORI  }: illegal_alu_instr = 1'b0;
               {1'b?,XOR   }: illegal_alu_instr = 1'b0;
               {1'b?,ORI   }: illegal_alu_instr = 1'b0;
               {1'b?,OR    }: illegal_alu_instr = 1'b0;
               {1'b?,ANDI  }: illegal_alu_instr = 1'b0;
               {1'b?,AND   }: illegal_alu_instr = 1'b0;
-              {1'b?,SLLI  }: illegal_alu_instr = ~is_rv64 & if_func7[0]; //shamt[5] illegal for RV32
+              {1'b?,SLLI  }: illegal_alu_instr = xlen32 & if_func7[0]; //shamt[5] illegal for RV32
               {1'b?,SLL   }: illegal_alu_instr = 1'b0;
-              {1'b1,SLLIW }: illegal_alu_instr = 1'b0;                   //RV64
-              {1'b1,SLLW  }: illegal_alu_instr = 1'b0;                   //RV64
+              {1'b0,SLLIW }: illegal_alu_instr = 1'b0;                   //RV64
+              {1'b0,SLLW  }: illegal_alu_instr = 1'b0;                   //RV64
               {1'b?,SLTI  }: illegal_alu_instr = 1'b0;
               {1'b?,SLT   }: illegal_alu_instr = 1'b0;
               {1'b?,SLTIU }: illegal_alu_instr = 1'b0;
               {1'b?,SLTU  }: illegal_alu_instr = 1'b0;
-              {1'b?,SRLI  }: illegal_alu_instr = ~is_rv64 & if_func7[0]; //shamt[5] illegal for RV32
+              {1'b?,SRLI  }: illegal_alu_instr = xlen32 & if_func7[0]; //shamt[5] illegal for RV32
               {1'b?,SRL   }: illegal_alu_instr = 1'b0;
-              {1'b1,SRLIW }: illegal_alu_instr = 1'b0;                   //RV64
-              {1'b1,SRLW  }: illegal_alu_instr = 1'b0;                   //RV64
-              {1'b?,SRAI  }: illegal_alu_instr = ~is_rv64 & if_func7[0]; //shamt[5] illegal for RV32
+              {1'b0,SRLIW }: illegal_alu_instr = 1'b0;                   //RV64
+              {1'b0,SRLW  }: illegal_alu_instr = 1'b0;                   //RV64
+              {1'b?,SRAI  }: illegal_alu_instr = xlen32 & if_func7[0]; //shamt[5] illegal for RV32
               {1'b?,SRA   }: illegal_alu_instr = 1'b0;
-              {1'b1,SRAIW }: illegal_alu_instr = 1'b0;
+              {1'b0,SRAIW }: illegal_alu_instr = 1'b0;
               {1'b?,SRAW  }: illegal_alu_instr = 1'b0;
   
               //system
@@ -736,18 +735,18 @@ module riscv_id #(
 
   //LSU
   always_comb
-    casex ( {is_rv64,has_amo,if_func7,if_func3,if_opcode} )
+    casex ( {xlen32,has_amo,if_func7,if_func3,if_opcode} )
       {1'b?,1'b?,LB    }: illegal_lsu_instr = 1'b0;
       {1'b?,1'b?,LH    }: illegal_lsu_instr = 1'b0;
       {1'b?,1'b?,LW    }: illegal_lsu_instr = 1'b0;
-      {1'b1,1'b?,LD    }: illegal_lsu_instr = 1'b0;  //RV64
+      {1'b0,1'b?,LD    }: illegal_lsu_instr = 1'b0;  //RV64
       {1'b?,1'b?,LBU   }: illegal_lsu_instr = 1'b0;
       {1'b?,1'b?,LHU   }: illegal_lsu_instr = 1'b0;
-      {1'b1,1'b?,LWU   }: illegal_lsu_instr = 1'b0;  //RV64
+      {1'b0,1'b?,LWU   }: illegal_lsu_instr = 1'b0;  //RV64
       {1'b?,1'b?,SB    }: illegal_lsu_instr = 1'b0;
       {1'b?,1'b?,SH    }: illegal_lsu_instr = 1'b0;
       {1'b?,1'b?,SW    }: illegal_lsu_instr = 1'b0;
-      {1'b1,1'b?,SD    }: illegal_lsu_instr = 1'b0;  //RV64
+      {1'b0,1'b?,SD    }: illegal_lsu_instr = 1'b0;  //RV64
 
       //AMO
       default           : illegal_lsu_instr = 1'b1;
@@ -756,20 +755,20 @@ module riscv_id #(
 
   //MULDIV
   always_comb
-    casex ( {is_rv64,if_func7,if_func3,if_opcode} )
+    casex ( {xlen32,if_func7,if_func3,if_opcode} )
       {1'b?,MUL    }: illegal_muldiv_instr = 1'b0;
       {1'b?,MULH   }: illegal_muldiv_instr = 1'b0;
-      {1'b1,MULW   }: illegal_muldiv_instr = 1'b0;  //RV64
+      {1'b0,MULW   }: illegal_muldiv_instr = 1'b0;  //RV64
       {1'b?,MULHSU }: illegal_muldiv_instr = 1'b0;
       {1'b?,MULHU  }: illegal_muldiv_instr = 1'b0;
       {1'b?,DIV    }: illegal_muldiv_instr = 1'b0;
-      {1'b1,DIVW   }: illegal_muldiv_instr = 1'b0;  //RV64
+      {1'b0,DIVW   }: illegal_muldiv_instr = 1'b0;  //RV64
       {1'b?,DIVU   }: illegal_muldiv_instr = 1'b0;
-      {1'b1,DIVUW  }: illegal_muldiv_instr = 1'b0;  //RV64
+      {1'b0,DIVUW  }: illegal_muldiv_instr = 1'b0;  //RV64
       {1'b?,REM    }: illegal_muldiv_instr = 1'b0;
-      {1'b1,REMW   }: illegal_muldiv_instr = 1'b0;  //RV64
+      {1'b0,REMW   }: illegal_muldiv_instr = 1'b0;  //RV64
       {1'b?,REMU   }: illegal_muldiv_instr = 1'b0;
-      {1'b1,REMUW  }: illegal_muldiv_instr = 1'b0;
+      {1'b0,REMUW  }: illegal_muldiv_instr = 1'b0;
       default       : illegal_muldiv_instr = 1'b1;
     endcase
 
@@ -779,37 +778,52 @@ module riscv_id #(
   always_comb
     case (if_instr[31:20])
       //User
-      USTATUS   : illegal_csr_rd = (HAS_USER  == 0);
-      UIE       : illegal_csr_rd = (HAS_USER  == 0);
-      UTVEC     : illegal_csr_rd = (HAS_USER  == 0);
-      USCRATCH  : illegal_csr_rd = (HAS_USER  == 0);
-      UEPC      : illegal_csr_rd = (HAS_USER  == 0);
-      UCAUSE    : illegal_csr_rd = (HAS_USER  == 0);
-      UBADADDR  : illegal_csr_rd = (HAS_USER  == 0);
-      UIP       : illegal_csr_rd = (HAS_USER  == 0);
-      FFLAGS    : illegal_csr_rd = (HAS_FPU   == 0);
-      FRM       : illegal_csr_rd = (HAS_FPU   == 0);
-      FCSR      : illegal_csr_rd = (HAS_FPU   == 0);
-      CYCLE     : illegal_csr_rd = (HAS_USER  == 0);
+      USTATUS   : illegal_csr_rd = ~has_u;
+      UIE       : illegal_csr_rd = ~has_u;
+      UTVEC     : illegal_csr_rd = ~has_u;
+      USCRATCH  : illegal_csr_rd = ~has_u;
+      UEPC      : illegal_csr_rd = ~has_u;
+      UCAUSE    : illegal_csr_rd = ~has_u;
+      UTVAL     : illegal_csr_rd = ~has_u;
+      UIP       : illegal_csr_rd = ~has_u;
+      FFLAGS    : illegal_csr_rd = ~has_fpu;
+      FRM       : illegal_csr_rd = ~has_fpu;
+      FCSR      : illegal_csr_rd = ~has_fpu;
+      CYCLE     : illegal_csr_rd = ~has_u                                          |
+                                   (~has_s & st_prv == PRV_U & ~st_mcounteren[CY]) |
+                                   ( has_s & st_prv == PRV_S & ~st_mcounteren[CY]) |
+                                   ( has_s & st_prv == PRV_U &  st_mcounteren[CY] & st_scounteren[CY]);
       TIME      : illegal_csr_rd = 1'b1; //trap on reading TIME. Machine mode must access external timer
-      INSTRET   : illegal_csr_rd = (HAS_USER  == 0);
-      //TODO: hpmcounters
-      CYCLEH    : illegal_csr_rd =                    (XLEN > 32);
+      INSTRET   : illegal_csr_rd = ~has_u                                         |
+                                   (~has_s & st_prv == PRV_U & ~st_mcounteren[IR]) |
+                                   ( has_s & st_prv == PRV_S & ~st_mcounteren[IR]) |
+                                   ( has_s & st_prv == PRV_U &  st_mcounteren[IR] & st_scounteren[IR]);
+      CYCLEH    : illegal_csr_rd = ~has_u | ~xlen32                                |
+                                   (~has_s & st_prv == PRV_U & ~st_mcounteren[CY]) |
+                                   ( has_s & st_prv == PRV_S & ~st_mcounteren[CY]) |
+                                   ( has_s & st_prv == PRV_U &  st_mcounteren[CY] & st_scounteren[CY]);
       TIMEH     : illegal_csr_rd = 1'b1; //trap on reading TIMEH. Machine mode must access external timer
-      INSTRETH  : illegal_csr_rd =                    (XLEN > 32);
+      INSTRETH  : illegal_csr_rd = ~has_u | ~xlen32                                |
+                                   (~has_s & st_prv == PRV_U & ~st_mcounteren[IR]) |
+                                   ( has_s & st_prv == PRV_S & ~st_mcounteren[IR]) |
+                                   ( has_s & st_prv == PRV_U &  st_mcounteren[IR] & st_scounteren[IR]);
+      //TODO: hpmcounters
+
       //Supervisor
-      SSTATUS   : illegal_csr_rd = (HAS_SUPER == 0)               | (st_prv < PRV_S);
-      SEDELEG   : illegal_csr_rd = (HAS_SUPER == 0)               | (st_prv < PRV_S);
-      SIDELEG   : illegal_csr_rd = (HAS_SUPER == 0)               | (st_prv < PRV_S);
-      SIE       : illegal_csr_rd = (HAS_SUPER == 0)               | (st_prv < PRV_S);
-      STVEC     : illegal_csr_rd = (HAS_SUPER == 0)               | (st_prv < PRV_S);
-      SSCRATCH  : illegal_csr_rd = (HAS_SUPER == 0)               | (st_prv < PRV_S);
-      SEPC      : illegal_csr_rd = (HAS_SUPER == 0)               | (st_prv < PRV_S);
-      SCAUSE    : illegal_csr_rd = (HAS_SUPER == 0)               | (st_prv < PRV_S);
-      SBADADDR  : illegal_csr_rd = (HAS_SUPER == 0)               | (st_prv < PRV_S);
-      SIP       : illegal_csr_rd = (HAS_SUPER == 0)               | (st_prv < PRV_S);
-      SPTBR     : illegal_csr_rd = (HAS_SUPER == 0)               | (st_prv < PRV_S);
+      SSTATUS   : illegal_csr_rd = ~has_s               | (st_prv < PRV_S);
+      SEDELEG   : illegal_csr_rd = ~has_s               | (st_prv < PRV_S);
+      SIDELEG   : illegal_csr_rd = ~has_s               | (st_prv < PRV_S);
+      SIE       : illegal_csr_rd = ~has_s               | (st_prv < PRV_S);
+      STVEC     : illegal_csr_rd = ~has_s               | (st_prv < PRV_S);
+      SSCRATCH  : illegal_csr_rd = ~has_s               | (st_prv < PRV_S);
+      SEPC      : illegal_csr_rd = ~has_s               | (st_prv < PRV_S);
+      SCAUSE    : illegal_csr_rd = ~has_s               | (st_prv < PRV_S);
+      STVAL     : illegal_csr_rd = ~has_s               | (st_prv < PRV_S);
+      SIP       : illegal_csr_rd = ~has_s               | (st_prv < PRV_S);
+      SATP      : illegal_csr_rd = ~has_s               | (st_prv < PRV_S) | (st_prv == PRV_S && st_tvm);
+
       //Hypervisor
+/*
       HSTATUS   : illegal_csr_rd = (HAS_HYPER == 0)               | (st_prv < PRV_H);
       HEDELEG   : illegal_csr_rd = (HAS_HYPER == 0)               | (st_prv < PRV_H);
       HIDELEG   : illegal_csr_rd = (HAS_HYPER == 0)               | (st_prv < PRV_H);
@@ -818,52 +832,68 @@ module riscv_id #(
       HSCRATCH  : illegal_csr_rd = (HAS_HYPER == 0)               | (st_prv < PRV_H);
       HEPC      : illegal_csr_rd = (HAS_HYPER == 0)               | (st_prv < PRV_H);
       HCAUSE    : illegal_csr_rd = (HAS_HYPER == 0)               | (st_prv < PRV_H);
-      HBADADDR  : illegal_csr_rd = (HAS_HYPER == 0)               | (st_prv < PRV_H);
+      HTVAL     : illegal_csr_rd = (HAS_HYPER == 0)               | (st_prv < PRV_H);
       HIP       : illegal_csr_rd = (HAS_HYPER == 0)               | (st_prv < PRV_H);
+*/
       //Machine
-      MVENDORID : illegal_csr_rd =                                  (st_prv < PRV_M);
-      MARCHID   : illegal_csr_rd =                                  (st_prv < PRV_M);
-      MIMPID    : illegal_csr_rd =                                  (st_prv < PRV_M);
-      MHARTID   : illegal_csr_rd =                                  (st_prv < PRV_M);
-      MSTATUS   : illegal_csr_rd =                                  (st_prv < PRV_M);
-      MISA      : illegal_csr_rd =                                  (st_prv < PRV_M);
-      MEDELEG   : illegal_csr_rd =                                  (st_prv < PRV_M);
-      MIDELEG   : illegal_csr_rd =                                  (st_prv < PRV_M);
-      MIE       : illegal_csr_rd =                                  (st_prv < PRV_M);
-      MTVEC     : illegal_csr_rd =                                  (st_prv < PRV_M);
-      MSCRATCH  : illegal_csr_rd =                                  (st_prv < PRV_M);
-      MEPC      : illegal_csr_rd =                                  (st_prv < PRV_M);
-      MCAUSE    : illegal_csr_rd =                                  (st_prv < PRV_M);
-      MBADADDR  : illegal_csr_rd =                                  (st_prv < PRV_M);
-      MIP       : illegal_csr_rd =                                  (st_prv < PRV_M);
-      MBASE     : illegal_csr_rd =                                  (st_prv < PRV_M);
-      MBOUND    : illegal_csr_rd =                                  (st_prv < PRV_M);
-      MIBASE    : illegal_csr_rd =                                  (st_prv < PRV_M);
-      MIBOUND   : illegal_csr_rd =                                  (st_prv < PRV_M);
-      MDBASE    : illegal_csr_rd =                                  (st_prv < PRV_M);
-      MDBOUND   : illegal_csr_rd =                                  (st_prv < PRV_M);
-      MCYCLE    : illegal_csr_rd =                                  (st_prv < PRV_M); 
-      MINSTRET  : illegal_csr_rd =                                  (st_prv < PRV_M);
+      MVENDORID : illegal_csr_rd =                        (st_prv < PRV_M);
+      MARCHID   : illegal_csr_rd =                        (st_prv < PRV_M);
+      MIMPID    : illegal_csr_rd =                        (st_prv < PRV_M);
+      MHARTID   : illegal_csr_rd =                        (st_prv < PRV_M);
+      MSTATUS   : illegal_csr_rd =                        (st_prv < PRV_M);
+      MISA      : illegal_csr_rd =                        (st_prv < PRV_M);
+      MEDELEG   : illegal_csr_rd =                        (st_prv < PRV_M);
+      MIDELEG   : illegal_csr_rd =                        (st_prv < PRV_M);
+      MIE       : illegal_csr_rd =                        (st_prv < PRV_M);
+      MTVEC     : illegal_csr_rd =                        (st_prv < PRV_M);
+      MCOUNTEREN: illegal_csr_rd =                        (st_prv < PRV_M);
+      MSCRATCH  : illegal_csr_rd =                        (st_prv < PRV_M);
+      MEPC      : illegal_csr_rd =                        (st_prv < PRV_M);
+      MCAUSE    : illegal_csr_rd =                        (st_prv < PRV_M);
+      MTVAL     : illegal_csr_rd =                        (st_prv < PRV_M);
+      MIP       : illegal_csr_rd =                        (st_prv < PRV_M);
+      PMPCFG0   : illegal_csr_rd =                        (st_prv < PRV_M);
+      PMPCFG1   : illegal_csr_rd =          (XLEN > 32) | (st_prv < PRV_M);
+      PMPCFG2   : illegal_csr_rd =          (XLEN > 64) | (st_prv < PRV_M);
+      PMPCFG3   : illegal_csr_rd =          (XLEN > 32) | (st_prv < PRV_M);
+      PMPADDR0  : illegal_csr_rd =                        (st_prv < PRV_M);
+      PMPADDR1  : illegal_csr_rd =                        (st_prv < PRV_M);
+      PMPADDR2  : illegal_csr_rd =                        (st_prv < PRV_M);
+      PMPADDR3  : illegal_csr_rd =                        (st_prv < PRV_M);
+      PMPADDR4  : illegal_csr_rd =                        (st_prv < PRV_M);
+      PMPADDR5  : illegal_csr_rd =                        (st_prv < PRV_M);
+      PMPADDR6  : illegal_csr_rd =                        (st_prv < PRV_M);
+      PMPADDR7  : illegal_csr_rd =                        (st_prv < PRV_M);
+      PMPADDR8  : illegal_csr_rd =                        (st_prv < PRV_M);
+      PMPADDR9  : illegal_csr_rd =                        (st_prv < PRV_M);
+      PMPADDR10 : illegal_csr_rd =                        (st_prv < PRV_M);
+      PMPADDR11 : illegal_csr_rd =                        (st_prv < PRV_M);
+      PMPADDR12 : illegal_csr_rd =                        (st_prv < PRV_M);
+      PMPADDR13 : illegal_csr_rd =                        (st_prv < PRV_M);
+      PMPADDR14 : illegal_csr_rd =                        (st_prv < PRV_M);
+      PMPADDR15 : illegal_csr_rd =                        (st_prv < PRV_M);
+      MCYCLE    : illegal_csr_rd =                        (st_prv < PRV_M); 
+      MINSTRET  : illegal_csr_rd =                        (st_prv < PRV_M);
      //TODO: performance counters
-      MCYCLEH   : illegal_csr_rd =                    (XLEN > 32) | (st_prv < PRV_M);
-      MINSTRETH : illegal_csr_rd =                    (XLEN > 32) | (st_prv < PRV_M);
+      MCYCLEH   : illegal_csr_rd =          (XLEN > 32) | (st_prv < PRV_M);
+      MINSTRETH : illegal_csr_rd =          (XLEN > 32) | (st_prv < PRV_M);
 
       default   : illegal_csr_rd = 1'b1;
     endcase
 
   always_comb
     case (if_instr[31:20])
-      USTATUS   : illegal_csr_wr = (HAS_USER  == 0);
-      UIE       : illegal_csr_wr = (HAS_USER  == 0);
-      UTVEC     : illegal_csr_wr = (HAS_USER  == 0);
-      USCRATCH  : illegal_csr_wr = (HAS_USER  == 0);
-      UEPC      : illegal_csr_wr = (HAS_USER  == 0);
-      UCAUSE    : illegal_csr_wr = (HAS_USER  == 0);
-      UBADADDR  : illegal_csr_wr = (HAS_USER  == 0);
-      UIP       : illegal_csr_wr = (HAS_USER  == 0);
-      FFLAGS    : illegal_csr_wr = (HAS_FPU   == 0);
-      FRM       : illegal_csr_wr = (HAS_FPU   == 0);
-      FCSR      : illegal_csr_wr = (HAS_FPU   == 0);
+      USTATUS   : illegal_csr_wr = ~has_u;
+      UIE       : illegal_csr_wr = ~has_u;
+      UTVEC     : illegal_csr_wr = ~has_u;
+      USCRATCH  : illegal_csr_wr = ~has_u;
+      UEPC      : illegal_csr_wr = ~has_u;
+      UCAUSE    : illegal_csr_wr = ~has_u;
+      UTVAL     : illegal_csr_wr = ~has_u;
+      UIP       : illegal_csr_wr = ~has_u;
+      FFLAGS    : illegal_csr_wr = ~has_fpu;
+      FRM       : illegal_csr_wr = ~has_fpu;
+      FCSR      : illegal_csr_wr = ~has_fpu;
       CYCLE     : illegal_csr_wr = 1'b1; 
       TIME      : illegal_csr_wr = 1'b1;
       INSTRET   : illegal_csr_wr = 1'b1;
@@ -872,18 +902,21 @@ module riscv_id #(
       TIMEH     : illegal_csr_wr = 1'b1;
       INSTRETH  : illegal_csr_wr = 1'b1;
       //Supervisor
-      SSTATUS   : illegal_csr_wr = (HAS_SUPER == 0)               | (st_prv < PRV_S);
-      SEDELEG   : illegal_csr_wr = (HAS_SUPER == 0)               | (st_prv < PRV_S);
-      SIDELEG   : illegal_csr_wr = (HAS_SUPER == 0)               | (st_prv < PRV_S);
-      SIE       : illegal_csr_wr = (HAS_SUPER == 0)               | (st_prv < PRV_S);
-      STVEC     : illegal_csr_wr = (HAS_SUPER == 0)               | (st_prv < PRV_S);
-      SSCRATCH  : illegal_csr_wr = (HAS_SUPER == 0)               | (st_prv < PRV_S);
-      SEPC      : illegal_csr_wr = (HAS_SUPER == 0)               | (st_prv < PRV_S);
-      SCAUSE    : illegal_csr_wr = (HAS_SUPER == 0)               | (st_prv < PRV_S);
-      SBADADDR  : illegal_csr_wr = (HAS_SUPER == 0)               | (st_prv < PRV_S);
-      SIP       : illegal_csr_wr = (HAS_SUPER == 0)               | (st_prv < PRV_S);
-      SPTBR     : illegal_csr_wr = (HAS_SUPER == 0)               | (st_prv < PRV_S);
+      SSTATUS   : illegal_csr_wr = ~has_s               | (st_prv < PRV_S);
+      SEDELEG   : illegal_csr_wr = ~has_s               | (st_prv < PRV_S);
+      SIDELEG   : illegal_csr_wr = ~has_s               | (st_prv < PRV_S);
+      SIE       : illegal_csr_wr = ~has_s               | (st_prv < PRV_S);
+      STVEC     : illegal_csr_wr = ~has_s               | (st_prv < PRV_S);
+      SCOUNTEREN: illegal_csr_wr = ~has_s               | (st_prv < PRV_S);
+      SSCRATCH  : illegal_csr_wr = ~has_s               | (st_prv < PRV_S);
+      SEPC      : illegal_csr_wr = ~has_s               | (st_prv < PRV_S);
+      SCAUSE    : illegal_csr_wr = ~has_s               | (st_prv < PRV_S);
+      STVAL     : illegal_csr_wr = ~has_s               | (st_prv < PRV_S);
+      SIP       : illegal_csr_wr = ~has_s               | (st_prv < PRV_S);
+      SATP      : illegal_csr_wr = ~has_s               | (st_prv < PRV_S)  | (st_prv == PRV_S && st_tvm);
+
      //Hypervisor
+/*
       HSTATUS   : illegal_csr_wr = (HAS_HYPER == 0)               | (st_prv < PRV_H);
       HEDELEG   : illegal_csr_wr = (HAS_HYPER == 0)               | (st_prv < PRV_H);
       HIDELEG   : illegal_csr_wr = (HAS_HYPER == 0)               | (st_prv < PRV_H);
@@ -894,34 +927,50 @@ module riscv_id #(
       HCAUSE    : illegal_csr_wr = (HAS_HYPER == 0)               | (st_prv < PRV_H);
       HBADADDR  : illegal_csr_wr = (HAS_HYPER == 0)               | (st_prv < PRV_H);
       HIP       : illegal_csr_wr = (HAS_HYPER == 0)               | (st_prv < PRV_H);
+*/
       //Machine
       MVENDORID : illegal_csr_wr = 1'b1;
       MARCHID   : illegal_csr_wr = 1'b1;
       MIMPID    : illegal_csr_wr = 1'b1;
       MHARTID   : illegal_csr_wr = 1'b1;
-      MSTATUS   : illegal_csr_wr =                                  (st_prv < PRV_M);
-      MISA      : illegal_csr_wr =                                  (st_prv < PRV_M);
-      MEDELEG   : illegal_csr_wr =                                  (st_prv < PRV_M);
-      MIDELEG   : illegal_csr_wr =                                  (st_prv < PRV_M);
-      MIE       : illegal_csr_wr =                                  (st_prv < PRV_M);
-      MTVEC     : illegal_csr_wr =                                  (st_prv < PRV_M);
-      MNMIVEC   : illegal_csr_wr =                                  (st_prv < PRV_M);
-      MSCRATCH  : illegal_csr_wr =                                  (st_prv < PRV_M);
-      MEPC      : illegal_csr_wr =                                  (st_prv < PRV_M);
-      MCAUSE    : illegal_csr_wr =                                  (st_prv < PRV_M);
-      MBADADDR  : illegal_csr_wr =                                  (st_prv < PRV_M);
-      MIP       : illegal_csr_wr =                                  (st_prv < PRV_M);
-      MBASE     : illegal_csr_wr =                                  (st_prv < PRV_M);
-      MBOUND    : illegal_csr_wr =                                  (st_prv < PRV_M);
-      MIBASE    : illegal_csr_wr =                                  (st_prv < PRV_M);
-      MIBOUND   : illegal_csr_wr =                                  (st_prv < PRV_M);
-      MDBASE    : illegal_csr_wr =                                  (st_prv < PRV_M);
-      MDBOUND   : illegal_csr_wr =                                  (st_prv < PRV_M);
-      MCYCLE    : illegal_csr_wr =                                  (st_prv < PRV_M); 
-      MINSTRET  : illegal_csr_wr =                                  (st_prv < PRV_M);
+      MSTATUS   : illegal_csr_wr =                        (st_prv < PRV_M);
+      MISA      : illegal_csr_wr =                        (st_prv < PRV_M);
+      MEDELEG   : illegal_csr_wr =                        (st_prv < PRV_M);
+      MIDELEG   : illegal_csr_wr =                        (st_prv < PRV_M);
+      MIE       : illegal_csr_wr =                        (st_prv < PRV_M);
+      MTVEC     : illegal_csr_wr =                        (st_prv < PRV_M);
+      MNMIVEC   : illegal_csr_wr =                        (st_prv < PRV_M);
+      MCOUNTEREN: illegal_csr_wr =                        (st_prv < PRV_M);
+      MSCRATCH  : illegal_csr_wr =                        (st_prv < PRV_M);
+      MEPC      : illegal_csr_wr =                        (st_prv < PRV_M);
+      MCAUSE    : illegal_csr_wr =                        (st_prv < PRV_M);
+      MTVAL     : illegal_csr_wr =                        (st_prv < PRV_M);
+      MIP       : illegal_csr_wr =                        (st_prv < PRV_M);
+      PMPCFG0   : illegal_csr_wr =                        (st_prv < PRV_M);
+      PMPCFG1   : illegal_csr_wr =          (XLEN > 32) | (st_prv < PRV_M);
+      PMPCFG2   : illegal_csr_wr =          (XLEN > 64) | (st_prv < PRV_M);
+      PMPCFG3   : illegal_csr_wr =          (XLEN > 32) | (st_prv < PRV_M);
+      PMPADDR0  : illegal_csr_wr =                        (st_prv < PRV_M);
+      PMPADDR1  : illegal_csr_wr =                        (st_prv < PRV_M);
+      PMPADDR2  : illegal_csr_wr =                        (st_prv < PRV_M);
+      PMPADDR3  : illegal_csr_wr =                        (st_prv < PRV_M);
+      PMPADDR4  : illegal_csr_wr =                        (st_prv < PRV_M);
+      PMPADDR5  : illegal_csr_wr =                        (st_prv < PRV_M);
+      PMPADDR6  : illegal_csr_wr =                        (st_prv < PRV_M);
+      PMPADDR7  : illegal_csr_wr =                        (st_prv < PRV_M);
+      PMPADDR8  : illegal_csr_wr =                        (st_prv < PRV_M);
+      PMPADDR9  : illegal_csr_wr =                        (st_prv < PRV_M);
+      PMPADDR10 : illegal_csr_wr =                        (st_prv < PRV_M);
+      PMPADDR11 : illegal_csr_wr =                        (st_prv < PRV_M);
+      PMPADDR12 : illegal_csr_wr =                        (st_prv < PRV_M);
+      PMPADDR13 : illegal_csr_wr =                        (st_prv < PRV_M);
+      PMPADDR14 : illegal_csr_wr =                        (st_prv < PRV_M);
+      PMPADDR15 : illegal_csr_wr =                        (st_prv < PRV_M);
+      MCYCLE    : illegal_csr_wr =                        (st_prv < PRV_M); 
+      MINSTRET  : illegal_csr_wr =                        (st_prv < PRV_M);
      //TODO: performance counters
-      MCYCLEH   : illegal_csr_wr =                    (XLEN > 32) | (st_prv < PRV_M);
-      MINSTRETH : illegal_csr_wr =                    (XLEN > 32) | (st_prv < PRV_M);
+      MCYCLEH   : illegal_csr_wr =          (XLEN > 32) | (st_prv < PRV_M);
+      MINSTRETH : illegal_csr_wr =          (XLEN > 32) | (st_prv < PRV_M);
 
       default   : illegal_csr_wr = 1'b1;
     endcase

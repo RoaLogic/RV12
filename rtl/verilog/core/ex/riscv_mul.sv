@@ -35,29 +35,34 @@
 //                                                             //
 /////////////////////////////////////////////////////////////////
 
+import riscv_opcodes_pkg::*;
+import riscv_state_pkg::*;
+
 module riscv_mul #(
-  parameter XLEN           = 32,
-  parameter INSTR_SIZE     = 32,
-  parameter MULT_LATENCY   = 0
+  parameter XLEN         = 32,
+  parameter MULT_LATENCY = 0
 )
 (
-  input                           rstn,
-  input                           clk,
+  input                 rstn,
+  input                 clk,
 
-  input                           ex_stall,
-  output reg                      mul_stall,
+  input                 ex_stall,
+  output reg            mul_stall,
 
   //Instruction
-  input                           id_bubble,
-  input      [INSTR_SIZE    -1:0] id_instr,
+  input                 id_bubble,
+  input      [ILEN-1:0] id_instr,
 
-  //from ID
-  input      [XLEN          -1:0] opA,
-                                  opB,
+  //Operands
+  input      [XLEN-1:0] opA,
+                        opB,
+
+  //from State
+  input      [     1:0] st_xlen,
 
   //to WB
-  output reg                      mul_bubble,
-  output reg [XLEN          -1:0] mul_r
+  output reg            mul_bubble,
+  output reg [XLEN-1:0] mul_r
 );
 
   ////////////////////////////////////////////////////////////////
@@ -119,16 +124,17 @@ module riscv_mul #(
   //
   // Variables
   //
-  logic [INSTR_SIZE -1:0] mul_instr;
+  logic              xlen32;
+  logic [ILEN  -1:0] mul_instr;
 
-  logic [            6:2] opcode, mul_opcode;
-  logic [            2:0] func3,  mul_func3;
-  logic [            6:0] func7,  mul_func7;
+  logic [       6:2] opcode, mul_opcode;
+  logic [       2:0] func3,  mul_func3;
+  logic [       6:0] func7,  mul_func7;
 
 
   //Operand generation
-  logic [            31:0] opA32,
-                           opB32;
+  logic [      31:0] opA32,
+                     opB32;
 
 
   logic              mult_neg,      mult_neg_reg;
@@ -147,19 +153,19 @@ module riscv_mul #(
   //
   // Module Body
   //
-  import riscv_pkg::*;
-
 
   /*
    * Instruction
    */
-  assign func7  = id_instr[31:25];
-  assign func3  = id_instr[14:12];
-  assign opcode = id_instr[ 6: 2];
+  assign func7      = id_instr[31:25];
+  assign func3      = id_instr[14:12];
+  assign opcode     = id_instr[ 6: 2];
 
   assign mul_func7  = mul_instr[31:25];
   assign mul_func3  = mul_instr[14:12];
   assign mul_opcode = mul_instr[ 6: 2];
+
+  assign xlen32     = st_xlen == RV32I;
 
 
   /*
@@ -249,12 +255,10 @@ generate
       //Register holding instruction for multiplier-output-selector
       always @(posedge clk)
         if (!ex_stall) mul_instr <= id_instr;
-//        if (!id_bubble) mul_instr <= id_instr; 
 
       //Registers holding multiplier operands
       always @(posedge clk)
         if (!ex_stall)
-//        if (!id_bubble)
         begin
             mult_opA_reg <= mult_opA;
             mult_opB_reg <= mult_opB;
@@ -311,7 +315,7 @@ endgenerate
     unique casex ( {func7,func3,opcode} )
       MUL    : is_mul = 1'b1;
       MULH   : is_mul = 1'b1;
-      MULW   : is_mul = 1'b1;
+      MULW   : is_mul = ~xlen32;
       MULHSU : is_mul = 1'b1;
       MULHU  : is_mul = 1'b1;
       default: is_mul = 1'b0;
