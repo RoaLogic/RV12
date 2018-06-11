@@ -34,32 +34,29 @@ import biu_constants_pkg::*;
 module riscv_pmpchk #(
   parameter XLEN    = 32,
   parameter PLEN    = XLEN == 32 ? 34 : 56,
-  parameter HAS_RVC = 0,
   parameter PMP_CNT = 16
 )
 (
-  input                                       rstn,
-  input                                       clk,
+  input                                  rstn,
+  input                                  clk,
 
   //From State
-  input pmpcfg_struct [PMP_CNT-1:0]           st_pmpcfg,
-  input               [PMP_CNT-1:0][XLEN-1:0] st_pmpaddr,
-  input                            [     1:0] st_prv,
+  input pmpcfg_t [PMP_CNT-1:0]           st_pmpcfg,
+  input          [PMP_CNT-1:0][XLEN-1:0] st_pmpaddr,
+  input                       [     1:0] st_prv,
 
   //Memory Access
-  input                                       access_instruction, //This is an instruction access
-  input                                       access_req,         //Memory access requested
-  input                            [PLEN-1:0] access_adr,         //Physical Memory address (i.e. after translation)
-  input  biu_size_t                           access_size,        //Transfer size
-  input                                       access_we,          //Read/Write enable
+  input                                  access_instruction, //This is an instruction access
+  input                                  access_req,         //Memory access requested
+  input                       [PLEN-1:0] access_adr,         //Physical Memory address (i.e. after translation)
+  input  biu_size_t                      access_size,        //Transfer size
+  input                                  access_we,          //Read/Write enable
 
   //Output
-  output reg                                  access_exception,
-                                              access_misaligned,
-                                              is_access_exception,
-                                              is_misaligned,
-                                              is_cacheable
+  output reg                             access_exception,
+                                         is_access_exception
 );
+
   //////////////////////////////////////////////////////////////////
   //
   // Functions
@@ -100,6 +97,7 @@ module riscv_pmpchk #(
     //lower bound address
     napot_lb = pmpaddr & mask;
   endfunction: napot_lb
+
 
   function automatic [PLEN-1:2] napot_ub;
     input            na4; //special case na4
@@ -174,35 +172,13 @@ module riscv_pmpchk #(
   logic [    15:0] pmp_match,
                    pmp_match_all;
   int              matched_pmp;
-  pmpcfg_struct    matched_pmpcfg;
+  pmpcfg_t         matched_pmpcfg;
 
 
   //////////////////////////////////////////////////////////////////
   //
   // Module Body
   //
-
-
-  /*
-   * Misaligned Access
-   */
-  always_comb
-    if (access_instruction)
-      is_misaligned = HAS_RVC ? access_adr[0] : |access_adr[1:0];
-    else
-      case (access_size)
-        BYTE   : is_misaligned = 1'b0;
-        HWORD  : is_misaligned =  access_adr[  0];
-        WORD   : is_misaligned = |access_adr[1:0];
-        DWORD  : is_misaligned = |access_adr[2:0];
-        default: is_misaligned = 1'b1;
-      endcase
-
-
-  always @(posedge clk)
-    access_misaligned <= access_req & is_misaligned;
-
-
 
   /*
    * Address Range Matching
@@ -246,8 +222,6 @@ endgenerate
 
   assign matched_pmp    = highest_priority_match(pmp_match);
   assign matched_pmpcfg = st_pmpcfg[ matched_pmp ];
-
-  assign is_cacheable   = matched_pmpcfg.c;
 
 
   /* Access FAIL when:
