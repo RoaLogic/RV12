@@ -93,7 +93,7 @@ module riscv_core #(
                                    dmem_d,
   input        [XLEN         -1:0] dmem_q,
   output                           dmem_we,
-  output       biu_size_t          dmem_size,
+  output biu_size_t                dmem_size,
   output                           dmem_req,
   input                            dmem_ack,
                                    dmem_err,
@@ -102,7 +102,7 @@ module riscv_core #(
 
   //cpu state
   output       [              1:0] st_prv,
-  output pmpcfg_struct      [15:0] st_pmpcfg,
+  output pmpcfg_t [15:0]           st_pmpcfg,
   output [15:0][XLEN         -1:0] st_pmpaddr,
 
   output                           bu_cacheflush,
@@ -397,21 +397,6 @@ generate
       .BP_LOCAL_BITS_LSB ( 2              ), 
       .TECHNOLOGY        ( TECHNOLOGY     ) )
     bp_unit( .* );
-endgenerate
-
-
-  /*
-   * MMU
-   */
-generate
-  if (HAS_MMU == 0)
-  begin
-//      assign if_parcel_page_fault = 1'b0;
-//      assign mem_page_fault = 1'b0;
-  end
-  else
-    riscv_mmu
-    mmu ( );
 endgenerate
 
 
