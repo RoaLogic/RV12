@@ -60,7 +60,7 @@ module riscv_pmachk #(
   output logic               exception_o,
                              misaligned_o,
                              is_cache_access_o,
-                             is_io_access_o,
+                             is_ext_access_o,
                              is_tcm_access_o
 );
 
@@ -85,7 +85,7 @@ module riscv_pmachk #(
   //Lower and Upper bounds for NA4/NAPOT
   function automatic [PLEN-1:2] napot_lb;
     input            na4; //special case na4
-    input [PLEN-1:2] pmpaddr;
+    input [PLEN-1:2] pmaddr;
 
     int n;
     logic [PLEN-1:2] mask;
@@ -94,7 +94,7 @@ module riscv_pmachk #(
     n = 0;
     if (!na4)
     begin
-        while (pmpaddr[n] && (n < XLEN)) n++;
+        while (pmaddr[n+2] && (n < XLEN)) n++;
         n++;
     end
 
@@ -102,13 +102,13 @@ module riscv_pmachk #(
     mask = {XLEN{1'b1}} << n;
 
     //lower bound address
-    napot_lb = pmpaddr & mask;
+    napot_lb = pmaddr & mask;
   endfunction: napot_lb
 
 
   function automatic [PLEN-1:2] napot_ub;
     input            na4; //special case na4
-    input [PLEN-1:2] pmpaddr;
+    input [PLEN-1:2] pmaddr;
 
     int n;
     logic [PLEN-1:2] mask,
@@ -118,7 +118,7 @@ module riscv_pmachk #(
     n = 0;
     if (!na4)
     begin
-        while (pmpaddr[n] && (n < XLEN)) n++;
+        while (pmaddr[n+2] && (n < XLEN)) n++;
         n++;
     end
 
@@ -127,7 +127,7 @@ module riscv_pmachk #(
     incr = 1 << n;
 
     //upper bound address
-    napot_ub = (pmpaddr + incr) & mask;
+    napot_ub = (pmaddr + incr) & mask;
   endfunction: napot_ub
 
 
@@ -273,8 +273,8 @@ endgenerate
 
   /* Access Types
    */
-  assign is_cache_access_o = req_i & ~exception_o & ~misaligned_o &  matched_pma.c; //implies MEM_TYPE_MAIN
-  assign is_io_access_o    = req_i & ~exception_o & ~misaligned_o & (matched_pma.mem_type == MEM_TYPE_IO);
+  assign is_cache_access_o = req_i & ~exception_o & ~misaligned_o &  matched_pma.c;          //implies MEM_TYPE_MAIN
+  assign is_ext_access_o   = req_i & ~exception_o & ~misaligned_o & ~matched_pma.c & matched_pma.mem_type != MEM_TYPE_TCM;
   assign is_tcm_access_o   = req_i & ~exception_o & ~misaligned_o & (matched_pma.mem_type == MEM_TYPE_TCM);
 endmodule
 

@@ -78,7 +78,7 @@ module riscv_pmpchk #(
   //Lower and Upper bounds for NA4/NAPOT
   function automatic [PLEN-1:2] napot_lb;
     input            na4; //special case na4
-    input [PLEN-1:2] pmpaddr;
+    input [PLEN-1:2] pmaddr;
 
     int n;
     logic [PLEN-1:2] mask;
@@ -87,7 +87,7 @@ module riscv_pmpchk #(
     n = 0;
     if (!na4)
     begin
-        while (pmpaddr[n] && (n < XLEN)) n++;
+        while (pmaddr[n+2] && (n < XLEN)) n++;
         n++;
     end
 
@@ -95,13 +95,13 @@ module riscv_pmpchk #(
     mask = {XLEN{1'b1}} << n;
 
     //lower bound address
-    napot_lb = pmpaddr & mask;
+    napot_lb = pmaddr & mask;
   endfunction: napot_lb
 
 
   function automatic [PLEN-1:2] napot_ub;
     input            na4; //special case na4
-    input [PLEN-1:2] pmpaddr;
+    input [PLEN-1:2] pmaddr;
 
     int n;
     logic [PLEN-1:2] mask,
@@ -111,7 +111,7 @@ module riscv_pmpchk #(
     n = 0;
     if (!na4)
     begin
-        while (pmpaddr[n] && (n < XLEN)) n++;
+        while (pmaddr[n+2] && (n < XLEN)) n++;
         n++;
     end
 
@@ -120,7 +120,7 @@ module riscv_pmpchk #(
     incr = 1 << n;
 
     //upper bound address
-    napot_ub = (pmpaddr + incr) & mask;
+    napot_ub = (pmaddr + incr) & mask;
   endfunction: napot_ub
 
 
