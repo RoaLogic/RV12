@@ -92,7 +92,7 @@ module riscv_state1_10 #(
                                         st_tsr,        //trap SRET
   output           [XLEN          -1:0] st_mcounteren,
                                         st_scounteren,
-  output pmpcfg_struct           [15:0] st_pmpcfg,
+  output pmpcfg_t                [15:0] st_pmpcfg,
   output     [15:0][XLEN          -1:0] st_pmpaddr,
 
 
@@ -224,8 +224,8 @@ module riscv_state1_10 #(
     mip_struct         mip;        //interrupt pending
 
     //Machine protection and Translation
-    pmpcfg_struct [15:0] pmpcfg;
-    logic         [15:0][XLEN -1:0] pmpaddr;
+    pmpcfg_t [15:0]            pmpcfg;
+    logic    [15:0][XLEN -1:0] pmpaddr;
 
     //Machine counters/Timers
     timer_struct       mcycle,     //timer for MCYCLE
@@ -1287,7 +1287,7 @@ generate
                 if (!rstn) csr.pmpcfg[idx] <= 'h0;
                 else if ( (ex_csr_we && ex_csr_reg == PMPCFG0 && st_prv == PRV_M) ||
                           (du_we_csr && du_addr    == PMPCFG0                   ) )
-                  if (!csr.pmpcfg[idx].l) csr.pmpcfg[idx] <= csr_wval[idx*8 +: 8];
+                  if (!csr.pmpcfg[idx].l) csr.pmpcfg[idx] <= csr_wval[idx*8 +: 8] & PMPCFG_MASK;
           end
           else
             assign csr.pmpcfg[idx] = 'h0;
@@ -1304,7 +1304,7 @@ generate
             else if ( (ex_csr_we && ex_csr_reg == PMPCFG0 && st_prv == PRV_M) ||
                       (du_we_csr && du_addr    == PMPCFG0                   ) )
               if (idx < PMP_CNT && !csr.pmpcfg[idx].l)
-                csr.pmpcfg[idx] <= csr_wval[0 + idx*8 +: 8];
+                csr.pmpcfg[idx] <= csr_wval[0 + idx*8 +: 8] & PMPCFG_MASK;
       end //next idx
 
       for (idx=8; idx<16; idx++)
@@ -1314,7 +1314,7 @@ generate
             else if ( (ex_csr_we && ex_csr_reg == PMPCFG2 && st_prv == PRV_M) ||
                       (du_we_csr && du_addr    == PMPCFG2                   ) )
               if (idx < PMP_CNT && !csr.pmpcfg[idx].l)
-                csr.pmpcfg[idx] <= csr_wval[(idx-8)*8 +:8];
+                csr.pmpcfg[idx] <= csr_wval[(idx-8)*8 +:8] & PMPCFG_MASK;
       end //next idx
 
 
@@ -1356,7 +1356,7 @@ generate
             else if ( (ex_csr_we && ex_csr_reg == PMPCFG0 && st_prv == PRV_M) ||
                       (du_we_csr && du_addr    == PMPCFG0                   ) )
               if (idx < PMP_CNT && !csr.pmpcfg[idx].l)
-                csr.pmpcfg[idx] <= csr_wval[idx*8 +:8];
+                csr.pmpcfg[idx] <= csr_wval[idx*8 +:8] & PMPCFG_MASK;
       end //next idx
 
 
@@ -1367,7 +1367,7 @@ generate
             else if ( (ex_csr_we && ex_csr_reg == PMPCFG1 && st_prv == PRV_M) ||
                       (du_we_csr && du_addr    == PMPCFG1                   ) )
               if (idx < PMP_CNT && !csr.pmpcfg[idx].l)
-                csr.pmpcfg[idx] <= csr_wval[(idx-4)*8 +:8];
+                csr.pmpcfg[idx] <= csr_wval[(idx-4)*8 +:8] & PMPCFG_MASK;
       end //next idx
 
 
@@ -1378,7 +1378,7 @@ generate
             else if ( (ex_csr_we && ex_csr_reg == PMPCFG2 && st_prv == PRV_M) ||
                       (du_we_csr && du_addr    == PMPCFG2                   ) )
               if (idx < PMP_CNT && !csr.pmpcfg[idx].l)
-                csr.pmpcfg[idx] <= csr_wval[(idx-8)*8 +:8];
+                csr.pmpcfg[idx] <= csr_wval[(idx-8)*8 +:8] & PMPCFG_MASK;
       end //next idx
 
 
@@ -1389,7 +1389,7 @@ generate
             else if ( (ex_csr_we && ex_csr_reg == PMPCFG3 && st_prv == PRV_M) ||
                       (du_we_csr && du_addr    == PMPCFG3                   ) )
               if (idx < PMP_CNT && !csr.pmpcfg[idx].l)
-                csr.pmpcfg[idx] <= csr_wval[(idx-12)*8 +:8];
+                csr.pmpcfg[idx] <= csr_wval[(idx-12)*8 +:8] & PMPCFG_MASK;
       end //next idx
 
 
