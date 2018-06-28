@@ -120,22 +120,22 @@ module riscv_wb #(
     begin
         exception = mem_exception_i;
 
-        if (opcode == OPC_LOAD && dmem_ack_i)
+        if (opcode == OPC_LOAD && ~mem_bubble_i)
           exception[CAUSE_MISALIGNED_LOAD   ] = dmem_misaligned_i;
 
-        if (opcode == OPC_STORE && dmem_ack_i)
+        if (opcode == OPC_STORE && ~mem_bubble_i)
           exception[CAUSE_MISALIGNED_STORE  ] = dmem_misaligned_i;
 
-        if (opcode == OPC_LOAD)
+        if (opcode == OPC_LOAD & ~mem_bubble_i)
           exception[CAUSE_LOAD_ACCESS_FAULT ] = dmem_err_i;
 
-        if (opcode == OPC_STORE)
+        if (opcode == OPC_STORE & ~mem_bubble_i)
           exception[CAUSE_STORE_ACCESS_FAULT] = dmem_err_i;
          
-        if (opcode == OPC_LOAD)
+        if (opcode == OPC_LOAD && ~mem_bubble_i)
           exception[CAUSE_LOAD_PAGE_FAULT   ] = dmem_page_fault_i;
 
-        if (opcode == OPC_STORE)
+        if (opcode == OPC_STORE && ~mem_bubble_i)
           exception[CAUSE_STORE_PAGE_FAULT  ] = dmem_page_fault_i;
     end
 
