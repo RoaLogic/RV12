@@ -55,22 +55,25 @@ module riscv_mmu #(
 //  input  logic [XLEN-1:0] st_satp;
 
   //CPU side
-  input  logic            vm_req_i,  //Request from CPU
-  input  logic [XLEN-1:0] vm_adr_i,  //Virtual Memory Address
-  input  biu_size_t       vm_size_i,
-  input  logic            vm_lock_i,
-  input  logic            vm_we_i,
-  input  logic [XLEN-1:0] vm_d_i,
+  input  logic            vreq_i,  //Request from CPU
+  input  logic [XLEN-1:0] vadr_i,  //Virtual Memory Address
+  input  biu_size_t       vsize_i,
+  input  logic            vlock_i,
+  input  logic            vwe_i,
+  input  logic [XLEN-1:0] vd_i,
 
   //Memory system side
-  output logic            pm_req_o,
-  output logic [PLEN-1:0] pm_adr_o,  //Physical Memory Address
-  output biu_size_t       pm_size_o,
-  output logic            pm_lock_o,
-  output logic            pm_we_o,
-  output logic [XLEN-1:0] pm_d_o,
-  input  logic [XLEN-1:0] pm_q_i,
-  input  logic            pm_ack_i  
+  output logic            preq_o,
+  output logic [PLEN-1:0] padr_o,  //Physical Memory Address
+  output biu_size_t       psize_o,
+  output logic            plock_o,
+  output logic            pwe_o,
+  output logic [XLEN-1:0] pd_o,
+  input  logic [XLEN-1:0] pq_i,
+  input  logic            pack_i,
+
+  //Exception
+  output logic            page_fault_o
 );
 
   //////////////////////////////////////////////////////////////////
@@ -85,21 +88,25 @@ module riscv_mmu #(
   //
 
   always @(posedge clk_i)
-    if (vm_req_i) pm_adr_o <= vm_adr_i; //TODO: actual translation
+    if (vreq_i) padr_o <= vadr_i; //TODO: actual translation
 
 
   //Insert state machine here
   always @(posedge clk_i)
     begin
-        pm_req_o  <= vm_req_i;
-        pm_size_o <= vm_size_i;
-        pm_lock_o <= vm_lock_i;
-        pm_we_o   <= vm_we_i;
+        preq_o  <= vreq_i;
+        psize_o <= vsize_i;
+        plock_o <= vlock_i;
+        pwe_o   <= vwe_i;
     end
 
 
   //MMU does not write data
   always @(posedge clk_i)
-    pm_d_o    <= vm_d_i;
+    pd_o <= vd_i;
+
+
+  //No page fault yet
+  assign page_fault_o = 1'b0;
 
 endmodule
