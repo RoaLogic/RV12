@@ -67,11 +67,14 @@ parameter UART_TX          = 32'h80001080;
 parameter ICACHE_SIZE      = 0;
 parameter DCACHE_SIZE      = 0;
 
+parameter PMA_CNT          = 4;
+
 
 //////////////////////////////////////////////////////////////////
 //
 // Constants
 //
+import riscv_pma_pkg::*;
 import ahb3lite_pkg::*;
 
 localparam MULLAT = MULT_LATENCY > 4 ? 4 : MULT_LATENCY;
@@ -82,6 +85,10 @@ localparam MULLAT = MULT_LATENCY > 4 ? 4 : MULT_LATENCY;
 // Variables
 //
 logic            HCLK, HRESETn;
+
+//PMA configuration
+pmacfg_t         pma_cfg [PMA_CNT];
+logic [PLEN-1:0] pma_adr [PMA_CNT];
 
 //Instruction interface
 logic            ins_HSEL;
@@ -147,9 +154,68 @@ logic            mem_hwrite[2];
 //
 // Module Body
 //
+
+
+//Define PMA regions
+
+//crt.0 (ROM) region
+assign pma_adr[0]          = TOHOST >> 2;
+assign pma_cfg[0].mem_type = MEM_TYPE_MAIN;
+assign pma_cfg[0].r        = 1'b1;
+assign pma_cfg[0].w        = 1'b0;
+assign pma_cfg[0].x        = 1'b1;
+assign pma_cfg[0].c        = 1'b0;
+assign pma_cfg[0].cc       = 1'b0;
+assign pma_cfg[0].ri       = 1'b0;
+assign pma_cfg[0].wi       = 1'b0;
+assign pma_cfg[0].m        = 1'b0;
+assign pma_cfg[0].amo_type = AMO_TYPE_NONE;
+assign pma_cfg[0].a        = TOR;
+
+//TOHOST region
+assign pma_adr[1]          = ((TOHOST >> 2) & ~'hf) | 'h7;
+assign pma_cfg[1].mem_type = MEM_TYPE_IO;
+assign pma_cfg[1].r        = 1'b0;
+assign pma_cfg[1].w        = 1'b1;
+assign pma_cfg[1].x        = 1'b0;
+assign pma_cfg[1].c        = 1'b0;
+assign pma_cfg[1].cc       = 1'b0;
+assign pma_cfg[1].ri       = 1'b0;
+assign pma_cfg[1].wi       = 1'b0;
+assign pma_cfg[1].m        = 1'b0;
+assign pma_cfg[1].amo_type = AMO_TYPE_NONE;
+assign pma_cfg[1].a        = NAPOT;
+
+//UART-Tx region
+assign pma_adr[2]          = UART_TX >> 2;
+assign pma_cfg[2].mem_type = MEM_TYPE_IO;
+assign pma_cfg[2].r        = 1'b0;
+assign pma_cfg[2].w        = 1'b1;
+assign pma_cfg[2].x        = 1'b0;
+assign pma_cfg[2].c        = 1'b0;
+assign pma_cfg[2].cc       = 1'b0;
+assign pma_cfg[2].ri       = 1'b0;
+assign pma_cfg[2].wi       = 1'b0;
+assign pma_cfg[2].m        = 1'b0;
+assign pma_cfg[2].amo_type = AMO_TYPE_NONE;
+assign pma_cfg[2].a        = NA4;
+
+//RAM region
+assign pma_adr[3]          = 1 << 31;
+assign pma_cfg[3].mem_type = MEM_TYPE_MAIN;
+assign pma_cfg[3].r        = 1'b1;
+assign pma_cfg[3].w        = 1'b1;
+assign pma_cfg[3].x        = 1'b1;
+assign pma_cfg[3].c        = 1'b1;
+assign pma_cfg[3].cc       = 1'b0;
+assign pma_cfg[3].ri       = 1'b0;
+assign pma_cfg[3].wi       = 1'b0;
+assign pma_cfg[3].m        = 1'b0;
+assign pma_cfg[3].amo_type = AMO_TYPE_NONE;
+assign pma_cfg[3].a        = TOR;
+
+
 //Hookup Device Under Test
-
-
 riscv_top_ahb3lite #(
   .XLEN             ( XLEN             ),
   .PLEN             ( PLEN             ), //31bit address bus
@@ -161,18 +227,26 @@ riscv_top_ahb3lite #(
   .HAS_RVM          ( HAS_RVM          ),
   .MULT_LATENCY     ( MULLAT           ),
 
-  .WRITEBUFFER_SIZE ( WRITEBUFFER_SIZE ),
+  .PMA_CNT          ( PMA_CNT          ),
   .ICACHE_SIZE      ( ICACHE_SIZE      ),
   .ICACHE_WAYS      ( 1                ),
   .DCACHE_SIZE      ( DCACHE_SIZE      ),
+  .DTCM_SIZE        ( 0                ),
+  .WRITEBUFFER_SIZE ( WRITEBUFFER_SIZE ),
 
   .MTVEC_DEFAULT    ( 32'h80000004     )
 )
 dut (
-  .ext_nmi  ( 1'b0 ),
-  .ext_tint ( 1'b0 ),
-  .ext_sint ( 1'b0 ),
-  .ext_int  ( 4'h0 ),
+  .HRESETn   ( HRESETn ),
+  .HCLK      ( HCLK    ),
+
+  .pma_cfg_i ( pma_cfg ),
+  .pma_adr_i ( pma_adr ),
+
+  .ext_nmi   ( 1'b0    ),
+  .ext_tint  ( 1'b0    ),
+  .ext_sint  ( 1'b0    ),
+  .ext_int   ( 4'h0    ),
 
   .*
  ); 
