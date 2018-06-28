@@ -43,38 +43,38 @@ module biu_ahb3lite #(
   parameter ADDR_SIZE = DATA_SIZE
 )
 (
-  input                      HRESETn,
-  input                      HCLK,
+  input  logic                 HRESETn,
+  input  logic                 HCLK,
  
   //AHB3 Lite Bus
-  output                     HSEL,
-  output reg [ADDR_SIZE-1:0] HADDR,
-  input  reg [DATA_SIZE-1:0] HRDATA,
-  output reg [DATA_SIZE-1:0] HWDATA,
-  output reg                 HWRITE,
-  output reg [          2:0] HSIZE,
-  output reg [          2:0] HBURST,
-  output reg [          3:0] HPROT,
-  output reg [          1:0] HTRANS,
-  output reg                 HMASTLOCK,
-  input                      HREADY,
-  input                      HRESP,
+  output logic                 HSEL,
+  output logic [ADDR_SIZE-1:0] HADDR,
+  input  logic [DATA_SIZE-1:0] HRDATA,
+  output logic [DATA_SIZE-1:0] HWDATA,
+  output logic                 HWRITE,
+  output logic [          2:0] HSIZE,
+  output logic [          2:0] HBURST,
+  output logic [          3:0] HPROT,
+  output logic [          1:0] HTRANS,
+  output logic                 HMASTLOCK,
+  input  logic                 HREADY,
+  input  logic                 HRESP,
 
-  //From Cache Controller Core
-  input                      biu_stb_i,      //strobe
-  output                     biu_stb_ack_o,  //strobe acknowledge; can send new strobe
-  output                     biu_d_ack_o,    //data acknwoledge (send new biu_d_i); for pipelined buses
-  input      [ADDR_SIZE-1:0] biu_adri_i,
-  output reg [ADDR_SIZE-1:0] biu_adro_o,  
-  input  biu_size_t          biu_size_i,     //transfer size
-  input  biu_type_t          biu_type_i,     //burst type
-  input  biu_prot_t          biu_prot_i,     //protection
-  input                      biu_lock_i,
-  input                      biu_we_i,
-  input      [DATA_SIZE-1:0] biu_d_i,
-  output     [DATA_SIZE-1:0] biu_q_o,
-  output                     biu_ack_o,      //transfer acknowledge
-  output reg                 biu_err_o       //transfer error
+  //BIU Bus (Core ports)
+  input  logic                 biu_stb_i,      //strobe
+  output logic                 biu_stb_ack_o,  //strobe acknowledge; can send new strobe
+  output logic                 biu_d_ack_o,    //data acknowledge (send new biu_d_i); for pipelined buses
+  input  logic [ADDR_SIZE-1:0] biu_adri_i,
+  output logic [ADDR_SIZE-1:0] biu_adro_o,  
+  input  biu_size_t            biu_size_i,     //transfer size
+  input  biu_type_t            biu_type_i,     //burst type
+  input  biu_prot_t            biu_prot_i,     //protection
+  input  logic                 biu_lock_i,
+  input  logic                 biu_we_i,
+  input  logic [DATA_SIZE-1:0] biu_d_i,
+  output logic [DATA_SIZE-1:0] biu_q_o,
+  output logic                 biu_ack_o,      //transfer acknowledge
+  output logic                 biu_err_o       //transfer error
 );
 
   //////////////////////////////////////////////////////////////////
@@ -183,8 +183,6 @@ module biu_ahb3lite #(
   /*
    * State Machine
    */
-  assign HSEL = 1'b1;
-
   always @(posedge HCLK, negedge HRESETn)
     if (!HRESETn)
     begin
@@ -192,6 +190,7 @@ module biu_ahb3lite #(
         biu_err_o   <= 1'b0;
         burst_cnt   <= 'h0;
 
+        HSEL        <= 1'b0;
         HADDR       <= 'h0;
         HWRITE      <= 1'b0;
         HSIZE       <= 'h0; //dont care
@@ -214,6 +213,7 @@ module biu_ahb3lite #(
                     data_ena    <= 1'b1;
                     burst_cnt   <= biu_type2cnt(biu_type_i);
 
+                    HSEL        <= 1'b1;
                     HTRANS      <= HTRANS_NONSEQ; //start of burst
                     HADDR       <= biu_adri_i;
                     HWRITE      <= biu_we_i;
@@ -225,6 +225,8 @@ module biu_ahb3lite #(
                 else
                 begin
                     data_ena  <= 1'b0;
+
+                    HSEL      <= 1'b0;
                     HTRANS    <= HTRANS_IDLE; //no new transfer
                     HMASTLOCK <= biu_lock_i;
                 end
@@ -244,6 +246,8 @@ module biu_ahb3lite #(
             if (HRESP == HRESP_ERROR)
             begin
                 burst_cnt <= 'h0; //burst done (interrupted)
+
+                HSEL      <= 1'b0;
                 HTRANS    <= HTRANS_IDLE;
 
                 data_ena  <= 1'b0;
