@@ -92,15 +92,17 @@ package riscv_state_pkg;
 
   typedef struct packed {
     logic       l;
-    logic       c;
-    logic       reserved;
+    logic [1:0] reserved;
     pmpcfg_a_t  a;
     logic       x,
                 w,
                 r;
-  } pmpcfg_struct;
+  } pmpcfg_t;
+
+  localparam PMPCFG_MASK = 8'h9F;
 
 
+  // Timer
   typedef struct packed {
     logic [31:0] h,l;
   } timer_struct; //mtime, htime, stime
