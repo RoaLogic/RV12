@@ -380,12 +380,10 @@ generate
         .clk_i           ( clk_i            ),
 
         //from MMU/PMA
-        //TODO: Cache is virtually index, physically tagged
-        //      Must feed both address types to cache
         .mem_vreq_i      ( buf_req          ),
         .mem_preq_i      ( is_cache_access  ),
-        .mem_vmadr_i     ( mem_adr_i        ),
-        .mem_pmadr_i     ( padr             ),
+        .mem_vadr_i      ( mem_adr_i        ),
+        .mem_padr_i      ( padr             ),
         .mem_size_i      ( buf_size         ),
         .mem_lock_i      ( buf_lock         ),
         .mem_prot_i      ( buf_prot         ),
