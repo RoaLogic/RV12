@@ -37,24 +37,19 @@ module riscv_pmpchk #(
   parameter PMP_CNT = 16
 )
 (
-  input                                  rstn,
-  input                                  clk,
-
   //From State
-  input pmpcfg_t [PMP_CNT-1:0]           st_pmpcfg,
-  input          [PMP_CNT-1:0][XLEN-1:0] st_pmpaddr,
-  input                       [     1:0] st_prv,
+  input pmpcfg_t [PMP_CNT-1:0]           st_pmpcfg_i,
+  input          [PMP_CNT-1:0][XLEN-1:0] st_pmpaddr_i,
+  input                       [     1:0] st_prv_i,
 
   //Memory Access
-  input                                  access_instruction, //This is an instruction access
-  input                                  access_req,         //Memory access requested
-  input                       [PLEN-1:0] access_adr,         //Physical Memory address (i.e. after translation)
-  input  biu_size_t                      access_size,        //Transfer size
-  input                                  access_we,          //Read/Write enable
+  input                                  instruction_i,   //This is an instruction access
+  input                       [PLEN-1:0] adr_i,           //Physical Memory address (i.e. after translation)
+  input  biu_size_t                      size_i,          //Transfer size
+  input                                  we_i,            //Read/Write enable
 
   //Output
-  output reg                             access_exception,
-                                         is_access_exception
+  output reg                             exception_o
 );
 
   //////////////////////////////////////////////////////////////////
@@ -185,43 +180,43 @@ module riscv_pmpchk #(
    * Access Exception
    * Cacheable
    */
-  assign access_lb = access_adr;
-  assign access_ub = access_adr + size2bytes(access_size) -1;
+  assign access_lb = adr_i;
+  assign access_ub = adr_i + size2bytes(size_i) -1;
 
 generate
   for (i=0; i < 16; i++)
   begin: gen_pmp_bounds
       //lower bounds
       always_comb
-      case (st_pmpcfg[i].a)
+      case (st_pmpcfg_i[i].a)
         /* TOR after NAPOT ...
          * email discussion suggested TOR after NAPOT is not a real-life configuration
          * RoaLogic opts to implement this anyways for full flexibility
          * RoaLogic's implementation uses pmp[i-1]'s upper bound address
          */
-        TOR    : pmp_lb[i] = (i==0) ? 0 : st_pmpcfg[i-1].a != TOR ? pmp_ub[i-1] : st_pmpaddr[i-1];
-        NA4    : pmp_lb[i] = napot_lb(1'b1, st_pmpaddr[i]);
-        NAPOT  : pmp_lb[i] = napot_lb(1'b0, st_pmpaddr[i]);
+        TOR    : pmp_lb[i] = (i==0) ? 0 : st_pmpcfg_i[i-1].a != TOR ? pmp_ub[i-1] : st_pmpaddr_i[i-1];
+        NA4    : pmp_lb[i] = napot_lb(1'b1, st_pmpaddr_i[i]);
+        NAPOT  : pmp_lb[i] = napot_lb(1'b0, st_pmpaddr_i[i]);
         default: pmp_lb[i] = 'hx;
       endcase
 
       //upper bounds
       always_comb
-      case (st_pmpcfg[i].a)
-        TOR    : pmp_ub[i] = st_pmpaddr[i];
-        NA4    : pmp_ub[i] = napot_ub(1'b1, st_pmpaddr[i]);
-        NAPOT  : pmp_ub[i] = napot_ub(1'b0, st_pmpaddr[i]);
+      case (st_pmpcfg_i[i].a)
+        TOR    : pmp_ub[i] = st_pmpaddr_i[i];
+        NA4    : pmp_ub[i] = napot_ub(1'b1, st_pmpaddr_i[i]);
+        NAPOT  : pmp_ub[i] = napot_ub(1'b0, st_pmpaddr_i[i]);
         default: pmp_ub[i] = 'hx;
       endcase
 
       //match-any
-      assign pmp_match    [i] = match_any(access_lb[PLEN-1:2], access_ub[PLEN-1:2], pmp_lb[i], pmp_ub[i]) & (st_pmpcfg[i].a != OFF);
+      assign pmp_match    [i] = match_any(access_lb[PLEN-1:2], access_ub[PLEN-1:2], pmp_lb[i], pmp_ub[i]) & (st_pmpcfg_i[i].a != OFF);
       assign pmp_match_all[i] = match_all(access_lb[PLEN-1:2], access_ub[PLEN-1:2], pmp_lb[i], pmp_ub[i]);
   end
 endgenerate
 
   assign matched_pmp    = highest_priority_match(pmp_match);
-  assign matched_pmpcfg = st_pmpcfg[ matched_pmp ];
+  assign matched_pmpcfg = st_pmpcfg_i[ matched_pmp ];
 
 
   /* Access FAIL when:
@@ -229,16 +224,13 @@ endgenerate
    * 2. pmpcfg.l is set AND privilegel level is S or U AND pmpcfg.rwx tests fail OR
    * 3. privilegel level is S or U AND no PMPs matched AND PMPs are implemented
    */
-  assign is_access_exception =~|pmp_match ? (st_prv != PRV_M) & (PMP_CNT > 0)                //Prv.Lvl != M-Mode, no PMP matched, but PMPs implemented -> FAIL
-                                          : ~pmp_match_all[ matched_pmp ]     |
-                                            (
-                                             ((st_prv != PRV_M) | matched_pmpcfg.l      ) &  //pmpcfg.l set or privilege level != M-mode
-                                             ((~matched_pmpcfg.r & ~access_we         ) |    // read-access while not allowed          -> FAIL
-                                              (~matched_pmpcfg.w &  access_we         ) |    // write-access while not allowed         -> FAIL
-                                              (~matched_pmpcfg.x &  access_instruction) )    // instruction read, but not instruction  -> FAIL
-                                            );
-
-  always @(posedge clk)
-    access_exception <= access_req & is_access_exception;
+  assign exception_o =~|pmp_match ? (st_prv_i != PRV_M) & (PMP_CNT > 0)           //Prv.Lvl != M-Mode, no PMP matched, but PMPs implemented -> FAIL
+                                  : ~pmp_match_all[ matched_pmp ]     |
+                                    (
+                                     ((st_prv_i != PRV_M) | matched_pmpcfg.l ) &  //pmpcfg.l set or privilege level != M-mode
+                                     ((~matched_pmpcfg.r & ~we_i           ) |    // read-access while not allowed          -> FAIL
+                                      (~matched_pmpcfg.w &  we_i           ) |    // write-access while not allowed         -> FAIL
+                                      (~matched_pmpcfg.x &  instruction_i  ) )    // instruction read, but not instruction  -> FAIL
+                                    );
 endmodule
 

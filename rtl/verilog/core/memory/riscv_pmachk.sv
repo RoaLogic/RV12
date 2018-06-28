@@ -38,8 +38,6 @@ module riscv_pmachk #(
   parameter PMA_CNT = 16
 )
 (
-  input  logic               clk_i,
-
   //PMA  configuration
   input  pmacfg_t            pma_cfg_i [PMA_CNT],
   input  logic    [XLEN-1:0] pma_adr_i [PMA_CNT],
