@@ -164,8 +164,8 @@ module riscv_wb #(
    */
   always_comb
     casex ( {mem_bubble_i,|mem_exception_i, opcode} )
-      {2'b00,OPC_LOAD }: wb_stall_o = ~(dmem_ack_i | dmem_err_i);
-      {2'b00,OPC_STORE}: wb_stall_o = ~(dmem_ack_i | dmem_err_i);
+      {2'b00,OPC_LOAD }: wb_stall_o = ~(dmem_ack_i | dmem_err_i | dmem_misaligned_i | dmem_page_fault_i);
+      {2'b00,OPC_STORE}: wb_stall_o = ~(dmem_ack_i | dmem_err_i | dmem_misaligned_i | dmem_page_fault_i);
       default          : wb_stall_o = 1'b0;
     endcase
 
