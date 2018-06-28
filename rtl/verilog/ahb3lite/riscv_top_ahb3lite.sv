@@ -29,6 +29,7 @@
 
 
 import riscv_state_pkg::*;
+import riscv_pma_pkg::*;
 import riscv_du_pkg::*;
 import biu_constants_pkg::*;
 
@@ -50,7 +51,8 @@ module riscv_top_ahb3lite #(
   parameter            MULT_LATENCY       = 0,
 
   parameter            BREAKPOINTS        = 3,  //Number of hardware breakpoints
-  parameter            WRITEBUFFER_SIZE   = 8,  //Number of entries in the write buffer
+
+  parameter            PMA_CNT            = 16,
   parameter            PMP_CNT            = 16, //Number of Physical Memory Protection entries
 
   parameter            BP_GLOBAL_BITS     = 2,
@@ -65,6 +67,8 @@ module riscv_top_ahb3lite #(
   parameter            DCACHE_BLOCK_SIZE  = 32, //in Bytes
   parameter            DCACHE_WAYS        = 2,  //'n'-way set associative
   parameter            DCACHE_REPLACE_ALG = 0,
+  parameter            DTCM_SIZE          = 0,
+  parameter            WRITEBUFFER_SIZE   = 8,
 
   parameter            TECHNOLOGY         = "GENERIC",
 
@@ -83,50 +87,53 @@ module riscv_top_ahb3lite #(
 )
 (
   //AHB interfaces
-  input                        HRESETn,
-                               HCLK,
-										 
-  output                     ins_HSEL,
-  output [PLEN         -1:0] ins_HADDR,
-  output [XLEN         -1:0] ins_HWDATA,
-  input  [XLEN         -1:0] ins_HRDATA,
-  output                     ins_HWRITE,
-  output [              2:0] ins_HSIZE,
-  output [              2:0] ins_HBURST,
-  output [              3:0] ins_HPROT,
-  output [              1:0] ins_HTRANS,
-  output                     ins_HMASTLOCK,
-  input                      ins_HREADY,
-  input                      ins_HRESP,
+  input                               HRESETn,
+                                      HCLK,
+				
+  input  pmacfg_t                     pma_cfg_i [PMA_CNT],
+  input  logic    [XLEN         -1:0] pma_adr_i [PMA_CNT],
+ 
+  output                              ins_HSEL,
+  output          [PLEN         -1:0] ins_HADDR,
+  output          [XLEN         -1:0] ins_HWDATA,
+  input           [XLEN         -1:0] ins_HRDATA,
+  output                              ins_HWRITE,
+  output          [              2:0] ins_HSIZE,
+  output          [              2:0] ins_HBURST,
+  output          [              3:0] ins_HPROT,
+  output          [              1:0] ins_HTRANS,
+  output                              ins_HMASTLOCK,
+  input                               ins_HREADY,
+  input                               ins_HRESP,
   
-  output                     dat_HSEL,
-  output [PLEN         -1:0] dat_HADDR,
-  output [XLEN         -1:0] dat_HWDATA,
-  input  [XLEN         -1:0] dat_HRDATA,
-  output                     dat_HWRITE,
-  output [              2:0] dat_HSIZE,
-  output [              2:0] dat_HBURST,
-  output [              3:0] dat_HPROT,
-  output [              1:0] dat_HTRANS,
-  output                     dat_HMASTLOCK,
-  input                      dat_HREADY,
-  input                      dat_HRESP,
+  output                              dat_HSEL,
+  output          [PLEN         -1:0] dat_HADDR,
+  output          [XLEN         -1:0] dat_HWDATA,
+  input           [XLEN         -1:0] dat_HRDATA,
+  output                              dat_HWRITE,
+  output          [              2:0] dat_HSIZE,
+  output          [              2:0] dat_HBURST,
+  output          [              3:0] dat_HPROT,
+  output          [              1:0] dat_HTRANS,
+  output                              dat_HMASTLOCK,
+  input                               dat_HREADY,
+  input                               dat_HRESP,
 
   //Interrupts
-  input                      ext_nmi,
-                             ext_tint,
-                             ext_sint,
-  input  [              3:0] ext_int,
+  input                               ext_nmi,
+                                      ext_tint,
+                                      ext_sint,
+  input           [              3:0] ext_int,
 
   //Debug Interface
-  input                      dbg_stall,
-  input                      dbg_strb,
-  input                      dbg_we,
-  input  [DBG_ADDR_SIZE-1:0] dbg_addr,
-  input  [XLEN         -1:0] dbg_dati,
-  output [XLEN         -1:0] dbg_dato,
-  output                     dbg_ack,
-  output                     dbg_bp
+  input                               dbg_stall,
+  input                               dbg_strb,
+  input                               dbg_we,
+  input           [DBG_ADDR_SIZE-1:0] dbg_addr,
+  input           [XLEN         -1:0] dbg_dati,
+  output          [XLEN         -1:0] dbg_dato,
+  output                              dbg_ack,
+  output                              dbg_bp
 );
 
   ////////////////////////////////////////////////////////////////
@@ -158,10 +165,10 @@ module riscv_top_ahb3lite #(
   logic                                 dmem_page_fault;
 
   logic               [            1:0] st_prv;
-  pmpcfg_struct [15:0]                  st_pmpcfg;
+  pmpcfg_t      [15:0]                  st_pmpcfg;
   logic         [15:0][XLEN       -1:0] st_pmpaddr;
 
-  logic                                 bu_cacheflush,
+  logic                                 cacheflush,
                                         dcflush_rdy;
 
   /* Data Memory BIU connections
@@ -234,6 +241,7 @@ module riscv_top_ahb3lite #(
     .rstn ( HRESETn ),
     .clk  ( HCLK    ),
 
+    .bu_cacheflush ( cacheflush ),
     .*
   ); 
 
@@ -270,6 +278,8 @@ module riscv_top_ahb3lite #(
     .HREADY    ( ins_HREADY    ),
     .HRESP     ( ins_HRESP     ),
 
+    .bu_cacheflush ( cacheflush ),
+
     .*
   );
   assign if_parcel_page_fault = 1'b0; //TODO: for now
@@ -280,16 +290,39 @@ module riscv_top_ahb3lite #(
     .XLEN             ( XLEN               ),
     .PLEN             ( PLEN               ),
 
-    .WRITEBUFFER_SIZE ( WRITEBUFFER_SIZE   ),
+    .PMA_CNT          ( PMA_CNT            ),
     .PMP_CNT          ( PMP_CNT            ),
 
-    .SIZE             ( DCACHE_SIZE        ),
-    .BLOCK_SIZE       ( DCACHE_BLOCK_SIZE  ),
-    .WAYS             ( DCACHE_WAYS        ),
-    .REPLACE_ALG      ( DCACHE_REPLACE_ALG ) )
+    .CACHE_SIZE       ( DCACHE_SIZE        ),
+    .CACHE_BLOCK_SIZE ( DCACHE_BLOCK_SIZE  ),
+    .CACHE_WAYS       ( DCACHE_WAYS        ),
+    .TCM_SIZE         ( DTCM_SIZE          ),
+    .WRITEBUFFER_SIZE ( WRITEBUFFER_SIZE   ) )
   dmem_ctrl_inst (
     .rst_ni           ( HRESETn          ),
     .clk_i            ( HCLK             ),
+
+    .pma_cfg_i        ( pma_cfg_i        ),
+    .pma_adr_i        ( pma_adr_i        ),
+
+    .mem_req_i        ( dmem_req         ),
+    .mem_adr_i        ( dmem_adr         ),
+    .mem_size_i       ( dmem_size        ),
+    .mem_lock_i       ( dmem_lock        ),
+    .mem_we_i         ( dmem_we          ),
+    .mem_d_i          ( dmem_d           ),
+    .mem_q_o          ( dmem_q           ),
+    .mem_ack_o        ( dmem_ack         ),
+    .mem_err_o        ( dmem_err         ),
+    .mem_misaligned_o ( dmem_misaligned  ),
+    .mem_page_fault_o ( dmem_page_fault  ),
+
+    .cache_flush_i    ( cacheflush       ),
+    .dcflush_rdy_o    ( dcflush_rdy      ),
+
+    .st_prv_i         ( st_prv           ),
+    .st_pmpcfg_i      ( st_pmpcfg        ),
+    .st_pmpaddr_i     ( st_pmpaddr       ),
 
     .biu_stb_o        ( dmem_biu_stb     ),
     .biu_stb_ack_i    ( dmem_biu_stb_ack ),
@@ -304,27 +337,8 @@ module riscv_top_ahb3lite #(
     .biu_d_o          ( dmem_biu_d       ),
     .biu_q_i          ( dmem_biu_q       ),
     .biu_ack_i        ( dmem_biu_ack     ),
-    .biu_err_i        ( dmem_biu_err     ),
-
-    .mem_req_i        ( dmem_req         ),
-    .mem_adr_i        ( dmem_adr         ),
-    .mem_size_i       ( dmem_size        ),
-    .mem_lock_i       ( dmem_lock        ),
-    .mem_we_i         ( dmem_we          ),
-    .mem_d_i          ( dmem_d           ),
-    .mem_q_o          ( dmem_q           ),
-    .mem_ack_o        ( dmem_ack         ),
-    .mem_err_o        ( dmem_err         ),
-    .mem_misaligned_o ( dmem_misaligned  ),
-
-    .bu_cacheflush_i  ( bu_cacheflush    ),
-    .dcflush_rdy_o    ( dcflush_rdy      ),
-
-    .st_prv_i         ( st_prv           ),
-    .st_pmpcfg_i      ( st_pmpcfg        ),
-    .st_pmpaddr_i     ( st_pmpaddr       )
+    .biu_err_i        ( dmem_biu_err     )
   );
-  assign dmem_page_fault = 1'b0; //TODO: for now
 
 
   /* Instantiate BIU
@@ -333,7 +347,7 @@ module riscv_top_ahb3lite #(
     .DATA_SIZE ( XLEN ),
     .ADDR_SIZE ( PLEN )
   )
-  biu_inst (
+  dbiu_inst (
     .HRESETn       ( HRESETn           ),
     .HCLK          ( HCLK              ),
     .HSEL          ( dat_HSEL          ),
