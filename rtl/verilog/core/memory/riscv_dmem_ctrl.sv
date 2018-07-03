@@ -448,7 +448,7 @@ generate
   end
 
 
-  riscv_nodcache_core #(
+  riscv_dext #(
     .XLEN ( XLEN ),
     .PLEN ( PLEN )
   )

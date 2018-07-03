@@ -71,6 +71,7 @@ RTL_TOP  = riscv_top_$(busif)
 RTL_VLOG = $(DUT_SRC_DIR)/pkg/riscv_rv12_pkg.sv			\
 	   $(DUT_SRC_DIR)/pkg/riscv_opcodes_pkg.sv		\
 	   $(DUT_SRC_DIR)/pkg/riscv_state1.10_pkg.sv		\
+	   $(DUT_SRC_DIR)/pkg/riscv_pma_pkg.sv			\
 	   $(DUT_SRC_DIR)/pkg/riscv_du_pkg.sv			\
 	   $(DUT_SRC_DIR)/pkg/biu_constants_pkg.sv		\
 	   $(ROOT_DIR)/$(busif)_pkg/rtl/verilog/$(busif)_pkg.sv	\
@@ -96,18 +97,20 @@ RTL_VLOG = $(DUT_SRC_DIR)/pkg/riscv_rv12_pkg.sv			\
 	   $(MEM_SRC_DIR)/rl_ram_1rw.sv				\
 	   $(MEM_SRC_DIR)/rl_ram_1rw_generic.sv			\
 	   $(MEM_SRC_DIR)/rl_ram_1rw_easic_n3x.sv		\
-	   $(DUT_SRC_DIR)/core/riscv_memmisaligned.sv		\
-	   $(DUT_SRC_DIR)/core/riscv_pmpchk.sv			\
-           $(DUT_SRC_DIR)/core/riscv_mem_mux.sv			\
-	   $(DUT_SRC_DIR)/core/biu_mux.sv			\
-	   $(DUT_SRC_DIR)/core/riscv_wbuf.sv			\
+	   $(DUT_SRC_DIR)/core/memory/riscv_membuf.sv		\
+	   $(DUT_SRC_DIR)/core/memory/riscv_memmisaligned.sv	\
+	   $(DUT_SRC_DIR)/core/memory/riscv_mmu.sv		\
+	   $(DUT_SRC_DIR)/core/memory/riscv_pmachk.sv		\
+	   $(DUT_SRC_DIR)/core/memory/riscv_pmpchk.sv		\
+	   $(DUT_SRC_DIR)/core/memory/biu_mux.sv		\
+	   $(DUT_SRC_DIR)/core/memory/riscv_wbuf.sv		\
+	   $(DUT_SRC_DIR)/core/memory/riscv_dmem_ctrl.sv	\
 	   $(DUT_SRC_DIR)/core/cache/riscv_icache_core.sv	\
            $(DUT_SRC_DIR)/core/cache/riscv_noicache_core.sv	\
 	   $(DUT_SRC_DIR)/core/cache/riscv_dcache_core.sv	\
-	   $(DUT_SRC_DIR)/core/cache/riscv_nodcache_core.sv	\
+	   $(DUT_SRC_DIR)/core/cache/riscv_dext.sv		\
 	   $(DUT_SRC_DIR)/$(busif)/biu_$(busif).sv		\
            $(DUT_SRC_DIR)/$(busif)/riscv_icache_$(busif).sv	\
-	   $(DUT_SRC_DIR)/$(busif)/riscv_dcache_$(busif).sv	\
 	   $(DUT_SRC_DIR)/$(busif)/riscv_top_$(busif).sv
 RTL_VHDL =
 
