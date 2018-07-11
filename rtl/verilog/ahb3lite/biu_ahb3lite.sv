@@ -159,6 +159,7 @@ module biu_ahb3lite #(
       HBURST_WRAP4 : nxt_addr = (DATA_SIZE==32) ? {addr[ADDR_SIZE-1: 4],nxt_addr[3:0]} : {addr[ADDR_SIZE-1:5],nxt_addr[4:0]};
       HBURST_WRAP8 : nxt_addr = (DATA_SIZE==32) ? {addr[ADDR_SIZE-1: 5],nxt_addr[4:0]} : {addr[ADDR_SIZE-1:6],nxt_addr[5:0]};
       HBURST_WRAP16: nxt_addr = (DATA_SIZE==32) ? {addr[ADDR_SIZE-1: 6],nxt_addr[5:0]} : {addr[ADDR_SIZE-1:7],nxt_addr[6:0]};
+      default      : ;
     endcase
   endfunction: nxt_addr
 
