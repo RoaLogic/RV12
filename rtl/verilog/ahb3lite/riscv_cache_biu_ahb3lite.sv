@@ -157,6 +157,7 @@ module riscv_cache_biu_ahb3lite #(
       HBURST_WRAP4 : nxt_addr = (XLEN==32) ? {addr[PHYS_ADDR_SIZE-1: 4],nxt_addr[3:0]} : {addr[PHYS_ADDR_SIZE-1:5],nxt_addr[4:0]};
       HBURST_WRAP8 : nxt_addr = (XLEN==32) ? {addr[PHYS_ADDR_SIZE-1: 5],nxt_addr[4:0]} : {addr[PHYS_ADDR_SIZE-1:6],nxt_addr[5:0]};
       HBURST_WRAP16: nxt_addr = (XLEN==32) ? {addr[PHYS_ADDR_SIZE-1: 6],nxt_addr[5:0]} : {addr[PHYS_ADDR_SIZE-1:7],nxt_addr[6:0]};
+      default      : ;
     endcase
   endfunction
 
