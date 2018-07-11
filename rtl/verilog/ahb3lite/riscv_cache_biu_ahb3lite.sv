@@ -127,7 +127,7 @@ module riscv_cache_biu_ahb3lite #(
 
   //convert burst type to counter length (actually length -1)
   function [3:0] type2cnt;
-    input [3:0] btype;
+    input [2:0] btype;
 
     case (btype)
       3'b000: type2cnt =  0;
