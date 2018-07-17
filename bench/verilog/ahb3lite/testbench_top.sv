@@ -162,9 +162,10 @@ logic            mem_hwrite[2];
 assign pma_adr[0]          = TOHOST >> 2;
 assign pma_cfg[0].mem_type = MEM_TYPE_MAIN;
 assign pma_cfg[0].r        = 1'b1;
-assign pma_cfg[0].w        = 1'b0;
+assign pma_cfg[0].w        = 1'b1; //this causes fence_i test to fail, which is expected/correct.
+                                   //Set to '1' for fence_i test
 assign pma_cfg[0].x        = 1'b1;
-assign pma_cfg[0].c        = 1'b0;
+assign pma_cfg[0].c        = 1'b1; //Should be '0'. Set to '1' to test dcache fence_i
 assign pma_cfg[0].cc       = 1'b0;
 assign pma_cfg[0].ri       = 1'b0;
 assign pma_cfg[0].wi       = 1'b0;
