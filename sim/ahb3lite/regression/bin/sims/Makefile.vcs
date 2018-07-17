@@ -54,7 +54,7 @@ all: sim
 # -load is required to prevent undefined system function error
 #  set LD_LIBRARY_PATH to point to <xilinx-dir>/lib/linx64.0
 sim:
-	vcs +v2k -q -full64 -lca -timescale=1ns/1ns -R			\
+	vcs -sverilog -q -full64 -lca -timescale=1ns/1ns -R		\
 	$(VLOG) -Mupdate -debug						\
 	$(foreach d,$(DEFINES),+define+$d)				\
 	$(foreach d,$(INCDIRS),+incdir+$d)				\
