@@ -265,7 +265,7 @@ module riscv_bu #(
     if (!rstn)
     begin
         bu_flush      <= 'b1;
-        bu_cacheflush <= 'b1;
+        bu_cacheflush <= 'b0;
         bu_nxt_pc     <= PC_INIT;
 
         bu_bp_predict <= 'b00;
