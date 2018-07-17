@@ -156,6 +156,8 @@ module riscv_dcache_core #(
 
     integer i;
 
+    onehot2int = 0;
+
     for (i=0; i<WAYS; i++)
       if (a[i]) onehot2int = i;
   endfunction: onehot2int
@@ -188,6 +190,41 @@ module riscv_dcache_core #(
     for (i=0; i<XLEN/8;i++)
       be_mux[i*8 +: 8] = be[i] ? n[i*8 +: 8] : o[i*8 +: 8];
   endfunction: be_mux
+
+
+  //return which SET has dirty WAYs
+  function automatic [IDX_BITS-1:0] get_dirty_set_idx;
+    input [WAYS-1:0][SETS-1:0] dirty_ways;
+
+    logic [SETS-1:0] dirty_sets;
+
+    //OR all ways dirty bits for a set
+    for (int s=0; s < SETS; s++)
+    begin
+        dirty_sets[s] = 0;
+
+        for (int w=0; w < WAYS; w++)
+          dirty_sets[s] |= dirty_ways[w][s];
+    end
+
+    //Now get next dirty set
+    get_dirty_set_idx = 0;
+
+    for (int i=0; i < SETS; i++)
+      if (dirty_sets[i]) get_dirty_set_idx = i;
+  endfunction: get_dirty_set_idx
+
+
+  //return next dirty WAY in dirty SET
+  function automatic [$clog2(WAYS)-1:0] get_dirty_way_idx;
+    input [WAYS-1:0][SETS-1:0] dirty_ways;
+    input [IDX_BITS-1:0]       dirty_set_idx;
+
+    get_dirty_way_idx = 0;
+
+    for (int w=0; w < WAYS; w++)
+      if (dirty_ways[w][dirty_set_idx]) get_dirty_way_idx = w;
+  endfunction: get_dirty_way_idx
 
 
   //////////////////////////////////////////////////////////////////
@@ -251,13 +288,7 @@ module riscv_dcache_core #(
 
   logic                                   hold_flush;              //stretch flush_i until FSM is ready to serve
 
-  logic      [IDX_BITS    -1:0]           set_cnt;                 //counts sets
-  enum logic [             3:0] {ARMED=0, FLUSH=1, WAIT4BIUCMD1=2, WAIT4BIUCMD0=4, RECOVER=8} memfsm_state;
-  enum logic [             1:0] {NOP=0, WRITE_WAY=1, READ_WAY=2} biucmd;
-
-  logic                                   biu_adro_eq_cache_adr_dly;
-  logic                                   flushing,
-                                          filling;
+  enum logic [             4:0] {ARMED=0, FLUSH=1, FLUSHWAYS=2, WAIT4BIUCMD1=4, WAIT4BIUCMD0=8, RECOVER=16} memfsm_state;
 
 
   /* Cache Section
@@ -282,7 +313,7 @@ module riscv_dcache_core #(
   pwb_t                                   write_buffer;
   logic                                   in_writebuffer;
 
-  logic      [IDX_BITS-    1:0]           dat_idx, dat_idx_dly;
+  logic      [IDX_BITS    -1:0]           dat_idx, dat_idx_dly;
   logic      [WAYS        -1:0]           dat_we;
   logic                                   dat_we_enable;
   logic      [BLK_BITS/8  -1:0]           dat_be;
@@ -298,20 +329,25 @@ module riscv_dcache_core #(
                                           dat_in_offset;
 
   logic                                   cache_hit;
-  logic                                   cache_dirty;
   logic      [XLEN        -1:0]           cache_q;
 
   logic      [            19:0]           way_random;
   logic      [WAYS        -1:0]           fill_way_select, fill_way_select_hold; 
 
+  logic                                   biu_adro_eq_cache_adr_dly;
+  logic                                   flushing,
+                                          filling;
+  logic      [IDX_BITS    -1:0]           flush_idx;
 
 
   /* Bus Interface State Machine Section
    */
   enum logic [             1:0] {IDLE, WAIT4BIU, BURST} biufsm_state;
-  logic                                   biucmd_ack,
-                                          biufsm_ack,
-                                          biufsm_err;
+  enum logic [             1:0] {NOP=0, WRITE_WAY=1, READ_WAY=2} biucmd;
+  logic                                   biufsm_ack,
+                                          biufsm_err,
+                                          biufsm_ack_write_way; //BIU FSM should generate biufsm_ack on WRITE_WAY
+  logic      [XLEN        -1:0]           biu_q;
   logic      [BLK_BITS    -1:0]           biu_buffer;
   logic      [BURST_SIZE  -1:0]           biu_buffer_valid;
   logic                                   biu_buffer_dirty;
@@ -324,9 +360,8 @@ module riscv_dcache_core #(
   logic                                   is_read_way,
                                           is_read_way_dly,
                                           write_evict_buffer;
-  logic      [XLEN        -1:0]           biu_q;
 
-  logic      [BURST_BITS  -1:0] burst_cnt;
+  logic      [BURST_BITS  -1:0]           burst_cnt;
 
 
 
@@ -392,9 +427,8 @@ module riscv_dcache_core #(
 
 
   //signal Instruction Cache when FLUSH is done
-  assign flushrdy_o = ~(flush_i | hold_flush);
+  assign flushrdy_o = ~(flush_i | hold_flush | flushing);
 
-  
 
   //State Machine
   always @(posedge clk_i, negedge rst_ni)
@@ -435,16 +469,33 @@ module riscv_dcache_core #(
                           biucmd <= NOP;
                       end
 
-       FLUSH        : if (cache_dirty) 
+       FLUSH        : if (|tag_dirty) 
                       begin
                           //There are dirty ways in this set
                           //TODO
+                          //First determine dat_idx; this reads all ways for that index (FLUSH)
+                          //then check which ways are dirty (FLUSHWAYS)
+                          //write dirty way
+                          //clear dirty bit
+                         memfsm_state <= FLUSHWAYS;
+                         biucmd       <= WRITE_WAY;
                       end
                       else
                       begin
-                         memfsm_state <= ARMED;
+                         memfsm_state <= RECOVER; //allow to read new tag_idx
                          flushing     <= 1'b0;
                       end
+
+        FLUSHWAYS   : if (biufsm_ack)
+                      begin
+                          //Check if there are more dirty ways in this set
+                          if (~|way_dirty)
+                          begin
+                              memfsm_state <= FLUSH;
+                              biucmd       <= NOP;
+                          end
+                      end
+                      
 
         //TODO: Can we merge WAIT4BIUCMD0 and WAIT4BIUCMD1?
         WAIT4BIUCMD1: if (biufsm_err)
@@ -490,16 +541,21 @@ module riscv_dcache_core #(
   assign biu_adro_eq_cache_adr_dly = (biu_adro_i[PLEN-1:BURST_LSB] == mem_padr_i  [PLEN-1:BURST_LSB]);
 
 
+  //dat/tag index during flushing
+  assign flush_idx = get_dirty_set_idx(tag_dirty);
+
+
   //signal downstream that data is ready
   always_comb
     unique case (memfsm_state)
-      ARMED       : mem_ack_o = cache_hit;
+      ARMED       : mem_ack_o = mem_vreq_dly & cache_hit & (mem_preq_i | mem_preq_dly); //cache_hit
       WAIT4BIUCMD1: mem_ack_o = biu_ack_i & biu_adro_eq_cache_adr_dly;
       WAIT4BIUCMD0: mem_ack_o = biu_ack_i & biu_adro_eq_cache_adr_dly;
       default     : mem_ack_o = 1'b0;
     endcase
 
 
+  //signal downstream the BIU reported an error
   assign mem_err_o = biu_err_i;
 
 
@@ -512,15 +568,6 @@ module riscv_dcache_core #(
     endcase
 
 
-  //SET counter
-  always @(posedge clk_i, negedge rst_ni)
-    if (!rst_ni) set_cnt <= {IDX_BITS{1'b1}};
-    else
-    unique case (memfsm_state)
-      default: ;
-    endcase
-
-  
   //----------------------------------------------------------------
   // End Memory Interface State Machine
   //----------------------------------------------------------------
@@ -586,9 +633,8 @@ generate
   end
 endgenerate
 
-  // Generate 'hit', dirty, and data block
-  assign cache_hit   = |way_hit & mem_vreq_dly;
-  assign cache_dirty = |way_dirty;
+  // Generate 'hit'
+  assign cache_hit = |way_hit; // & mem_vreq_dly;
 
 
   /* DATA
@@ -700,6 +746,8 @@ endgenerate
       WAIT4BIUCMD0: tag_idx = tag_idx_hold;
 
       //TAG read
+      FLUSH       : tag_idx = flush_idx;
+      FLUSHWAYS   : tag_idx = flush_idx;
       RECOVER     : tag_idx = mem_vreq_dly ? vadr_dly_idx  //pending access
                                            : vadr_idx;     //new access
       default     : tag_idx = vadr_idx;                    //current access
@@ -726,7 +774,7 @@ endgenerate
       ARMED   : if (mem_vreq_dly && !cache_hit) tag_idx_hold <= vadr_dly_idx;
       RECOVER : tag_idx_hold <= mem_vreq_dly ? vadr_dly_idx  //pending access
                                              : vadr_idx;     //current access
-      default : ;
+       default: ;
     endcase
 
 generate
@@ -744,7 +792,8 @@ generate
       always_comb
         unique case (memfsm_state)
           ARMED  : tag_we_dirty[way] = way_hit[way] & ((mem_vreq_dly & mem_we_dly & mem_preq_i) | (mem_preq_dly & mem_we_dly));
-          default: tag_we_dirty[way] = filling & fill_way_select_hold[way] & biufsm_ack;
+          default: tag_we_dirty[way] = (filling & fill_way_select_hold[way] & biufsm_ack) |
+                                       (flushing & write_evict_buffer & (get_dirty_way_idx(tag_dirty,flush_idx) == way) );
         endcase
   end
 
@@ -752,8 +801,8 @@ generate
   //TAG Write Data
   for (way=0; way < WAYS; way++)
   begin: gen_tag
-      //clear valid tag when flushing
-      assign tag_in[way].valid = ~flushing;
+      //clear valid tag during cache-coherency checks
+      assign tag_in[way].valid = 1'b1; //~flushing;
 
       //set dirty bit when
       // 1. read new line from memory and data in new line is overwritten
@@ -799,6 +848,8 @@ wire [DAT_OFF_BITS-1:0] pwb_dat_offset = (write_buffer.was_write && mem_preq_i) 
                                              : vadr_idx;         //read access
        RECOVER     : dat_idx = mem_vreq_dly  ? vadr_dly_idx      //read pending cycle
                                              : vadr_idx;         //read new access
+       FLUSH       : dat_idx = flush_idx;
+       FLUSHWAYS   : dat_idx = flush_idx;
        default     : dat_idx = tag_idx_hold;
      endcase
 
@@ -856,20 +907,15 @@ endgenerate
     if (!rst_ni)
     begin
         biufsm_state <= IDLE;
-        biucmd_ack   <= 1'b0;
     end
     else
     begin
-        biucmd_ack <= 1'b0; //biucmd_ack is a single cycle strobe
-
         unique case (biufsm_state)
           IDLE    : unique case (biucmd)
                       NOP      : ; //do nothing
 
                       READ_WAY : begin
                                      //read a way from main memory
-                                     biucmd_ack <= 1'b1;
-
                                      if (biu_stb_ack_i)
                                      begin
                                          biufsm_state <= BURST;
@@ -949,26 +995,34 @@ endgenerate
 
 
   //store dirty line in evict buffer
+  //TODO: change name
   always @(posedge clk_i)
-    is_read_way <= biucmd == READ_WAY;
+    is_read_way <= (biucmd       == READ_WAY) ||
+                   (memfsm_state == FLUSH   ) ||
+                   (memfsm_state == FLUSHWAYS & biufsm_ack & |way_dirty); 
 
   always @(posedge clk_i)
     is_read_way_dly <= is_read_way;
 
+  //ARMED: write evict buffer 1 cycle after starting READ_WAY. That ensures DAT and TAG are valid
+  //        and there no new data from the BIU yet
+  //FLUSH: write evict buffer when entering FLUSHWAYS state and as long as current SET has dirty WAYs.
   assign write_evict_buffer = is_read_way & ~is_read_way_dly;
 
   always @(posedge clk_i)
     if (write_evict_buffer)
     begin
-        evict_buffer.adr  <= {tag_out[ onehot2int(fill_way_select_hold) ].tag, padr_dly_idx, {BLK_OFF_BITS{1'b0}}};
-        evict_buffer.data <= dat_out[ onehot2int(fill_way_select_hold) ];
+        evict_buffer.adr  <= flushing ? {tag_out[ get_dirty_way_idx(tag_dirty,flush_idx) ].tag, flush_idx,    {BLK_OFF_BITS{1'b0}}}
+                                      : {tag_out[ onehot2int(fill_way_select_hold)       ].tag, padr_dly_idx, {BLK_OFF_BITS{1'b0}}};
+        evict_buffer.data <= flushing ? dat_out[ get_dirty_way_idx(tag_dirty,flush_idx) ]
+                                      : dat_out[ onehot2int(fill_way_select_hold)       ];
     end
 
 
   //acknowledge burst to memfsm
   always_comb
     unique case (biufsm_state)
-      BURST   : biufsm_ack = (~|burst_cnt & biu_ack_i & ~biu_we_hold) | biu_err_i;
+      BURST   : biufsm_ack = (~|burst_cnt & biu_ack_i & (~biu_we_hold | flushing) ) | biu_err_i;
       default : biufsm_ack = 1'b0;
     endcase
 
