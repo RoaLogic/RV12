@@ -27,6 +27,8 @@
 //                                                                 //
 /////////////////////////////////////////////////////////////////////
 
+import biu_constants_pkg::*;
+
 module riscv_icache_ahb3lite #(
   parameter XLEN           = 32,
   parameter PHYS_ADDR_SIZE = XLEN,
