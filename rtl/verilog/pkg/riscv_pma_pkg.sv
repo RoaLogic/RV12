@@ -28,10 +28,10 @@
 /////////////////////////////////////////////////////////////////////
 
 
-//Load only pmpcfg_a_t from state package
-import riscv_state_pkg::pmpcfg_a_t;
-
 package riscv_pma_pkg;
+  //Load only pmpcfg_a_t from state package
+  import riscv_state_pkg::pmpcfg_a_t;
+
   //3.5.1 Memory type. Used for target-decoding
   typedef enum logic [1:0] {
     MEM_TYPE_EMPTY = 2'h0,
