@@ -35,6 +35,8 @@
 //                                                             //
 /////////////////////////////////////////////////////////////////
 
+import biu_constants_pkg::*;
+
 module riscv_noicache_core #(
   parameter XLEN           = 32,
   parameter PHYS_ADDR_SIZE = XLEN, //MSB determines cacheable(0) and non-cacheable(1)
