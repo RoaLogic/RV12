@@ -59,7 +59,7 @@ module riscv_mmu #(
   input  logic [XLEN-1:0] vadr_i,  //Virtual Memory Address
   input  biu_size_t       vsize_i,
   input  logic            vlock_i,
-  input  logic            vprot_i,
+  input  biu_prot_t       vprot_i,
   input  logic            vwe_i,
   input  logic [XLEN-1:0] vd_i,
 
@@ -68,7 +68,7 @@ module riscv_mmu #(
   output logic [PLEN-1:0] padr_o,  //Physical Memory Address
   output biu_size_t       psize_o,
   output logic            plock_o,
-  output logic            pprot_o,
+  output biu_prot_t       pprot_o,
   output logic            pwe_o,
   output logic [XLEN-1:0] pd_o,
   input  logic [XLEN-1:0] pq_i,
