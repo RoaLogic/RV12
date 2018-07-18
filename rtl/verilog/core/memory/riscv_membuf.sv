@@ -31,6 +31,8 @@
  * Temporary buffer, in case previous access didn't finish yet
  */
 
+import biu_constants_pkg::*;
+
 module riscv_membuf #(
   parameter XLEN        = 32,
   parameter QUEUE_DEPTH = 2
