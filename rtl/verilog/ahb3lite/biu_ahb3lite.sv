@@ -95,7 +95,7 @@ module biu_ahb3lite #(
       HWORD  : biu_size2hsize = HSIZE_HWORD;
       WORD   : biu_size2hsize = HSIZE_WORD;
       DWORD  : biu_size2hsize = HSIZE_DWORD;
-      default: biu_size2hsize = 'hx; //OOPSS
+      default: biu_size2hsize = 3'hx; //OOPSS
     endcase
   endfunction: biu_size2hsize
 
@@ -118,7 +118,7 @@ module biu_ahb3lite #(
 
 
   //convert burst type to counter length (actually length -1)
-  function [3:0] biu_type2hburst;
+  function [2:0] biu_type2hburst;
     input biu_type_t biu_type;
 
     case (biu_type)
@@ -235,7 +235,7 @@ module biu_ahb3lite #(
             else //continue burst
             begin
                 data_ena  <= 1'b1;
-                burst_cnt <= burst_cnt - 'h1;
+                burst_cnt <= burst_cnt -1;
 
                 HTRANS    <= HTRANS_SEQ; //continue burst
                 HADDR     <= nxt_addr(HADDR,HBURST); //next address
