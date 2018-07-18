@@ -29,6 +29,7 @@
 
 
 import riscv_pma_pkg::*;
+import riscv_state_pkg::*; //pmpcfg_a_t;
 import biu_constants_pkg::*;
 
 module riscv_pmachk #(
