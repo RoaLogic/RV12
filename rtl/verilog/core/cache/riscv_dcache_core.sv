@@ -900,7 +900,7 @@ endgenerate
   // Bus Interface State Machine
   //----------------------------------------------------------------
   assign biu_lock_o = 1'b0;
-  assign biu_prot_o = mem_prot_i;
+  assign biu_prot_o = biu_prot_t'(mem_prot_i | PROT_CACHEABLE);
 
 
   always @(posedge clk_i, negedge rst_ni)
