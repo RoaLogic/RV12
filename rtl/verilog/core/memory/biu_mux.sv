@@ -133,7 +133,7 @@ module biu_mux #(
   // Variables
   //
 
-  enum logic [1:0] {IDLE=0,BURST=1, WAIT4BIU=2} fsm_state;
+  enum logic {IDLE=0,BURST=1} fsm_state;
 
   logic                     pending_req;
   logic [$clog2(PORTS)-1:0] pending_port,
@@ -192,8 +192,6 @@ module biu_mux #(
                             selected_port <= pending_port;
                         end
                   end
-
-        WAIT4BIU: ;
       endcase                   
 
 
@@ -220,7 +218,7 @@ module biu_mux #(
                     biu_we_o   = biu_we_i   [ pending_port ];
                     biu_d_o    = biu_ack_i & ~|burst_cnt ? biu_d_i[ pending_port ] : biu_d_i[ selected_port ]; //TODO ~|burst_cnt & biu_ack_i ??
                 end
-
+/*
       WAIT4BIU: begin
                     biu_req_o  = 1'b1;
                     biu_adri_o = biu_adri_i [ selected_port ];
@@ -230,7 +228,7 @@ module biu_mux #(
                     biu_we_o   = biu_we_i   [ selected_port ];
                     biu_d_o    = biu_d_i    [ selected_port ];
                 end
-
+*/
       default : begin
                     biu_req_o  = 'bx;
                     biu_adri_o = 'hx;
