@@ -129,6 +129,7 @@ module riscv_dmem_ctrl #(
   logic [XLEN-1:0] buf_adr;
   biu_size_t       buf_size;
   logic            buf_lock;
+  biu_prot_t       buf_prot;
   logic            buf_we;
   logic [XLEN-1:0] buf_d;
 
@@ -141,6 +142,7 @@ module riscv_dmem_ctrl #(
   logic [PLEN-1:0] padr;
   biu_size_t       psize;
   logic            plock;
+  biu_prot_t       pprot;
   logic            pwe;
   logic [XLEN-1:0] pd;
   
@@ -255,6 +257,9 @@ always @(posedge clk_i)
     .ack_i  ( mem_ack_o  )
   );
 
+  assign buf_prot = biu_prot_t'(PROT_DATA |
+                                st_prv_i == PRV_U ? PROT_USER : PROT_PRIVILEGED);
+
 
   /* Hookup misalignment check
    */
@@ -287,6 +292,7 @@ always @(posedge clk_i)
     .vadr_i       ( buf_adr          ),
     .vsize_i      ( buf_size         ),
     .vlock_i      ( buf_lock         ),
+    .vprot_i      ( buf_prot         ),
     .vwe_i        ( buf_we           ),
     .vd_i         ( buf_d            ),
 
@@ -294,6 +300,7 @@ always @(posedge clk_i)
     .padr_o       ( padr             ),
     .psize_o      ( psize            ),
     .plock_o      ( plock            ),
+    .pprot_o      ( pprot            ),
     .pwe_o        ( pwe              ),
     .pd_o         ( pd               ),
     .pq_i         ( {XLEN{1'b0}}     ),
@@ -453,20 +460,20 @@ generate
     .PLEN ( PLEN )
   )
   dext_inst (
-    .rst_ni             ( rst_ni           ),
-    .clk_i              ( clk_i            ),
+    .rst_ni             ( rst_ni            ),
+    .clk_i              ( clk_i             ),
 
-    .mem_req_i          ( ext_access_req   ),
-    .mem_adr_i          ( padr             ),
-    .mem_size_i         ( psize            ),
-    .mem_type_i         ( SINGLE           ),
-    .mem_lock_i         ( plock            ),
-    .mem_prot_i         ( pm_prot          ),
-    .mem_we_i           ( pwe              ),
-    .mem_d_i            ( pd               ),
-    .mem_q_o            ( ext_q            ),
-    .mem_ack_o          ( ext_ack          ),
-    .mem_err_o          ( ext_err          ),
+    .mem_req_i          ( ext_access_req    ),
+    .mem_adr_i          ( padr              ),
+    .mem_size_i         ( psize             ),
+    .mem_type_i         ( SINGLE            ),
+    .mem_lock_i         ( plock             ),
+    .mem_prot_i         ( pprot             ),
+    .mem_we_i           ( pwe               ),
+    .mem_d_i            ( pd                ),
+    .mem_q_o            ( ext_q             ),
+    .mem_ack_o          ( ext_ack           ),
+    .mem_err_o          ( ext_err           ),
 
     .biu_stb_o          ( biu_stb     [EXT] ),
     .biu_stb_ack_i      ( biu_stb_ack [EXT] ),
