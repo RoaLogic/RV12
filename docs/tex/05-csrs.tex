@@ -2343,7 +2343,7 @@ Figure~\ref{pmpaddr-rv64}.
 Figure~\ref{pmpcfg} shows the layout of a PMP configuration register.  The R,
 W, and X bits, when set, indicate that the PMP entry permits read, write, and
 instruction execution, respectively.  When one of these bits is clear, the
-corresponding access type is denied.  The remaining 3 fields, A, L and C, are
+corresponding access type is denied.  The remaining 2 fields, A and L, are
 described in the following sections.
 
 \ifdefined\MARKDOWN
@@ -2354,8 +2354,7 @@ described in the following sections.
 \begin{center}
 \begin{tabular}{FFFRFFF}
 \instbit{7} &
-\instbit{6} &
-\instbit{5} &
+\instbitrange{6}{5} &
 \instbitrange{4}{3} &
 \instbit{2} &
 \instbit{1} &
@@ -2363,14 +2362,13 @@ described in the following sections.
 \hline
 \multicolumn{1}{|c|}{L (\warl)} &
 \multicolumn{1}{c|}{\wiri} &
-\multicolumn{1}{c|}{C \warl} &
 \multicolumn{1}{c|}{A (\warl)} &
 \multicolumn{1}{c|}{X (\warl)} &
 \multicolumn{1}{c|}{W (\warl)} &
 \multicolumn{1}{c|}{R (\warl)}
 \\
 \hline
-1 & 1 & 1 & 2 & 1 & 1 & 1 \\
+1 & 2 & 2 & 1 & 1 & 1 \\
 \end{tabular}
 \end{center}
 }
@@ -2453,10 +2451,10 @@ permissions are enforced for all privilege modes.  When the L bit is clear,
 any M-mode access matching the PMP entry will succeed; the R/W/X
 permissions apply only to S and U modes.
 
-\subsection{Cacheability}
-
-The C bit indicates if the memory area is cacheable or not. When the C bit is
-set the corresponding memory area is cacheable.
+%\subsection{Cacheability}
+%
+%The C bit indicates if the memory area is cacheable or not. When the C bit is
+%set the corresponding memory area is cacheable.
 
 \subsection{Priority and Matching Logic}
 

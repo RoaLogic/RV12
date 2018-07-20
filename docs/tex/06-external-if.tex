@@ -386,10 +386,10 @@ mode, as defined in Table \ref{tab:external-interrupt-inputs}:
 Interrupt & Priority & Mode Supported\tabularnewline
 \midrule
 \endhead
-EXT\_INT[3] & 3 & Machine Mode\tabularnewline
-EXT\_INT[2] & 2 & Reserved\tabularnewline
-EXT\_INT[1] & 1 & Supervisor Mode\tabularnewline
-EXT\_INT[0] & 0 & User Mode\tabularnewline
+\texttt{EXT\_INT{[}3{]}} & 3 & Machine Mode\tabularnewline
+\texttt{EXT\_INT{[}2{]}} & 2 & Reserved\tabularnewline
+\texttt{EXT\_INT{[}1{]}} & 1 & Supervisor Mode\tabularnewline
+\texttt{EXT\_INT{[}0{]}} & 0 & User Mode\tabularnewline
 \bottomrule
 \caption{External Interrupt Inputs}
 \label{tab:external-interrupt-inputs}
@@ -415,3 +415,109 @@ Notes:
   Conversely, Machine Mode may service interrupts arriving on any of the
   interrupt inputs due to it have the highest priority.
 \end{enumerate}
+
+\section{Physical Memory Protection}\label{phys_mem_protection}
+
+The RISC-V specification defines up to 16 Physical Memory Protection entries that are controled through Software via the PMP Configuration Status Registers. In addition to this software based memory protection, the RV12 adds support for an unlimited number of hardware protected physical memory regions.
+
+The number of these Physically Protected Memory regions is defined by the core parameter \texttt{PMA\_CNT}. The physical areas and the associated attributes are defined via the \texttt{pma\_cfg\_i{[}{]}} and \texttt{pma\_adr\_i{[}{]}} ports.
+
+\begin{longtable}[]{@{}lccl@{}}
+	\toprule
+	Port                & Size          & Direction & Description\tabularnewline
+	\midrule
+	\endhead
+	\texttt{pma\_cfg\_i{[}PMA\_CNT-1..0{]}} & 14            & Input & PMP Configuration Attributes\tabularnewline
+	\texttt{pma\_adr\_i{[}PMA\_CNT-1..0{]}} & \texttt{XLEN} & Input & PMP Address Register\tabularnewline
+
+	\bottomrule
+	\caption{Physical Memory Protection Attribute Ports}
+	\label{tab:pma-ports}
+\end{longtable}
+
+\subsection{pma\_cfg\_i}
+Each \texttt{pma\_cfg\_i} port is a 14 bit input used to set specific attributes for the associated Protected Memory region as defined in Figure \ref{fig:pmacfg} and Table \ref{tab:pmacfg}:
+
+\ifdefined\MARKDOWN
+% Exclude Table
+\else
+\begin{figure}[ht!]
+{\footnotesize
+\begin{center}
+\begin{tabular}{YYIIIIIIIIF}
+\instbitrange{13}{12} &
+\instbitrange{11}{10} &
+\instbit{9} &
+\instbit{8} &
+\instbit{7} &
+\instbit{6} &
+\instbit{5} &
+\instbit{4} &
+\instbit{3} &
+\instbit{2} &
+\instbitrange{1}{0} \\
+\hline
+\multicolumn{1}{|c|}{A} &
+\multicolumn{1}{c|}{AMO} &
+\multicolumn{1}{c|}{r} &
+\multicolumn{1}{c|}{w} &
+\multicolumn{1}{c|}{x} &
+\multicolumn{1}{c|}{c} &
+\multicolumn{1}{c|}{cc} &
+\multicolumn{1}{c|}{ri} &
+\multicolumn{1}{c|}{wi} &
+\multicolumn{1}{c|}{m} &
+\multicolumn{1}{c|}{Mem Type}
+\\
+\hline
+2 & 2 & 1 & 1 & 1 & 1 & 1 & 1 & 1 & 1 & 2 \\
+\end{tabular}
+\end{center}
+}
+\vspace{-0.1in}
+\caption{PMP configuration register format.}
+\label{fig:pmacfg}
+\end{figure}
+\fi
+
+\begin{table*}[ht!]
+\begin{center}
+\begin{tabular}{|c|c|l|}
+\hline
+Bits & Name & Description \\
+\hline
+13..12 & A     & Address Mapping \\
+       &       & 0 = Off: Null region (disabled)  \\
+       &       & 1 = TOR: Top of range \\
+       &       & 2 = NA4: aturally aligned four-byte region \\
+       &       & 3 = NAPOT: Naturally aligned power-of-two region, $\ge$8 bytes \\
+       &       & \\
+11..10 & AMO   & Atomicity  \\
+       &       & 0 = None \\
+       &       & 1 = SWAP \\
+       &       & 2 = LOGICAL \\
+       &       & 3 = ARITHMETIC \\
+       &       & \\
+9      & r     & Readable \\
+8      & w     & Writeable \\
+7      & x     & Executable \\
+6      & c     & Cacheable\\
+5      & cc    & Cache Coherent \\
+4      & ri    & Read Idempotent \\
+3      & wi    & Write Idempotent \\
+2      & m     & Misaligned Access Support \\
+       &       & \\
+1..0   & Type  & Memory Type \\
+       &       & 0 = Empty \\
+       &       & 1 = Main \\
+       &       & 2 = IO \\
+       &       & 3 = TCM \\
+\hline
+\end{tabular}
+\end{center}
+\caption{Encoding of A field in PMP configuration registers.}
+\label{tab:pmacfg}
+\end{table*}
+
+\subsection{pma\_adr\_i}
+
