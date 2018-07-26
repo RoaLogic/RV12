@@ -59,7 +59,12 @@ module riscv_membuf #(
   output logic            lock_o,
   output logic            we_o,
   output logic [XLEN-1:0] d_o,
-  input  logic            ack_i
+  input  logic            ack_i,
+
+
+  //Control signals
+  output logic            empty_o,
+                          full_o
 );
 
   //////////////////////////////////////////////////////////////////
@@ -152,7 +157,7 @@ module riscv_membuf #(
     else
       unique case ({queue_we,queue_re})
          2'b01  : queue_full <= 1'b0;
-         2'b10  : queue_full <= &queue_wadr;
+         2'b10  : queue_full <= (queue_wadr == QUEUE_DEPTH-1); //&queue_wadr;
          default: ;
       endcase
 
@@ -181,6 +186,9 @@ module riscv_membuf #(
 
   assign queue_we = |access_pending & (req_i & ~(queue_empty & ack_i));
   assign queue_re = ack_i & ~queue_empty;
+
+  assign empty_o = queue_empty;
+  assign full_o  = queue_full;
 
 
   //queue outputs
