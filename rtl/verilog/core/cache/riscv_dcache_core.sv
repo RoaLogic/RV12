@@ -325,8 +325,7 @@ module riscv_dcache_core #(
   logic      [WAYS        -1:0]           way_hit;
   logic      [WAYS        -1:0]           way_dirty;
 
-  logic      [DAT_OFF_BITS-1:0]           dat_offset,
-                                          dat_in_offset;
+  logic      [DAT_OFF_BITS-1:0]           dat_offset;
 
   logic                                   cache_hit;
   logic      [XLEN        -1:0]           cache_q;
@@ -832,13 +831,6 @@ wire [DAT_OFF_BITS-1:0] pwb_dat_offset = (write_buffer.was_write && mem_preq_i) 
 
   //DAT Byte Enable
   assign dat_be = biufsm_ack ? {BLK_BITS/8{1'b1}} : write_buffer.be << (pwb_dat_offset * XLEN/8);
-
-
-  always @(posedge clk_i)
-    unique case (memfsm_state)
-      ARMED  : dat_in_offset <= dat_offset;
-      default: ;
-    endcase
 
 
   //DAT Index
