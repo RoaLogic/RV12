@@ -236,25 +236,28 @@ always @(posedge clk_i)
     .XLEN ( XLEN )
   )
   membuf_inst (
-    .rst_ni ( rst_ni     ),
-    .clk_i  ( clk_i      ),
+    .rst_ni  ( rst_ni     ),
+    .clk_i   ( clk_i      ),
 
-    .clr_i  ( exception  ),
+    .clr_i   ( exception  ),
 
-    .req_i  ( mem_req_i  ),
-    .adr_i  ( mem_adr_i  ),
-    .size_i ( mem_size_i ),
-    .lock_i ( mem_lock_i ),
-    .we_i   ( mem_we_i   ),
-    .d_i    ( mem_d_i    ),
+    .req_i   ( mem_req_i  ),
+    .adr_i   ( mem_adr_i  ),
+    .size_i  ( mem_size_i ),
+    .lock_i  ( mem_lock_i ),
+    .we_i    ( mem_we_i   ),
+    .d_i     ( mem_d_i    ),
 
-    .req_o  ( buf_req    ),
-    .adr_o  ( buf_adr    ),
-    .size_o ( buf_size   ),
-    .lock_o ( buf_lock   ),
-    .we_o   ( buf_we     ),
-    .d_o    ( buf_d      ),
-    .ack_i  ( mem_ack_o  )
+    .req_o   ( buf_req    ),
+    .adr_o   ( buf_adr    ),
+    .size_o  ( buf_size   ),
+    .lock_o  ( buf_lock   ),
+    .we_o    ( buf_we     ),
+    .d_o     ( buf_d      ),
+    .ack_i   ( mem_ack_o  ),
+
+    .empty_o (),
+    .full_o  ()
   );
 
   assign buf_prot = biu_prot_t'(PROT_DATA |
@@ -389,7 +392,7 @@ generate
         //from MMU/PMA
         .mem_vreq_i      ( buf_req          ),
         .mem_preq_i      ( is_cache_access  ),
-        .mem_vadr_i      ( mem_adr_i        ),
+        .mem_vadr_i      ( mem_adr_i        ), //TODO Shouldn't this be buf_adr ??
         .mem_padr_i      ( padr             ),
         .mem_size_i      ( buf_size         ),
         .mem_lock_i      ( buf_lock         ),
