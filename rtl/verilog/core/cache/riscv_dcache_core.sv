@@ -588,13 +588,13 @@ generate
         .TECHNOLOGY ( TECHNOLOGY )
       )
       tag_ram (
-        .rstn  ( rst_ni       ),
-        .clk   ( clk_i        ),
-        .addr  ( tag_idx      ),
-        .we    ( tag_we [way] ),
-        .be    ( {(TAG_BITS+7)/8{1'b1}} ),
-        .din   ( tag_in [way].tag ),
-        .dout  ( tag_out[way].tag )
+        .rst_ni ( rst_ni       ),
+        .clk_i  ( clk_i        ),
+        .addr_i ( tag_idx      ),
+        .we_i   ( tag_we [way] ),
+        .be_i   ( {(TAG_BITS+7)/8{1'b1}} ),
+        .din_i  ( tag_in [way].tag ),
+        .dout_o ( tag_out[way].tag )
       );
 
       //tag-register for bypass (RAW hazard)
@@ -676,13 +676,13 @@ generate
         .TECHNOLOGY ( TECHNOLOGY )
       )
       data_ram (
-        .rstn  ( rst_ni      ),
-        .clk   ( clk_i       ),
-        .addr  ( dat_idx     ),
-        .we    ( dat_we[way] ),
-        .be    ( dat_be      ),
-        .din   ( dat_in      ),
-        .dout  ( dat_out[way])
+        .rst_ni ( rst_ni      ),
+        .clk_i  ( clk_i       ),
+        .addr_i ( dat_idx     ),
+        .we_i   ( dat_we[way] ),
+        .be_i   ( dat_be      ),
+        .din_i  ( dat_in      ),
+        .dout_o ( dat_out[way])
       );
 
 
