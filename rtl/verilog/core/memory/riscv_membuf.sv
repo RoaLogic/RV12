@@ -42,6 +42,7 @@ module riscv_membuf #(
   input  logic            clk_i,
 
   input  logic            clr_i,  //clear pending requests
+  input  logic            ena_i,
 
   //CPU side
   input  logic            req_i,
@@ -59,12 +60,7 @@ module riscv_membuf #(
   output logic            lock_o,
   output logic            we_o,
   output logic [XLEN-1:0] d_o,
-  input  logic            ack_i,
-
-
-  //Control signals
-  output logic            empty_o,
-                          full_o
+  input  logic            ack_i
 );
 
   //////////////////////////////////////////////////////////////////
@@ -84,8 +80,8 @@ module riscv_membuf #(
   //
   // Variables
   //
-  queue_t                         queue_data[QUEUE_DEPTH];
-  logic [$clog2(QUEUE_DEPTH)-1:0] queue_wadr;
+  queue_t                         queue_d,
+                                  queue_q;
   logic                           queue_we,
                                   queue_re,
                                   queue_empty,
@@ -99,84 +95,38 @@ module riscv_membuf #(
   // Module Body
   //
 
-  //----------------------------------------------------------------
-  // Queue 
-  //----------------------------------------------------------------
-  always @(posedge clk_i,negedge rst_ni)
-    if      (!rst_ni) queue_wadr <= 'h0;
-    else if ( clr_i ) queue_wadr <= 'h0;
-    else
-      unique case ({queue_we,queue_re})
-         2'b01 : queue_wadr <= queue_wadr -1;
-         2'b10 : queue_wadr <= queue_wadr +1;
-         default: ;
-      endcase
+  //Queue Input Data
+  assign queue_d.addr = adr_i;
+  assign queue_d.size = size_i;
+  assign queue_d.lock = lock_i;
+  assign queue_d.we   = we_i;
+  assign queue_d.data = d_i;
 
 
-  always @(posedge clk_i,negedge rst_ni)
-    if (!rst_ni)
-      for (int n=0; n<QUEUE_DEPTH; n++) queue_data[n] <= 'h0;
-    else if (clr_i)
-      for (int n=0; n<QUEUE_DEPTH; n++) queue_data[n] <= 'h0;
-    else
-    unique case ({queue_we,queue_re})
-       2'b01  : begin
-                    for (int n=0; n<QUEUE_DEPTH-1; n++)
-                      queue_data[n] <= queue_data[n+1];
-
-                    queue_data[QUEUE_DEPTH-1] <= 'h0;
-                end
-
-       2'b10  : begin
-                    queue_data[queue_wadr].addr <= adr_i;
-                    queue_data[queue_wadr].size <= size_i;
-                    queue_data[queue_wadr].lock <= lock_i;
-                    queue_data[queue_wadr].we   <= we_i;
-                    queue_data[queue_wadr].data <= d_i;
-                end
-
-       2'b11  : begin
-                    for (int n=0; n<QUEUE_DEPTH-1; n++)
-                      queue_data[n] <= queue_data[n+1];
-
-                    queue_data[QUEUE_DEPTH-1] <= 'h0;
-
-                    queue_data[queue_wadr-1].addr <= adr_i;
-                    queue_data[queue_wadr-1].size <= size_i;
-                    queue_data[queue_wadr-1].lock <= lock_i;
-                    queue_data[queue_wadr-1].we   <= we_i;
-                    queue_data[queue_wadr-1].data <= d_i;
-                end
-       default: ;
-    endcase
-
-
-  always @(posedge clk_i, negedge rst_ni)
-    if      (!rst_ni) queue_full <= 1'b0;
-    else if ( clr_i ) queue_full <= 1'b0;
-    else
-      unique case ({queue_we,queue_re})
-         2'b01  : queue_full <= 1'b0;
-         2'b10  : queue_full <= (queue_wadr == QUEUE_DEPTH-1); //&queue_wadr;
-         default: ;
-      endcase
-
-  always @(posedge clk_i, negedge rst_ni)
-    if      (!rst_ni) queue_empty <= 1'b1;
-    else if ( clr_i ) queue_empty <= 1'b1;
-    else
-      unique case ({queue_we,queue_re})
-         2'b01  : queue_empty <= (queue_wadr == 1);
-         2'b10  : queue_empty <= 1'b0;
-         default: ;
-      endcase
+  // Instantiate Queue 
+  rl_queue #(
+    .DEPTH ( QUEUE_DEPTH    ),
+    .DBITS ( $bits(queue_d) )
+  )
+  rl_queue_inst (
+    .rst_ni  ( rst_ni      ),
+    .clk_i   ( clk_i       ),
+    .clr_i   ( clr_i       ),
+    .ena_i   ( ena_i       ),
+    .we_i    ( queue_we    ),
+    .d_i     ( queue_d     ),
+    .re_i    ( queue_re    ),
+    .q_o     ( queue_q     ),
+    .empty_o ( queue_empty ),
+    .full_o  ( queue_full  )
+  );
 
 
   //control signals
   always @(posedge clk_i, negedge rst_ni)
     if      (!rst_ni) access_pending <= 1'b0;
     else if ( clr_i ) access_pending <= 1'b0;
-    else
+    else if ( ena_i )
       unique case ( {req_i,ack_i} )
          2'b01  : access_pending--;
          2'b10  : access_pending++;
@@ -187,17 +137,14 @@ module riscv_membuf #(
   assign queue_we = |access_pending & (req_i & ~(queue_empty & ack_i));
   assign queue_re = ack_i & ~queue_empty;
 
-  assign empty_o = queue_empty;
-  assign full_o  = queue_full;
-
 
   //queue outputs
   assign req_o = ~|access_pending ?  req_i 
-                                  : (req_i | ~queue_empty) & ack_i;
-  assign adr_o  = queue_empty ? adr_i  : queue_data[0].addr;
-  assign size_o = queue_empty ? size_i : queue_data[0].size;
-  assign lock_o = queue_empty ? lock_i : queue_data[0].lock;
-  assign we_o   = queue_empty ? we_i   : queue_data[0].we;
-  assign d_o    = queue_empty ? d_i    : queue_data[0].data;
+                                  : (req_i | ~queue_empty) & ack_i & ena_i;
+  assign adr_o  = queue_empty ? adr_i  : queue_q.addr;
+  assign size_o = queue_empty ? size_i : queue_q.size;
+  assign lock_o = queue_empty ? lock_i : queue_q.lock;
+  assign we_o   = queue_empty ? we_i   : queue_q.we;
+  assign d_o    = queue_empty ? d_i    : queue_q.data;
 
 endmodule
