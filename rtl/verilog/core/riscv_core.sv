@@ -74,20 +74,20 @@ module riscv_core #(
   parameter            PARCEL_SIZE           = 32
 )
 (
-  input                            rstn,   //Reset
-  input                            clk,    //Clock
+  input                             rstn,   //Reset
+  input                             clk,    //Clock
 
 
   //Instruction Memory Access bus
-  input                            if_stall_nxt_pc,
-  output       [XLEN         -1:0] if_nxt_pc,
-  output                           if_stall,
-                                   if_flush,
-  input        [PARCEL_SIZE  -1:0] if_parcel,
-  input        [XLEN         -1:0] if_parcel_pc,
-  input                            if_parcel_valid,
-  input                            if_parcel_misaligned,
-  input                            if_parcel_page_fault,
+  input                             if_stall_nxt_pc,
+  output       [XLEN          -1:0] if_nxt_pc,
+  output                            if_stall,
+                                    if_flush,
+  input        [PARCEL_SIZE   -1:0] if_parcel,
+  input        [XLEN          -1:0] if_parcel_pc,
+  input        [PARCEL_SIZE/16-1:0] if_parcel_valid,
+  input                             if_parcel_misaligned,
+  input                             if_parcel_page_fault,
 
   //Data Memory Access bus
   output       [XLEN         -1:0] dmem_adr,
@@ -396,8 +396,22 @@ generate
       .BP_GLOBAL_BITS    ( BP_GLOBAL_BITS ),
       .BP_LOCAL_BITS     ( BP_LOCAL_BITS  ),
       .BP_LOCAL_BITS_LSB ( 2              ), 
-      .TECHNOLOGY        ( TECHNOLOGY     ) )
-    bp_unit( .* );
+      .TECHNOLOGY        ( TECHNOLOGY     )
+    )
+    bp_unit(
+      .rst_ni          ( rstn          ),
+      .clk_i           ( clk           ),
+
+      .id_stall_i      ( id_stall      ),
+      .if_parcel_pc_i  ( if_parcel_pc  ),
+      .bp_bp_predict_o ( bp_bp_predict ),
+
+      .ex_pc_i         ( ex_pc ),
+      .bu_bp_history_i ( bu_bp_history ),
+      .bu_bp_predict_i ( bu_bp_predict ),      //prediction bits for branch
+      .bu_bp_btaken_i  ( bu_bp_btaken  ),
+      .bu_bp_update_i  ( bu_bp_update  )
+    );
 endgenerate
 
 
