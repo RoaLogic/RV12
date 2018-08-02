@@ -34,60 +34,38 @@
 import biu_constants_pkg::*;
 
 module riscv_membuf #(
-  parameter XLEN        = 32,
-  parameter QUEUE_DEPTH = 2
+  parameter DEPTH = 2,
+  parameter DBITS = 32
 )
 (
-  input  logic            rst_ni,
-  input  logic            clk_i,
+  input  logic             rst_ni,
+  input  logic             clk_i,
 
-  input  logic            clr_i,  //clear pending requests
-  input  logic            ena_i,
+  input  logic             clr_i,  //clear pending requests
+  input  logic             ena_i,
 
   //CPU side
-  input  logic            req_i,
-  input  logic [XLEN-1:0] adr_i,
-  input  biu_size_t       size_i,
-  input  logic            lock_i,
-  input  logic            we_i,
-  input  logic [XLEN-1:0] d_i,
-
+  input  logic             req_i,
+  input  logic [DBITS-1:0] d_i,
 
   //Memory system side
-  output logic            req_o,
-  output logic [XLEN-1:0] adr_o,
-  output biu_size_t       size_o,
-  output logic            lock_o,
-  output logic            we_o,
-  output logic [XLEN-1:0] d_o,
-  input  logic            ack_i
+  output logic             req_o,
+  input  logic             ack_i,
+  output logic [DBITS-1:0] q_o,
+
+  output logic             empty_o,
+                           full_o
 );
-
-  //////////////////////////////////////////////////////////////////
-  //
-  // Typedefs
-  //
-  typedef struct packed {
-    logic [XLEN     -1:0] addr;
-    biu_size_t            size;
-    logic                 lock;
-    logic                 we;
-    logic [XLEN     -1:0] data;
-  } queue_t;
-
 
   //////////////////////////////////////////////////////////////////
   //
   // Variables
   //
-  queue_t                         queue_d,
-                                  queue_q;
-  logic                           queue_we,
-                                  queue_re,
-                                  queue_empty,
-                                  queue_full;
+  logic [DBITS      -1:0] queue_q;
+  logic                   queue_we,
+                          queue_re;
 
-  logic [$clog2(QUEUE_DEPTH)  :0] access_pending;
+  logic [$clog2(DEPTH):0] access_pending;
 
 
   //////////////////////////////////////////////////////////////////
@@ -95,30 +73,22 @@ module riscv_membuf #(
   // Module Body
   //
 
-  //Queue Input Data
-  assign queue_d.addr = adr_i;
-  assign queue_d.size = size_i;
-  assign queue_d.lock = lock_i;
-  assign queue_d.we   = we_i;
-  assign queue_d.data = d_i;
-
-
   // Instantiate Queue 
   rl_queue #(
-    .DEPTH ( QUEUE_DEPTH    ),
-    .DBITS ( $bits(queue_d) )
+    .DEPTH ( DEPTH ),
+    .DBITS ( DBITS )
   )
   rl_queue_inst (
-    .rst_ni  ( rst_ni      ),
-    .clk_i   ( clk_i       ),
-    .clr_i   ( clr_i       ),
-    .ena_i   ( ena_i       ),
-    .we_i    ( queue_we    ),
-    .d_i     ( queue_d     ),
-    .re_i    ( queue_re    ),
-    .q_o     ( queue_q     ),
-    .empty_o ( queue_empty ),
-    .full_o  ( queue_full  )
+    .rst_ni  ( rst_ni    ),
+    .clk_i   ( clk_i     ),
+    .clr_i   ( clr_i     ),
+    .ena_i   ( ena_i     ),
+    .we_i    ( queue_we  ),
+    .d_i     ( d_i       ),
+    .re_i    ( queue_re  ),
+    .q_o     ( queue_q   ),
+    .empty_o ( empty_o   ),
+    .full_o  ( full_o    )
   );
 
 
@@ -134,17 +104,14 @@ module riscv_membuf #(
       endcase
 
 
-  assign queue_we = |access_pending & (req_i & ~(queue_empty & ack_i));
-  assign queue_re = ack_i & ~queue_empty;
+  assign queue_we = |access_pending & (req_i & ~(empty_o & ack_i));
+  assign queue_re = ack_i & ~empty_o;
 
 
   //queue outputs
   assign req_o = ~|access_pending ?  req_i 
-                                  : (req_i | ~queue_empty) & ack_i & ena_i;
-  assign adr_o  = queue_empty ? adr_i  : queue_q.addr;
-  assign size_o = queue_empty ? size_i : queue_q.size;
-  assign lock_o = queue_empty ? lock_i : queue_q.lock;
-  assign we_o   = queue_empty ? we_i   : queue_q.we;
-  assign d_o    = queue_empty ? d_i    : queue_q.data;
+                                  : (req_i | ~empty_o) & ack_i & ena_i;
+
+  assign q_o = empty_o ? d_i : queue_q;
 
 endmodule
