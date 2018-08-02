@@ -120,11 +120,26 @@ module riscv_dmem_ctrl #(
 
   //////////////////////////////////////////////////////////////////
   //
+  // Typedefs
+  //
+  typedef struct packed {
+    logic [XLEN     -1:0] addr;
+    biu_size_t            size;
+    logic                 lock;
+    logic                 we;
+    logic [XLEN     -1:0] data;
+  } queue_t;
+
+
+  //////////////////////////////////////////////////////////////////
+  //
   // Variables
   //
 
   //Buffered memory request signals
   //Virtual memory access signals
+  queue_t          queue_d,
+                   queue_q;
   logic            buf_req;
   logic [XLEN-1:0] buf_adr;
   biu_size_t       buf_size;
@@ -160,9 +175,6 @@ module riscv_dmem_ctrl #(
 
   //all exceptions
   logic            exception;
-
-  //Return mux
-  logic [     2:0] result_mux_select;
 
 
   //From Cache Controller Core
@@ -232,34 +244,40 @@ always @(posedge clk_i)
 
   /* Hookup Access Buffer
    */
+  //Queue Input Data
+  assign queue_d.addr = mem_adr_i;
+  assign queue_d.size = mem_size_i;
+  assign queue_d.lock = mem_lock_i;
+  assign queue_d.we   = mem_we_i;
+  assign queue_d.data = mem_d_i;
+
   riscv_membuf #(
-    .XLEN ( XLEN )
+    .DEPTH ( 2              ),
+    .DBITS ( $bits(queue_d) )
   )
   membuf_inst (
     .rst_ni  ( rst_ni     ),
     .clk_i   ( clk_i      ),
 
     .clr_i   ( exception  ),
+    .ena_i   ( 1'b1       ),
 
     .req_i   ( mem_req_i  ),
-    .adr_i   ( mem_adr_i  ),
-    .size_i  ( mem_size_i ),
-    .lock_i  ( mem_lock_i ),
-    .we_i    ( mem_we_i   ),
-    .d_i     ( mem_d_i    ),
+    .d_i     ( queue_d    ),
 
     .req_o   ( buf_req    ),
-    .adr_o   ( buf_adr    ),
-    .size_o  ( buf_size   ),
-    .lock_o  ( buf_lock   ),
-    .we_o    ( buf_we     ),
-    .d_o     ( buf_d      ),
+    .q_o     ( queue_q    ),
     .ack_i   ( mem_ack_o  ),
 
-    .empty_o (),
-    .full_o  ()
+    .empty_o ( ),
+    .full_o  ( )
   );
 
+  assign buf_adr  = queue_q.addr;
+  assign buf_size = queue_q.size;
+  assign buf_lock = queue_q.lock;
+  assign buf_we   = queue_q.we;
+  assign buf_d    = queue_q.data;
   assign buf_prot = biu_prot_t'(PROT_DATA |
                                 st_prv_i == PRV_U ? PROT_USER : PROT_PRIVILEGED);
 
@@ -541,12 +559,6 @@ endgenerate
    */
   assign mem_ack_o = ext_ack | cache_ack | tcm_ack;
   assign mem_err_o = ext_err | cache_err | pma_exception | pmp_exception;
-
-  assign result_mux_select[TCM  ] =   (TCM_SIZE   > 0) & is_tcm_access;
-  assign result_mux_select[CACHE] =   (CACHE_SIZE > 0) & is_cache_access;
-  assign result_mux_select[EXT  ] = ( (TCM_SIZE  <= 0) & is_tcm_access  ) |
-                                    ( (CACHE_SIZE<= 0) & is_cache_access) |
-                                                         is_ext_access;
 
   always_comb
     unique case ({ext_ack, cache_ack, tcm_ack})
