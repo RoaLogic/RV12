@@ -50,6 +50,7 @@ module riscv_mmu #(
 (
   input  logic            rst_ni,
   input  logic            clk_i,
+  input  logic            clr_i,   //clear pending request
 
   //Mode
 //  input  logic [XLEN-1:0] st_satp;
@@ -95,8 +96,12 @@ module riscv_mmu #(
 
   //Insert state machine here
   always @(posedge clk_i)
+    if (clr_i) preq_o <= 1'b0;
+    else       preq_o <= vreq_i;
+
+
+  always @(posedge clk_i)
     begin
-        preq_o  <= vreq_i;
         psize_o <= vsize_i;
         plock_o <= vlock_i;
         pprot_o <= vprot_i;
