@@ -308,6 +308,7 @@ always @(posedge clk_i)
   mmu_inst (
     .rst_ni       ( rst_ni           ),
     .clk_i        ( clk_i            ),
+    .clr_i        ( exception        ),
 
     .vreq_i       ( buf_req          ),
     .vadr_i       ( buf_adr          ),
@@ -378,6 +379,7 @@ always @(posedge clk_i)
     .st_prv_i      ( st_prv_i      ),
 
     .instruction_i ( 1'b0          ),  //This is a data access
+    .req_i         ( preq          ),  //Memory access request
     .adr_i         ( padr          ),  //Physical Memory address (i.e. after translation)
     .size_i        ( psize         ),  //Transfer size
     .we_i          ( pwe           ),  //Read/Write enable
