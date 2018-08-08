@@ -109,8 +109,8 @@ module riscv_membuf #(
 
 
   //queue outputs
-  assign req_o = ~|access_pending ?  req_i 
-                                  : (req_i | ~empty_o) & ack_i & ena_i;
+  assign req_o = ~|access_pending ?  req_i & ~clr_i
+                                  : (req_i | ~empty_o) & ack_i & ena_i & ~clr_i;
 
   assign q_o = empty_o ? d_i : queue_q;
 
