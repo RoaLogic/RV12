@@ -261,10 +261,11 @@ endgenerate
 
   /* Access/Misaligned Exception
    */
-  assign exception_o = ~|pma_match_all                    |  // no memory range matched
-                        ( instruction_i & ~matched_pma.x) |  // not executable
-                        ( we_i          & ~matched_pma.w) |  // not writeable
-                        (~we_i          & ~matched_pma.r);   // not readable
+  assign exception_o = req_i & (~|pma_match_all                    |  // no memory range matched
+                                 ( instruction_i & ~matched_pma.x) |  // not executable
+                                 ( we_i          & ~matched_pma.w) |  // not writeable
+                                 (~we_i          & ~matched_pma.r)    // not readable
+                                );
 
 
   assign misaligned_o = misaligned_i & ~matched_pma.m;

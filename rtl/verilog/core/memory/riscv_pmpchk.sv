@@ -44,6 +44,7 @@ module riscv_pmpchk #(
 
   //Memory Access
   input                                  instruction_i,   //This is an instruction access
+  input                                  req_i,           //Memory access requested
   input                       [PLEN-1:0] adr_i,           //Physical Memory address (i.e. after translation)
   input  biu_size_t                      size_i,          //Transfer size
   input                                  we_i,            //Read/Write enable
@@ -224,13 +225,14 @@ endgenerate
    * 2. pmpcfg.l is set AND privilegel level is S or U AND pmpcfg.rwx tests fail OR
    * 3. privilegel level is S or U AND no PMPs matched AND PMPs are implemented
    */
-  assign exception_o =~|pmp_match ? (st_prv_i != PRV_M) & (PMP_CNT > 0)           //Prv.Lvl != M-Mode, no PMP matched, but PMPs implemented -> FAIL
-                                  : ~pmp_match_all[ matched_pmp ]     |
-                                    (
-                                     ((st_prv_i != PRV_M) | matched_pmpcfg.l ) &  //pmpcfg.l set or privilege level != M-mode
-                                     ((~matched_pmpcfg.r & ~we_i           ) |    // read-access while not allowed          -> FAIL
-                                      (~matched_pmpcfg.w &  we_i           ) |    // write-access while not allowed         -> FAIL
-                                      (~matched_pmpcfg.x &  instruction_i  ) )    // instruction read, but not instruction  -> FAIL
-                                    );
+  assign exception_o = req_i & (~|pmp_match ? (st_prv_i != PRV_M) & (PMP_CNT > 0)          //Prv.Lvl != M-Mode, no PMP matched, but PMPs implemented -> FAIL
+                                            : ~pmp_match_all[ matched_pmp ]     |
+                                             (
+                                              ((st_prv_i != PRV_M) | matched_pmpcfg.l ) &  //pmpcfg.l set or privilege level != M-mode
+                                              ((~matched_pmpcfg.r & ~we_i           ) |    // read-access while not allowed          -> FAIL
+                                               (~matched_pmpcfg.w &  we_i           ) |    // write-access while not allowed         -> FAIL
+                                               (~matched_pmpcfg.x &  instruction_i  ) )    // instruction read, but not instruction  -> FAIL
+                                             )
+                               );
 endmodule
 
