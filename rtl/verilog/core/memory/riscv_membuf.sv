@@ -94,8 +94,8 @@ module riscv_membuf #(
 
   //control signals
   always @(posedge clk_i, negedge rst_ni)
-    if      (!rst_ni) access_pending <= 1'b0;
-    else if ( clr_i ) access_pending <= 1'b0;
+    if      (!rst_ni) access_pending <= 'h0;
+    else if ( clr_i ) access_pending <= 'h0;
     else if ( ena_i )
       unique case ( {req_i,ack_i} )
          2'b01  : access_pending--;
