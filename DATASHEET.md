@@ -356,8 +356,9 @@ The RV12 is a highly configurable 32 or 64bit RISC CPU. The core parameters and 
 | `JEDEC_BANK`            | Integer |       0x0A      | JEDEC Bank                                                       |
 | `JEDEC_MANUFACTURER_ID` | Integer |       0x6E      | JEDEC Manufacturer ID                                            |
 | `XLEN`                  | Integer |        32       | Datapath width                                                   |
-| `PC_INIT`               | Address |      `h200`     | Program Counter Initialisation Vector                            |
-| `PHYS_ADDR_SIZE`        | Integer |      `XLEN`     | Physical Address Size                                            |
+| `PLEN`                  | Integer |      `XLEN`     | Physical Memory Address Size                                     |
+| `PMP_CNT`               | Integer |        16       | Number of Physical Memory Protection Entries                     |
+| `PMA_CNT`               | Integer |        16       | Number of Physical Menory Attribute Entries                      |
 | `HAS_USER`              | Integer |        0        | User Mode Enable                                                 |
 | `HAS_SUPER`             | Integer |        0        | Supervisor Mode Enable                                           |
 | `HAS_HYPER`             | Integer |        0        | Hypervisor Mode Enable                                           |
@@ -367,9 +368,6 @@ The RV12 is a highly configurable 32 or 64bit RISC CPU. The core parameters and 
 | `HAS_BPU`               | Integer |        1        | Branch Prediction Unit Control Enable                            |
 | `IS_RV32E`              | Integer |        0        | RV32E Base Integer Instruction Set Enable                        |
 | `MULT_LATENCY`          | Integer |        0        | Hardware Multiplier Latency (if “M” Extension enabled)           |
-| `BP_LOCAL_BITS`         | Integer |        10       | Number of local predictor bits                                   |
-| `BP_GLOBAL_BITS`        | Integer |        2        | Number of global predictor bits                                  |
-| `HARTID`                | Integer |        0        | Hart Identifier                                                  |
 | `ICACHE_SIZE`           | Integer |        16       | Instruction Cache size in Kbytes                                 |
 | `ICACHE_BLOCK_SIZE`     | Integer |        32       | Instruction Cache block length in bytes                          |
 | `ICACHE_WAYS`           | Integer |        2        | Instruction Cache associativity                                  |
@@ -378,13 +376,17 @@ The RV12 is a highly configurable 32 or 64bit RISC CPU. The core parameters and 
 | `DCACHE_BLOCK_SIZE`     | Integer |        32       | Data Cache block length in bytes                                 |
 | `DCACHE_WAYS`           | Integer |        2        | Data Cache associativity                                         |
 | `DCACHE_REPLACE_ALG`    | Integer |        0        | Data Cache replacement algorithm 0: Random 1: FIFO 2: LRU        |
-| `BREAKPOINTS`           | Integer |        3        | Number of hardware breakpoints                                   |
-| `TECHNOLOGY`            |  String |    `GENERIC`    | Target Silicon Technology                                        |
+| `HARTID`                | Integer |        0        | Hart Identifier                                                  |
+| `PC_INIT`               | Address |      `h200`     | Program Counter Initialisation Vector                            |
 | `MNMIVEC_DEFAULT`       | Address | `PC_INIT-‘h004` | Machine Mode Non-Maskable Interrupt vector address               |
 | `MTVEC_DEFAULT`         | Address | `PC_INIT-‘h040` | Machine Mode Interrupt vector address                            |
 | `HTVEC_DEFAULT`         | Address | `PC_INIT-‘h080` | Hypervisor Mode Interrupt vector address                         |
 | `STVEC_DEFAULT`         | Address | `PC_INIT-‘h0C0` | Supervisor Mode Interrupt vector address                         |
 | `UTVEC_DEFAULT`         | Address | `PC_INIT-‘h100` | User Mode Interrupt vector address                               |
+| `BP_LOCAL_BITS`         | Integer |        10       | Number of local predictor bits                                   |
+| `BP_GLOBAL_BITS`        | Integer |        2        | Number of global predictor bits                                  |
+| `BREAKPOINTS`           | Integer |        3        | Number of hardware breakpoints                                   |
+| `TECHNOLOGY`            |  String |    `GENERIC`    | Target Silicon Technology                                        |
 
 #### JEDEC\_BANK and JEDEC\_MANUFACTURER\_ID
 
@@ -410,9 +412,17 @@ The `XLEN` parameter specifies the width of the data path. Allowed values are ei
 
 The `PC_INIT` parameter specifies the initialization vector of the Program Counter; i.e. the boot address, which by default is defined as address ‘h200
 
-#### PHYS\_ADDR\_SIZE
+#### PLEN
 
-The `PHYS_ADDR_SIZE` parameter specifies the physical address space the CPU can address. This parameter must be equal or less than XLEN. Using fewer bits for the physical address reduces internal and external resources. Internally the CPU still uses `XLEN`, but only the `PHYS_ADDR_SIZE` LSBs are used to address the caches and the external buses.
+The `PLEN` parameter specifies the physical address space the CPU can address. This parameter must be equal or less than XLEN. Using fewer bits for the physical address reduces internal and external resources. Internally the CPU still uses `XLEN`, but only the `PLEN` LSBs are used to address the caches and the external buses.
+
+#### PMP\_CNT
+
+The RISC-V specification supports up to 16 Physical Memory Protection Entries which are configured in software via the PMP CSRs. The `PMP_CNT` parameter specifies the number implemented in the RV12 processor, and must be set to a value of 16 or less. The default value is 16.
+
+#### PMA\_CNT
+
+The RV12 supports an unlimited number of Physically Protected Memory regions, the attributes for which are configured in hardware via the Physical Memory Attribute (PMA) Configuration and Address input ports. The `PMA_CNT` parameter specifies the number of regions supported; the defualt value is 16
 
 #### HAS\_USER
 
@@ -1078,7 +1088,7 @@ The PMP configuration registers are densely packed into CSRs to minimize context
 
 The PMP address registers are CSRs named `pmpaddr0`–`pmpaddr15`. Each PMP address register encodes bits 33–2 of a 34-bit physical address for RV32, as shown in Figure \[pmpaddr-rv32\]. For RV64, each PMP address register encodes bits 55–2 of a 56-bit physical address, as shown in Figure \[pmpaddr-rv64\].
 
-Figure \[pmpcfg\] shows the layout of a PMP configuration register. The R, W, and X bits, when set, indicate that the PMP entry permits read, write, and instruction execution, respectively. When one of these bits is clear, the corresponding access type is denied. The remaining 3 fields, A, L and C, are described in the following sections.
+Figure \[pmpcfg\] shows the layout of a PMP configuration register. The R, W, and X bits, when set, indicate that the PMP entry permits read, write, and instruction execution, respectively. When one of these bits is clear, the corresponding access type is denied. The remaining 2 fields, A and L, are described in the following sections.
 
 #### Address Matching
 
@@ -1111,10 +1121,6 @@ If TOR is selected, the associated address register forms the top of the address
 The L bit indicates that the PMP entry is locked, i.e., writes to the configuration register and associated address registers are ignored. Locked PMP entries may only be unlocked with a system reset. If PMP entry *i* is locked, writes to `pmp`*i*`cfg` and `pmpaddr`*i* are ignored. Additionally, if `pmp`*i*`cfg`.A is set to TOR, writes to <span>pmpaddr</span>*i*-1 are ignored.
 
 In addition to locking the PMP entry, the L bit indicates whether the R/W/X permissions are enforced on M-mode accesses. When the L bit is set, these permissions are enforced for all privilege modes. When the L bit is clear, any M-mode access matching the PMP entry will succeed; the R/W/X permissions apply only to S and U modes.
-
-#### Cacheability
-
-The C bit indicates if the memory area is cacheable or not. When the C bit is set the corresponding memory area is cacheable.
 
 #### Priority and Matching Logic
 
@@ -1190,26 +1196,26 @@ When the active low asynchronous `HRESETn` input is asserted (‘0’), the core
 
 The instruction transfer size is indicated by `IHSIZE`. Its value depends on the `XLEN` parameter and if the current transfer is a cache-line fill or non-cacheable instruction read.
 
-| `IHSIZE` |  Type | Description                                                                             |
-|:--------:|:-----:|:----------------------------------------------------------------------------------------|
-|   `010`  |  Word | Non-cacheable instruction read. `XLEN=32`                                               |
-|   `011`  | Dword | Non-cacheable instruction read. `XLEN=64`                                               |
-|   `1--`  |       | Cache line fill. The actual size depends on the Instruction cache parameters and `XLEN` |
+| IHSIZE |  Type | Description                                                                             |
+|:------:|:-----:|:----------------------------------------------------------------------------------------|
+|  `010` |  Word | Non-cacheable instruction read. `XLEN=32`                                               |
+|  `011` | Dword | Non-cacheable instruction read. `XLEN=64`                                               |
+|  `1--` |       | Cache line fill. The actual size depends on the Instruction cache parameters and `XLEN` |
 
 #### IHBURST
 
 The instruction burst type indicates if the transfer is a single transfer or part of a burst.
 
-| `IHBURST` | Type   | Description                     |
-|:---------:|:-------|:--------------------------------|
-|   `000`   | Single | *Not used*                      |
-|   `001`   | INCR   | Non-cacheable instruction reads |
-|   `010`   | WRAP4  | 4-beat wrapping burst           |
-|   `011`   | INCR4  | *Not used*                      |
-|   `100`   | WRAP8  | 8-beat wrapping burst           |
-|   `101`   | INCR8  | *Not used*                      |
-|   `110`   | WRAP16 | 16-bear wrapping burst          |
-|   `111`   | INCR16 | *Not used*                      |
+| IHBURST | Type   | Description                     |
+|:-------:|:-------|:--------------------------------|
+|  `000`  | Single | *Not used*                      |
+|  `001`  | INCR   | Non-cacheable instruction reads |
+|  `010`  | WRAP4  | 4-beat wrapping burst           |
+|  `011`  | INCR4  | *Not used*                      |
+|  `100`  | WRAP8  | 8-beat wrapping burst           |
+|  `101`  | INCR8  | *Not used*                      |
+|  `110`  | WRAP16 | 16-bear wrapping burst          |
+|  `111`  | INCR16 | *Not used*                      |
 
 #### IHPROT
 
@@ -1229,12 +1235,12 @@ The instruction protection signals provide information about the bus transfer. T
 
 `IHTRANS` indicates the type of the current instruction transfer.
 
-| `IHTRANS` | Type   | Description                                           |
-|:---------:|:-------|:------------------------------------------------------|
-|    `00`   | IDLE   | No transfer required                                  |
-|    `01`   | BUSY   | CPU inserts wait states during instruction burst read |
-|    `10`   | NONSEQ | First transfer of an instruction read burst           |
-|    `11`   | SEQ    | Remaining transfers of an instruction readburst       |
+| IHTRANS | Type   | Description                                           |
+|:-------:|:-------|:------------------------------------------------------|
+|   `00`  | IDLE   | No transfer required                                  |
+|   `01`  | BUSY   | CPU inserts wait states during instruction burst read |
+|   `10`  | NONSEQ | First transfer of an instruction read burst           |
+|   `11`  | SEQ    | Remaining transfers of an instruction readburst       |
 
 #### IHMASTLOCK
 
@@ -1272,28 +1278,28 @@ The instruction master lock signal indicates if the current transfer is part of 
 
 The data transfer size is indicated by DHSIZE. Its value depends on the `XLEN` parameter and if the current transfer is a cache-line fill/write-back or a non-cacheable data transfer.
 
-| `DHSIZE` | Type     | Description                                                                             |
-|:--------:|:---------|:----------------------------------------------------------------------------------------|
-|   `000`  | Byte     | Non-cacheable data transfer                                                             |
-|   `001`  | Halfword | Non-cacheable data transfer                                                             |
-|   `010`  | Word     | Non-cacheable data transfer                                                             |
-|   `011`  | Dword    | Non-cacheable data transfer                                                             |
-|   `1--`  |          | Cache line fill. The actual size depends on the Instruction cache parameters and `XLEN` |
+| DHSIZE | Type     | Description                                                                             |
+|:------:|:---------|:----------------------------------------------------------------------------------------|
+|  `000` | Byte     | Non-cacheable data transfer                                                             |
+|  `001` | Halfword | Non-cacheable data transfer                                                             |
+|  `010` | Word     | Non-cacheable data transfer                                                             |
+|  `011` | Dword    | Non-cacheable data transfer                                                             |
+|  `1--` |          | Cache line fill. The actual size depends on the Instruction cache parameters and `XLEN` |
 
 #### DHBURST
 
 The instruction burst type indicates if the transfer is a single transfer or part of a burst.
 
-| `DHBURST` |  Type  | Description                                    |
-|:---------:|:------:|:-----------------------------------------------|
-|    000    | Single | Single transfer. E.g. non-cacheable read/write |
-|    001    |  INCR  | *Not used*                                     |
-|    010    |  WRAP4 | 4-beat wrapping burst                          |
-|    011    |  INCR4 | *Not used*                                     |
-|    100    |  WRAP8 | 8-beat wrapping burst                          |
-|    101    |  INCR8 | *Not used*                                     |
-|    110    | WRAP16 | 16-bear wrapping burst                         |
-|    111    | INCR16 | *Not used*                                     |
+| DHBURST |  Type  | Description                                    |
+|:-------:|:------:|:-----------------------------------------------|
+|   000   | Single | Single transfer. E.g. non-cacheable read/write |
+|   001   |  INCR  | *Not used*                                     |
+|   010   |  WRAP4 | 4-beat wrapping burst                          |
+|   011   |  INCR4 | *Not used*                                     |
+|   100   |  WRAP8 | 8-beat wrapping burst                          |
+|   101   |  INCR8 | *Not used*                                     |
+|   110   | WRAP16 | 16-bear wrapping burst                         |
+|   111   | INCR16 | *Not used*                                     |
 
 #### DHPROT
 
@@ -1313,12 +1319,12 @@ The data protection signals provide information about the bus transfer. They are
 
 `DHTRANS` indicates the type of the current data transfer.
 
-| `DHTRANS` |  Type  | Description                          |
-|:---------:|:------:|:-------------------------------------|
-|     00    |  IDLE  | No transfer required                 |
-|     01    |  BUSY  | *Not used*                           |
-|     10    | NONSEQ | First transfer of an data burst      |
-|     11    |   SEQ  | Remaining transfers of an data burst |
+| DHTRANS |  Type  | Description                          |
+|:-------:|:------:|:-------------------------------------|
+|    00   |  IDLE  | No transfer required                 |
+|    01   |  BUSY  | *Not used*                           |
+|    10   | NONSEQ | First transfer of an data burst      |
+|    11   |   SEQ  | Remaining transfers of an data burst |
 
 #### DHMASTLOCK
 
@@ -1369,12 +1375,12 @@ The interrupt vector used to service the interrupt is determined based on the mo
 
 RV12 supports one general-purpose external interrupt input per operating mode, as defined in Table \[tab:external-interrupt-inputs\]:
 
-| Interrupt     | Priority | Mode Supported  |
-|:--------------|:--------:|:----------------|
-| EXT\_INT\[3\] |     3    | Machine Mode    |
-| EXT\_INT\[2\] |     2    | Reserved        |
-| EXT\_INT\[1\] |     1    | Supervisor Mode |
-| EXT\_INT\[0\] |     0    | User Mode       |
+| Interrupt    | Priority | Mode Supported  |
+|:-------------|:--------:|:----------------|
+| `EXT_INT[3]` |     3    | Machine Mode    |
+| `EXT_INT[2]` |     2    | Reserved        |
+| `EXT_INT[1]` |     1    | Supervisor Mode |
+| `EXT_INT[0]` |     0    | User Mode       |
 
 Each interrupt will be serviced by the operating mode it corresponds to, or alternatively a higher priority mode depending on the system configuration and specific operating conditions at the time the interrupt is handled. This includes if interrupt delegation is enabled, if a specific is implemented, or the specific operating mode at the time of servicing for example.
 
@@ -1383,6 +1389,57 @@ Notes:
 1.  An external interrupt will never be serviced by a lower priority mode than that corresponding to the input pin. For example, an interrupt presented to `EXT_INT[1]` – corresponding to supervisor mode – cannot be serviced by a user mode ISR.
 
 2.  Conversely, Machine Mode may service interrupts arriving on any of the interrupt inputs due to it have the highest priority.
+
+### Physical Memory Protection
+
+The RISC-V specification defines up to 16 Physical Memory Protection entries that are controled through Software via the PMP Configuration Status Registers. In addition to this software based memory protection, the RV12 adds support for an unlimited number of hardware protected physical memory regions.
+
+The number of these Physically Memory Protected regions is defined by the core parameter `PMA_CNT`. The physical areas and the associated attributes are defined via the `pma_cfg_i[]` and `pma_adr_i[]` ports.
+
+| Port                      |  Size  | Direction | Description                  |
+|:--------------------------|:------:|:---------:|:-----------------------------|
+| `pma_cfg_i[PMA_CNT-1..0]` |   14   |   Input   | PMP Configuration Attributes |
+| `pma_adr_i[PMA_CNT-1..0]` | `XLEN` |   Input   | PMP Address Register         |
+
+#### pma\_cfg\_i
+
+Each `pma_cfg_i` port is a 14 bit input used to set specific attributes for the associated Protected Memory region as defined in Figure \[fig:pmacfg\] and Table \[tab:pmacfg\]:
+
+|  Bits  |  Name  | Description                                                |
+|:------:|:------:|:-----------------------------------------------------------|
+| 13..12 |    A   | Address Mapping                                            |
+|        |        | 0 = Off: Null region (disabled)                            |
+|        |        | 1 = TOR: Top of range                                      |
+|        |        | 2 = NA4: Naturally aligned four-byte region                |
+|        |        | 3 = NAPOT: Naturally aligned power-of-two region, ≥8 bytes |
+|        |        |                                                            |
+| 11..10 |   AMO  | Atomicity                                                  |
+|        |        | 0 = None                                                   |
+|        |        | 1 = SWAP                                                   |
+|        |        | 2 = LOGICAL                                                |
+|        |        | 3 = ARITHMETIC                                             |
+|        |        |                                                            |
+|  9..2  | Access | Access Capability                                          |
+|    9   |    r   | Readable                                                   |
+|    8   |    w   | Writeable                                                  |
+|    7   |    x   | Executable                                                 |
+|    6   |    c   | Cacheable                                                  |
+|    5   |   cc   | Cache Coherent                                             |
+|    4   |   ri   | Read Idempotent                                            |
+|    3   |   wi   | Write Idempotent                                           |
+|    2   |    m   | Misaligned Access Support                                  |
+|        |        |                                                            |
+|  1..0  |  Type  | Memory Type                                                |
+|        |        | 0 = Empty                                                  |
+|        |        | 1 = Main                                                   |
+|        |        | 2 = IO                                                     |
+|        |        | 3 = TCM                                                    |
+
+#### pma\_adr\_i
+
+The PMA address registers are CSRs named `pmpaddrn`, when *n* is an integer between 0 and `PMA_CNT-1`. Each PMA address register encodes bits 33–2 of a 34-bit physical address for RV32, as shown in Figure \[pmaaddr-rv32\]. For RV64, each PMP address register encodes bits 55–2 of a 56-bit physical address, as shown in Figure \[pmaaddr-rv64\].
+
+Address matching is implemented in the same manner as PMP Configuration Status Register Address Mapping, full details of which are documented in Section \[AddressMatching\]
 
 ## Debug Unit
 
