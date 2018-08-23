@@ -485,6 +485,7 @@ generate
   dext_inst (
     .rst_ni             ( rst_ni            ),
     .clk_i              ( clk_i             ),
+    .clr_i              ( exception         ),
 
     .mem_req_i          ( ext_access_req    ),
     .mem_adr_i          ( padr              ),
@@ -494,6 +495,7 @@ generate
     .mem_prot_i         ( pprot             ),
     .mem_we_i           ( pwe               ),
     .mem_d_i            ( pd                ),
+    .mem_adr_ack_o      (                   ),
     .mem_q_o            ( ext_q             ),
     .mem_ack_o          ( ext_ack           ),
     .mem_err_o          ( ext_err           ),
