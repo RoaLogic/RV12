@@ -62,6 +62,7 @@ module riscv_top_ahb3lite #(
   parameter            ICACHE_BLOCK_SIZE  = 32, //in Bytes
   parameter            ICACHE_WAYS        = 2,  //'n'-way set associative
   parameter            ICACHE_REPLACE_ALG = 0,
+  parameter            ITCM_SIZE          = 0,
 
   parameter            DCACHE_SIZE        = 0,  //in KBytes
   parameter            DCACHE_BLOCK_SIZE  = 32, //in Bytes
@@ -140,53 +141,69 @@ module riscv_top_ahb3lite #(
   //
   // Variables
   //
-  logic                                 rstn;
-  logic                                 clk; 
+  logic                               rstn;
+  logic                               clk; 
 
-  logic                                 if_stall_nxt_pc;
-  logic               [XLEN       -1:0] if_nxt_pc;
-  logic                                 if_stall,
-                                        if_flush;
-  logic               [PARCEL_SIZE-1:0] if_parcel;
-  logic               [XLEN       -1:0] if_parcel_pc;
-  logic                                 if_parcel_valid;
-  logic                                 if_parcel_misaligned;
-  logic                                 if_parcel_page_fault;
+  logic                               if_stall_nxt_pc;
+  logic          [XLEN          -1:0] if_nxt_pc;
+  logic                               if_stall,
+                                      if_flush;
+  logic          [PARCEL_SIZE   -1:0] if_parcel;
+  logic          [XLEN          -1:0] if_parcel_pc;
+  logic          [PARCEL_SIZE/16-1:0] if_parcel_valid;
+  logic                               if_parcel_misaligned;
+  logic                               if_parcel_page_fault;
 
-  logic                                 dmem_req;
-  logic               [XLEN       -1:0] dmem_adr;
-  biu_size_t                            dmem_size;
-  logic                                 dmem_we;
-  logic               [XLEN       -1:0] dmem_d,
-                                        dmem_q;
-  logic                                 dmem_ack,
-                                        dmem_err;
-  logic                                 dmem_misaligned;
-  logic                                 dmem_page_fault;
+  logic                               dmem_req;
+  logic          [XLEN          -1:0] dmem_adr;
+  biu_size_t                          dmem_size;
+  logic                               dmem_we;
+  logic          [XLEN          -1:0] dmem_d,
+                                      dmem_q;
+  logic                               dmem_ack,
+                                      dmem_err;
+  logic                               dmem_misaligned;
+  logic                               dmem_page_fault;
 
-  logic               [            1:0] st_prv;
-  pmpcfg_t      [15:0]                  st_pmpcfg;
-  logic         [15:0][XLEN       -1:0] st_pmpaddr;
+  logic          [               1:0] st_prv;
+  pmpcfg_t [15:0]                     st_pmpcfg;
+  logic    [15:0][XLEN          -1:0] st_pmpaddr;
 
-  logic                                 cacheflush,
-                                        dcflush_rdy;
+  logic                               cacheflush,
+                                      dcflush_rdy;
 
+  /* Instruction Memory BIU connections
+   */
+  logic                               ibiu_stb;
+  logic                               ibiu_stb_ack;
+  logic                               ibiu_d_ack;
+  logic          [PLEN          -1:0] ibiu_adri,
+                                      ibiu_adro;
+  biu_size_t                          ibiu_size;
+  biu_type_t                          ibiu_type;
+  logic                               ibiu_we;
+  logic                               ibiu_lock;
+  biu_prot_t                          ibiu_prot;
+  logic          [XLEN          -1:0] ibiu_d;
+  logic          [XLEN          -1:0] ibiu_q;
+  logic                               ibiu_ack,
+                                      ibiu_err;
   /* Data Memory BIU connections
    */
-  logic                                 dmem_biu_stb;
-  logic                                 dmem_biu_stb_ack;
-  logic                                 dmem_biu_d_ack;
-  logic               [PLEN       -1:0] dmem_biu_adri,
-                                        dmem_biu_adro;
-  biu_size_t                            dmem_biu_size;
-  biu_type_t                            dmem_biu_type;
-  logic                                 dmem_biu_we;
-  logic                                 dmem_biu_lock;
-  biu_prot_t                            dmem_biu_prot;
-  logic               [XLEN       -1:0] dmem_biu_d;
-  logic               [XLEN       -1:0] dmem_biu_q;
-  logic                                 dmem_biu_ack,
-                                        dmem_biu_err;
+  logic                               dbiu_stb;
+  logic                               dbiu_stb_ack;
+  logic                               dbiu_d_ack;
+  logic          [PLEN          -1:0] dbiu_adri,
+                                      dbiu_adro;
+  biu_size_t                          dbiu_size;
+  biu_type_t                          dbiu_type;
+  logic                               dbiu_we;
+  logic                               dbiu_lock;
+  biu_prot_t                          dbiu_prot;
+  logic          [XLEN          -1:0] dbiu_d;
+  logic          [XLEN          -1:0] dbiu_q;
+  logic                               dbiu_ack,
+                                      dbiu_err;
 
 
   ////////////////////////////////////////////////////////////////
@@ -250,39 +267,61 @@ module riscv_top_ahb3lite #(
    * Instantiate bus interfaces and optional caches
    */
 
-  /*
-   * L1 Instruction Cache
+  /* Instruction Memory Access Block
    */
-  riscv_icache_ahb3lite #(
-    .XLEN           ( XLEN               ),
-    .PHYS_ADDR_SIZE ( PLEN               ),
-    .PARCEL_SIZE    ( PARCEL_SIZE        ),
+  riscv_imem_ctrl #(
+    .XLEN             ( XLEN              ),
+    .PLEN             ( PLEN              ),
+    .PARCEL_SIZE      ( PARCEL_SIZE       ),
 
-    .SIZE           ( ICACHE_SIZE        ),
-    .BLOCK_SIZE     ( ICACHE_BLOCK_SIZE  ),
-    .WAYS           ( ICACHE_WAYS        ),
-    .REPLACE_ALG    ( ICACHE_REPLACE_ALG ) )
-  icache (
-    .HRESETn   ( HRESETn       ),
-    .HCLK      ( HCLK          ),
-    .HSEL      ( ins_HSEL      ),
-    .HADDR     ( ins_HADDR     ),
-    .HWDATA    ( ins_HWDATA    ),
-    .HRDATA    ( ins_HRDATA    ),
-    .HWRITE    ( ins_HWRITE    ),
-    .HSIZE     ( ins_HSIZE     ),
-    .HBURST    ( ins_HBURST    ),
-    .HPROT     ( ins_HPROT     ),
-    .HTRANS    ( ins_HTRANS    ),
-    .HMASTLOCK ( ins_HMASTLOCK ),
-    .HREADY    ( ins_HREADY    ),
-    .HRESP     ( ins_HRESP     ),
+    .PMA_CNT          ( PMA_CNT           ),
+    .PMP_CNT          ( PMP_CNT           ),
 
-    .bu_cacheflush ( cacheflush ),
+    .CACHE_SIZE       ( ICACHE_SIZE       ),
+    .CACHE_BLOCK_SIZE ( ICACHE_BLOCK_SIZE ),
+    .CACHE_WAYS       ( ICACHE_WAYS       ),
+    .TCM_SIZE         ( ITCM_SIZE         ) )
+  imem_ctrl_inst (
+    .rst_ni           ( HRESETn           ),
+    .clk_i            ( HCLK              ),
 
-    .*
+    .pma_cfg_i        ( pma_cfg_i         ),
+    .pma_adr_i        ( pma_adr_i         ),
+
+    .nxt_pc_i         ( if_nxt_pc            ),
+    .stall_nxt_pc_o   ( if_stall_nxt_pc      ),
+    .stall_i          ( if_stall             ),
+    .flush_i          ( if_flush             ),
+    .parcel_pc_o      ( if_parcel_pc         ),
+    .parcel_o         ( if_parcel            ),
+    .parcel_valid_o   ( if_parcel_valid      ),
+    .err_o            ( if_parcel_error      ),
+    .misaligned_o     ( if_parcel_misaligned ),
+    .page_fault_o     ( if_parcel_page_fault ),
+
+    .cache_flush_i    ( cacheflush       ),
+    .dcflush_rdy_i    ( dcflush_rdy      ),
+
+    .st_prv_i         ( st_prv           ),
+    .st_pmpcfg_i      ( st_pmpcfg        ),
+    .st_pmpaddr_i     ( st_pmpaddr       ),
+
+    .biu_stb_o        ( ibiu_stb         ),
+    .biu_stb_ack_i    ( ibiu_stb_ack     ),
+    .biu_d_ack_i      ( ibiu_d_ack       ),
+    .biu_adri_o       ( ibiu_adri        ),
+    .biu_adro_i       ( ibiu_adro        ),
+    .biu_size_o       ( ibiu_size        ),
+    .biu_type_o       ( ibiu_type        ),
+    .biu_we_o         ( ibiu_we          ),
+    .biu_lock_o       ( ibiu_lock        ),
+    .biu_prot_o       ( ibiu_prot        ),
+    .biu_d_o          ( ibiu_d           ),
+    .biu_q_i          ( ibiu_q           ),
+    .biu_ack_i        ( ibiu_ack         ),
+    .biu_err_i        ( ibiu_err         )
   );
-  assign if_parcel_page_fault = 1'b0; //TODO: for now
+
 
   /* Data Memory Access Block
    */
@@ -324,20 +363,20 @@ module riscv_top_ahb3lite #(
     .st_pmpcfg_i      ( st_pmpcfg        ),
     .st_pmpaddr_i     ( st_pmpaddr       ),
 
-    .biu_stb_o        ( dmem_biu_stb     ),
-    .biu_stb_ack_i    ( dmem_biu_stb_ack ),
-    .biu_d_ack_i      ( dmem_biu_d_ack   ),
-    .biu_adri_o       ( dmem_biu_adri    ),
-    .biu_adro_i       ( dmem_biu_adro    ),
-    .biu_size_o       ( dmem_biu_size    ),
-    .biu_type_o       ( dmem_biu_type    ),
-    .biu_we_o         ( dmem_biu_we      ),
-    .biu_lock_o       ( dmem_biu_lock    ),
-    .biu_prot_o       ( dmem_biu_prot    ),
-    .biu_d_o          ( dmem_biu_d       ),
-    .biu_q_i          ( dmem_biu_q       ),
-    .biu_ack_i        ( dmem_biu_ack     ),
-    .biu_err_i        ( dmem_biu_err     )
+    .biu_stb_o        ( dbiu_stb         ),
+    .biu_stb_ack_i    ( dbiu_stb_ack     ),
+    .biu_d_ack_i      ( dbiu_d_ack       ),
+    .biu_adri_o       ( dbiu_adri        ),
+    .biu_adro_i       ( dbiu_adro        ),
+    .biu_size_o       ( dbiu_size        ),
+    .biu_type_o       ( dbiu_type        ),
+    .biu_we_o         ( dbiu_we          ),
+    .biu_lock_o       ( dbiu_lock        ),
+    .biu_prot_o       ( dbiu_prot        ),
+    .biu_d_o          ( dbiu_d           ),
+    .biu_q_i          ( dbiu_q           ),
+    .biu_ack_i        ( dbiu_ack         ),
+    .biu_err_i        ( dbiu_err         )
   );
 
 
@@ -347,36 +386,72 @@ module riscv_top_ahb3lite #(
     .DATA_SIZE ( XLEN ),
     .ADDR_SIZE ( PLEN )
   )
-  dbiu_inst (
-    .HRESETn       ( HRESETn           ),
-    .HCLK          ( HCLK              ),
-    .HSEL          ( dat_HSEL          ),
-    .HADDR         ( dat_HADDR         ),
-    .HWDATA        ( dat_HWDATA        ),
-    .HRDATA        ( dat_HRDATA        ),
-    .HWRITE        ( dat_HWRITE        ),
-    .HSIZE         ( dat_HSIZE         ),
-    .HBURST        ( dat_HBURST        ),
-    .HPROT         ( dat_HPROT         ),
-    .HTRANS        ( dat_HTRANS        ),
-    .HMASTLOCK     ( dat_HMASTLOCK     ),
-    .HREADY        ( dat_HREADY        ),
-    .HRESP         ( dat_HRESP         ),
+  ibiu_inst (
+    .HRESETn       ( HRESETn       ),
+    .HCLK          ( HCLK          ),
+    .HSEL          ( ins_HSEL      ),
+    .HADDR         ( ins_HADDR     ),
+    .HWDATA        ( ins_HWDATA    ),
+    .HRDATA        ( ins_HRDATA    ),
+    .HWRITE        ( ins_HWRITE    ),
+    .HSIZE         ( ins_HSIZE     ),
+    .HBURST        ( ins_HBURST    ),
+    .HPROT         ( ins_HPROT     ),
+    .HTRANS        ( ins_HTRANS    ),
+    .HMASTLOCK     ( ins_HMASTLOCK ),
+    .HREADY        ( ins_HREADY    ),
+    .HRESP         ( ins_HRESP     ),
 
-    .biu_stb_i     ( dmem_biu_stb      ),
-    .biu_stb_ack_o ( dmem_biu_stb_ack  ),
-    .biu_d_ack_o   ( dmem_biu_d_ack    ),
-    .biu_adri_i    ( dmem_biu_adri     ),
-    .biu_adro_o    ( dmem_biu_adro     ),
-    .biu_size_i    ( dmem_biu_size     ),
-    .biu_type_i    ( dmem_biu_type     ),
-    .biu_prot_i    ( dmem_biu_prot     ),
-    .biu_lock_i    ( dmem_biu_lock     ),
-    .biu_we_i      ( dmem_biu_we       ),
-    .biu_d_i       ( dmem_biu_d        ),
-    .biu_q_o       ( dmem_biu_q        ),
-    .biu_ack_o     ( dmem_biu_ack      ),
-    .biu_err_o     ( dmem_biu_err      )
+    .biu_stb_i     ( ibiu_stb      ),
+    .biu_stb_ack_o ( ibiu_stb_ack  ),
+    .biu_d_ack_o   ( ibiu_d_ack    ),
+    .biu_adri_i    ( ibiu_adri     ),
+    .biu_adro_o    ( ibiu_adro     ),
+    .biu_size_i    ( ibiu_size     ),
+    .biu_type_i    ( ibiu_type     ),
+    .biu_prot_i    ( ibiu_prot     ),
+    .biu_lock_i    ( ibiu_lock     ),
+    .biu_we_i      ( ibiu_we       ),
+    .biu_d_i       ( ibiu_d        ),
+    .biu_q_o       ( ibiu_q        ),
+    .biu_ack_o     ( ibiu_ack      ),
+    .biu_err_o     ( ibiu_err      )
+  );
+
+  biu_ahb3lite #(
+    .DATA_SIZE ( XLEN ),
+    .ADDR_SIZE ( PLEN )
+  )
+  dbiu_inst (
+    .HRESETn       ( HRESETn       ),
+    .HCLK          ( HCLK          ),
+    .HSEL          ( dat_HSEL      ),
+    .HADDR         ( dat_HADDR     ),
+    .HWDATA        ( dat_HWDATA    ),
+    .HRDATA        ( dat_HRDATA    ),
+    .HWRITE        ( dat_HWRITE    ),
+    .HSIZE         ( dat_HSIZE     ),
+    .HBURST        ( dat_HBURST    ),
+    .HPROT         ( dat_HPROT     ),
+    .HTRANS        ( dat_HTRANS    ),
+    .HMASTLOCK     ( dat_HMASTLOCK ),
+    .HREADY        ( dat_HREADY    ),
+    .HRESP         ( dat_HRESP     ),
+
+    .biu_stb_i     ( dbiu_stb      ),
+    .biu_stb_ack_o ( dbiu_stb_ack  ),
+    .biu_d_ack_o   ( dbiu_d_ack    ),
+    .biu_adri_i    ( dbiu_adri     ),
+    .biu_adro_o    ( dbiu_adro     ),
+    .biu_size_i    ( dbiu_size     ),
+    .biu_type_i    ( dbiu_type     ),
+    .biu_prot_i    ( dbiu_prot     ),
+    .biu_lock_i    ( dbiu_lock     ),
+    .biu_we_i      ( dbiu_we       ),
+    .biu_d_i       ( dbiu_d        ),
+    .biu_q_o       ( dbiu_q        ),
+    .biu_ack_o     ( dbiu_ack      ),
+    .biu_err_o     ( dbiu_err      )
   );
 
 endmodule
