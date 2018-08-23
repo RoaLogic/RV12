@@ -79,16 +79,18 @@ module riscv_membuf #(
     .DBITS ( DBITS )
   )
   rl_queue_inst (
-    .rst_ni  ( rst_ni    ),
-    .clk_i   ( clk_i     ),
-    .clr_i   ( clr_i     ),
-    .ena_i   ( ena_i     ),
-    .we_i    ( queue_we  ),
-    .d_i     ( d_i       ),
-    .re_i    ( queue_re  ),
-    .q_o     ( queue_q   ),
-    .empty_o ( empty_o   ),
-    .full_o  ( full_o    )
+    .rst_ni         ( rst_ni    ),
+    .clk_i          ( clk_i     ),
+    .clr_i          ( clr_i     ),
+    .ena_i          ( ena_i     ),
+    .we_i           ( queue_we  ),
+    .d_i            ( d_i       ),
+    .re_i           ( queue_re  ),
+    .q_o            ( queue_q   ),
+    .empty_o        ( empty_o   ),
+    .full_o         ( full_o    ),
+    .almost_empty_o (           ),
+    .almost_full_o  (           )
   );
 
 
