@@ -493,6 +493,7 @@ generate
       //Valid is stored in DFF
       always @(posedge clk_i, negedge rst_ni)
         if      (!rst_ni     ) tag_valid[way]          <= 'h0;
+        else if ( flush_i    ) tag_valid[way]          <= 'h0;
         else if ( tag_we[way]) tag_valid[way][tag_idx] <= tag_in[way].valid;
 
       assign tag_out[way].valid = tag_valid[way][tag_idx_dly];
