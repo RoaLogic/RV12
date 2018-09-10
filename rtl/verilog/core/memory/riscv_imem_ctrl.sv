@@ -285,7 +285,8 @@ always @(posedge clk_i)
     .full_o  ( nxt_pc_queue_full )
   );
 
-  assign stall_nxt_pc_o = nxt_pc_queue_full | parcel_queue_full;
+  //stall nxt_pc when queues full, or when DCACHE is flushing
+  assign stall_nxt_pc_o = nxt_pc_queue_full | parcel_queue_full | ~dcflush_rdy_i;
 
   assign buf_ack  = ext_access_ack | cache_ack | tcm_ack;
   assign buf_size = WORD;
@@ -438,7 +439,7 @@ generate
         .mem_ack_o       ( cache_ack        ),
         .mem_err_o       ( cache_err        ),
         .flush_i         ( cache_flush_i    ),
-        .flushrdy_i      ( dcflush_rdy_i    ),
+        .flushrdy_i      ( 1'b1             ), //handled by stall_nxt_pc
 
         //To BIU
         .biu_stb_o       ( biu_stb     [CACHE] ),
@@ -466,8 +467,6 @@ generate
 
 
   /* Instantiate TCM block
-   * TODO: speculative read (vmadr)
-   *       needs write buffer (clear write when not qualified)
    */
   if (TCM_SIZE > 0)
   begin
