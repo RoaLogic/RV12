@@ -477,7 +477,6 @@ module riscv_dcache_core #(
                           //write dirty way
                           //clear dirty bit
                          memfsm_state <= FLUSHWAYS;
-                         biucmd       <= WRITE_WAY;
                       end
                       else
                       begin
@@ -485,13 +484,18 @@ module riscv_dcache_core #(
                          flushing     <= 1'b0;
                       end
 
-        FLUSHWAYS   : if (biufsm_ack)
-                      begin
-                          //Check if there are more dirty ways in this set
-                          if (~|way_dirty)
+        FLUSHWAYS   : begin
+                          //assert WRITE_WAY here (instead of in FLUSH) to allow time to load evict_buffer
+                          biucmd <= WRITE_WAY;
+
+                          if (biufsm_ack)
                           begin
-                              memfsm_state <= FLUSH;
-                              biucmd       <= NOP;
+                              //Check if there are more dirty ways in this set
+                              if (~|way_dirty)
+                              begin
+                                  memfsm_state <= FLUSH;
+                                  biucmd       <= NOP;
+                              end
                           end
                       end
                       
