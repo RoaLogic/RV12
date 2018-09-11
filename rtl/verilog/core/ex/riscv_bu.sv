@@ -1,45 +1,38 @@
-/////////////////////////////////////////////////////////////////
-//                                                             //
-//    ██████╗  ██████╗  █████╗                                 //
-//    ██╔══██╗██╔═══██╗██╔══██╗                                //
-//    ██████╔╝██║   ██║███████║                                //
-//    ██╔══██╗██║   ██║██╔══██║                                //
-//    ██║  ██║╚██████╔╝██║  ██║                                //
-//    ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝                                //
-//          ██╗      ██████╗  ██████╗ ██╗ ██████╗              //
-//          ██║     ██╔═══██╗██╔════╝ ██║██╔════╝              //
-//          ██║     ██║   ██║██║  ███╗██║██║                   //
-//          ██║     ██║   ██║██║   ██║██║██║                   //
-//          ███████╗╚██████╔╝╚██████╔╝██║╚██████╗              //
-//          ╚══════╝ ╚═════╝  ╚═════╝ ╚═╝ ╚═════╝              //
-//                                                             //
-//    RISC-V                                                   //
-//    Branch Unit                                              //
-//                                                             //
-/////////////////////////////////////////////////////////////////
-//                                                             //
-//             Copyright (C) 2017 ROA Logic BV                 //
-//             www.roalogic.com                                //
-//                                                             //
-//    Unless specifically agreed in writing, this software is  //
-//  licensed under the RoaLogic Non-Commercial License         //
-//  version-1.0 (the "License"), a copy of which is included   //
-//  with this file or may be found on the RoaLogic website     //
-//  http://www.roalogic.com. You may not use the file except   //
-//  in compliance with the License.                            //
-//                                                             //
-//    THIS SOFTWARE IS PROVIDED "AS IS" AND WITHOUT ANY        //
-//  EXPRESS OF IMPLIED WARRANTIES OF ANY KIND.                 //
-//  See the License for permissions and limitations under the  //
-//  License.                                                   //
-//                                                             //
-/////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////
+//   ,------.                    ,--.                ,--.          //
+//   |  .--. ' ,---.  ,--,--.    |  |    ,---. ,---. `--' ,---.    //
+//   |  '--'.'| .-. |' ,-.  |    |  |   | .-. | .-. |,--.| .--'    //
+//   |  |\  \ ' '-' '\ '-'  |    |  '--.' '-' ' '-' ||  |\ `--.    //
+//   `--' '--' `---'  `--`--'    `-----' `---' `-   /`--' `---'    //
+//                                             `---'               //
+//    RISC-V                                                       //
+//    Branch Unit                                                  //
+//                                                                 //
+/////////////////////////////////////////////////////////////////////
+//                                                                 //
+//             Copyright (C) 2014-2018 ROA Logic BV                //
+//             www.roalogic.com                                    //
+//                                                                 //
+//     Unless specifically agreed in writing, this software is     //
+//   licensed under the RoaLogic Non-Commercial License            //
+//   version-1.0 (the "License"), a copy of which is included      //
+//   with this file or may be found on the RoaLogic website        //
+//   http://www.roalogic.com. You may not use the file except      //
+//   in compliance with the License.                               //
+//                                                                 //
+//     THIS SOFTWARE IS PROVIDED "AS IS" AND WITHOUT ANY           //
+//   EXPRESS OF IMPLIED WARRANTIES OF ANY KIND.                    //
+//   See the License for permissions and limitations under the     //
+//   License.                                                      //
+//                                                                 //
+/////////////////////////////////////////////////////////////////////
+
+import riscv_opcodes_pkg::*;
+import riscv_state_pkg::*;
 
 module riscv_bu #(
   parameter            XLEN           = 32,
   parameter [XLEN-1:0] PC_INIT        = 'h200,
-  parameter            INSTR_SIZE     = 32,
-  parameter            EXCEPTION_SIZE = 12,
   parameter            BP_GLOBAL_BITS = 2,
   parameter            HAS_RVC        = 0
 )
@@ -63,7 +56,7 @@ module riscv_bu #(
 
   //Instruction
   input                           id_bubble,
-  input      [INSTR_SIZE    -1:0] id_instr,
+  input      [ILEN          -1:0] id_instr,
 
   input      [EXCEPTION_SIZE-1:0] id_exception,
                                   ex_exception,
@@ -112,9 +105,6 @@ module riscv_bu #(
   //
   // Module Body
   //
-  import riscv_pkg::*;
-  import riscv_state_pkg::*;
-
 
   /*
    * Instruction
@@ -266,7 +256,7 @@ module riscv_bu #(
     if (!rstn)
     begin
         bu_flush      <= 'b1;
-        bu_cacheflush <= 'b1;
+        bu_cacheflush <= 'b0;
         bu_nxt_pc     <= PC_INIT;
 
         bu_bp_predict <= 'b00;

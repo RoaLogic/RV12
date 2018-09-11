@@ -38,8 +38,8 @@
 module riscv_state1_9 #(
   parameter            XLEN            = 32,
   parameter            FLEN            = 64, //floating point data length
+  parameter            ILEN            = 32,
   parameter [XLEN-1:0] PC_INIT         = 'h200,
-  parameter            INSTR_SIZE      = 32,
   parameter            EXCEPTION_SIZE  = 12,
 
   parameter            IS_RV32E        = 0,
@@ -79,7 +79,7 @@ module riscv_state1_9 #(
 
   input      [XLEN          -1:0] id_pc,
   input                           id_bubble,
-  input      [INSTR_SIZE    -1:0] id_instr,
+  input      [ILEN          -1:0] id_instr,
   input                           id_stall,
 
   input                           bu_flush,
@@ -938,7 +938,7 @@ endgenerate
     else if (has_s)
     begin
         if ( (ex_csr_we && ex_csr_reg == SIE && st_prv >= PRV_S) ||
-             (du_we_csr && du_addr    == HIE)                   )
+             (du_we_csr && du_addr    == SIE)                   )
         begin
             csr.mie.seie <= csr_wval[SEI];
             csr.mie.ueie <= csr_wval[UEI] & has_n;

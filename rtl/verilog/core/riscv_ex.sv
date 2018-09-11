@@ -1,45 +1,39 @@
-/////////////////////////////////////////////////////////////////
-//                                                             //
-//    ██████╗  ██████╗  █████╗                                 //
-//    ██╔══██╗██╔═══██╗██╔══██╗                                //
-//    ██████╔╝██║   ██║███████║                                //
-//    ██╔══██╗██║   ██║██╔══██║                                //
-//    ██║  ██║╚██████╔╝██║  ██║                                //
-//    ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝                                //
-//          ██╗      ██████╗  ██████╗ ██╗ ██████╗              //
-//          ██║     ██╔═══██╗██╔════╝ ██║██╔════╝              //
-//          ██║     ██║   ██║██║  ███╗██║██║                   //
-//          ██║     ██║   ██║██║   ██║██║██║                   //
-//          ███████╗╚██████╔╝╚██████╔╝██║╚██████╗              //
-//          ╚══════╝ ╚═════╝  ╚═════╝ ╚═╝ ╚═════╝              //
-//                                                             //
-//    RISC-V                                                   //
-//    Execution Units (EX Stage)                               //
-//                                                             //
-/////////////////////////////////////////////////////////////////
-//                                                             //
-//             Copyright (C) 2017 ROA Logic BV                 //
-//             www.roalogic.com                                //
-//                                                             //
-//    Unless specifically agreed in writing, this software is  //
-//  licensed under the RoaLogic Non-Commercial License         //
-//  version-1.0 (the "License"), a copy of which is included   //
-//  with this file or may be found on the RoaLogic website     //
-//  http://www.roalogic.com. You may not use the file except   //
-//  in compliance with the License.                            //
-//                                                             //
-//    THIS SOFTWARE IS PROVIDED "AS IS" AND WITHOUT ANY        //
-//  EXPRESS OF IMPLIED WARRANTIES OF ANY KIND.                 //
-//  See the License for permissions and limitations under the  //
-//  License.                                                   //
-//                                                             //
-/////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////
+//   ,------.                    ,--.                ,--.          //
+//   |  .--. ' ,---.  ,--,--.    |  |    ,---. ,---. `--' ,---.    //
+//   |  '--'.'| .-. |' ,-.  |    |  |   | .-. | .-. |,--.| .--'    //
+//   |  |\  \ ' '-' '\ '-'  |    |  '--.' '-' ' '-' ||  |\ `--.    //
+//   `--' '--' `---'  `--`--'    `-----' `---' `-   /`--' `---'    //
+//                                             `---'               //
+//    RISC-V                                                       //
+//    Execution Units (EX Stage)                                   //
+//                                                                 //
+/////////////////////////////////////////////////////////////////////
+//                                                                 //
+//             Copyright (C) 2017-2018 ROA Logic BV                //
+//             www.roalogic.com                                    //
+//                                                                 //
+//     Unless specifically agreed in writing, this software is     //
+//   licensed under the RoaLogic Non-Commercial License            //
+//   version-1.0 (the "License"), a copy of which is included      //
+//   with this file or may be found on the RoaLogic website        //
+//   http://www.roalogic.com. You may not use the file except      //
+//   in compliance with the License.                               //
+//                                                                 //
+//     THIS SOFTWARE IS PROVIDED "AS IS" AND WITHOUT ANY           //
+//   EXPRESS OF IMPLIED WARRANTIES OF ANY KIND.                    //
+//   See the License for permissions and limitations under the     //
+//   License.                                                      //
+//                                                                 //
+/////////////////////////////////////////////////////////////////////
+
+import riscv_opcodes_pkg::ILEN;
+import riscv_state_pkg::EXCEPTION_SIZE;
+import biu_constants_pkg::*;
 
 module riscv_ex #(
   parameter            XLEN           = 32,
   parameter [XLEN-1:0] PC_INIT        = 'h200,
-  parameter            INSTR_SIZE     = 32,
-  parameter            EXCEPTION_SIZE = 12,
   parameter            BP_GLOBAL_BITS = 2,
   parameter            HAS_RVC        = 0,
   parameter            HAS_RVA        = 0,
@@ -67,9 +61,9 @@ module riscv_ex #(
 
   //Instruction
   input                           id_bubble,
-  input      [INSTR_SIZE    -1:0] id_instr,
+  input      [ILEN          -1:0] id_instr,
   output                          ex_bubble,
-  output reg [INSTR_SIZE    -1:0] ex_instr,
+  output reg [ILEN          -1:0] ex_instr,
 
   input      [EXCEPTION_SIZE-1:0] id_exception,
                                   mem_exception,
@@ -94,7 +88,6 @@ module riscv_ex #(
 
   //to MEM
   output reg [XLEN          -1:0] ex_r,
-//  output     [XLEN          -1:0] ex_memadr,
 
   //Bypasses
   input      [XLEN          -1:0] mem_r,
@@ -107,6 +100,7 @@ module riscv_ex #(
 
   //From State
   input      [               1:0] st_prv,
+                                  st_xlen,
   input                           st_flush,
   input      [XLEN          -1:0] st_csr_rval,
 
@@ -115,7 +109,7 @@ module riscv_ex #(
                                   dmem_d,
   output                          dmem_req,
                                   dmem_we,
-  output     [XLEN/8        -1:0] dmem_be,
+  output     biu_size_t           dmem_size,
   input                           dmem_ack,
   input      [XLEN          -1:0] dmem_q,
   input                           dmem_misaligned,
@@ -164,9 +158,6 @@ module riscv_ex #(
   //
   // Module Body
   //
-  import riscv_pkg::*;
-  import riscv_state_pkg::*;
-
 
   /*
    * Program Counter
@@ -179,9 +170,8 @@ module riscv_ex #(
   /*
    * Instruction
    */
-  always @(posedge clk, negedge rstn)
-    if      (!rstn    ) ex_instr <= INSTR_NOP;
-    else if (!ex_stall) ex_instr <= id_instr;
+  always @(posedge clk)
+    if (!ex_stall) ex_instr <= id_instr;
 
 
   /*
@@ -214,29 +204,25 @@ module riscv_ex #(
    * Execution Units
    */
   riscv_alu #(
-    .XLEN           ( XLEN           ),
-    .INSTR_SIZE     ( INSTR_SIZE     ) )
+    .XLEN ( XLEN ) )
   alu (
     .*
   );
 
   // Load-Store Unit
   riscv_lsu #(
-    .XLEN           ( XLEN           ),
-    .INSTR_SIZE     ( INSTR_SIZE     ),
-    .EXCEPTION_SIZE ( EXCEPTION_SIZE ) )
+    .XLEN           ( XLEN           ) )
   lsu (
-//    .lsu_memadr ( ex_memadr  ),
     .*
   );
 
   // Branch Unit
   riscv_bu #(
     .XLEN           ( XLEN           ),
-    .INSTR_SIZE     ( INSTR_SIZE     ),
-    .EXCEPTION_SIZE ( EXCEPTION_SIZE ),
     .BP_GLOBAL_BITS ( BP_GLOBAL_BITS ) )
   bu (
+    //Branch unit handles exceptions and relays ID-exceptions
+    .bu_exception ( ex_exception ),
     .*
   );
 
@@ -245,7 +231,6 @@ generate
   begin
       riscv_mul #(
         .XLEN         ( XLEN         ),
-        .INSTR_SIZE   ( INSTR_SIZE   ),
         .MULT_LATENCY ( MULT_LATENCY )
       )
       mul (
@@ -253,9 +238,7 @@ generate
       );
 
       riscv_div #(
-        .XLEN       ( XLEN       ),
-        .INSTR_SIZE ( INSTR_SIZE )
-      )
+        .XLEN ( XLEN ))
       div (
         .*
       );
@@ -288,19 +271,5 @@ endgenerate
       3'b011 : ex_r = mul_r;
       default: ex_r = alu_r;
     endcase
-
-
-  //exceptions
-  always_comb
-  begin
-       //Branch unit handles most exceptions and relays ID-exceptions
-       ex_exception = bu_exception;
-/*
-       ex_exception[CAUSE_MISALIGNED_LOAD         ] = lsu_exception[CAUSE_MISALIGNED_LOAD         ];
-       ex_exception[CAUSE_LOAD_ACCESS_FAULT       ] = lsu_exception[CAUSE_LOAD_ACCESS_FAULT       ];
-       ex_exception[CAUSE_MISALIGNED_STORE        ] = lsu_exception[CAUSE_MISALIGNED_STORE        ];
-       ex_exception[CAUSE_STORE_ACCESS_FAULT      ] = lsu_exception[CAUSE_STORE_ACCESS_FAULT      ];
-*/
-  end
 
 endmodule 

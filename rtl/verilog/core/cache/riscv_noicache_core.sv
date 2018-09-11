@@ -35,6 +35,8 @@
 //                                                             //
 /////////////////////////////////////////////////////////////////
 
+import biu_constants_pkg::*;
+
 module riscv_noicache_core #(
   parameter XLEN           = 32,
   parameter PHYS_ADDR_SIZE = XLEN, //MSB determines cacheable(0) and non-cacheable(1)
@@ -62,33 +64,19 @@ module riscv_noicache_core #(
   input                           biu_stb_ack,
   output     [PHYS_ADDR_SIZE-1:0] biu_adri,
   input      [PHYS_ADDR_SIZE-1:0] biu_adro,
-  output     [XLEN/8        -1:0] biu_be,       //Byte enables
-  output reg [               2:0] biu_type,     //burst type -AHB style
+  output biu_size_t               biu_size,     //transfer size
+  output biu_type_t               biu_type,     //burst type -AHB style
   output                          biu_lock,
   output                          biu_we,
   output     [XLEN          -1:0] biu_di,
   input      [XLEN          -1:0] biu_do,
-  input                           biu_rack,     //data acknowledge, 1 per data
+  input                           biu_ack,      //data acknowledge, 1 per data
   input                           biu_err,      //data error
 
   output                          biu_is_cacheable,
                                   biu_is_instruction,
   output     [               1:0] biu_prv
 );
-
-  //////////////////////////////////////////////////////////////////
-  //
-  // Constants
-  //
-  import ahb3lite_pkg::*;
-
-
-  //////////////////////////////////////////////////////////////////
-  //
-  // Functions
-  //
-
-
   //////////////////////////////////////////////////////////////////
   //
   // Typedefs
@@ -115,8 +103,6 @@ module riscv_noicache_core #(
   //
   // Module Body
   //
-  import riscv_pkg::*;
-
 
   //Is this a cacheable region?
   //MSB=1 non-cacheable (IO region)
@@ -147,11 +133,11 @@ module riscv_noicache_core #(
    */
   assign biu_stb   = dcflush_rdy & ~if_flush & ~if_stall & ~biu_fifo[1].valid; //TODO when is ~biu_fifo[1] required?
   assign biu_adri  = if_nxt_pc[PHYS_ADDR_SIZE -1:0];
-  assign biu_be    = {$bits(biu_be){1'b1}};
+  assign biu_size  = XLEN==64 ? DWORD : WORD;
   assign biu_lock  = 1'b0;
-  assign biu_we    = 1'b0; //no writes
+  assign biu_we    = 1'b0;   //no writes
   assign biu_di    =  'h0;
-  assign biu_type  = 3'h0; //single access
+  assign biu_type  = SINGLE; //single access
 
   //Instruction cache..
   assign biu_is_instruction = 1'b1;
@@ -183,7 +169,7 @@ module riscv_noicache_core #(
         biu_fifo[2].valid <= 1'b0;
     end
     else
-      case ({biu_rack,if_parcel_valid})
+      case ({biu_ack,if_parcel_valid})
         2'b00: ; //no action
         2'b10:   //FIFO write
                case ({biu_fifo[1].valid,biu_fifo[0].valid})
@@ -214,7 +200,7 @@ module riscv_noicache_core #(
 
   //Address & Data
   always @(posedge clk)
-    case ({biu_rack,if_parcel_valid})
+    case ({biu_ack,if_parcel_valid})
         2'b00: ;
         2'b10: case({biu_fifo[1].valid,biu_fifo[0].valid})
                  2'b11 : begin

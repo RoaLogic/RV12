@@ -1,46 +1,39 @@
-/////////////////////////////////////////////////////////////////
-//                                                             //
-//    ██████╗  ██████╗  █████╗                                 //
-//    ██╔══██╗██╔═══██╗██╔══██╗                                //
-//    ██████╔╝██║   ██║███████║                                //
-//    ██╔══██╗██║   ██║██╔══██║                                //
-//    ██║  ██║╚██████╔╝██║  ██║                                //
-//    ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝                                //
-//          ██╗      ██████╗  ██████╗ ██╗ ██████╗              //
-//          ██║     ██╔═══██╗██╔════╝ ██║██╔════╝              //
-//          ██║     ██║   ██║██║  ███╗██║██║                   //
-//          ██║     ██║   ██║██║   ██║██║██║                   //
-//          ███████╗╚██████╔╝╚██████╔╝██║╚██████╗              //
-//          ╚══════╝ ╚═════╝  ╚═════╝ ╚═╝ ╚═════╝              //
-//                                                             //
-//    RISC-V                                                   //
-//    Instruction Fetch                                        //
-//                                                             //
-/////////////////////////////////////////////////////////////////
-//                                                             //
-//             Copyright (C) 2014-2017 ROA Logic BV            //
-//             www.roalogic.com                                //
-//                                                             //
-//    Unless specifically agreed in writing, this software is  //
-//  licensed under the RoaLogic Non-Commercial License         //
-//  version-1.0 (the "License"), a copy of which is included   //
-//  with this file or may be found on the RoaLogic website     //
-//  http://www.roalogic.com. You may not use the file except   //
-//  in compliance with the License.                            //
-//                                                             //
-//    THIS SOFTWARE IS PROVIDED "AS IS" AND WITHOUT ANY        //
-//  EXPRESS OF IMPLIED WARRANTIES OF ANY KIND.                 //
-//  See the License for permissions and limitations under the  //
-//  License.                                                   //
-//                                                             //
-/////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////
+//   ,------.                    ,--.                ,--.          //
+//   |  .--. ' ,---.  ,--,--.    |  |    ,---. ,---. `--' ,---.    //
+//   |  '--'.'| .-. |' ,-.  |    |  |   | .-. | .-. |,--.| .--'    //
+//   |  |\  \ ' '-' '\ '-'  |    |  '--.' '-' ' '-' ||  |\ `--.    //
+//   `--' '--' `---'  `--`--'    `-----' `---' `-   /`--' `---'    //
+//                                             `---'               //
+//    RISC-V                                                       //
+//    Instruction Fetch                                            //
+//                                                                 //
+/////////////////////////////////////////////////////////////////////
+//                                                                 //
+//             Copyright (C) 2014-2018 ROA Logic BV                //
+//             www.roalogic.com                                    //
+//                                                                 //
+//     Unless specifically agreed in writing, this software is     //
+//   licensed under the RoaLogic Non-Commercial License            //
+//   version-1.0 (the "License"), a copy of which is included      //
+//   with this file or may be found on the RoaLogic website        //
+//   http://www.roalogic.com. You may not use the file except      //
+//   in compliance with the License.                               //
+//                                                                 //
+//     THIS SOFTWARE IS PROVIDED "AS IS" AND WITHOUT ANY           //
+//   EXPRESS OF IMPLIED WARRANTIES OF ANY KIND.                    //
+//   See the License for permissions and limitations under the     //
+//   License.                                                      //
+//                                                                 //
+/////////////////////////////////////////////////////////////////////
+
+import riscv_opcodes_pkg::*;
+import riscv_state_pkg::*;
 
 module riscv_if #(
   parameter            XLEN           = 32,
   parameter [XLEN-1:0] PC_INIT        = 'h200,
-  parameter            INSTR_SIZE     = 32,
   parameter            PARCEL_SIZE    = 32,
-  parameter            EXCEPTION_SIZE = 12,
   parameter            HAS_BPU        = 0,
   parameter            HAS_RVC        = 0
 )
@@ -52,13 +45,14 @@ module riscv_if #(
   input                           if_stall_nxt_pc,
   input      [PARCEL_SIZE   -1:0] if_parcel,
   input      [XLEN          -1:0] if_parcel_pc,
-  input                           if_parcel_valid,
+  input      [PARCEL_SIZE/16-1:0] if_parcel_valid,
   input                           if_parcel_misaligned, 
   input                           if_parcel_page_fault,
 
-  output reg [INSTR_SIZE    -1:0] if_instr,      //Instruction out
+  output reg [ILEN          -1:0] if_instr,      //Instruction out
   output reg                      if_bubble,     //Insert bubble in the pipe (NOP instruction)
-  output reg [EXCEPTION_SIZE-1:0] if_exception,
+  output reg [EXCEPTION_SIZE-1:0] if_exception,  //Exceptions
+
 
   input      [               1:0] bp_bp_predict, //Branch Prediction bits
   output reg [               1:0] if_bp_predict, //push down the pipe
@@ -66,10 +60,9 @@ module riscv_if #(
   input                           bu_flush,      //flush pipe & load new program counter
                                   st_flush,
                                   du_flush,      //flush pipe after debug exit
+
   input      [XLEN          -1:0] bu_nxt_pc,     //Branch Unit Next Program Counter
                                   st_nxt_pc,     //State Next Program Counter
-                                  id_pc,         //ID next program counter (used by debug unit)
-
 
   output reg [XLEN          -1:0] if_nxt_pc,     //next Program Counter
   output                          if_stall,      //stall instruction fetch BIU (cache/bus-interface)
@@ -91,8 +84,8 @@ module riscv_if #(
 
   logic                      flushes;      //OR all flush signals
 
-  logic [2*INSTR_SIZE  -1:0] parcel_shift_register;
-  logic [INSTR_SIZE    -1:0] new_parcel,
+  logic [2*ILEN        -1:0] parcel_shift_register;
+  logic [ILEN          -1:0] new_parcel,
                              active_parcel,
                              converted_instruction,
                              pd_instr;
@@ -119,8 +112,6 @@ module riscv_if #(
   //
   // Module Body
   //
-  import riscv_pkg::*;
-  import riscv_state_pkg::*;
 
   //All flush signals
   assign flushes = bu_flush | st_flush | du_flush;
@@ -146,8 +137,13 @@ module riscv_if #(
     if      (!rstn                        ) if_nxt_pc <= PC_INIT;
     else if ( st_flush                    ) if_nxt_pc <= st_nxt_pc;
     else if ( bu_flush        ||  du_flush) if_nxt_pc <= bu_nxt_pc; //flush takes priority
-    else if ( branch_taken    && !id_stall) if_nxt_pc <= branch_pc;
-    else if (!if_stall_nxt_pc && !id_stall) if_nxt_pc <= if_nxt_pc + 'h4;
+//    else if (!id_stall)
+    else
+    begin
+        if      ( branch_taken   ) if_nxt_pc <= branch_pc;
+        else if (!if_stall_nxt_pc) if_nxt_pc <= if_nxt_pc +4; //if_stall_nxt_pc
+    end
+//    else if (!if_stall_nxt_pc && !id_stall) if_nxt_pc <= if_nxt_pc + 'h4;
 //TODO: handle if_stall and 16bit instructions
 
   always @(posedge clk,negedge rstn)
@@ -168,7 +164,6 @@ module riscv_if #(
    *  Instruction
    */
   //instruction shift register, for 16bit instruction support
-//  assign new_parcel = if_parcel_valid ? if_parcel : INSTR_NOP; //RiH: was parcel_valid, handle in-flight faulty instruction
   assign new_parcel = if_parcel;
   always @(posedge clk,negedge rstn)
     if      (!rstn    ) parcel_shift_register <= {INSTR_NOP,INSTR_NOP};
@@ -181,9 +176,9 @@ module riscv_if #(
             3'b000:                           parcel_shift_register <= {INSTR_NOP , new_parcel};
             3'b001: if (is_16bit_instruction) parcel_shift_register <= {INSTR_NOP , new_parcel};
                     else                      parcel_shift_register <= {new_parcel, parcel_shift_register[15:0]};
-            3'b011: if (is_16bit_instruction) parcel_shift_register <= {new_parcel, parcel_shift_register[16 +: INSTR_SIZE]};
+            3'b011: if (is_16bit_instruction) parcel_shift_register <= {new_parcel, parcel_shift_register[16 +: ILEN]};
                     else                      parcel_shift_register <= {INSTR_NOP , new_parcel};
-            3'b111: if (is_16bit_instruction) parcel_shift_register <= {INSTR_NOP , parcel_shift_register[16 +: INSTR_SIZE]};
+            3'b111: if (is_16bit_instruction) parcel_shift_register <= {INSTR_NOP , parcel_shift_register[16 +: ILEN]};
                     else                      parcel_shift_register <= {new_parcel, parcel_shift_register[32 +: 16]};
         endcase
 
@@ -197,16 +192,16 @@ module riscv_if #(
       else
         case (parcel_sr_valid)
 //branch to 16bit address would yield 3'b010
-            3'b000:                           parcel_sr_valid <= {           1'b0, if_parcel_valid, if_parcel_valid}; //3'b011;
-            3'b001: if (is_16bit_instruction) parcel_sr_valid <= {           1'b0, if_parcel_valid, if_parcel_valid}; //3'b011;
-                    else                      parcel_sr_valid <= {if_parcel_valid, if_parcel_valid,            1'b1}; //3'b111;
-            3'b011: if (is_16bit_instruction) parcel_sr_valid <= {if_parcel_valid, if_parcel_valid,            1'b1}; //3'b111;
-                    else                      parcel_sr_valid <= {           1'b0, if_parcel_valid, if_parcel_valid}; //3'b011;
+            3'b000:                           parcel_sr_valid <= {           1'b0, if_parcel_valid}; //3'b011;
+            3'b001: if (is_16bit_instruction) parcel_sr_valid <= {           1'b0, if_parcel_valid}; //3'b011;
+                    else                      parcel_sr_valid <= {if_parcel_valid,            1'b1}; //3'b111;
+            3'b011: if (is_16bit_instruction) parcel_sr_valid <= {if_parcel_valid,            1'b1}; //3'b111;
+                    else                      parcel_sr_valid <= {           1'b0, if_parcel_valid}; //3'b011;
             3'b111: if (is_16bit_instruction) parcel_sr_valid <= {           1'b0,            1'b1,            1'b1}; //3'b011;
-                    else                      parcel_sr_valid <= {if_parcel_valid, if_parcel_valid,            1'b1}; //3'b111;
+                    else                      parcel_sr_valid <= {if_parcel_valid,            1'b1}; //3'b111;
         endcase
 
-  assign active_parcel = parcel_shift_register[INSTR_SIZE-1:0];
+  assign active_parcel = parcel_shift_register[ILEN-1:0];
   assign pd_bubble     = is_16bit_instruction ? ~parcel_sr_valid[0] : ~&parcel_sr_valid[1:0];
 
   assign is_16bit_instruction = ~&active_parcel[1:0];
@@ -220,7 +215,7 @@ module riscv_if #(
     case(active_parcel)
       WFI    : pd_instr = INSTR_NOP;                                 //Implement WFI as a nop 
       default: if (is_32bit_instruction) pd_instr = active_parcel;
-               else                      pd_instr = -1;             //Illegal
+               else                      pd_instr = -1;              //Illegal
     endcase
 
 
@@ -236,7 +231,6 @@ module riscv_if #(
     else if (!id_stall) if_bubble <= pd_bubble;
 
 
-
   /*
    * Branches & Jump
    */
@@ -247,7 +241,6 @@ module riscv_if #(
 
   // Branch and Jump prediction
   always_comb
-    (* synthesis,parallel_case *)
     casex ({pd_bubble,opcode})
       {1'b0,OPC_JAL   } : begin
                              branch_taken = 1'b1;

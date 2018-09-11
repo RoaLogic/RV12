@@ -1,714 +1,837 @@
-/////////////////////////////////////////////////////////////////
-//                                                             //
-//    ██████╗  ██████╗  █████╗                                 //
-//    ██╔══██╗██╔═══██╗██╔══██╗                                //
-//    ██████╔╝██║   ██║███████║                                //
-//    ██╔══██╗██║   ██║██╔══██║                                //
-//    ██║  ██║╚██████╔╝██║  ██║                                //
-//    ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝                                //
-//          ██╗      ██████╗  ██████╗ ██╗ ██████╗              //
-//          ██║     ██╔═══██╗██╔════╝ ██║██╔════╝              //
-//          ██║     ██║   ██║██║  ███╗██║██║                   //
-//          ██║     ██║   ██║██║   ██║██║██║                   //
-//          ███████╗╚██████╔╝╚██████╔╝██║╚██████╗              //
-//          ╚══════╝ ╚═════╝  ╚═════╝ ╚═╝ ╚═════╝              //
-//                                                             //
-//    RISC-V                                                   //
-//    Instruction Cache Core                                   //
-//                                                             //
-/////////////////////////////////////////////////////////////////
-//                                                             //
-//             Copyright (C) 2014-2017 ROA Logic BV            //
-//             www.roalogic.com                                //
-//                                                             //
-//    Unless specifically agreed in writing, this software is  //
-//  licensed under the RoaLogic Non-Commercial License         //
-//  version-1.0 (the "License"), a copy of which is included   //
-//  with this file or may be found on the RoaLogic website     //
-//  http://www.roalogic.com. You may not use the file except   //
-//  in compliance with the License.                            //
-//                                                             //
-//    THIS SOFTWARE IS PROVIDED "AS IS" AND WITHOUT ANY        //
-//  EXPRESS OF IMPLIED WARRANTIES OF ANY KIND.                 //
-//  See the License for permissions and limitations under the  //
-//  License.                                                   //
-//                                                             //
-/////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////
+//   ,------.                    ,--.                ,--.          //
+//   |  .--. ' ,---.  ,--,--.    |  |    ,---. ,---. `--' ,---.    //
+//   |  '--'.'| .-. |' ,-.  |    |  |   | .-. | .-. |,--.| .--'    //
+//   |  |\  \ ' '-' '\ '-'  |    |  '--.' '-' ' '-' ||  |\ `--.    //
+//   `--' '--' `---'  `--`--'    `-----' `---' `-   /`--' `---'    //
+//                                             `---'               //
+//    RISC-V                                                       //
+//    Data Cache  (Write Back)                                     //
+//                                                                 //
+/////////////////////////////////////////////////////////////////////
+//                                                                 //
+//             Copyright (C) 2014-2018 ROA Logic BV                //
+//             www.roalogic.com                                    //
+//                                                                 //
+//     Unless specifically agreed in writing, this software is     //
+//   licensed under the RoaLogic Non-Commercial License            //
+//   version-1.0 (the "License"), a copy of which is included      //
+//   with this file or may be found on the RoaLogic website        //
+//   http://www.roalogic.com. You may not use the file except      //
+//   in compliance with the License.                               //
+//                                                                 //
+//     THIS SOFTWARE IS PROVIDED "AS IS" AND WITHOUT ANY           //
+//   EXPRESS OF IMPLIED WARRANTIES OF ANY KIND.                    //
+//   See the License for permissions and limitations under the     //
+//   License.                                                      //
+//                                                                 //
+/////////////////////////////////////////////////////////////////////
+
+/*
+  Customer should be able to chose
+  - cache size
+  - Set associativity
+  therefore BLOCK_SIZE is autocalculated
+
+  RISC-V specifies a 4KB page. Thus page offset = 12bits
+  MAX_IDX_BITS = $clog2(4*1024) = 12
+
+  BURST_SIZE = 16,8,4
+
+  BLOCK_SIZE = BURST_SIZE * XLEN/8 (bytes)
+    rv32:  64,32,16 bytes
+    rv64: 128,64,32 bytes
+
+  This affects associativity (the number of ways)
+  BLOCK_OFFSET_BITS = $clog2(BLOCK_SIZE)
+    rv32: 6,5,4 bits
+    rv64: 7,6,5 bits
+
+  IDX_BITS = MAX_IDX_BITS - BLOCK_OFFSET_BITS
+    rv32: 6,7,8
+    rv64: 5,6,7
+
+  SETS = 2**IDX_BITS
+    rv32: 64,128,256
+    rv64: 32, 64,128
+
+  WAYS = CACHE_SIZE / (BLOCK_SIZE * SET) = CACHE_SIZE / PAGE_SIZE
+     8KB:  2
+    16KB:  4
+    32KB:  8
+    64KB: 16
+ */
+
+import biu_constants_pkg::*;
 
 module riscv_icache_core #(
-  parameter            XLEN           = 32,
-  parameter [XLEN-1:0] PC_INIT        = 'h200,
-  parameter            PHYS_ADDR_SIZE = XLEN, //MSB determines cacheable(0) and non-cacheable(1)
-  parameter            PARCEL_SIZE    = 32,
+  parameter XLEN        = 32,
+  parameter PLEN        = XLEN,
+  parameter PARCEL_SIZE = XLEN,
 
-  parameter            SIZE           = 64, //KBYTES
-  parameter            BLOCK_SIZE     = 32, //Number of BYTES in a block.
-  parameter            WAYS           =  2, // 1           : Direct Mapped
-                                            //<n>          : n-way set associative
-                                            //<n>==<blocks>: fully associative
-  parameter            REPLACE_ALG    = 1,  //0: Random
-                                            //1: FIFO
-                                            //2: LRU
+  parameter SIZE        = 64,     //KBYTES
+  parameter BLOCK_SIZE  = XLEN,   //BYTES, number of bytes in a block (way)
+                                  //Must be [XLEN*2,XLEN,XLEN/2]
+  parameter WAYS        =  2,     // 1           : Direct Mapped
+                                  //<n>          : n-way set associative
+                                  //<n>==<blocks>: fully associative
+  parameter REPLACE_ALG = 1,      //0: Random
+                                  //1: FIFO
+                                  //2: LRU
 
-  parameter            TECHNOLOGY     = "GENERIC"
+  parameter TECHNOLOGY  = "GENERIC"
 )
 (
-  input                           rstn,
-  input                           clk,
- 
+  input  logic            rst_ni,
+  input  logic            clk_i,
+  input  logic            clr_i,          //clear any pending request
+
   //CPU side
-  output reg                      if_stall_nxt_pc,
-  input                           if_stall,
-                                  if_flush,
-  input      [XLEN          -1:0] if_nxt_pc,
-  output reg [XLEN          -1:0] if_parcel_pc,
-  output reg [PARCEL_SIZE   -1:0] if_parcel,
-  output reg                      if_parcel_valid,
-  output                          if_parcel_misaligned,
-  input                           bu_cacheflush,
-                                  dcflush_rdy,
+  input  logic            mem_vreq_i,
+  input  logic            mem_preq_i,
+  input  logic [XLEN-1:0] mem_vadr_i,
+  input  logic [PLEN-1:0] mem_padr_i,
+  input  biu_size_t       mem_size_i,
+  input                   mem_lock_i,
+  input  biu_prot_t       mem_prot_i,
+  input  logic [XLEN-1:0] mem_d_i,
+  input  logic            mem_we_i,
+  output logic [PARCEL_SIZE-1:0] mem_q_o,
+  output logic            mem_ack_o,
+  output logic            mem_err_o,
+  input  logic            flush_i,
+  input  logic            flushrdy_i,
 
   //To BIU
-  output reg                      biu_stb,
-  input                           biu_stb_ack,
-  output     [PHYS_ADDR_SIZE-1:0] biu_adri,
-  input      [PHYS_ADDR_SIZE-1:0] biu_adro,
-  output     [XLEN/8        -1:0] biu_be,       //Byte enables
-  output reg [               2:0] biu_type,     //burst type -AHB style
-  output                          biu_lock,
-  output                          biu_we,
-  output     [XLEN          -1:0] biu_di,
-  input      [XLEN          -1:0] biu_do,
-  input                           biu_rack,      //data acknowledge, 1 per data
-  input                           biu_err,      //data error
-
-  output                          biu_is_cacheable,
-                                  biu_is_instruction
+  output logic            biu_stb_o,      //access request
+  input  logic            biu_stb_ack_i,  //access acknowledge
+  input  logic            biu_d_ack_i,    //BIU needs new data (biu_d_o)
+  output logic [PLEN-1:0] biu_adri_o,     //access start address
+  input  logic [PLEN-1:0] biu_adro_i,
+  output biu_size_t       biu_size_o,     //transfer size
+  output biu_type_t       biu_type_o,     //burst type
+  output logic            biu_lock_o,     //locked transfer
+  output biu_prot_t       biu_prot_o,     //protection bits
+  output logic            biu_we_o,       //write enable
+  output logic [XLEN-1:0] biu_d_o,        //write data
+  input  logic [XLEN-1:0] biu_q_i,        //read data
+  input  logic            biu_ack_i,      //transfer acknowledge
+  input  logic            biu_err_i       //transfer error
 );
 
   //////////////////////////////////////////////////////////////////
   //
   // Constants
   //
-  import ahb3lite_pkg::*;
+  
+  //----------------------------------------------------------------
+  // Cache
+  //----------------------------------------------------------------
+  localparam PAGE_SIZE    = 4*1024;                             //4KB pages
+  localparam MAX_IDX_BITS = $clog2(PAGE_SIZE) - $clog2(BLOCK_SIZE); //Maximum IDX_BITS
+  
 
-  localparam BLK_OFF_LSB  = 1;                                          //Instruction address boundary (min.16bits)
-  localparam SETS         = (SIZE*1024) / BLOCK_SIZE / WAYS;            //Number of sets
-  localparam BLK_OFF_BITS = $clog2(BLOCK_SIZE);                         //Number of BlockOffset bits
-  localparam IDX_BITS     = $clog2(SETS);                               //Number of Index-bits
-  localparam TAG_BITS     = PHYS_ADDR_SIZE-1 - IDX_BITS - BLK_OFF_BITS; //Number of TAG-bits. PHYS_ADDR_SIZE-1 because MSB determines (non)cacheable
-  localparam LRU_BITS     = $clog2(WAYS);
-  localparam BLK_BITS     = 8*BLOCK_SIZE;                               //Total number of bits in a Block
-  localparam BURST_SIZE   = BLK_BITS / XLEN;                            //Number of transfers to load 1 Block
-  localparam BURST_BITS   = $clog2(BURST_SIZE);
-  localparam BURST_OFF    = XLEN/8;
-  localparam BURST_LSB    = $clog2(BURST_OFF);
+  localparam SETS            = (SIZE*1024) / BLOCK_SIZE / WAYS;    //Number of sets TODO:SETS=1 doesn't work
+  localparam BLK_OFF_BITS    = $clog2(BLOCK_SIZE);                 //Number of BlockOffset bits
+  localparam IDX_BITS        = $clog2(SETS);                       //Number of Index-bits
+  localparam TAG_BITS        = XLEN - IDX_BITS - BLK_OFF_BITS;     //Number of TAG-bits
+  localparam BLK_BITS        = 8*BLOCK_SIZE;                       //Total number of bits in a Block
+  localparam BURST_SIZE      = BLK_BITS / XLEN;                    //Number of transfers to load 1 Block
+  localparam BURST_BITS      = $clog2(BURST_SIZE);
+  localparam BURST_OFF       = XLEN/8;
+  localparam BURST_LSB       = $clog2(BURST_OFF);
 
-  //partial BLOCK decoding done by Data Memory
-  localparam DAT_BITS     = PARCEL_SIZE > XLEN ? PARCEL_SIZE : XLEN;   //datablock size, either XLEN or PARCEL_SIZE whichever is greater
-  localparam DAT_ABITS    = $clog2(BLK_BITS / DAT_BITS);               //Number of abits added to Data Memory
-  localparam DAT_IDX_LSB  = $clog2(DAT_BITS/8);                        //16bit offset
-  localparam DAT_IDX_BITS = IDX_BITS + DAT_ABITS;
+  //BLOCK decoding
+  localparam DAT_OFF_BITS    = $clog2(BLK_BITS / XLEN);            //Offset in block
+  localparam PARCEL_OFF_BITS = $clog2(XLEN / PARCEL_SIZE);
+
 
   //////////////////////////////////////////////////////////////////
   //
   // Functions
   //
-  function integer onehot2int;
+  function automatic integer onehot2int;
     input [WAYS-1:0] a;
 
     integer i;
 
+    onehot2int = 0;
+
     for (i=0; i<WAYS; i++)
       if (a[i]) onehot2int = i;
-  endfunction
+  endfunction: onehot2int
 
 
-  function [LRU_BITS-1:0] new_lru;
-    input [LRU_BITS-1:0] old_lru;
-    input [LRU_BITS-1:0] replaced_lru;
+  function automatic [XLEN/8-1:0] size2be;
+    input [     2:0] size;
+    input [XLEN-1:0] adr;
 
-    if (old_lru < replaced_lru) new_lru = old_lru;
-    else                        new_lru = old_lru -1;
-  endfunction
+    logic [$clog2(XLEN/8)-1:0] adr_lsbs;
+
+    adr_lsbs = adr[$clog2(XLEN/8)-1:0];
+
+    unique case (size)
+      BYTE : size2be = 'h1  << adr_lsbs;
+      HWORD: size2be = 'h3  << adr_lsbs;
+      WORD : size2be = 'hf  << adr_lsbs;
+      DWORD: size2be = 'hff << adr_lsbs;
+    endcase
+  endfunction: size2be
+
+
+  function automatic [XLEN-1:0] be_mux;
+    input [XLEN/8-1:0] be;
+    input [XLEN  -1:0] o; //old data
+    input [XLEN  -1:0] n; //new data
+
+    integer i;
+
+    for (i=0; i<XLEN/8;i++)
+      be_mux[i*8 +: 8] = be[i] ? n[i*8 +: 8] : o[i*8 +: 8];
+  endfunction: be_mux
+
 
   //////////////////////////////////////////////////////////////////
   //
   // Typedefs
   //
+
+  //pipeline-write-buffer
+  typedef struct {
+    logic [IDX_BITS -1:0] idx;
+    logic [PLEN     -1:0] adr;  //physical address
+    logic [XLEN/8   -1:0] be;
+    logic [XLEN     -1:0] data;
+
+    //internal signals
+    logic [WAYS     -1:0] hit;
+    logic                 was_write;
+  } pwb_t;
+
+
+  //TAG-structure
   typedef struct packed {
-    logic [LRU_BITS-1:0] lru;
     logic                valid;
     logic [TAG_BITS-1:0] tag;
   } tag_struct;
-  localparam TAG_STRUCT_BITS = (REPLACE_ALG != 0) ? $bits(tag_struct) : $bits(tag_struct) - LRU_BITS;
 
-
-  typedef struct packed {
-    logic                       valid;
-    logic [XLEN           -1:0] dat;
-    logic [PHYS_ADDR_SIZE -1:0] adr;
-  } fifo_struct;
+  localparam TAG_STRUCT_BITS = $bits(tag_struct);
 
 
   //////////////////////////////////////////////////////////////////
   //
   // Variables
   //
-  genvar way;
-
-  logic [XLEN        -1:0] pc; //program counter
-  logic                    if_stall_nxt_pc_dly;
-  logic                    is_cacheable,
-                           is_cacheable_dly;
-  logic [             1:0] biu_stb_cnt;
-  fifo_struct              biu_fifo[3];
+  genvar  way;
+  integer n;
 
 
-  logic [IDX_BITS    -1:0] tag_idx,
-                           tag_widx; //for LRU
-  logic [DAT_IDX_BITS-1:0] dat_idx,
-                           dat_widx;
-  logic [TAG_BITS    -1:0] tag_in_core_tag,
-                           core_tag;
+  /* Memory Interface State Machine Section
+   */
+  logic                                   mem_vreq_dly,
+                                          mem_preq_dly;
+  logic      [XLEN        -1:0]           mem_vadr_dly;
+  logic      [PLEN        -1:0]           mem_padr_dly;
+  logic      [XLEN/8      -1:0]           mem_be,
+                                          mem_be_dly;
+  logic      [XLEN        -1:0]           mem_d_dly;
 
-  logic [WAYS        -1:0] way_hit;
-  logic [DAT_BITS    -1:0] way_dat [WAYS]; //only read XLEN bits from BLK_BITS
-  logic                    tag_re;
-  logic [WAYS        -1:0] tag_we,
-                           dat_we;
-  logic [DAT_BITS/8  -1:0] dat_be;
-  logic [DAT_BITS    -1:0] dat_in,
-                           dat_out[WAYS];
-  tag_struct               tag_in [WAYS],
-                           tag_out[WAYS];
 
-  logic                    cache_hit,
-                           dcache_hit; //for LRU tag-update
-  logic [DAT_BITS    -1:0] cache_dat;
 
-  logic [            19:0] way_random;
-  logic [WAYS        -1:0] fill_way_select,
-                           fill_way_select_rnd;
+  logic      [TAG_BITS    -1:0]           core_tag,
+                                          core_tag_hold;
 
-  logic                    hold_bu_cacheflush,
-                           hold_if_flush,
-                           if_flush_dly,
-                           flushing,
-                           filling;
-  logic [IDX_BITS    -1:0] cnt, nxt_cnt;
+  logic                                   hold_flush;              //stretch flush_i until FSM is ready to serve
 
-  enum logic [2:0] {FLUSH=3'b000,WAIT4DCACHE=3'b001,ARMED=3'b010,FILL=3'b100} wr_state;
+  enum logic [             2:0] {ARMED=0, FLUSH=1, WAIT4BIUCMD0=2, RECOVER=4} memfsm_state;
+
+
+  /* Cache Section
+   */
+  logic      [IDX_BITS       -1:0]           tag_idx,
+                                             tag_idx_dly,          //delayed version for writing valid/dirty
+                                             tag_idx_hold,         //stretched version for writing TAG during fill
+                                             vadr_idx,             //index bits extracted from vadr_i
+                                             vadr_dly_idx,         //index bits extracted from vadr_dly
+                                             padr_idx,
+                                             padr_dly_idx;
+
+  logic      [WAYS           -1:0]           tag_we;
+  tag_struct                                 tag_in      [WAYS],
+                                             tag_out     [WAYS];
+  logic      [IDX_BITS       -1:0]           tag_byp_idx [WAYS];
+  logic      [TAG_BITS       -1:0]           tag_byp_tag [WAYS];
+  logic      [WAYS           -1:0][SETS-1:0] tag_valid;
+
+  logic      [IDX_BITS       -1:0]           dat_idx, dat_idx_dly;
+  logic      [WAYS           -1:0]           dat_we;
+  logic      [BLK_BITS/8     -1:0]           dat_be;
+  logic      [BLK_BITS       -1:0]           dat_in;
+  logic      [BLK_BITS       -1:0]           dat_out     [WAYS];
+
+  logic      [BLK_BITS       -1:0]           way_q_mux   [WAYS];
+  logic      [WAYS           -1:0]           way_hit;
+
+  logic      [DAT_OFF_BITS   -1:0]           dat_offset;
+  logic      [PARCEL_OFF_BITS  :0]           parcel_offset;
+
+  logic                                      cache_hit;
+  logic      [XLEN           -1:0]           cache_q;
+
+  logic      [               19:0]           way_random;
+  logic      [WAYS           -1:0]           fill_way_select, fill_way_select_hold; 
+
+  logic                                      biu_adro_eq_cache_adr_dly;
+  logic                                      flushing,
+                                             filling;
+  logic      [IDX_BITS       -1:0]           flush_idx;
+
+
+  /* Bus Interface State Machine Section
+   */
+  enum logic [                1:0] {IDLE, WAIT4BIU, BURST} biufsm_state;
+  enum logic [                1:0] {NOP=0, WRITE_WAY=1, READ_WAY=2} biucmd;
+  logic                                      biufsm_ack,
+                                             biufsm_err,
+                                             biufsm_ack_write_way; //BIU FSM should generate biufsm_ack on WRITE_WAY
+  logic      [BLK_BITS       -1:0]           biu_buffer;
+  logic      [BURST_SIZE     -1:0]           biu_buffer_valid;
+  logic                                      in_biubuffer;
+
+  logic      [PLEN           -1:0]           biu_adri_hold;
+  logic      [XLEN           -1:0]           biu_d_hold;
+
+  logic      [BURST_BITS     -1:0]           burst_cnt;
+
+
+
 
 
   //////////////////////////////////////////////////////////////////
   //
   // Module Body
   //
-  import riscv_pkg::*;
+
+  //----------------------------------------------------------------
+  // Memory Interface State Machine
+  //----------------------------------------------------------------
+
+  //generate cache_* signals
+  assign mem_be = size2be(mem_size_i, mem_vadr_i);
 
 
-  //Is this a cacheable region?
-  //MSB=1 non-cacheable (IO region)
-  //MSB=0 cacheable (instruction/data region)
-  assign is_cacheable = ~if_nxt_pc[PHYS_ADDR_SIZE-1];
+  //generate delayed mem_* signals
+  always @(posedge clk_i,negedge rst_ni)
+    if      (!rst_ni) mem_vreq_dly <= 1'b0;
+    else if ( clr_i ) mem_vreq_dly <= 1'b0;
+    else              mem_vreq_dly <= mem_vreq_i | (mem_vreq_dly & ~mem_ack_o);
 
-  always @(posedge clk)
-    if      ( if_flush_dly                ) is_cacheable_dly <= is_cacheable;
-    else if (!if_stall || !if_stall_nxt_pc) is_cacheable_dly <= is_cacheable;
-
-  
-  //For now don't support 16bit accesses
-  assign if_parcel_misaligned = |pc[1:0]; //send out together with instruction
+  always @(posedge clk_i,negedge rst_ni)
+    if      (!rst_ni) mem_preq_dly <= 1'b0;
+    else if ( clr_i ) mem_preq_dly <= 1'b0;
+    else              mem_preq_dly <= (mem_preq_i | mem_preq_dly) & ~mem_ack_o;
 
 
-  //delay IF-flush
-  always @(posedge clk,negedge rstn)
-    if      (!rstn    ) if_flush_dly <= 1'b0;
-    else if (!if_stall) if_flush_dly <= if_flush;
-
-
-  //Register if_nxt_pc
-  always @(posedge clk,negedge rstn)
-    if      (!rstn                        ) pc <= PC_INIT;
-    else if ( if_flush_dly                ) pc <= if_nxt_pc; //if_nxt_pc is updated by if_flush, so valid 1 cycle later
-    else if (!if_stall && !if_stall_nxt_pc) pc <= if_nxt_pc;
-
- 
-  //core TAG value
-  assign core_tag = pc[PHYS_ADDR_SIZE-2 -: TAG_BITS];
-
-  always @(posedge clk)
-    if (!filling) tag_in_core_tag <= core_tag;
-
-
-  /*
-   * + Generate a Tag and Data memory for each way
-   * + Generate a Tag comparison for each way
-   */
-generate
-  for (way=0; way<WAYS; way++)
-  begin: gen_ways
-      //Tag memory
-      rl_ram_1r1w #(
-        .ABITS      ( IDX_BITS        ),
-        .DBITS      ( TAG_STRUCT_BITS ),
-        .TECHNOLOGY ( TECHNOLOGY      ) )
-      tag_ram (
-        .rstn  ( rstn        ),
-        .clk   ( clk         ),
-        .waddr ( tag_widx    ),
-        .we    ( tag_we [way]),
-        .be    ( {(TAG_STRUCT_BITS+7)/8{1'b1}} ),
-        .din   ( tag_in [way][TAG_STRUCT_BITS-1:0]),
-
-        .raddr ( tag_idx    ),
-        .re    ( 1'b1       ),
-        .dout  ( tag_out[way][TAG_STRUCT_BITS-1:0]) );
-
-      //Block memory
-      rl_ram_1r1w #(
-        .ABITS      ( DAT_IDX_BITS ),
-        .DBITS      ( DAT_BITS     ),
-        .TECHNOLOGY ( TECHNOLOGY   ) )
-      data_ram (
-        .rstn  ( rstn             ),
-        .clk   ( clk              ),
-        .waddr ( dat_widx         ),
-        .we    ( dat_we[way]      ),
-        .be    ( dat_be           ),
-        .din   ( biu_do           ),
-
-        .raddr ( dat_idx          ),
-        .re    ( 1'b1             ),
-        .dout  ( dat_out[way]     ) );
-
-      //compare way-tag to TAG;
-      assign way_hit[way] = tag_out[way].valid & (tag_out[way].tag == core_tag);
-
-      //assign way-block
-      //Clear block if not way_hit OR with other ways (implements MUX)
-      if (way == 0)
-        assign way_dat[way] =  dat_out[way] & {DAT_BITS{way_hit[way]}};
-      else
-        assign way_dat[way] = (dat_out[way] & {DAT_BITS{way_hit[way]}}) | way_dat[way -1];
-  end
-endgenerate
-
-  /*
-   * Generate 'hit' and data block
-   */
-  assign cache_hit = |way_hit;
-  assign cache_dat = way_dat[WAYS-1];
-
-  //used by LRU algorithm, to update 'tag' after a cache-hit (read tag, then update)
-  always @(posedge clk)
-    dcache_hit <= cache_hit;
-
-
-  /*
-   * Statemachines
-   */
-  always @(posedge clk, negedge rstn)
-    if (!rstn) hold_bu_cacheflush <= 1'b0;
-    else       hold_bu_cacheflush <= ~flushing & (bu_cacheflush | hold_bu_cacheflush);
-
-  always @(posedge clk, negedge rstn)
-    if (!rstn) hold_if_flush <= 1'b0;
-    else       hold_if_flush <= if_flush | ( hold_if_flush & (filling | if_stall));
-
-
-  //Write Statemachine
-  always @(posedge clk, negedge rstn)
-    if (!rstn)
+  //register memory signals
+  always @(posedge clk_i)
+    if (mem_vreq_i)
     begin
-        wr_state <= FLUSH;
-        flushing <= 1'b1;
-        filling  <= 1'b0;
+        mem_vadr_dly <= mem_vadr_i;
+        mem_be_dly   <= mem_be;
+        mem_d_dly    <= mem_d_i;
+    end
+
+  always @(posedge clk_i)
+    if (mem_preq_i) mem_padr_dly <= mem_padr_i;
+
+
+  //extract index bits from virtual address(es)
+  assign vadr_idx     = mem_vadr_i  [BLK_OFF_BITS +: IDX_BITS];
+  assign vadr_dly_idx = mem_vadr_dly[BLK_OFF_BITS +: IDX_BITS];
+  assign padr_idx     = mem_padr_i  [BLK_OFF_BITS +: IDX_BITS];
+  assign padr_dly_idx = mem_padr_dly[BLK_OFF_BITS +: IDX_BITS];
+
+
+  //extract core_tag from physical address
+  assign core_tag = mem_padr_i[XLEN-1 -: TAG_BITS];
+
+
+  //hold core_tag during filling. Prevents new mem_req (during fill) to mess up the 'tag' value
+  always @(posedge clk_i)
+    if (!filling) core_tag_hold <= core_tag;
+
+
+  //hold flush until ready to service it
+  always @(posedge clk_i, negedge rst_ni)
+    if (!rst_ni) hold_flush <= 1'b0;
+    else         hold_flush <= ~flushing & (flush_i | hold_flush);
+
+
+  //State Machine
+  always @(posedge clk_i, negedge rst_ni)
+    if (!rst_ni)
+    begin
+        memfsm_state <= ARMED;
+        flushing     <= 1'b0;
+        filling      <= 1'b0;
+        biucmd       <= NOP;
     end
     else
-      case (wr_state)
-        FLUSH      : if (~|cnt)
-                     begin
-                         wr_state <= dcflush_rdy ? ARMED : WAIT4DCACHE;
-                         flushing <= 1'b0;
-                         filling  <= 1'b0;
-                     end
+    unique case (memfsm_state)
+       ARMED        : if (flush_i || hold_flush)
+                      begin
+                          memfsm_state <= FLUSH;
+                          flushing     <= 1'b1;
+                      end
+                      else if (mem_vreq_dly && !cache_hit && (mem_preq_i || mem_preq_dly) ) //it takes 1 cycle to read TAG
+                      begin
+                          //Load way
+                          memfsm_state <= WAIT4BIUCMD0;
+                          biucmd       <= READ_WAY;
+                          filling      <= 1'b1;
+                      end
+                      else
+                      begin
+                          biucmd <= NOP;
+                      end
 
-        WAIT4DCACHE: if (dcflush_rdy)
-                     begin
-                         wr_state <= ARMED;
-                         flushing <= 1'b0;
-                         filling  <= 1'b0;
-                     end
+       FLUSH        : if (flushrdy_i) 
+                      begin
+                          memfsm_state <= RECOVER; //allow to read new tag_idx
+                          flushing     <= 1'b0;
+                      end
 
-        ARMED      : if (bu_cacheflush || hold_bu_cacheflush)
-                     begin
-                         wr_state <= FLUSH;
-                         flushing <= 1'b1;
-                         filling  <= 1'b0;
-                     end
-                     else if (!cache_hit && is_cacheable_dly && !if_flush && !if_flush_dly)
-                     begin
-                         wr_state <= FILL;
-                         flushing <= 1'b0;
-                         filling  <= 1'b1;
-                     end
+        WAIT4BIUCMD0: if (biufsm_err)
+                      begin
+                          memfsm_state <= vadr_idx != tag_idx_hold ? RECOVER : ARMED;
+                          biucmd       <= NOP;
+                          filling      <= 1'b0;
+                      end
+                      else if (biufsm_ack)
+                      begin
+                          memfsm_state <= vadr_idx != tag_idx_hold ? RECOVER : ARMED;
+                          biucmd       <= NOP;
+                          filling      <= 1'b0;
+                      end
 
-        FILL       : if (bu_cacheflush || hold_bu_cacheflush)
-                     begin
-                         wr_state <= FLUSH;
-                         flushing <= 1'b1;
-                         filling  <= 1'b0;
-                     end
-                     else if (~|cnt & biu_rack) //TODO: pre-read 1 line
-                     begin
-                         wr_state <= ARMED;
-                         flushing <= 1'b0;
-                         filling  <= 1'b0;
-                     end
-
-        default    : begin //OOPS
-                         wr_state <= FLUSH;
-                         flushing <= 1'b1;
-                         filling  <= 1'b0;
-                     end
-      endcase
-
-
-
-  //Random generator for RANDOM replacement algorithm
-  always @(posedge clk, negedge rstn)
-    if      (!rstn   ) way_random <= 'h0;
-    else if (!filling) way_random <= {way_random, way_random[19] ~^ way_random[16]};
-
-
-generate
-  //Fix way-select for Direct Mapped cache (WAYS=1)
-  if (WAYS == 1)
-    assign fill_way_select_rnd = 1;
-  else
-    assign fill_way_select_rnd = 1 << way_random[LRU_BITS-1:0];
-endgenerate
-
-
-  //select which way to fill (implement replacement algorithms)
-generate
-  if (REPLACE_ALG == 0)                             //RANDOM
-    assign fill_way_select = fill_way_select_rnd;
-  else                                              //FIFO + LRU
-    for (way=0; way<WAYS; way++)
-    begin: gen_way_select
-      if (way == 0)
-        assign fill_way_select[way] =  ~tag_out[way].valid | ~|tag_out[way].lru;
-      else
-        assign fill_way_select[way] = (~tag_out[way].valid | ~|tag_out[way].lru) & ~fill_way_select[way-1];
-    end
-endgenerate
-
-
-  //generate Write Enable signals
-generate
-  for (way=0; way<WAYS; way++)
-  begin: gen_way_we
-      if      (REPLACE_ALG == 0) //Random
-        assign tag_we[way] = flushing | (filling & fill_way_select[way] & biu_rack & ~|cnt);  //update way being filled
-      else if (REPLACE_ALG == 1) //FIFO
-        assign tag_we[way] = flushing | (filling & biu_rack & (~|cnt));                       //update all ways upon filling
-      else if (REPLACE_ALG == 2) //LRU
-        assign tag_we[way] = flushing | (filling & biu_rack & (~|cnt)) | dcache_hit;          //update all ways upon filling and reading (1 cycle later)
-
-      assign dat_we[way] = filling & fill_way_select[way] & biu_rack;
-  end
-endgenerate
-
-
-  //generate Dat Byte-Enable
-  assign dat_be = PARCEL_SIZE > XLEN ? {XLEN/8{1'b1}} << biu_adro[DAT_IDX_LSB-1:0] : {DAT_BITS/8{1'b1}};
-
-
-
-  //generate Index
-  assign tag_idx = (if_stall || if_stall_nxt_pc) ? pc[ BLK_OFF_BITS +: IDX_BITS ] : if_nxt_pc[ BLK_OFF_BITS +: IDX_BITS ];
-
-  always_comb
-    case (wr_state)
-      FLUSH  : tag_widx = cnt;
-      FILL   : tag_widx = biu_adro [ BLK_OFF_BITS +: IDX_BITS ];
-      default: tag_widx = 'hx; //don't care
-  endcase
-
-   assign dat_widx = biu_adro [ DAT_IDX_LSB +: DAT_IDX_BITS ];
-//  assign dat_idx  = if_stall_nxt_pc ? pc[ DAT_IDX_LSB +: DAT_IDX_BITS ] : if_nxt_pc[ DAT_IDX_LSB +: DAT_IDX_BITS ];
-  assign dat_idx  = (if_stall || if_stall_nxt_pc) ? pc[ DAT_IDX_LSB +: DAT_IDX_BITS ] : if_nxt_pc[ DAT_IDX_LSB +: DAT_IDX_BITS ];
-
-
-/*
-initial
-begin
-   $display ("WAYS        : %0d", WAYS);
-   $display ("LRU_BITS    : %0d", LRU_BITS);
-   $display ("BLK_OFF_BITS: %0d", BLK_OFF_BITS);
-   $display ("SETS        : %0d", SETS        );
-   $display ("IDX_BITS    : %0d", IDX_BITS    );
-   $display ("tag_idx[%0d:%0d]\n", BLK_OFF_BITS+IDX_BITS-1, BLK_OFF_BITS);
-
-   $display ("DAT_IDX_LSB : %0d", DAT_IDX_LSB );
-   $display ("DAT_IDX_BITS: %0d", DAT_IDX_BITS);
-   $display ("dat_idx[%0d:%0d]\n", DAT_IDX_LSB+DAT_IDX_BITS-1, DAT_IDX_LSB);
-
-   $display ("TAG_BITS: %0d", TAG_BITS);
-   $display ("TAG[%0d:%0d]", XLEN-1, XLEN-TAG_BITS);
- 
-end
-*/
-
-  //generate TAG data
-generate
-  for (way=0; way<WAYS; way++)
-  begin: gen_tag
-      if      (REPLACE_ALG == 0) //random
-      begin
-          assign tag_in[way].valid = ~flushing;
-          assign tag_in[way].lru   = 'h0;
-          assign tag_in[way].tag   = tag_in_core_tag;
-      end
-      else if (REPLACE_ALG == 1) //FIFO
-      begin
-          assign tag_in[way].valid = ~flushing & (tag_out[way].valid | fill_way_select[way]);
-          assign tag_in[way].lru   = fill_way_select[way] ? {LRU_BITS{1'b1}} : tag_out[way].lru -1;
-          assign tag_in[way].tag   = fill_way_select[way] ? tag_in_core_tag         : tag_out[way].tag;
-      end
-      else if (REPLACE_ALG == 2) //LRU
-      begin
-          //LRU writes during reads too. So update 'valid' only while filling
-          assign tag_in[way].valid = ~flushing & ( tag_out[way].valid | (filling & fill_way_select[way]) );
-
-          //LRU
-          assign tag_in[way].lru = filling ? fill_way_select[way] ? {LRU_BITS{1'b1}} : new_lru( tag_out[way].lru, tag_out[ onehot2int(fill_way_select) ].lru )
-                                           : way_hit[way]         ? {LRU_BITS{1'b1}} : new_lru( tag_out[way].lru, tag_out[ onehot2int(way_hit        ) ].lru );
-
-          assign tag_in[way].tag = fill_way_select[way] ? tag_in_core_tag : tag_out[way].tag;
-      end
-  end //next way
-endgenerate
-
-
-
-  /*
-   * External Interface
-   * TODO: Hit under Miss
-   */
-  always_comb
-    case (wr_state)
-        ARMED   : begin
-                     biu_stb         = is_cacheable     ? ~(if_flush | if_flush_dly) & ~cache_hit          //TODO: shouldn't this be is_cacheble_dly??
-                                                        : ~if_flush & ~if_stall & ~biu_fifo[1].valid;
-                     if_stall_nxt_pc = is_cacheable     ? ~(if_flush | if_flush_dly) & ~cache_hit
-                                                        : ~biu_stb_ack | biu_fifo[1].valid;
-                     if_parcel_valid = is_cacheable_dly ? ~(if_flush | if_flush_dly) &  cache_hit
-                                                        : ~(if_flush | if_flush_dly) & ~if_stall & biu_fifo[0].valid;
-                     if_parcel_pc    = is_cacheable_dly ? pc
-                                                        : { {XLEN-PHYS_ADDR_SIZE{1'b0}},biu_fifo[0].adr};
-                     nxt_cnt         = !cache_hit ? BURST_SIZE -1 : cnt;
-                 end
-
-        FLUSH  : begin
-                     biu_stb         = is_cacheable ? 1'b0
-                                                    : (~if_flush & ~if_stall) & ~biu_fifo[1].valid;
-                     if_stall_nxt_pc = is_cacheable ? |cnt
-                                                    : ~biu_stb_ack | biu_fifo[1].valid;
-                     if_parcel_valid = is_cacheable ? 1'b0
-                                                    : ~(if_flush | if_flush_dly) & ~if_stall & biu_fifo[0].valid;
-                     if_parcel_pc    = { {XLEN-PHYS_ADDR_SIZE{1'b0}},biu_fifo[0].adr};
-                     nxt_cnt         = cnt -1;
-                 end
-
-        FILL   : begin
-                     biu_stb         = 1'b0;
-                     //TODO: if_stall_nxt_pc: what if if_nxt_pc is non-cacheable??
-                     if_stall_nxt_pc = ~(~if_flush_dly & biu_rack & (biu_adro == pc)) & (hold_if_flush ? |cnt : 1'b1);
-                     if_parcel_valid = ~(if_flush | if_flush_dly) &  (biu_rack & (biu_adro == pc));
-                     if_parcel_pc    = { {XLEN-PHYS_ADDR_SIZE{1'b0}},biu_adro};
-                     nxt_cnt         = (bu_cacheflush | hold_bu_cacheflush) ? {IDX_BITS{1'b1}} : biu_rack ? cnt -1 : cnt;
-                 end
-
-        default: begin
-                     biu_stb         = 1'b0;
-                     if_stall_nxt_pc = 1'b1;
-                     if_parcel_valid = 1'b0;
-                     if_parcel_pc    = { {XLEN-PHYS_ADDR_SIZE{1'b0}},biu_adro};
-                     nxt_cnt         = cnt;
-                 end
+        RECOVER     : begin
+                          //Allow DATA memory read after writing/filling
+                          memfsm_state <= ARMED;
+                          biucmd       <= NOP;
+                          filling      <= 1'b0;
+                      end
     endcase
 
 
-  always @(posedge clk,negedge rstn)
-    if (!rstn) cnt <= {IDX_BITS{1'b1}};
-    else       cnt <= nxt_cnt;
+  //address check, used in a few places
+  assign biu_adro_eq_cache_adr_dly = (biu_adro_i[PLEN-1:BURST_LSB] == mem_padr_i  [PLEN-1:BURST_LSB]);
 
 
-  always @(posedge clk,negedge rstn)
-    if (!rstn) if_stall_nxt_pc_dly <= 1'b0;
-    else       if_stall_nxt_pc_dly <= if_stall_nxt_pc;
+  //signal downstream that data is ready
+  always_comb
+    unique case (memfsm_state)
+      ARMED       : mem_ack_o = mem_vreq_dly & (mem_preq_i | mem_preq_dly) & cache_hit;
+      WAIT4BIUCMD0: mem_ack_o = mem_vreq_dly & (mem_preq_i | mem_preq_dly) & biu_ack_i & biu_adro_eq_cache_adr_dly;
+      default     : mem_ack_o = 1'b0;
+    endcase
 
+
+  //signal downstream the BIU reported an error
+  assign mem_err_o = biu_err_i;
+
+
+  //Assign mem_q
+  //biu_q_i and cache_q are XLEN size. If PARCEL_SIZE is smaller, adjust
+  assign parcel_offset = mem_vadr_dly[1 + PARCEL_OFF_BITS : 1]; //[1 +: PARCEL_OFF_BITS] errors out
+
+  always_comb
+    unique case (memfsm_state)
+      WAIT4BIUCMD0: mem_q_o = biu_q_i >> (parcel_offset *16);
+      default     : mem_q_o = cache_q >> (parcel_offset *16);
+    endcase
+
+
+  //----------------------------------------------------------------
+  // End Memory Interface State Machine
+  //----------------------------------------------------------------
+
+
+  //----------------------------------------------------------------
+  // TAG and Data memory
+  //----------------------------------------------------------------
+
+  /* TAG
+   */
+generate
+  for (way=0; way<WAYS; way++)
+  begin: gen_ways_tag
+      //TAG is stored in RAM
+      rl_ram_1rw #(
+        .ABITS      ( IDX_BITS   ),
+        .DBITS      ( TAG_BITS   ),
+        .TECHNOLOGY ( TECHNOLOGY )
+      )
+      tag_ram (
+        .rst_ni ( rst_ni       ),
+        .clk_i  ( clk_i        ),
+        .addr_i ( tag_idx      ),
+        .we_i   ( tag_we [way] ),
+        .be_i   ( {(TAG_BITS+7)/8{1'b1}} ),
+        .din_i  ( tag_in [way].tag ),
+        .dout_o ( tag_out[way].tag )
+      );
+
+      //tag-register for bypass (RAW hazard)
+      always @(posedge clk_i)
+        if (tag_we[way])
+        begin
+            tag_byp_tag[way] <= tag_in[way].tag;
+            tag_byp_idx[way] <= tag_idx;
+        end
+
+
+      //Valid is stored in DFF
+      always @(posedge clk_i, negedge rst_ni)
+        if      (!rst_ni     ) tag_valid[way]          <= 'h0;
+        else if ( flush_i    ) tag_valid[way]          <= 'h0;
+        else if ( tag_we[way]) tag_valid[way][tag_idx] <= tag_in[way].valid;
+
+      assign tag_out[way].valid = tag_valid[way][tag_idx_dly];
+
+
+      //compare way-tag to TAG;
+      assign way_hit[way] = tag_out[way].valid &
+                            (core_tag == (tag_idx_dly == tag_byp_idx[way] ? tag_byp_tag[way] : tag_out[way].tag) );
+  end
+endgenerate
+
+  // Generate 'hit'
+  assign cache_hit = |way_hit; // & mem_vreq_dly;
+
+
+  /* DATA
+   */
+generate
+  for (way=0; way<WAYS; way++)
+  begin: gen_ways_dat
+      rl_ram_1rw #(
+        .ABITS      ( IDX_BITS   ),
+        .DBITS      ( BLK_BITS   ),
+        .TECHNOLOGY ( TECHNOLOGY )
+      )
+      data_ram (
+        .rst_ni ( rst_ni      ),
+        .clk_i  ( clk_i       ),
+        .addr_i ( dat_idx     ),
+        .we_i   ( dat_we[way] ),
+        .be_i   ( dat_be      ),
+        .din_i  ( dat_in      ),
+        .dout_o ( dat_out[way])
+      );
+
+
+      //assign way_q; Build MUX (AND/OR) structure
+      if (way == 0)
+        assign way_q_mux[way] =  dat_out[way] & {BLK_BITS{way_hit[way]}};
+      else
+        assign way_q_mux[way] = (dat_out[way] & {BLK_BITS{way_hit[way]}}) | way_q_mux[way -1];
+  end
+endgenerate
+
+
+  //get requested data (XLEN-size) from way_q_mux(BLK_BITS-size)
+  assign in_biubuffer = mem_preq_dly ? (biu_adri_hold[PLEN-1:BLK_OFF_BITS] == mem_padr_dly[PLEN-1:BLK_OFF_BITS]) & (biu_buffer_valid >> dat_offset)
+                                     : (biu_adri_hold[PLEN-1:BLK_OFF_BITS] == mem_padr_i  [PLEN-1:BLK_OFF_BITS]) & (biu_buffer_valid >> dat_offset);
+
+
+  assign cache_q = (in_biubuffer ? biu_buffer : way_q_mux[WAYS-1]) >> (dat_offset * XLEN);
+
+
+  //----------------------------------------------------------------
+  // END TAG and Data memory
+  //----------------------------------------------------------------
+
+
+  //----------------------------------------------------------------
+  // TAG and Data memory control signals
+  //----------------------------------------------------------------
+
+  //Random generator for RANDOM replacement algorithm
+  always @(posedge clk_i, negedge rst_ni)
+    if      (!rst_ni ) way_random <= 'h0;
+    else if (!filling) way_random <= {way_random, way_random[19] ~^ way_random[16]};
+
+
+  //select which way to fill
+  assign fill_way_select = (WAYS == 1) ? 1 : 1 << way_random[$clog2(WAYS)-1:0];
+
+
+  //FILL / WRITE_WAYS use fill_way_select 1 cycle later
+  always @(posedge clk_i)
+    unique case (memfsm_state)
+      ARMED  : fill_way_select_hold <= fill_way_select;
+      default: ;
+    endcase
+
+
+  //TAG Index
+  always_comb
+    unique case (memfsm_state)
+      //TAG write
+      WAIT4BIUCMD0: tag_idx = tag_idx_hold;
+
+      //TAG read
+      FLUSH       : tag_idx = flush_idx;
+      RECOVER     : tag_idx = mem_vreq_dly ? vadr_dly_idx  //pending access
+                                           : vadr_idx;     //new access
+      default     : tag_idx = vadr_idx;                    //current access
+    endcase
+
+
+  //registered version, for tag_valid
+  always @(posedge clk_i)
+    tag_idx_dly <= tag_idx;
+
+
+  //hold tag-idx; prevent new mem_vreq_i from messing up tag during filling
+  always @(posedge clk_i)
+    unique case (memfsm_state)
+      ARMED   : if (mem_vreq_dly && !cache_hit) tag_idx_hold <= vadr_dly_idx;
+      RECOVER : tag_idx_hold <= mem_vreq_dly ? vadr_dly_idx  //pending access
+                                             : vadr_idx;     //current access
+       default: ;
+    endcase
 
 generate
-  if (XLEN > PARCEL_SIZE)
-      assign if_parcel = filling ? biu_do[ if_parcel_pc[2:1]*16 +: PARCEL_SIZE ] 
-                                 : is_cacheable_dly ? cache_dat[ if_parcel_pc[2:1]*16 +: PARCEL_SIZE ] : biu_fifo[0].dat[ if_parcel_pc[2:1]*16 +: PARCEL_SIZE ] ;
-  else
-      assign if_parcel = filling ? biu_do
-                                 : is_cacheable_dly ? cache_dat : biu_fifo[0].dat;
+  //TAG Write Enable
+  //Update tag during flushing    (clear valid bits)
+  for (way=0; way < WAYS; way++)
+  begin: gen_way_we
+      always_comb
+        unique case (memfsm_state)
+          default: tag_we[way] = filling & fill_way_select_hold[way] & biufsm_ack; 
+        endcase
+  end
+
+
+  //TAG Write Data
+  for (way=0; way < WAYS; way++)
+  begin: gen_tag
+      //clear valid tag during flushing and cache-coherency checks
+      assign tag_in[way].valid = ~flushing;
+
+      assign tag_in[way].tag   = core_tag_hold;
+  end
 endgenerate
 
 
 
+  //Shift amount for data
+  assign dat_offset = mem_vadr_dly[BLK_OFF_BITS-1 -: DAT_OFF_BITS];
 
-  /*
-   * External Interface
-   */
-  assign biu_adri  = ~is_cacheable ? if_nxt_pc[PHYS_ADDR_SIZE -1:0] : pc[PHYS_ADDR_SIZE -1:0];
-  assign biu_be    = {$bits(biu_be){1'b1}};
-  assign biu_lock  = 1'b0;
-  assign biu_we    = 1'b0; //no writes
-  assign biu_di    =  'h0;
+
+  //DAT Byte Enable
+  assign dat_be = {BLK_BITS/8{1'b1}};
+
+
+  //DAT Index
+   always_comb
+     unique case (memfsm_state)
+       ARMED       : dat_idx = vadr_idx;                          //read access
+       RECOVER     : dat_idx = mem_vreq_dly  ? vadr_dly_idx       //read pending cycle
+                                             : vadr_idx;          //read new access
+       default     : dat_idx = tag_idx_hold;
+     endcase
+
+
+  //delayed dat_idx
+  always @(posedge clk_i)
+    dat_idx_dly <= dat_idx;
+
+
+generate
+  //DAT Write Enable
+  for (way=0; way < WAYS; way++)
+  begin: gen_dat_we
+      always_comb
+        unique case (memfsm_state)
+          WAIT4BIUCMD0: dat_we[way] = fill_way_select_hold[way] & biufsm_ack; //write BIU data
+          default     : dat_we[way] = 1'b0;
+        endcase
+  end
+endgenerate
+
+
+  //DAT Write Data
+  always_comb
+    begin
+        dat_in = biu_buffer;                                                          //dat_in = biu_buffer
+        dat_in[ biu_adro_i[BLK_OFF_BITS-1 -: DAT_OFF_BITS] * XLEN +: XLEN] = biu_q_i; //except for last transaction
+    end
+
+   
+  //----------------------------------------------------------------
+  // TAG and Data memory control signals
+  //----------------------------------------------------------------
+
+
+
+  //----------------------------------------------------------------
+  // Bus Interface State Machine
+  //----------------------------------------------------------------
+  assign biu_lock_o = 1'b0;
+  assign biu_prot_o = biu_prot_t'(mem_prot_i | PROT_CACHEABLE);
+
+
+  always @(posedge clk_i, negedge rst_ni)
+    if (!rst_ni)
+    begin
+        biufsm_state <= IDLE;
+    end
+    else
+    begin
+        unique case (biufsm_state)
+          IDLE    : unique case (biucmd)
+                      NOP      : ; //do nothing
+
+                      READ_WAY : begin
+                                     //read a way from main memory
+                                     if (biu_stb_ack_i)
+                                     begin
+                                         biufsm_state <= BURST;
+                                     end
+                                     else
+                                     begin
+                                         //BIU is not ready to start a new transfer
+                                         biufsm_state <= WAIT4BIU;
+                                     end
+                                 end
+
+                      WRITE_WAY: begin
+                                     //write way back to main memory
+                                     if (biu_stb_ack_i)
+                                     begin
+                                         biufsm_state <= BURST;
+                                     end
+                                     else
+                                     begin
+                                         //BIU is not ready to start a new transfer
+                                         biufsm_state <= WAIT4BIU;
+                                     end
+                                 end
+                       endcase
+
+          WAIT4BIU : if (biu_stb_ack_i)
+                     begin
+                         //BIU acknowledged burst transfer
+                         biufsm_state <= BURST;
+                     end
+
+          BURST    : if (biu_err_i || (~|burst_cnt && biu_ack_i))
+                     begin
+                         //write complete
+                         biufsm_state <= IDLE; //TODO: detect if another BURST request is pending, skip IDLE
+                     end
+        endcase
+    end
+
+
+  //write data
+  always @(posedge clk_i)
+    unique case (biufsm_state)
+     IDLE   : begin
+                  biu_buffer       <=  'h0;
+                  biu_buffer_valid <=  'h0;
+              end
+
+     BURST  : begin
+                  if (biu_ack_i)   //latch incoming data when transfer-acknowledged
+                  begin
+                      biu_buffer      [ biu_adro_i[BLK_OFF_BITS-1 -: DAT_OFF_BITS] * XLEN +: XLEN ] <= biu_q_i;
+                      biu_buffer_valid[ biu_adro_i[BLK_OFF_BITS-1 -: DAT_OFF_BITS] ]                <= 1'b1;
+                  end
+              end
+      default: ;
+    endcase
+
+
+
+  //acknowledge burst to memfsm
+  always_comb
+    unique case (biufsm_state)
+      BURST   : biufsm_ack = (~|burst_cnt & biu_ack_i ) | biu_err_i;
+      default : biufsm_ack = 1'b0;
+    endcase
+
+
+  always @(posedge clk_i)
+    unique case (biufsm_state)
+      IDLE  : case (biucmd)
+                READ_WAY : burst_cnt <= {BURST_BITS{1'b1}};
+                WRITE_WAY: burst_cnt <= {BURST_BITS{1'b1}};
+              endcase
+      BURST : if (biu_ack_i) burst_cnt <= burst_cnt -1;
+    endcase
+
+
+  assign biufsm_err = biu_err_i;
+
+
+  //output BIU signals asynchronously for speed reasons. BIU will synchronize ...
+  assign biu_d_o  = 'h0;
+  assign biu_we_o = 1'b0;
 
   always_comb
-    if (!is_cacheable) biu_type = 3'h0; //single access
-    else
-      case(BURST_SIZE)
-         16     : biu_type = 3'b110;    //wrap16
-         8      : biu_type = 3'b100;    //wrap8
-         default: biu_type = 3'b010;    //wrap4
-      endcase
+    unique case (biufsm_state)
+      IDLE    : unique case (biucmd)
+                  NOP       : begin
+                                  biu_stb_o  = 1'b0;
+                                  biu_adri_o =  'hx;
+                              end
 
-  //Instruction cache..
-  assign biu_is_instruction = 1'b1;
-  assign biu_lock           = 1'b0;
+                  READ_WAY  : begin
+                                  biu_stb_o  = 1'b1;
+                                  biu_adri_o = {mem_padr_dly[PLEN-1 : BURST_LSB],{BURST_LSB{1'b0}}};
+                              end
+                endcase
 
-  always @(posedge clk,negedge rstn)
-    if      (!rstn       ) biu_stb_cnt <= 2'h0;
-    else if ( if_flush   ) biu_stb_cnt <= 2'h0;
-    else if ( biu_stb_ack) biu_stb_cnt <= {1'b1,biu_stb_cnt[1]};
+      WAIT4BIU: begin
+                    //stretch biu_*_o signals until BIU acknowledges strobe
+                    biu_stb_o  = 1'b1;
+                    biu_adri_o = biu_adri_hold;
+                end
+
+      BURST   : begin
+                    biu_stb_o  = 1'b0;
+                    biu_adri_o =  'hx; //don't care
+                end
+
+      default : begin
+                    biu_stb_o  = 1'b0;
+                    biu_adri_o =  'hx; //don't care
+                end
+    endcase
 
 
-
-  /*
-   * FIFO
-   */
-  //valid bits
-  always @(posedge clk,negedge rstn)
-    if (!rstn)
+  //store biu_we/adri/d used when stretching biu_stb
+  always @(posedge clk_i)
+    if (biufsm_state == IDLE)
     begin
-        biu_fifo[0].valid <= 1'b0;
-        biu_fifo[1].valid <= 1'b0;
-        biu_fifo[2].valid <= 1'b0;
+        biu_adri_hold <= biu_adri_o;
+        biu_d_hold    <= biu_d_o;
     end
-    else if (!biu_stb_cnt[0])
-    begin
-        biu_fifo[0].valid <= 1'b0;
-        biu_fifo[1].valid <= 1'b0;
-        biu_fifo[2].valid <= 1'b0;
-    end
-    else
-      case ({biu_rack,if_parcel_valid})
-        2'b00: ; //no action
-        2'b10:   //FIFO write
-               case ({biu_fifo[1].valid,biu_fifo[0].valid})
-                 2'b11  : begin
-                              //entry 0,1 full. Fill entry2
-                              biu_fifo[2].valid <= 1'b1;
-                          end
-                 2'b01  : begin
-                              //entry 0 full. Fill entry1, clear entry2
-                              biu_fifo[1].valid <= 1'b1;
-                              biu_fifo[2].valid <= 1'b0;
-                          end
-                 default: begin
-                            //Fill entry0, clear entry1,2
-                            biu_fifo[0].valid <= 1'b1;
-                            biu_fifo[1].valid <= 1'b0;
-                            biu_fifo[2].valid <= 1'b0;
-                        end
-               endcase
-        2'b01: begin  //FIFO read
-                   biu_fifo[0].valid <= biu_fifo[1].valid;
-                   biu_fifo[1].valid <= biu_fifo[2].valid;
-                   biu_fifo[2].valid <= 1'b0;
-               end
-        2'b11: ; //FIFO read/write, no change
-      endcase
 
 
-  //Address & Data
-  always @(posedge clk)
-    case ({biu_rack,if_parcel_valid})
-        2'b00: ;
-        2'b10: case({biu_fifo[1].valid,biu_fifo[0].valid})
-                 2'b11 : begin
-                             //fill entry2
-                             biu_fifo[2].dat <= biu_do;
-                             biu_fifo[2].adr <= biu_adro;
-                         end
-                 2'b01 : begin
-                             //fill entry1
-                             biu_fifo[1].dat <= biu_do;
-                             biu_fifo[1].adr <= biu_adro;
-                         end
-                 default:begin
-                             //fill entry0
-                             biu_fifo[0].dat <= biu_do;
-                             biu_fifo[0].adr <= biu_adro;
-                         end
-               endcase
-        2'b01: begin
-                   biu_fifo[0].dat <= biu_fifo[1].dat;
-                   biu_fifo[0].adr <= biu_fifo[1].adr;
-                   biu_fifo[1].dat <= biu_fifo[2].dat;
-                   biu_fifo[1].adr <= biu_fifo[2].adr;
-                   biu_fifo[2].dat <= 'hx;
-                   biu_fifo[2].adr <= 'hx;
-               end
-        2'b11: casex({biu_fifo[2].valid,biu_fifo[1].valid,biu_fifo[0].valid})
-                 3'b1?? : begin
-                              //fill entry2
-                              biu_fifo[2].dat <= biu_do;
-                              biu_fifo[2].adr <= biu_adro;
+  //transfer size
+  assign biu_size_o = XLEN == 64 ? DWORD : WORD;
 
-                              //push other entries
-                              biu_fifo[0].dat <= biu_fifo[1].dat;
-                              biu_fifo[0].adr <= biu_fifo[1].adr;
-                              biu_fifo[1].dat <= biu_fifo[2].dat;
-                              biu_fifo[1].adr <= biu_fifo[2].adr;
-                          end
-                 3'b01? : begin
-                              //fill entry1
-                              biu_fifo[1].dat <= biu_do;
-                              biu_fifo[1].adr <= biu_adro;
-
-                              //push entry0
-                              biu_fifo[0].dat <= biu_fifo[1].dat;
-                              biu_fifo[0].adr <= biu_fifo[1].adr;
-
-                              //don't care
-                              biu_fifo[2].dat <= 'hx;
-                              biu_fifo[2].adr <= 'hx;
-                         end
-                 default:begin
-                              //fill entry0
-                              biu_fifo[0].dat <= biu_do;
-                              biu_fifo[0].adr <= biu_adro;
-
-                              //don't care
-                              biu_fifo[1].dat <= 'hx;
-                              biu_fifo[1].adr <= 'hx;
-                              biu_fifo[2].dat <= 'hx;
-                              biu_fifo[2].adr <= 'hx;
-                         end
-               endcase
-      endcase
-
+  //burst length
+  always_comb
+    unique case(BURST_SIZE)
+       16     : biu_type_o = WRAP16;
+       8      : biu_type_o = WRAP8;
+       default: biu_type_o = WRAP4;
+    endcase
 endmodule
 
 

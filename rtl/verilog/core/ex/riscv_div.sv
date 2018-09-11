@@ -1,64 +1,61 @@
-/////////////////////////////////////////////////////////////////
-//                                                             //
-//    ██████╗  ██████╗  █████╗                                 //
-//    ██╔══██╗██╔═══██╗██╔══██╗                                //
-//    ██████╔╝██║   ██║███████║                                //
-//    ██╔══██╗██║   ██║██╔══██║                                //
-//    ██║  ██║╚██████╔╝██║  ██║                                //
-//    ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝                                //
-//          ██╗      ██████╗  ██████╗ ██╗ ██████╗              //
-//          ██║     ██╔═══██╗██╔════╝ ██║██╔════╝              //
-//          ██║     ██║   ██║██║  ███╗██║██║                   //
-//          ██║     ██║   ██║██║   ██║██║██║                   //
-//          ███████╗╚██████╔╝╚██████╔╝██║╚██████╗              //
-//          ╚══════╝ ╚═════╝  ╚═════╝ ╚═╝ ╚═════╝              //
-//                                                             //
-//    RISC-V                                                   //
-//    Divider Unit                                             //
-//                                                             //
-//    Implements Non-Performing Restoring Division             //
-//                                                             //
-/////////////////////////////////////////////////////////////////
-//                                                             //
-//             Copyright (C) 2017 ROA Logic BV                 //
-//             www.roalogic.com                                //
-//                                                             //
-//    Unless specifically agreed in writing, this software is  //
-//  licensed under the RoaLogic Non-Commercial License         //
-//  version-1.0 (the "License"), a copy of which is included   //
-//  with this file or may be found on the RoaLogic website     //
-//  http://www.roalogic.com. You may not use the file except   //
-//  in compliance with the License.                            //
-//                                                             //
-//    THIS SOFTWARE IS PROVIDED "AS IS" AND WITHOUT ANY        //
-//  EXPRESS OF IMPLIED WARRANTIES OF ANY KIND.                 //
-//  See the License for permissions and limitations under the  //
-//  License.                                                   //
-//                                                             //
-/////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////
+//   ,------.                    ,--.                ,--.          //
+//   |  .--. ' ,---.  ,--,--.    |  |    ,---. ,---. `--' ,---.    //
+//   |  '--'.'| .-. |' ,-.  |    |  |   | .-. | .-. |,--.| .--'    //
+//   |  |\  \ ' '-' '\ '-'  |    |  '--.' '-' ' '-' ||  |\ `--.    //
+//   `--' '--' `---'  `--`--'    `-----' `---' `-   /`--' `---'    //
+//                                             `---'               //
+//    RISC-V                                                       //
+//    Division Unit                                                //
+//                                                                 //
+//    Implements Non-Performing Restoring Division                 //
+//                                                                 //
+/////////////////////////////////////////////////////////////////////
+//                                                                 //
+//             Copyright (C) 2017-2018 ROA Logic BV                //
+//             www.roalogic.com                                    //
+//                                                                 //
+//     Unless specifically agreed in writing, this software is     //
+//   licensed under the RoaLogic Non-Commercial License            //
+//   version-1.0 (the "License"), a copy of which is included      //
+//   with this file or may be found on the RoaLogic website        //
+//   http://www.roalogic.com. You may not use the file except      //
+//   in compliance with the License.                               //
+//                                                                 //
+//     THIS SOFTWARE IS PROVIDED "AS IS" AND WITHOUT ANY           //
+//   EXPRESS OF IMPLIED WARRANTIES OF ANY KIND.                    //
+//   See the License for permissions and limitations under the     //
+//   License.                                                      //
+//                                                                 //
+/////////////////////////////////////////////////////////////////////
+
+import riscv_opcodes_pkg::*;
+import riscv_state_pkg::*;
 
 module riscv_div #(
-  parameter XLEN           = 32,
-  parameter INSTR_SIZE     = 32
+  parameter XLEN = 32
 )
 (
-  input                           rstn,
-  input                           clk,
+  input                 rstn,
+  input                 clk,
 
-  input                           ex_stall,
-  output reg                      div_stall,
+  input                 ex_stall,
+  output reg            div_stall,
 
   //Instruction
-  input                           id_bubble,
-  input      [INSTR_SIZE    -1:0] id_instr,
+  input                 id_bubble,
+  input      [ILEN-1:0] id_instr,
 
-  //from ID
-  input      [XLEN          -1:0] opA,
-                                  opB,
+  //Operands
+  input      [XLEN-1:0] opA,
+                        opB,
 
-  //to WB
-  output reg                      div_bubble,
-  output reg [XLEN          -1:0] div_r
+  //From State
+  input      [     1:0] st_xlen,
+
+  //To WB
+  output reg            div_bubble,
+  output reg [XLEN-1:0] div_r
 );
   ////////////////////////////////////////////////////////////////
   //
@@ -92,12 +89,12 @@ module riscv_div #(
   //
   // Variables
   //
-  logic [INSTR_SIZE-1:0] div_instr;
+  logic                    xlen32;
+  logic [ILEN        -1:0] div_instr;
 
-  logic [           6:2] opcode, div_opcode;
-  logic [           2:0] func3,  div_func3;
-  logic [           6:0] func7,  div_func7;
-  logic                  is_rv64;
+  logic [             6:2] opcode, div_opcode;
+  logic [             2:0] func3,  div_func3;
+  logic [             6:0] func7,  div_func7;
 
   //Operand generation
   logic [            31:0] opA32,
@@ -126,8 +123,6 @@ module riscv_div #(
   //
   // Module Body
   //
-  import riscv_pkg::*;
-
 
   /*
    * Instruction
@@ -141,13 +136,12 @@ module riscv_div #(
   assign div_opcode = div_instr[ 6: 2];
 
 
-  assign is_rv64 = (XLEN == 64);
+  assign xlen32     = st_xlen == RV32I;
 
 
   //retain instruction
   always @(posedge clk)
     if (!ex_stall) div_instr <= id_instr;
-//    if (!id_bubble) div_instr <= id_instr;
 
 
   /*
@@ -196,8 +190,9 @@ module riscv_div #(
            * Setup dividor registers
            */
           ST_CHK: if (!ex_stall && !id_bubble)
-                    unique casex ( {func7,func3,opcode} )
-                       DIV    : if (~|opB)
+                    unique casex ( {xlen32,func7,func3,opcode} )
+                       {1'b?,DIV  } :
+                                if (~|opB)
                                 begin //signed divide by zero
                                     div_r      <= {XLEN{1'b1}}; //=-1
                                     div_bubble <= 1'b0;
@@ -222,7 +217,8 @@ module riscv_div #(
                                     b         <= abs(opB);
                                  end
 
-                       DIVW   : if (~|opB32)
+                       {1'b0,DIVW } :
+                                if (~|opB32)
                                 begin //signed divide by zero
                                     div_r      <= {XLEN{1'b1}}; //=-1
                                     div_bubble <= 1'b0;
@@ -247,7 +243,8 @@ module riscv_div #(
                                     b         <= abs( sext32(opB32) );
                                 end
 
-                       DIVU   : if (~|opB)
+                       {1'b?,DIVU } :
+                                if (~|opB)
                                 begin //unsigned divide by zero
                                     div_r      <= {XLEN{1'b1}}; //= 2^XLEN -1
                                     div_bubble <= 1'b0;
@@ -266,7 +263,8 @@ module riscv_div #(
                                     b         <= opB;
                                 end
 
-                       DIVUW  : if (~|opB32)
+                       {1'b0,DIVUW} :
+                                if (~|opB32)
                                 begin //unsigned divide by zero
                                     div_r      <= {XLEN{1'b1}}; //= 2^XLEN -1
                                     div_bubble <= 1'b0;
@@ -285,7 +283,8 @@ module riscv_div #(
                                     b         <= { {XLEN-32{1'b0}}, opB32 };
                                 end
 
-                       REM    : if (~|opB)
+                       {1'b?,REM  } :
+                                if (~|opB)
                                 begin //signed divide by zero
                                     div_r      <= opA;
                                     div_bubble <= 1'b0;
@@ -310,7 +309,8 @@ module riscv_div #(
                                     b         <= abs(opB);
                                 end
 
-                       REMW   : if (~|opB32)
+                       {1'b0,REMW } :
+                                if (~|opB32)
                                 begin //signed divide by zero
                                     div_r      <= sext32(opA32);
                                     div_bubble <= 1'b0;
@@ -335,7 +335,8 @@ module riscv_div #(
                                     b         <= abs( sext32(opB32) );
                                 end
 
-                       REMU   : if (~|opB)
+                       {1'b?,REMU } :
+                                if (~|opB)
                                 begin //unsigned divide by zero
                                     div_r      <= opA;
                                     div_bubble <= 1'b0;
@@ -354,7 +355,8 @@ module riscv_div #(
                                     b         <= opB;
                                 end
 
-                       REMUW  : if (~|opB32)
+                       {1'b0,REMUW} :
+                                if (~|opB32)
                                 begin
                                     div_r      <= sext32(opA32);
                                     div_bubble <= 1'b0;
