@@ -5,7 +5,7 @@
 ##   |  |\  \ ' '-' '\ '-'  |    |  '--.' '-' ' '-' ||  |\ `--.    ##
 ##   `--' '--' `---'  `--`--'    `-----' `---' `-   /`--' `---'    ##
 ##                                             `---'               ##
-##   Modelsim/Questasim Makefile                                   ##
+##   Regression Test Makefile                                      ##
 ##                                                                 ##
 #####################################################################
 ##                                                                 ##
@@ -41,7 +41,7 @@
 all: regression
 
 SIMULATORS = ncsim vcs msim riviera
-SIM        = riviera_waves
+SIM        = riviera
 SIMWAVES   = $(addsuffix _waves, $(SIMULATORS))
 
 MS     = -s
@@ -57,13 +57,13 @@ TST_SRC_DIR=$(ROOT_DIR)/../bench/tests/regression
 ##########################################################################
 #REGRESSION_MEM_LATENCY      = 0 1 2 3 4 5 7 8 15
 #REGRESSION_MEM_LATENCY      = 0 1 3 8
-REGRESSION_MEM_LATENCY     = 0
+REGRESSION_MEM_LATENCY     = 0 1 3 8 
 #REGRESSION_XLEN             = 32 64
 REGRESSION_XLEN             = 64
 #REGRESSION_WRITEBUFFER_SIZE = 0 2 8
-REGRESSION_WRITEBUFFER_SIZE = 0
-REGRESSION_ICACHE_SIZE = 4
-REGRESSION_DCACHE_SIZE = 4
+REGRESSION_WRITEBUFFER_SIZE = 0 
+REGRESSION_ICACHE_SIZE = 0 4
+REGRESSION_DCACHE_SIZE = 0 4
 REGRESSION_MULT_LATENCY = 3 2 1 0
 #REGRESSION_MULT_LATENCY = 2
 
@@ -223,6 +223,8 @@ DEFINES:=$(DEFINES)
 
 shell=/bin/sh
 
+bluepearl_tcl=bps/roalogic.settings.tcl bps/bluepearl.runme.tcl
+
 
 ##########################################################################
 #
@@ -272,12 +274,15 @@ $(SIMWAVES): %_waves : %/Makefile $(TB_PREREQ)
 	LOG=$(LOG) PARAMS="$(PARAMS)"
 
 
-.PHONY: bps
-bps:
+.PHONY: bps bps_gui
+bps: % : %/Makefile $(bluepearl_tcl)
 	@$(MAKE) $(MS) -C $@ $@ 				\
-	VLOG="$(abspath $(RTL_VLOG))"				\
-	VHDL="$(abspath $(RTL_VHDL))"				\
+	VLOG="$(RTL_VLOG)"					\
+	VHDL="$(RTL_VHDL)"					\
 	TOP=$(RTL_TOP)
+
+bps_gui: %_gui : %/Makefile
+	@$(MAKE) $(MS) -C $* gui TOP=$(RTL_TOP)
 
 
 .PHONY: clean distclean mrproper
@@ -287,7 +292,7 @@ clean:
 	done
 
 distclean:
-	@rm -rf $(SIMULATORS) Makefile.include $(TB_PREREQ)
+	@rm -rf $(SIMULATORS) bps Makefile.include $(TB_PREREQ)
 
 mrproper:
 	@rm -rf *
@@ -304,6 +309,9 @@ Makefile.include:
 %/Makefile:
 	@mkdir -p $*
 	@cp ../bin/sims/Makefile.$* $@
+
+$(bluepearl_tcl):
+	@cp ../bin/sims/$(@F) $@
 
 $(TB_PREREQ):
 	@cp ../bin/$@ $@
