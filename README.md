@@ -95,4 +95,4 @@ Released under the RoaLogic [Non-Commercial License](/LICENSE.md)
 ## Dependencies 
 Requires the Roa Logic [Memories IPs](https://github.com/RoaLogic/memory) and [AHB3Lite Package](https://github.com/RoaLogic/ahb3lite_pkg). These are included as submodules. 
 
-After cloning the RV12 git repository, perform a 'git submodule init' to download the submodules.
+After cloning the RV12 git repository, perform a `git submodule init` to download the submodules.
