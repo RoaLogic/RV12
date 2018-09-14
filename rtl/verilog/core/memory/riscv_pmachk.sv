@@ -202,8 +202,6 @@ generate
                                                                           : pma_cfg_i[i].w;
       assign pmacfg[i].x        = pma_cfg_i[i].mem_type == MEM_TYPE_EMPTY ? 1'b0
                                                                           : pma_cfg_i[i].x;
-      assign pmacfg[i].w        = pma_cfg_i[i].mem_type == MEM_TYPE_EMPTY ? 1'b0
-                                                                          : pma_cfg_i[i].w;
       assign pmacfg[i].c        = pma_cfg_i[i].mem_type == MEM_TYPE_MAIN  ? pma_cfg_i[i].c
                                                                           : 1'b0;
       assign pmacfg[i].cc       = pma_cfg_i[i].cc & pmacfg[i].c;
