@@ -108,7 +108,7 @@ module riscv_dmem_ctrl #(
   // Constants
   //
 
-  localparam MUX_PORTS = 2;
+  localparam MUX_PORTS = (CACHE_SIZE > 0) ? 2 : 1;
 
   localparam EXT       = 0,
              CACHE     = 1,
@@ -444,11 +444,10 @@ generate
   end
   else  //No cache
   begin
-      assign biu_stb[CACHE] = 1'b0;
-      assign cache_q        =  'h0;
-      assign cache_ack      = 1'b0;
-      assign cache_err      = 1'b0;
-      assign dcflush_rdy_o  = 1'b1;
+      assign cache_q         =  'h0;
+      assign cache_ack       = 1'b0;
+      assign cache_err       = 1'b0;
+      assign dcflush_rdy_o   = 1'b1;
   end
 
 
@@ -521,9 +520,9 @@ endgenerate
   /* Hookup BIU mux
    */
   biu_mux #(
-    .ADDR_SIZE ( PLEN ),
-    .DATA_SIZE ( XLEN ),
-    .PORTS     ( 2    )
+    .ADDR_SIZE ( PLEN      ),
+    .DATA_SIZE ( XLEN      ),
+    .PORTS     ( MUX_PORTS )
   )
   biu_mux_inst (
     .rst_ni        ( rst_ni        ),
