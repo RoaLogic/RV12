@@ -110,7 +110,7 @@ module riscv_imem_ctrl #(
 
   localparam TID_SIZE  = 3;
 
-  localparam MUX_PORTS = 2;
+  localparam MUX_PORTS = (CACHE_SIZE > 0) ? 2 : 1;
 
   localparam EXT       = 0,
              CACHE     = 1,
@@ -167,8 +167,6 @@ module riscv_imem_ctrl #(
   biu_size_t       psize;
   logic            plock;
   biu_prot_t       pprot;
-  logic            pwe;
-  logic [XLEN-1:0] pd;
   logic            page_fault;
   
 
@@ -182,10 +180,6 @@ module riscv_imem_ctrl #(
 
   //from PMP check
   logic            pmp_exception;
-
-
-  //all exceptions
-  logic            exception;
 
 
   //From Cache Controller Core
@@ -329,16 +323,16 @@ always @(posedge clk_i)
     .vsize_i      ( buf_size     ),
     .vlock_i      ( buf_lock     ),
     .vprot_i      ( buf_prot     ),
-    .vwe_i        ( buf_we       ),
-    .vd_i         ( buf_d        ),
+    .vwe_i        ( 1'b0         ), //instructions only read
+    .vd_i         ( {XLEN{1'b0}} ), //no write data
 
     .preq_o       ( preq         ),
     .padr_o       ( padr         ),
     .psize_o      ( psize        ),
     .plock_o      ( plock        ),
     .pprot_o      ( pprot        ),
-    .pwe_o        ( pwe          ),
-    .pd_o         ( pd           ),
+    .pwe_o        (              ),
+    .pd_o         (              ),
     .pq_i         ( {XLEN{1'b0}} ),
     .pack_i       ( 1'b0         ),
 
@@ -368,7 +362,7 @@ always @(posedge clk_i)
     .adr_i             ( padr            ),
     .size_i            ( psize           ),
     .lock_i            ( plock           ),
-    .we_i              ( pwe             ),
+    .we_i              ( 1'b0            ),
 
     //Output
     .pma_o             (                 ),
@@ -396,7 +390,7 @@ always @(posedge clk_i)
     .req_i         ( preq          ),  //Memory access request
     .adr_i         ( padr          ),  //Physical Memory address (i.e. after translation)
     .size_i        ( psize         ),  //Transfer size
-    .we_i          ( pwe           ),  //Read/Write enable
+    .we_i          ( 1'b0          ),  //Read/Write enable
 
     .exception_o   ( pmp_exception )
   );
@@ -433,8 +427,6 @@ generate
         .mem_size_i      ( buf_size         ),
         .mem_lock_i      ( buf_lock         ),
         .mem_prot_i      ( buf_prot         ),
-        .mem_we_i        ( buf_we           ),
-        .mem_d_i         ( buf_d            ),
         .mem_q_o         ( cache_q          ),
         .mem_ack_o       ( cache_ack        ),
         .mem_err_o       ( cache_err        ),
@@ -460,10 +452,9 @@ generate
   end
   else  //No cache
   begin
-      assign biu_stb[CACHE] = 1'b0;
-      assign cache_q        =  'h0;
-      assign cache_ack      = 1'b0;
-      assign cache_err      = 1'b0;
+      assign cache_q         =  'h0;
+      assign cache_ack       = 1'b0;
+      assign cache_err       = 1'b0;
   end
 
 
@@ -508,8 +499,8 @@ generate
     .mem_type_i         ( SINGLE            ),
     .mem_lock_i         ( plock             ),
     .mem_prot_i         ( pprot             ),
-    .mem_we_i           ( pwe               ),
-    .mem_d_i            ( pd                ),
+    .mem_we_i           ( 1'b0              ),
+    .mem_d_i            ( {XLEN{1'b0}}      ),
     .mem_adr_ack_o      ( ext_access_ack    ),
     .mem_q_o            ( ext_q             ),
     .mem_ack_o          ( ext_ack           ),
@@ -559,9 +550,9 @@ endgenerate
   /* Hookup BIU mux
    */
   biu_mux #(
-    .ADDR_SIZE ( PLEN ),
-    .DATA_SIZE ( XLEN ),
-    .PORTS     ( 2    )
+    .ADDR_SIZE ( PLEN      ),
+    .DATA_SIZE ( XLEN      ),
+    .PORTS     ( MUX_PORTS )
   )
   biu_mux_inst (
     .rst_ni        ( rst_ni        ),
@@ -658,10 +649,6 @@ endgenerate
   assign misaligned_o   = parcel_queue_q.misaligned;
   assign page_fault_o   = parcel_queue_q.page_fault;
   assign err_o          = parcel_queue_q.error;
-
-
-  //All exceptions
-  assign exception = misaligned_o | err_o | page_fault_o;
 
 endmodule
 
