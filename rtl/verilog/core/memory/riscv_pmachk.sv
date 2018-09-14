@@ -73,10 +73,15 @@ module riscv_pmachk #(
     input biu_size_t size;
 
     case (size)
-      BYTE : size2bytes = 1;
-      HWORD: size2bytes = 2;
-      WORD : size2bytes = 4;
-      DWORD: size2bytes = 8;
+      BYTE   : size2bytes = 1;
+      HWORD  : size2bytes = 2;
+      WORD   : size2bytes = 4;
+      DWORD  : size2bytes = 8;
+      QWORD  : size2bytes = 16;
+      default: begin
+                   size2bytes = -1;
+                   $error ("Illegal biu_size_t");
+               end
     endcase
   endfunction: size2bytes
 
@@ -231,7 +236,7 @@ generate
            * RoaLogic opts to implement this anyways for full flexibility
            * RoaLogic's implementation uses pma[i-1]'s upper bound address
            */
-          TOR    : pma_lb[i] = (i==0) ? 0 : pmacfg[i-1].a != TOR ? pma_ub[i-1] : pma_adr_i[i-1];
+          TOR    : pma_lb[i] = (i==0) ? 0 : pmacfg[i-1].a != TOR ? pma_ub[i-1] : pma_adr_i[i-1][PLEN-2 -1:0];
           NA4    : pma_lb[i] = napot_lb(1'b1, pma_adr_i[i]);
           NAPOT  : pma_lb[i] = napot_lb(1'b0, pma_adr_i[i]);
           default: pma_lb[i] = 'hx;
@@ -240,7 +245,7 @@ generate
       //upper bounds
       always_comb
         unique case (pmacfg[i].a)
-          TOR    : pma_ub[i] = pma_adr_i[i];
+          TOR    : pma_ub[i] = pma_adr_i[i][PLEN-2 -1:0];
           NA4    : pma_ub[i] = napot_ub(1'b1, pma_adr_i[i]);
           NAPOT  : pma_ub[i] = napot_ub(1'b0, pma_adr_i[i]);
           default: pma_ub[i] = 'hx;
