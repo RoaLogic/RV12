@@ -141,9 +141,6 @@ module riscv_top_ahb3lite #(
   //
   // Variables
   //
-  logic                               rstn;
-  logic                               clk; 
-
   logic                               if_stall_nxt_pc;
   logic          [XLEN          -1:0] if_nxt_pc;
   logic                               if_stall,
@@ -210,9 +207,6 @@ module riscv_top_ahb3lite #(
   //
   // Module Body
   //
-
-  assign rstn = HRESETn;
-  assign clk  = HCLK;
 
   /*
    * Instantiate RISC-V core
