@@ -1,0 +1,20 @@
+{signal: [
+  {name: 'clk',           wave: 'P..', period: 4, node: '123'},
+  {name: 'Stage',         wave: '3...4...5...', data:['EX','MEM','WB']},
+  {name: 'ex_data',       wave: 'x3...x......', data: [''], node: '.a.b.....'},
+  {name: 'inside_mem',    wave: 'x....4...x..', data: [''], node: '.....cd...'},
+  {name: 'mem_read_data', wave: 'x......4...x', data: [''], node: '.......ef'},
+  {name: 'wb_latch_data', wave: 'x........5..', data: [''], node: '.........g'}
+  ],
+ edge: [
+    'q~>a', 'b~c', 'd~e', 'f~g', '2~c', '3~g','1~a'
+  ],
+ head:{
+   text:'MEM Stage Timing Example'
+ },
+ foot:{
+   tock: 0
+ },
+ config: { hscale: 1 }
+
+}

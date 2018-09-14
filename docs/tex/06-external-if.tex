@@ -30,7 +30,7 @@ Interfaces.
 	\texttt{DHADDR}     & \texttt{XLEN} & Output    & Data address\tabularnewline
 	\texttt{DHRDATA}    & \texttt{XLEN} & Input     & Data read data\tabularnewline
 	\texttt{DHWDATA}    & \texttt{XLEN} & Output    & Data write data\tabularnewline
-	\texttt{DHWRITE}    & 1             & Output    & Instruction write\tabularnewline
+	\texttt{DHWRITE}    & 1             & Output    & Data write\tabularnewline
 	\texttt{DHSIZE}     & 3             & Output    & Transfer size\tabularnewline
 	\texttt{DHBURST}    & 3             & Output    & Transfer burst size\tabularnewline
 	\texttt{DHPROT}     & 4             & Output    & Transfer protection level\tabularnewline
@@ -82,7 +82,7 @@ or non-cacheable instruction read.
 
 \begin{longtable}[]{@{}ccp{7cm}@{}}
 	\toprule
-	\texttt{IHSIZE} & Type & Description\tabularnewline
+	IHSIZE & Type & Description\tabularnewline
 	\midrule
 	\endhead
 	\texttt{010}   & Word  & Non-cacheable instruction read. \texttt{XLEN=32}\tabularnewline
@@ -100,7 +100,7 @@ transfer or part of a burst.
 
 \begin{longtable}[]{@{}cll@{}}
 	\toprule
-	\texttt{IHBURST} & Type & Description\tabularnewline
+	IHBURST & Type & Description\tabularnewline
 	\midrule
 	\endhead
 	\texttt{000} & Single & \emph{Not used}\tabularnewline
@@ -145,7 +145,7 @@ Bit\# & Value & Description\tabularnewline
 
 \begin{longtable}[]{@{}cll@{}}
 \toprule
-\texttt{IHTRANS} & Type & Description\tabularnewline
+IHTRANS & Type & Description\tabularnewline
 \midrule
 \endhead
 \texttt{00} & IDLE   & No transfer required\tabularnewline
@@ -209,7 +209,7 @@ fill/write-back or a non-cacheable data transfer.
 
 \begin{longtable}[]{@{}clp{7.5cm}@{}}
 \toprule
-\texttt{DHSIZE} & Type & Description\tabularnewline
+DHSIZE & Type & Description\tabularnewline
 \midrule
 \endhead
 \texttt{000}   & Byte     & Non-cacheable data transfer\tabularnewline
@@ -229,7 +229,7 @@ transfer or part of a burst.
 
 \begin{longtable}[]{@{}ccl@{}}
 \toprule
-\texttt{DHBURST} & Type & Description\tabularnewline
+DHBURST & Type & Description\tabularnewline
 \midrule
 \endhead
 000 & Single & Single transfer. E.g. non-cacheable
@@ -275,7 +275,7 @@ Bit\# & Value & Description\tabularnewline
 
 \begin{longtable}[]{@{}ccl@{}}
 \toprule
-\texttt{DHTRANS} & Type & Description\tabularnewline
+DHTRANS & Type & Description\tabularnewline
 \midrule
 \endhead
 00 & IDLE   & No transfer required\tabularnewline
@@ -310,7 +310,7 @@ transfer completed.
 The RV12 supports multiple external interrupts and is designed to
 operate in conjunction with an external Platform Level Interrupt
 Controller (PLIC) as defined in Chapter 7 of the RISC-V Privilege Level
-specification v1.9.1.
+specification v1.10.
 
 Dedicated pins on the RV12 core present the interrupt to the CPU which
 then expects the Identifier of the Source Interrupt to be presented by
@@ -386,10 +386,10 @@ mode, as defined in Table \ref{tab:external-interrupt-inputs}:
 Interrupt & Priority & Mode Supported\tabularnewline
 \midrule
 \endhead
-EXT\_INT[3] & 3 & Machine Mode\tabularnewline
-EXT\_INT[2] & 2 & Reserved\tabularnewline
-EXT\_INT[1] & 1 & Supervisor Mode\tabularnewline
-EXT\_INT[0] & 0 & User Mode\tabularnewline
+\texttt{EXT\_INT{[}3{]}} & 3 & Machine Mode\tabularnewline
+\texttt{EXT\_INT{[}2{]}} & 2 & Reserved\tabularnewline
+\texttt{EXT\_INT{[}1{]}} & 1 & Supervisor Mode\tabularnewline
+\texttt{EXT\_INT{[}0{]}} & 0 & User Mode\tabularnewline
 \bottomrule
 \caption{External Interrupt Inputs}
 \label{tab:external-interrupt-inputs}
@@ -415,3 +415,159 @@ Notes:
   Conversely, Machine Mode may service interrupts arriving on any of the
   interrupt inputs due to it have the highest priority.
 \end{enumerate}
+
+\section{Physical Memory Protection}\label{phys_mem_protection}
+
+The RISC-V specification defines up to 16 Physical Memory Protection entries that are controled through Software via the PMP Configuration Status Registers. In addition to this software based memory protection, the RV12 adds support for an unlimited number of hardware protected physical memory regions.
+
+The number of these Physically Memory Protected regions is defined by the core parameter \texttt{PMA\_CNT}. The physical areas and the associated attributes are defined via the \texttt{pma\_cfg\_i{[}{]}} and \texttt{pma\_adr\_i{[}{]}} ports.
+
+\begin{longtable}[]{@{}lccl@{}}
+	\toprule
+	Port                & Size          & Direction & Description\tabularnewline
+	\midrule
+	\endhead
+	\texttt{pma\_cfg\_i{[}PMA\_CNT-1..0{]}} & 14            & Input & PMP Configuration Attributes\tabularnewline
+	\texttt{pma\_adr\_i{[}PMA\_CNT-1..0{]}} & \texttt{XLEN} & Input & PMP Address Register\tabularnewline
+
+	\bottomrule
+	\caption{Physical Memory Protection Attribute Ports}
+	\label{tab:pma-ports}
+\end{longtable}
+
+\subsection{pma\_cfg\_i}
+Each \texttt{pma\_cfg\_i} port is a 14 bit input used to set specific attributes for the associated Protected Memory region as defined in Figure \ref{fig:pmacfg} and Table \ref{tab:pmacfg}:
+
+\ifdefined\MARKDOWN
+% Exclude Table
+\else
+\begin{figure}[ht!]
+{\footnotesize
+\begin{center}
+\begin{tabular}{YYIIIIIIIIF}
+\instbitrange{13}{12} &
+\instbitrange{11}{10} &
+\instbit{9} &
+\instbit{8} &
+\instbit{7} &
+\instbit{6} &
+\instbit{5} &
+\instbit{4} &
+\instbit{3} &
+\instbit{2} &
+\instbitrange{1}{0} \\
+\hline
+\multicolumn{1}{|c|}{A} &
+\multicolumn{1}{c|}{AMO} &
+\multicolumn{1}{c|}{r} &
+\multicolumn{1}{c|}{w} &
+\multicolumn{1}{c|}{x} &
+\multicolumn{1}{c|}{c} &
+\multicolumn{1}{c|}{cc} &
+\multicolumn{1}{c|}{ri} &
+\multicolumn{1}{c|}{wi} &
+\multicolumn{1}{c|}{m} &
+\multicolumn{1}{c|}{Mem Type}
+\\
+\hline
+2 & 2 & 1 & 1 & 1 & 1 & 1 & 1 & 1 & 1 & 2 \\
+\end{tabular}
+\end{center}
+}
+\vspace{-0.1in}
+\caption{PMA configuration register format.}
+\label{fig:pmacfg}
+\end{figure}
+\fi
+
+\begin{table*}[ht!]
+\begin{center}
+\begin{tabular}{|c|c|l|}
+\hline
+Bits   & Name   & Description \\
+\hline
+13..12 & A      & Address Mapping \\
+       &        & \enspace 0 = Off: Null region (disabled)  \\
+       &        & \enspace 1 = TOR: Top of range \\
+       &        & \enspace 2 = NA4: Naturally aligned four-byte region \\
+       &        & \enspace 3 = NAPOT: Naturally aligned power-of-two region, $\ge$8 bytes \\
+       &        & \\
+11..10 & AMO    & Atomicity  \\
+       &        & \enspace 0 = None \\
+       &        & \enspace 1 = SWAP \\
+       &        & \enspace 2 = LOGICAL \\
+       &        & \enspace 3 = ARITHMETIC \\
+       &        & \\
+9..2   & Access & Access Capability  \\
+9      & r      & \enspace Readable \\
+8      & w      & \enspace Writeable \\
+7      & x      & \enspace Executable \\
+6      & c      & \enspace Cacheable\\
+5      & cc     & \enspace Cache Coherent \\
+4      & ri     & \enspace Read Idempotent \\
+3      & wi     & \enspace Write Idempotent \\
+2      & m      & \enspace Misaligned Access Support \\
+       &        & \\
+1..0   & Type   & Memory Type \\
+       &        & \enspace 0 = Empty \\
+       &        & \enspace 1 = Main \\
+       &        & \enspace 2 = IO \\
+       &        & \enspace 3 = TCM \\
+\hline
+\end{tabular}
+\end{center}
+\caption{Encoding of PMA Configuration fields.}
+\label{tab:pmacfg}
+\end{table*}
+
+\subsection{pma\_adr\_i}
+
+The PMA address registers are CSRs named \texttt{pmpaddr\textit{n}}, when \textit{n} is an integer between 0 and \texttt{PMA\_CNT-1}.
+Each PMA address register encodes bits 33--2 of a 34-bit physical address for
+RV32, as shown in Figure~\ref{pmaaddr-rv32}.  For RV64, each PMP address
+register encodes bits 55--2 of a 56-bit physical address, as shown in
+Figure~\ref{pmaaddr-rv64}.
+
+\ifdefined\MARKDOWN
+% Exclude Table
+\else
+\begin{figure}[ht!]
+{\footnotesize
+\begin{center}
+\begin{tabular}{@{}J}
+\instbitrange{31}{0} \\
+\hline
+\multicolumn{1}{|c|}{address[33:2] (\warl)} \\
+\hline
+32 \\
+\end{tabular}
+\end{center}
+}
+\vspace{-0.1in}
+\caption{PMA address register format, RV32.}
+\label{pmaaddr-rv32}
+\end{figure}
+
+\begin{figure}[ht!]
+{\footnotesize
+\begin{center}
+\begin{tabular}{@{}F@{}J}
+\instbitrange{63}{54} &
+\instbitrange{53}{0} \\
+\hline
+\multicolumn{1}{|c|}{\wiri} &
+\multicolumn{1}{c|}{address[55:2] (\warl)} \\
+\hline
+32 \\
+\end{tabular}
+\end{center}
+}
+\vspace{-0.1in}
+\caption{PMA address register format, RV64.}
+\label{pmaaddr-rv64}
+\end{figure}
+\fi
+
+Address matching is implemented in the same manner as PMP Configuration Status Register Address Mapping, full details of which are documented in Section \ref{AddressMatching}
+
+
