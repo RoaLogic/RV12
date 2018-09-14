@@ -147,7 +147,7 @@ module biu_ahb3lite #(
   //convert burst type to counter length (actually length -1)
   function [ADDR_SIZE-1:0] nxt_addr;
     input [ADDR_SIZE-1:0] addr;   //current address
-    input [               3:0] hburst; //AHB HBURST
+    input [          2:0] hburst; //AHB HBURST
 
 
     //next linear address
