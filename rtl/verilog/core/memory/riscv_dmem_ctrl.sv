@@ -49,7 +49,7 @@ module riscv_dmem_ctrl #(
 
   parameter TCM_SIZE          = 0,  //KBYTES
 
-  parameter WRITEBUFFER_SIZE = 8,
+  parameter WRITEBUFFER_SIZE  = 8,  //currently not used!!
 
 
 /*
@@ -445,6 +445,7 @@ generate
   else  //No cache
   begin
       assign biu_stb[CACHE] = 1'b0;
+      assign cache_q        =  'h0;
       assign cache_ack      = 1'b0;
       assign cache_err      = 1'b0;
       assign dcflush_rdy_o  = 1'b1;
@@ -460,6 +461,7 @@ generate
   end
   else  //No TCM
   begin
+      assign tcm_q   =  'h0;
       assign tcm_ack = 1'b0;
   end
 
