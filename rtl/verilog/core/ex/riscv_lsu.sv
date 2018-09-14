@@ -137,12 +137,12 @@ module riscv_lsu #(
     begin
         dmem_req   <= 1'b0;
 
-        case (state)
+        unique case (state)
             IDLE : if (!ex_stall)
                    begin
                        if (!id_bubble && ~(|id_exception || |ex_exception || |mem_exception || |wb_exception))
                        begin
-                           case (opcode)
+                           unique case (opcode)
                               OPC_LOAD : begin
                                              dmem_req   <= 1'b1;
                                              lsu_stall  <= 1'b0;
@@ -184,9 +184,9 @@ module riscv_lsu #(
 
   //Memory Control Signals
   always @(posedge clk)
-    case (state)
+    unique case (state)
       IDLE   : if (!id_bubble)
-                 case (opcode)
+                 unique case (opcode)
                    OPC_LOAD : begin
                                   dmem_we   <= 1'b0;
                                   dmem_size <= size;
@@ -199,6 +199,7 @@ module riscv_lsu #(
                                   dmem_adr  <= adr;
                                   dmem_d    <= d;
                               end
+                   default  : ; //do nothing
                  endcase
 
       default: begin
@@ -234,7 +235,7 @@ generate
   if (XLEN==64) //RV64
   begin
     always_comb
-      casex ( {func3,opcode} )
+      casex ( {func7,func3,opcode} ) //func7 is don't care
         LB     : size = BYTE;
         LH     : size = HWORD;
         LW     : size = WORD;
@@ -252,7 +253,7 @@ generate
 
     //memory write data
     always_comb
-      casex ( {func3,opcode} )
+      casex ( {func7,func3,opcode} ) //func7 is don't care
         SB     : d = opB[ 7:0] << (8* adr[2:0]);
         SH     : d = opB[15:0] << (8* adr[2:0]);
         SW     : d = opB[31:0] << (8* adr[2:0]);
@@ -263,7 +264,7 @@ generate
   else //RV32
   begin
     always_comb
-      casex ( {func3,opcode} )
+      casex ( {func7,func3,opcode} ) //func7 is don't care
         LB     : size = BYTE;
         LH     : size = HWORD;
         LW     : size = WORD;
@@ -278,7 +279,7 @@ generate
 
     //memory write data
     always_comb
-      casex ( {func3,opcode} )
+      casex ( {func7,func3,opcode} ) //func7 is don't care
         SB     : d = opB[ 7:0] << (8* adr[1:0]);
         SH     : d = opB[15:0] << (8* adr[1:0]);
         SW     : d = opB;
