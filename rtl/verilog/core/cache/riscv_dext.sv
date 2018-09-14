@@ -49,7 +49,7 @@ module riscv_dext #(
   input  logic                 mem_we_i,
   input  logic     [XLEN -1:0] mem_d_i,
   output logic                 mem_adr_ack_o, //acknowledge address phase
-  output logic                 mem_adr_o,
+  output logic     [PLEN -1:0] mem_adr_o,
   output logic     [XLEN -1:0] mem_q_o,
   output logic                 mem_ack_o,     //acknowledge data transfer
   output logic                 mem_err_o,     //data transfer error
