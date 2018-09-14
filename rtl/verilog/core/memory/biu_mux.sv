@@ -116,7 +116,7 @@ module biu_mux #(
   endfunction: busor
 
 
-  function automatic port_select;
+  function automatic [$clog2(PORTS)-1:0] port_select;
     input req [PORTS];
 
     //default port
