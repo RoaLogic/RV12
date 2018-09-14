@@ -94,8 +94,6 @@ module riscv_icache_core #(
   input  biu_size_t       mem_size_i,
   input                   mem_lock_i,
   input  biu_prot_t       mem_prot_i,
-  input  logic [XLEN-1:0] mem_d_i,
-  input  logic            mem_we_i,
   output logic [PARCEL_SIZE-1:0] mem_q_o,
   output logic            mem_ack_o,
   output logic            mem_err_o,
@@ -234,9 +232,6 @@ module riscv_icache_core #(
   logic      [PLEN        -1:0]           mem_padr_dly;
   logic      [XLEN/8      -1:0]           mem_be,
                                           mem_be_dly;
-  logic      [XLEN        -1:0]           mem_d_dly;
-
-
 
   logic      [TAG_BITS    -1:0]           core_tag,
                                           core_tag_hold;
@@ -338,7 +333,6 @@ module riscv_icache_core #(
     begin
         mem_vadr_dly <= mem_vadr_i;
         mem_be_dly   <= mem_be;
-        mem_d_dly    <= mem_d_i;
     end
 
   always @(posedge clk_i)
