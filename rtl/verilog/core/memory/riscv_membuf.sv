@@ -100,8 +100,8 @@ module riscv_membuf #(
     else if ( clr_i ) access_pending <= 'h0;
     else if ( ena_i )
       unique case ( {req_i,ack_i} )
-         2'b01  : access_pending--;
-         2'b10  : access_pending++;
+         2'b01  : access_pending <= access_pending -1;
+         2'b10  : access_pending <= access_pending +1;
          default: ; //do nothing
       endcase
 
