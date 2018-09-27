@@ -87,7 +87,7 @@ module biu_ahb3lite #(
   //
   // Functions
   //
-  function [2:0] biu_size2hsize;
+  function automatic [2:0] biu_size2hsize;
     input biu_size_t size;
 
     case (size)
@@ -101,41 +101,43 @@ module biu_ahb3lite #(
 
 
   //convert burst type to counter length (actually length -1)
-  function [3:0] biu_type2cnt;
+  function automatic [3:0] biu_type2cnt;
     input biu_type_t biu_type;
 
     case (biu_type)
-      SINGLE: biu_type2cnt =  0;
-      INCR  : biu_type2cnt =  0;
-      WRAP4 : biu_type2cnt =  3;
-      INCR4 : biu_type2cnt =  3;
-      WRAP8 : biu_type2cnt =  7;
-      INCR8 : biu_type2cnt =  7;
-      WRAP16: biu_type2cnt = 15;
-      INCR16: biu_type2cnt = 15;
+      SINGLE : biu_type2cnt =  0;
+      INCR   : biu_type2cnt =  0;
+      WRAP4  : biu_type2cnt =  3;
+      INCR4  : biu_type2cnt =  3;
+      WRAP8  : biu_type2cnt =  7;
+      INCR8  : biu_type2cnt =  7;
+      WRAP16 : biu_type2cnt = 15;
+      INCR16 : biu_type2cnt = 15;
+      default: biu_type2cnt = 4'hx; //OOPS
     endcase
   endfunction: biu_type2cnt
 
 
   //convert burst type to counter length (actually length -1)
-  function [2:0] biu_type2hburst;
+  function automatic [2:0] biu_type2hburst;
     input biu_type_t biu_type;
 
     case (biu_type)
-      SINGLE: biu_type2hburst = HBURST_SINGLE;
-      INCR  : biu_type2hburst = HBURST_INCR;
-      WRAP4 : biu_type2hburst = HBURST_WRAP4;
-      INCR4 : biu_type2hburst = HBURST_INCR4;
-      WRAP8 : biu_type2hburst = HBURST_WRAP8;
-      INCR8 : biu_type2hburst = HBURST_INCR8;
-      WRAP16: biu_type2hburst = HBURST_WRAP16;
-      INCR16: biu_type2hburst = HBURST_INCR16;
+      SINGLE : biu_type2hburst = HBURST_SINGLE;
+      INCR   : biu_type2hburst = HBURST_INCR;
+      WRAP4  : biu_type2hburst = HBURST_WRAP4;
+      INCR4  : biu_type2hburst = HBURST_INCR4;
+      WRAP8  : biu_type2hburst = HBURST_WRAP8;
+      INCR8  : biu_type2hburst = HBURST_INCR8;
+      WRAP16 : biu_type2hburst = HBURST_WRAP16;
+      INCR16 : biu_type2hburst = HBURST_INCR16;
+      default: biu_type2hburst = 3'hx; //OOPS
     endcase
   endfunction: biu_type2hburst
 
 
   //convert burst type to counter length (actually length -1)
-  function [3:0] biu_prot2hprot;
+  function automatic [3:0] biu_prot2hprot;
     input biu_prot_t biu_prot;
 
     biu_prot2hprot  = biu_prot & PROT_DATA       ? HPROT_DATA       : HPROT_OPCODE;
@@ -145,7 +147,7 @@ module biu_ahb3lite #(
 
 
   //convert burst type to counter length (actually length -1)
-  function [ADDR_SIZE-1:0] nxt_addr;
+  function automatic [ADDR_SIZE-1:0] nxt_addr;
     input [ADDR_SIZE-1:0] addr;   //current address
     input [          2:0] hburst; //AHB HBURST
 
@@ -172,7 +174,6 @@ module biu_ahb3lite #(
   logic                 data_ena,
                         ddata_ena;
   logic [DATA_SIZE-1:0] biu_di_dly;
-  logic                 dHWRITE;
 
 
   //////////////////////////////////////////////////////////////////
@@ -273,8 +274,6 @@ module biu_ahb3lite #(
     if      (!HRESETn) ddata_ena <= 1'b0;
     else if ( HREADY ) ddata_ena <= data_ena;
 
-  always @(posedge HCLK)
-    if (HREADY) dHWRITE <= HWRITE;
 
   assign biu_q_o        = HRDATA;
   assign biu_ack_o      = HREADY & ddata_ena;
