@@ -557,7 +557,7 @@ endgenerate
 
 
   //select which way to fill
-  assign fill_way_select = (WAYS == 1) ? 1 : 1 << way_random[$clog2(WAYS)-1:0];
+  assign fill_way_select = (WAYS <= 1) ? 1 : 1 << way_random[$clog2(WAYS)-1:0];
 
 
   //FILL / WRITE_WAYS use fill_way_select 1 cycle later
