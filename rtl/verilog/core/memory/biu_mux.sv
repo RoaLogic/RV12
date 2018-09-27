@@ -133,7 +133,7 @@ module biu_mux #(
   // Variables
   //
 
-  enum logic {IDLE=0,BURST=1} fsm_state;
+  enum logic {IDLE=1'b0,BURST=1'b1} fsm_state;
 
   logic                     pending_req;
   logic [$clog2(PORTS)-1:0] pending_port,
