@@ -149,8 +149,6 @@ module riscv_imem_ctrl #(
   biu_size_t       buf_size;
   logic            buf_lock;
   biu_prot_t       buf_prot;
-  logic            buf_we;
-  logic [XLEN-1:0] buf_d;
 
   logic            nxt_pc_queue_req,
                    nxt_pc_queue_empty,
@@ -241,8 +239,6 @@ always @(posedge clk_i)
       if (buf_req)
       begin
           adr_dly <= buf_adr;
-          d_dly   <= buf_d;
-          we_dly  <= buf_we;
       end
       
       if (mem_ack_o)
@@ -285,7 +281,6 @@ always @(posedge clk_i)
   assign buf_ack  = ext_access_ack | cache_ack | tcm_ack;
   assign buf_size = WORD;
   assign buf_lock = 1'b0;
-  assign buf_we   = 1'b0; //instruction read
   assign buf_prot = biu_prot_t'(PROT_DATA |
                                 st_prv_i == PRV_U ? PROT_USER : PROT_PRIVILEGED);
 
