@@ -29,7 +29,7 @@
 
 
 import riscv_pma_pkg::*;
-import riscv_state_pkg::*; //pmpcfg_a_t;
+import riscv_state_pkg::*; //pmpcfg_a_t; //Quartus doesn't like this
 import biu_constants_pkg::*;
 
 module riscv_pmachk #(
@@ -91,19 +91,26 @@ module riscv_pmachk #(
     input            na4; //special case na4
     input [PLEN-1:2] pmaddr;
 
-    int n;
+    int n, i;
+    bit true;
     logic [PLEN-1:2] mask;
 
     //find 'n' boundary = 2^(n+2) bytes
     n = 0;
     if (!na4)
     begin
-        while (pmaddr[n+2] && (n < XLEN)) n++;
+//        while ((n < $bits(pmaddr)) && (pmaddr[n+2])) n++; //Quartus doesn't like this
+		  
+        true = 1'b1;
+        for (i=0; (i < $bits(pmaddr)) && true; i++)
+          if (pmaddr[i+2]) n++;
+          else             true = 1'b0;
+	 
         n++;
     end
 
     //create mask
-    mask = {XLEN{1'b1}} << n;
+    mask = {$bits(mask){1'b1}} << n;
 
     //lower bound address
     napot_lb = pmaddr & mask;
@@ -114,7 +121,8 @@ module riscv_pmachk #(
     input            na4; //special case na4
     input [PLEN-1:2] pmaddr;
 
-    int n;
+    int n, i;
+    bit true;
     logic [PLEN-1:2] mask,
                      incr;
 
@@ -122,13 +130,19 @@ module riscv_pmachk #(
     n = 0;
     if (!na4)
     begin
-        while (pmaddr[n+2] && (n < XLEN)) n++;
+//        while ((n < $bits(pmaddr)) && pmaddr[n+2]) n++; //Quartus doesn't like this
+
+        true = 1;
+        for (i=0; (i < $bits(pmaddr)) && true; i++)
+          if (pmaddr[i+2]) n++;
+          else             true = 1'b0;
+
         n++;
     end
 
     //create mask and increment
-    mask = {XLEN{1'b1}} << n;
-    incr = 1 << n;
+    mask = {$bits(mask){1'b1}} << n;
+    incr = 1'h1 << n;
 
     //upper bound address
     napot_ub = (pmaddr + incr) & mask;
@@ -164,6 +178,8 @@ module riscv_pmachk #(
     input [PMA_CNT-1:0] m;
 
     int n;
+
+    highest_priority_match = 0; //default value
 
     for (n=PMA_CNT-1; n >= 0; n--)
       if (m[n]) highest_priority_match = n;
@@ -236,10 +252,10 @@ generate
            * RoaLogic opts to implement this anyways for full flexibility
            * RoaLogic's implementation uses pma[i-1]'s upper bound address
            */
-          TOR    : pma_lb[i] = (i==0) ? 0 : pmacfg[i-1].a != TOR ? pma_ub[i-1] : pma_adr_i[i-1][PLEN-2 -1:0];
+          TOR    : pma_lb[i] = (i==0) ? {PLEN-2{1'b0}} : pmacfg[i-1].a != TOR ? pma_ub[i-1] : pma_adr_i[i-1][PLEN-2 -1:0];
           NA4    : pma_lb[i] = napot_lb(1'b1, pma_adr_i[i]);
           NAPOT  : pma_lb[i] = napot_lb(1'b0, pma_adr_i[i]);
-          default: pma_lb[i] = 'hx;
+          default: pma_lb[i] = {$bits(pma_lb[i]){1'bx}};
         endcase
 
       //upper bounds
@@ -248,7 +264,7 @@ generate
           TOR    : pma_ub[i] = pma_adr_i[i][PLEN-2 -1:0];
           NA4    : pma_ub[i] = napot_ub(1'b1, pma_adr_i[i]);
           NAPOT  : pma_ub[i] = napot_ub(1'b0, pma_adr_i[i]);
-          default: pma_ub[i] = 'hx;
+          default: pma_ub[i] = {$bits(pma_ub[i]){1'bx}};
         endcase
 
       //match

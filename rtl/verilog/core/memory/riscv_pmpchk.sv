@@ -81,14 +81,21 @@ module riscv_pmpchk #(
     input            na4; //special case na4
     input [PLEN-1:2] pmaddr;
 
-    int n;
+    int n, i;
+    bit true;
     logic [PLEN-1:2] mask;
 
     //find 'n' boundary = 2^(n+2) bytes
     n = 0;
     if (!na4)
     begin
-        while (pmaddr[n+2] && (n < XLEN)) n++;
+//        while ((n < $bits(pmaddr)) && (pmaddr[n+2])) n++; //Quartus doesn't like this
+		  
+        true = 1'b1;
+        for (i=0; (i < $bits(pmaddr)) && true; i++)
+          if (pmaddr[i+2]) n++;
+          else             true = 1'b0;
+
         n++;
     end
 
@@ -104,7 +111,8 @@ module riscv_pmpchk #(
     input            na4; //special case na4
     input [PLEN-1:2] pmaddr;
 
-    int n;
+    int n, i;
+    bit true;
     logic [PLEN-1:2] mask,
                      incr;
 
@@ -112,7 +120,13 @@ module riscv_pmpchk #(
     n = 0;
     if (!na4)
     begin
-        while (pmaddr[n+2] && (n < XLEN)) n++;
+//        while ((n < $bits(pmaddr)) && pmaddr[n+2]) n++; //Quartus doesn't like this
+
+        true = 1;
+        for (i=0; (i < $bits(pmaddr)) && true; i++)
+          if (pmaddr[i+2]) n++;
+          else             true = 1'b0;
+
         n++;
     end
 
