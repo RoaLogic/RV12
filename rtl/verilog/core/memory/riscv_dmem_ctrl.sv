@@ -82,8 +82,8 @@ module riscv_dmem_ctrl #(
   input  logic                     cache_flush_i,
   output logic                     dcflush_rdy_o,
 
-  input  pmpcfg_t [15:0]           st_pmpcfg_i,
-  input  logic    [15:0][XLEN-1:0] st_pmpaddr_i,
+  input  pmpcfg_t [PMP_CNT-1:0]           st_pmpcfg_i,
+  input  logic    [PMP_CNT-1:0][XLEN-1:0] st_pmpaddr_i,
   input  logic          [     1:0] st_prv_i,
 
   //BIU ports
@@ -174,7 +174,8 @@ module riscv_dmem_ctrl #(
 
 
   //all exceptions
-  logic            exception;
+  logic            exception,
+                   exception_no_ext_err;
 
 
   //From Cache Controller Core
@@ -486,7 +487,7 @@ generate
   dext_inst (
     .rst_ni             ( rst_ni            ),
     .clk_i              ( clk_i             ),
-    .clr_i              ( exception         ),
+    .clr_i              ( exception_no_ext_err ),
 
     .mem_req_i          ( ext_access_req    ),
     .mem_adr_i          ( padr              ),
@@ -575,7 +576,10 @@ endgenerate
 
   //All exceptions
   assign exception = mem_misaligned_o | mem_err_o | mem_page_fault_o;
-
+  
+  //avoid combinatorial loop
+  assign exception_no_ext_err = cache_err | pma_exception | pmp_exception | mem_misaligned_o | mem_page_fault_o;
+  
 endmodule
 
 
