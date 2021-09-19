@@ -165,11 +165,11 @@ module riscv_pmpchk #(
 
   //get highest priority (==lowest number) PMP that matches
   function automatic int highest_priority_match;
-    input [15:0] m;
+    input [PMP_CNT-1:0] m;
 
     int n;
 
-    for (n=15; n >= 0; n--)
+    for (n=PMP_CNT-1; n >= 0; n--)
       if (m[n]) highest_priority_match = n;
   endfunction: highest_priority_match
 
@@ -184,7 +184,7 @@ module riscv_pmpchk #(
                    access_lb;
   logic [PLEN-1:2] pmp_ub [16],
                    pmp_lb [16];
-  logic [    15:0] pmp_match,
+  logic [PMP_CNT-1:0] pmp_match,
                    pmp_match_all;
   int              matched_pmp;
   pmpcfg_t         matched_pmpcfg;
@@ -204,7 +204,7 @@ module riscv_pmpchk #(
   assign access_ub = adr_i + size2bytes(size_i) -1;
 
 generate
-  for (i=0; i < 16; i++)
+  for (i=0; i < PMP_CNT; i++)
   begin: gen_pmp_bounds
       //lower bounds
       always_comb
