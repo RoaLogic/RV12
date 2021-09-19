@@ -103,8 +103,8 @@ module riscv_core #(
 
   //cpu state
   output       [              1:0] st_prv,
-  output pmpcfg_t [15:0]           st_pmpcfg,
-  output [15:0][XLEN         -1:0] st_pmpaddr,
+  output pmpcfg_t [PMP_CNT-1:0]           st_pmpcfg,
+  output [PMP_CNT-1:0][XLEN         -1:0] st_pmpaddr,
 
   output                           bu_cacheflush,
 
