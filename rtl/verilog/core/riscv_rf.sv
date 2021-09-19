@@ -1,44 +1,37 @@
-/////////////////////////////////////////////////////////////////
-//                                                             //
-//    ██████╗  ██████╗  █████╗                                 //
-//    ██╔══██╗██╔═══██╗██╔══██╗                                //
-//    ██████╔╝██║   ██║███████║                                //
-//    ██╔══██╗██║   ██║██╔══██║                                //
-//    ██║  ██║╚██████╔╝██║  ██║                                //
-//    ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝                                //
-//          ██╗      ██████╗  ██████╗ ██╗ ██████╗              //
-//          ██║     ██╔═══██╗██╔════╝ ██║██╔════╝              //
-//          ██║     ██║   ██║██║  ███╗██║██║                   //
-//          ██║     ██║   ██║██║   ██║██║██║                   //
-//          ███████╗╚██████╔╝╚██████╔╝██║╚██████╗              //
-//          ╚══════╝ ╚═════╝  ╚═════╝ ╚═╝ ╚═════╝              //
-//                                                             //
-//    RISC-V                                                   //
-//    Register FIle                                            //
-//                                                             //
-/////////////////////////////////////////////////////////////////
-//                                                             //
-//             Copyright (C) 2014-2017 ROA Logic BV            //
-//             www.roalogic.com                                //
-//                                                             //
-//    Unless specifically agreed in writing, this software is  //
-//  licensed under the RoaLogic Non-Commercial License         //
-//  version-1.0 (the "License"), a copy of which is included   //
-//  with this file or may be found on the RoaLogic website     //
-//  http://www.roalogic.com. You may not use the file except   //
-//  in compliance with the License.                            //
-//                                                             //
-//    THIS SOFTWARE IS PROVIDED "AS IS" AND WITHOUT ANY        //
-//  EXPRESS OF IMPLIED WARRANTIES OF ANY KIND.                 //
-//  See the License for permissions and limitations under the  //
-//  License.                                                   //
-//                                                             //
-/////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////
+//   ,------.                    ,--.                ,--.          //
+//   |  .--. ' ,---.  ,--,--.    |  |    ,---. ,---. `--' ,---.    //
+//   |  '--'.'| .-. |' ,-.  |    |  |   | .-. | .-. |,--.| .--'    //
+//   |  |\  \ ' '-' '\ '-'  |    |  '--.' '-' ' '-' ||  |\ `--.    //
+//   `--' '--' `---'  `--`--'    `-----' `---' `-   /`--' `---'    //
+//                                             `---'               //
+//    RISC-V                                                       //
+//    Register Stage                                               //
+//                                                                 //
+/////////////////////////////////////////////////////////////////////
+//                                                                 //
+//             Copyright (C) 2014-2021 ROA Logic BV                //
+//             www.roalogic.com                                    //
+//                                                                 //
+//     Unless specifically agreed in writing, this software is     //
+//   licensed under the RoaLogic Non-Commercial License            //
+//   version-1.0 (the "License"), a copy of which is included      //
+//   with this file or may be found on the RoaLogic website        //
+//   http://www.roalogic.com. You may not use the file except      //
+//   in compliance with the License.                               //
+//                                                                 //
+//     THIS SOFTWARE IS PROVIDED "AS IS" AND WITHOUT ANY           //
+//   EXPRESS OF IMPLIED WARRANTIES OF ANY KIND.                    //
+//   See the License for permissions and limitations under the     //
+//   License.                                                      //
+//                                                                 //
+/////////////////////////////////////////////////////////////////////
 
 module riscv_rf #(
-  parameter XLEN    = 32,
-  parameter RDPORTS = 2,
-  parameter WRPORTS = 1,
+  parameter XLEN      = 32,
+  parameter RDPORTS   = 2,
+  parameter WRPORTS   = 1,
+  parameter INV_RDCLK = 1,
 
 
   parameter AR_BITS=5
@@ -95,9 +88,25 @@ genvar i;
 generate
   for(i=0; i<RDPORTS; i=i+1)
   begin: xreg_rd
-     //per Altera's recommendations. Prevents bypass logic
-     always @(posedge clk) dout1[i] <= rf[ rf_src1[i] ];
-     always @(posedge clk) dout2[i] <= rf[ rf_src2[i] ];
+     if (INV_RDCLK == 0)
+     begin
+         //per Altera's recommendations. Prevents bypass logic
+         always @(posedge clk) dout1[i] <= rf[ rf_src1[i] ];
+         always @(posedge clk) dout2[i] <= rf[ rf_src2[i] ];
+     end
+     else //Use negedge to access memory
+     begin
+         logic [XLEN-1:0] q1 [RDPORTS],
+                           q2 [RDPORTS];
+
+         //per Altera's recommendation. Prevents bypass logic
+         always @(negedge clk) q1[i] <= rf[ rf_src1[i] ];
+         always @(negedge clk) q2[i] <= rf[ rf_src2[i] ];
+
+         //Now sync to posedge clk
+         always @(posedge clk) dout1[i] <= q1[i];
+         always @(posedge clk) dout2[i] <= q2[i];
+     end
 
      //got data from RAM, now handle X0
      always @(posedge clk) src1_is_x0[i] <= ~|rf_src1[i];
