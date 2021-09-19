@@ -92,8 +92,8 @@ module riscv_state1_10 #(
                                         st_tsr,        //trap SRET
   output           [XLEN          -1:0] st_mcounteren,
                                         st_scounteren,
-  output pmpcfg_t                [15:0] st_pmpcfg,
-  output     [15:0][XLEN          -1:0] st_pmpaddr,
+  output pmpcfg_t         [PMP_CNT-1:0] st_pmpcfg,
+  output     [PMP_CNT-1:0][XLEN          -1:0] st_pmpaddr,
 
 
   //interrupts (3=M-mode, 0=U-mode)
