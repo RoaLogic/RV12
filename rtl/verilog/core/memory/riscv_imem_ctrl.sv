@@ -82,8 +82,8 @@ module riscv_imem_ctrl #(
   input  logic                               cache_flush_i,
   input  logic                               dcflush_rdy_i,
 
-  input  pmpcfg_t [15:0]                     st_pmpcfg_i,
-  input  logic    [15:0][XLEN          -1:0] st_pmpaddr_i,
+  input  pmpcfg_t [PMP_CNT-1:0]                     st_pmpcfg_i,
+  input  logic    [PMP_CNT-1:0][XLEN          -1:0] st_pmpaddr_i,
   input  logic          [               1:0] st_prv_i,
 
   //BIU ports
