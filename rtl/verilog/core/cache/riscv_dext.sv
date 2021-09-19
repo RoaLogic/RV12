@@ -113,9 +113,9 @@ module riscv_dext #(
 
 
   always @(posedge clk_i)
-    if      (!rst_ni) hold_mem_req <= 1'b0;
-    else if ( clr_i ) hold_mem_req <= 1'b0;
-    else              hold_mem_req <= (mem_req_i | hold_mem_req) & ~biu_stb_ack_i;
+    if      (!rst_ni            ) hold_mem_req <= 1'b0;
+    else if ( clr_i || mem_err_o) hold_mem_req <= 1'b0;
+    else                          hold_mem_req <= (mem_req_i | hold_mem_req) & ~biu_stb_ack_i;
 
 
   always @(posedge clk_i, negedge rst_ni)
@@ -130,7 +130,7 @@ module riscv_dext #(
 
   always @(posedge clk_i, negedge rst_ni)
     if (!rst_ni) discard <= 'h0;
-    else if (clr_i)
+    else if (clr_i || mem_err_o)
     begin
         if (|inflight && (biu_ack_i | biu_err_i)) discard <= inflight -1;
         else                                      discard <= inflight;
