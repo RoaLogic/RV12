@@ -667,8 +667,6 @@ module riscv_id #(
         default     : id_stall = 'b0;
       endcase
 */
-   else id_stall = 'b0;
-
 
   /*
    * Generate Illegal Instruction
