@@ -1,0 +1,134 @@
+#####################################################################
+##   ,------.                    ,--.                ,--.          ##
+##   |  .--. ' ,---.  ,--,--.    |  |    ,---. ,---. `--' ,---.    ##
+##   |  '--'.'| .-. |' ,-.  |    |  |   | .-. | .-. |,--.| .--'    ##
+##   |  |\  \ ' '-' '\ '-'  |    |  '--.' '-' ' '-' ||  |\ `--.    ##
+##   `--' '--' `---'  `--`--'    `-----' `---' `-   /`--' `---'    ##
+##                                             `---'               ##
+##   Roa Logic RVLat RISC-V CPU                                    ##
+##   Simulator Include File                                        ##
+##                                                                 ##
+#####################################################################
+##                                                                 ##
+##             Copyright (C) 2017-2021 ROA Logic BV                ##
+##             www.roalogic.com                                    ##
+##                                                                 ##
+##   This source file may be used and distributed without          ##
+##   restriction provided that this copyright statement is not     ##
+##   removed from the file and that any derivative work contains   ##
+##   the original copyright notice and the associated disclaimer.  ##
+##                                                                 ##
+##      THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY        ##
+##   EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED     ##
+##   TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS     ##
+##   FOR A PARTICULAR PURPOSE. IN NO EVENT SHALL THE AUTHOR OR     ##
+##   CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,  ##
+##   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT  ##
+##   NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;  ##
+##   LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)      ##
+##   HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN     ##
+##   CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR  ##
+##   OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS          ##
+##   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  ##
+##                                                                 ##
+#####################################################################
+#
+# 2017-10-06: Change header, logo, copyright notice
+#             Moved 'tech' into a subdirectory
+#
+
+
+#####################################################################
+# Implementation details
+#####################################################################
+TECHNOLOGY = GENERIC
+TARGET     =
+busif      = ahb3lite
+
+
+#####################################################################
+# OVL checker
+# This can be changed on the command line
+#####################################################################
+OVL_ASSERT   = OFF
+OVL_INIT_MSG = ON
+STD_OVL_DIR  = /projects/OVL/std_ovl
+
+
+#####################################################################
+# Design constants
+#####################################################################
+INCDIRS:=
+DEFINES:=SIM
+
+
+#####################################################################
+# Design Sources
+#####################################################################
+MEM_SRC_DIR=$(ROOT_DIR)/memory/rtl/verilog
+DUT_SRC_DIR=$(ROOT_DIR)/rtl/verilog
+RTL_TOP  = riscv_top_$(busif) 
+RTL_VLOG = $(DUT_SRC_DIR)/pkg/riscv_rvlat_pkg.sv		\
+	   $(DUT_SRC_DIR)/pkg/riscv_opcodes_pkg.sv		\
+	   $(DUT_SRC_DIR)/pkg/riscv_state1.10_pkg.sv		\
+	   $(DUT_SRC_DIR)/pkg/riscv_pma_pkg.sv			\
+	   $(DUT_SRC_DIR)/pkg/riscv_du_pkg.sv			\
+	   $(DUT_SRC_DIR)/pkg/biu_constants_pkg.sv		\
+	   $(ROOT_DIR)/$(busif)_pkg/rtl/verilog/$(busif)_pkg.sv	\
+	   $(DUT_SRC_DIR)/core/ex/riscv_alu.sv			\
+	   $(DUT_SRC_DIR)/core/ex/riscv_lsu.sv			\
+	   $(DUT_SRC_DIR)/core/ex/riscv_bu.sv			\
+	   $(DUT_SRC_DIR)/core/ex/riscv_mul.sv			\
+	   $(DUT_SRC_DIR)/core/ex/riscv_div.sv			\
+	   $(DUT_SRC_DIR)/core/riscv_if.sv			\
+	   $(DUT_SRC_DIR)/core/riscv_pd.sv			\
+	   $(DUT_SRC_DIR)/core/riscv_id.sv			\
+	   $(DUT_SRC_DIR)/core/riscv_ex.sv			\
+	   $(DUT_SRC_DIR)/core/riscv_mem.sv			\
+	   $(DUT_SRC_DIR)/core/riscv_wb.sv			\
+	   $(DUT_SRC_DIR)/core/riscv_dwb.sv			\
+	   $(DUT_SRC_DIR)/core/riscv_rf_lat.sv			\
+	   $(DUT_SRC_DIR)/core/riscv_state1.10.sv		\
+	   $(DUT_SRC_DIR)/core/riscv_bp.sv			\
+	   $(DUT_SRC_DIR)/core/riscv_du.sv			\
+	   $(DUT_SRC_DIR)/core/riscv_core.sv			\
+	   $(DUT_SRC_DIR)/core/riscv_parcel_queue.sv		\
+	   $(MEM_SRC_DIR)/rl_ram_1r1w.sv			\
+	   $(MEM_SRC_DIR)/rl_ram_1r1w_generic.sv		\
+	   $(MEM_SRC_DIR)/rl_ram_1r1w_easic_n3x.sv		\
+	   $(MEM_SRC_DIR)/rl_ram_1r1w_easic_n3xs.sv		\
+	   $(MEM_SRC_DIR)/rl_ram_1rw.sv				\
+	   $(MEM_SRC_DIR)/rl_ram_1rw_generic.sv			\
+	   $(MEM_SRC_DIR)/rl_ram_1rw_easic_n3x.sv		\
+	   $(DUT_SRC_DIR)/core/memory/riscv_memmisaligned.sv	\
+	   $(DUT_SRC_DIR)/core/cache/riscv_icache_core.sv	\
+	   $(DUT_SRC_DIR)/core/cache/riscv_noicache_core.sv	\
+	   $(DUT_SRC_DIR)/core/cache/riscv_dcache_core.sv	\
+	   $(DUT_SRC_DIR)/core/cache/riscv_nodcache_core.sv	\
+	   $(DUT_SRC_DIR)/$(busif)/biu_$(busif).sv		\
+	   $(DUT_SRC_DIR)/$(busif)/riscv_top_$(busif).sv
+RTL_VHDL =
+
+
+#####################################################################
+# Testbench Sources
+#####################################################################
+TB_PREREQ=
+TB_TOP=testbench_top
+TB_SRC_DIR=$(ROOT_DIR)/bench/verilog/$(busif)
+
+TB_VLOG = $(TB_SRC_DIR)/testbench_top.sv               \
+          $(TB_SRC_DIR)/memory_model_$(busif).sv       \
+          $(TB_SRC_DIR)/dbg_bfm.sv
+TB_VHDL =
+
+
+#####################################################################
+# Technology Libraries
+#####################################################################
+ifneq ($(TECHNOLOGY), generic)
+ifneq ($(strip $(TECHNOLOGY)),)
+-include ../bin/tech/Makefile.$(TECHNOLOGY)
+endif
+endif
+
