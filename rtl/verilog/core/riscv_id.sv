@@ -10,7 +10,7 @@
 //                                                                 //
 /////////////////////////////////////////////////////////////////////
 //                                                                 //
-//             Copyright (C) 2014-2018 ROA Logic BV                //
+//             Copyright (C) 2014-2021 ROA Logic BV                //
 //             www.roalogic.com                                    //
 //                                                                 //
 //     Unless specifically agreed in writing, this software is     //
@@ -31,6 +31,7 @@
   Changelog: 2017-02-28
              2017-03-01: Updates for 1.9.1 priv.spec
              2018-01-20: Updates for 1.10 priv.spec
+             2021-10-12: Fixed missing stall
 */
 
 import riscv_opcodes_pkg::*;
@@ -162,6 +163,9 @@ module riscv_id #(
                              ex_dst,
                              mem_dst,
                              wb_dst;
+
+  logic                      stall_ld_id,
+                             stall_ld_ex;
 
   logic                      can_bypex,
                              can_bypmem,
@@ -612,34 +616,42 @@ module riscv_id #(
    */
 //rih: todo
   always_comb
+    if (id_opcode != OPC_LOAD || id_bubble) stall_ld_id = 1'b0;
+    else
+      casex (if_opcode)
+        OPC_OP_IMM  : stall_ld_id = (if_src1 == id_dst);
+        OPC_OP_IMM32: stall_ld_id = (if_src1 == id_dst);
+        OPC_OP      : stall_ld_id = (if_src1 == id_dst) | (if_src2 == id_dst);
+        OPC_OP32    : stall_ld_id = (if_src1 == id_dst) | (if_src2 == id_dst);
+        OPC_BRANCH  : stall_ld_id = (if_src1 == id_dst) | (if_src2 == id_dst);
+        OPC_JALR    : stall_ld_id = (if_src1 == id_dst);
+        OPC_LOAD    : stall_ld_id = (if_src1 == id_dst);
+        OPC_STORE   : stall_ld_id = (if_src1 == id_dst) | (if_src2 == id_dst);
+        OPC_SYSTEM  : stall_ld_id = (if_src1 == id_dst);
+        default     : stall_ld_id = 'b0;
+      endcase
+
+
+  always_comb
+    if (ex_opcode != OPC_LOAD || ex_bubble) stall_ld_ex = 1'b0;
+    else
+      casex (if_opcode)
+        OPC_OP_IMM  : stall_ld_ex = (if_src1 == ex_dst);
+        OPC_OP_IMM32: stall_ld_ex = (if_src1 == ex_dst);
+        OPC_OP      : stall_ld_ex = (if_src1 == ex_dst) | (if_src2 == ex_dst);
+        OPC_OP32    : stall_ld_ex = (if_src1 == ex_dst) | (if_src2 == ex_dst);
+        OPC_BRANCH  : stall_ld_ex = (if_src1 == ex_dst) | (if_src2 == ex_dst);
+        OPC_JALR    : stall_ld_ex = (if_src1 == ex_dst);
+        OPC_LOAD    : stall_ld_ex = (if_src1 == ex_dst);
+        OPC_STORE   : stall_ld_ex = (if_src1 == ex_dst) | (if_src2 == ex_dst);
+        OPC_SYSTEM  : stall_ld_ex = (if_src1 == ex_dst);
+        default     : stall_ld_ex = 'b0;
+      endcase
+
+  always_comb
     if      (bu_flush || st_flush || du_flush) id_stall = 'b0;        //flush overrules stall
     else if (stall                           ) id_stall = ~if_bubble; //ignore NOPs e.g. after flush or IF-stall
-    else if (id_opcode == OPC_LOAD && !id_bubble)
-      casex (if_opcode)
-        OPC_OP_IMM  : id_stall = (if_src1 == id_dst);
-        OPC_OP_IMM32: id_stall = (if_src1 == id_dst);
-        OPC_OP      : id_stall = (if_src1 == id_dst) | (if_src2 == id_dst);
-        OPC_OP32    : id_stall = (if_src1 == id_dst) | (if_src2 == id_dst);
-        OPC_BRANCH  : id_stall = (if_src1 == id_dst) | (if_src2 == id_dst);
-        OPC_JALR    : id_stall = (if_src1 == id_dst);
-        OPC_LOAD    : id_stall = (if_src1 == id_dst);
-        OPC_STORE   : id_stall = (if_src1 == id_dst) | (if_src2 == id_dst);
-        OPC_SYSTEM  : id_stall = (if_src1 == id_dst);
-        default     : id_stall = 'b0;
-      endcase
-    else if (ex_opcode == OPC_LOAD && !ex_bubble)
-      casex (if_opcode)
-        OPC_OP_IMM  : id_stall = (if_src1 == ex_dst);
-        OPC_OP_IMM32: id_stall = (if_src1 == ex_dst);
-        OPC_OP      : id_stall = (if_src1 == ex_dst) | (if_src2 == ex_dst);
-        OPC_OP32    : id_stall = (if_src1 == ex_dst) | (if_src2 == ex_dst);
-        OPC_BRANCH  : id_stall = (if_src1 == ex_dst) | (if_src2 == ex_dst);
-        OPC_JALR    : id_stall = (if_src1 == ex_dst);
-        OPC_LOAD    : id_stall = (if_src1 == ex_dst);
-        OPC_STORE   : id_stall = (if_src1 == ex_dst) | (if_src2 == ex_dst);
-        OPC_SYSTEM  : id_stall = (if_src1 == ex_dst);
-        default     : id_stall = 'b0;
-      endcase
+    else                                       id_stall = stall_ld_id | stall_ld_ex;
 /*
     else if (mem_opcode == OPC_LOAD)
       casex (if_opcode)
