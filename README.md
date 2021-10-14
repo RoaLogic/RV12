@@ -25,7 +25,7 @@ Added RVC to reduce program memory footprint. This increases IF stage logic, but
 - Branch Prediction
 - Branch-Target-Buffers
 - Return Address Stack
-- Opcode Fusion
+- Opcode Fusion (selective SuperScalar)
 
 ## Benchmarks
 Use DHRYSTONE v2.2 as reference/benchmark
