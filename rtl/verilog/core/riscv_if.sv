@@ -69,7 +69,9 @@ module riscv_if #(
 
   input      [XLEN            -1:0] pd_nxt_pc_i,              //pre-decoder Next Program Counter
                                     bu_nxt_pc_i,              //Branch Unit Next Program Counter
-                                    st_nxt_pc_i               //State Next Program Counter
+                                    st_nxt_pc_i,              //State Next Program Counter
+
+  input      [                 1:0] st_xlen_i                 //Current XLEN setting
 );
 
   ////////////////////////////////////////////////////////////////
@@ -93,9 +95,9 @@ module riscv_if #(
   //
 
   logic             has_rvc,
-                    is_rv32,
-                    is_rv64,
-                    is_rv128;
+                    xlen32,
+                    xlen64,
+                    xlen128;
 
   logic             flushes;
 
@@ -153,9 +155,9 @@ module riscv_if #(
 
   //All flush signals
   assign flushes = pd_flush_i;
-  assign is_rv32  = XLEN== 32;
-  assign is_rv64  = XLEN== 64;
-  assign is_rv128 = XLEN==128;
+  assign is_rv32  = st_xlen_i == RV32I;
+  assign is_rv64  = st_xlen_i == RV64I;
+  assign is_rv128 = st_xlen_i == RV128I;
 
 
   //request new parcel when parcel_queue not full and no flushes
@@ -267,7 +269,7 @@ module riscv_if #(
   //Instruction conversion
   always_comb
     if (has_rvc && is_16bit_instruction) //Convert RVC to RV
-    casex ( {is_rv128, is_rv64, is_rv32, decode_rvc_opcA(rvc_parcel)} )
+    casex ( {xlen128, xlen64, xlen32, decode_rvc_opcA(rvc_parcel)} )
 
       {3'b???,C_LWSP}    : rv_instr = rvc_parcel.CI.rd == 0
                                     ? ILLEGAL                                          //reserved
