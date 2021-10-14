@@ -164,7 +164,7 @@ module riscv_bu #(
 
   always @(posedge clk_i,negedge rst_ni)
     if (!rst_ni) du_wrote_pc <= 1'b0;
-    else       du_wrote_pc <= du_we_pc_i | (du_wrote_pc & du_stall_i);
+    else         du_wrote_pc <= du_we_pc_i | (du_wrote_pc & du_stall_i);
 
 
   always @(posedge clk_i)
@@ -250,7 +250,7 @@ module riscv_bu #(
                           bp_update  = 'b0;
                           pipeflush  = 'b0;
                           cacheflush = 'b0;
-                          nxt_pc     = id_pc_i +'h4; //TODO: handle 16bit instructions
+                          nxt_pc     = id_pc_i + (is_16bit_instruction ? 'h2 : 'h4);
                       end
     endcase
 
@@ -264,18 +264,18 @@ module riscv_bu #(
     begin
         bu_flush_o      <= 'b1;
         bu_cacheflush_o <= 'b0;
-        bu_nxt_pc_o     <= PC_INIT;
+//        bu_nxt_pc_o     <= PC_INIT;
 
         bu_bp_predict_o <= 'b00;
         bu_bp_btaken_o  <= 'b0;
         bu_bp_update_o  <= 'b0;
-        bp_history    <= 'h0;
+        bp_history      <= 'h0;
     end
     else if (du_wrote_pc)
     begin
         bu_flush_o      <= du_we_pc_i_dly;
         bu_cacheflush_o <= 1'b0;
-        bu_nxt_pc_o     <= du_nxt_pc;
+//        bu_nxt_pc_o     <= du_nxt_pc;
 
         bu_bp_predict_o <= 'b00;
         bu_bp_btaken_o  <= 'b0;
@@ -283,9 +283,9 @@ module riscv_bu #(
     end
     else
     begin
-        bu_flush_o      <= (pipeflush & ~du_stall_i & ~du_flush_i);
+        bu_flush_o      <= pipeflush; //(pipeflush & ~du_stall_i & ~du_flush_i);
         bu_cacheflush_o <= cacheflush;
-        bu_nxt_pc_o     <= nxt_pc;
+//        bu_nxt_pc_o     <= nxt_pc;
 
         bu_bp_predict_o <= id_bp_predict_i;
         bu_bp_btaken_o  <= btaken;
@@ -294,6 +294,14 @@ module riscv_bu #(
 	//Branch History is a simple shift register
         if (bp_update) bp_history <= {bp_history[BP_GLOBAL_BITS-1:0],btaken};
     end
+
+
+
+  always @(posedge clk_i, negedge rst_ni)
+   if      (!rst_ni     ) bu_nxt_pc_o <= PC_INIT;
+   else if ( du_wrote_pc) bu_nxt_pc_o <= du_nxt_pc;
+   else if (!ex_stall_i ) bu_nxt_pc_o <= nxt_pc;
+
 
   //don't take myself (current branch) into account when updating branch history
   assign bu_bp_history_o = bp_history[BP_GLOBAL_BITS:1];
