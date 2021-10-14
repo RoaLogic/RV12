@@ -68,7 +68,7 @@ module riscv_id #(
   //Program counter
   input        [XLEN -1:0] pd_pc_i,
   output logic [XLEN -1:0] id_pc_o,
-  input        [      1:0] if_bp_predict_i,
+  input        [      1:0] pd_bp_predict_i,
   output logic [      1:0] id_bp_predict_o,
 
 
@@ -116,7 +116,11 @@ module riscv_id #(
                            mem_r_i,
                            wb_r_i,
                            wb_memq_i,
-                           dwb_r_i
+                           dwb_r_i,
+
+  //Pipeline Debug (stall)
+  input                    dbg_pd_i,
+  output reg               dbg_id_o
 );
 
 
@@ -226,15 +230,15 @@ module riscv_id #(
 
   always @(posedge clk_i,negedge rst_ni)
     if      (!rst_ni                                ) id_bubble_r <= 1'b1;
-    else if ( bu_flush_i || st_flush_i || du_flush_i) id_bubble_r <= 1'b1;
+    else if ( bu_flush_i || st_flush_i || du_stall_i) id_bubble_r <= 1'b1;
     else if (!stalls                                )
       if  (id_stall_o) id_bubble_r <= 1'b1;
       else             id_bubble_r <= pd_insn_i.bubble;
 
 
   //local stall
-  assign stalls           = ex_stall_i | (du_stall_i & ~wb_exceptions_i.any);
-  assign flushes          = bu_flush_i | st_flush_i | du_flush_i;
+  assign stalls           = ex_stall_i | (du_stall_i & ~exceptions); //Do not enter debug mode when there's an exception in the pipeline
+  assign flushes          = bu_flush_i | st_flush_i;// | du_flush_i;
   assign exceptions       = ex_exceptions_i.any | mem_exceptions_i.any | wb_exceptions_i.any;
   assign id_insn_o.bubble = stalls | flushes | exceptions | id_bubble_r;
 
@@ -266,7 +270,7 @@ module riscv_id #(
 
 
   always @(posedge clk_i)
-    if (!stalls && !id_stall_o) id_bp_predict_o <= if_bp_predict_i;
+    if (!stalls && !id_stall_o) id_bp_predict_o <= pd_bp_predict_i;
 
   /*
    * Exceptions
@@ -291,6 +295,15 @@ module riscv_id #(
     else if (!stalls                  )
         if ( id_stall_o) id_exceptions_o <= 'h0;
         else             id_exceptions_o <= my_exceptions;
+
+
+  /*
+   * Debug (stall)
+   */
+  always @(posedge clk_i, negedge rst_ni)
+    if (!rst_ni) dbg_id_o <= 1'b0;
+    else         dbg_id_o <= du_stall_i; //dbg_pd_i;
+
 
   /*
    * To Register File

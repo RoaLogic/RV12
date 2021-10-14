@@ -40,13 +40,11 @@ module riscv_pd #(
   input                  clk_i,           //Clock
   
   input                  id_stall_i,
-  input                  du_stall_i,
   output                 pd_stall_o,
+  input                  du_stall_i,
 
   input                  bu_flush_i,      //flush pipe & load new program counter
                          st_flush_i,
-                         du_flush_i,      //flush pipe after debug exit
-                         du_latch_nxt_pc_i,
 
   output                 pd_flush_o,
 
@@ -67,7 +65,12 @@ module riscv_pd #(
 
   output reg [XLEN -1:0] pd_pc_o,
   output instruction_t   pd_insn_o,
-  output exceptions_t    pd_exceptions_o
+  output exceptions_t    pd_exceptions_o,
+
+  
+  //Pipeline Debug (stall)
+  input                  dbg_if_i,
+  output reg             dbg_pd_o
 );
 
   ////////////////////////////////////////////////////////////////
@@ -93,7 +96,7 @@ module riscv_pd #(
   //
 
   //All flush signals
-  assign pd_flush_o = bu_flush_i | st_flush_i | du_flush_i;
+  assign pd_flush_o = bu_flush_i | st_flush_i;
 
   assign pd_stall_o = id_stall_i;
 
@@ -108,16 +111,16 @@ module riscv_pd #(
   
   //Program counter
   always @(posedge clk_i, negedge rst_ni)
-    if      (!rst_ni                          ) pd_pc_o <= PC_INIT;
-    else if ( st_flush_i                      ) pd_pc_o <= st_nxt_pc_i;
-    else if ( bu_flush_i || du_latch_nxt_pc_i ) pd_pc_o <= bu_nxt_pc_i;
-    else if (!id_stall_i                      ) pd_pc_o <= if_pc_i;
+    if      (!rst_ni     ) pd_pc_o <= PC_INIT;
+    else if ( st_flush_i ) pd_pc_o <= st_nxt_pc_i;
+    else if ( bu_flush_i ) pd_pc_o <= bu_nxt_pc_i;
+    else if (!pd_stall_o ) pd_pc_o <= if_pc_i;
 
 
   //Instruction	
   always @(posedge clk_i, negedge rst_ni)
     if      (!rst_ni    ) pd_insn_o.instr <= INSTR_NOP;
-    else if (!id_stall_i) pd_insn_o.instr <= if_insn_i.instr;
+    else if (!pd_stall_o) pd_insn_o.instr <= if_insn_i.instr;
 
 
   //Bubble
@@ -132,8 +135,13 @@ module riscv_pd #(
   always @(posedge clk_i, negedge rst_ni)
     if      (!rst_ni     ) pd_exceptions_o <= 'h0;
     else if ( pd_flush_o ) pd_exceptions_o <= 'h0;
-    else if ( du_stall_i ) pd_exceptions_o <= 'h0;
     else if (!id_stall_i ) pd_exceptions_o <= if_exceptions_i;
+
+
+  //Debug (stall)
+  always @(posedge clk_i, negedge rst_ni)
+    if (!rst_ni) dbg_pd_o <= 1'b0;
+    else         dbg_pd_o <= dbg_if_i;
 
 
   /*

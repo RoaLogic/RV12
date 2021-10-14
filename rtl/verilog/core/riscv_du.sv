@@ -54,7 +54,11 @@ module riscv_du #(
 
   //CPU signals
   output                          du_stall_o,
-  output reg                      du_stall_dly_o,
+  input                           dbg_wb_i,
+
+
+
+
   output reg                      du_latch_nxt_pc_o,
   output reg                      du_flush_o,
   output reg                      du_we_rf_o,
@@ -67,14 +71,14 @@ module riscv_du #(
   input      [XLEN          -1:0] du_rf_q_i,
                                   du_frf_q_i,
                                   st_csr_q_i,
-                                  if_pc_i,
+                                  pd_pc_i,
                                   id_pc_i,
                                   ex_pc_i,
                                   bu_nxt_pc_i,
   input                           bu_flush_i,
                                   st_flush_i,
 
-  input  instruction_t            if_insn_i,
+  input  instruction_t            pd_insn_i,
                                   mem_insn_i,
 
   input  exceptions_t             mem_exceptions_i,
@@ -185,7 +189,7 @@ module riscv_du #(
   //actual BreakPoint signal
   always @(posedge clk_i,negedge rst_ni)
     if (!rst_ni) dbg_bp_o <= 'b0;
-    else         dbg_bp_o <= ~ex_stall_i & ~du_stall_o & ~du_flush_o & ~bu_flush_i & ~st_flush_i & (|du_exceptions_i | |dbg.hit);
+    else         dbg_bp_o <= ~ex_stall_i & ~du_stall_o & ~du_flush_o & ~st_flush_i & (|du_exceptions_i | |dbg.hit);
 
 
   /*
@@ -196,11 +200,13 @@ module riscv_du #(
 
 
   always @(posedge clk_i,negedge rst_ni)
-    if (!rst_ni) du_stall_dly_o <= 1'b0;
-    else         du_stall_dly_o <= du_stall_o;
+    if (!rst_ni) du_stall_dly <= 1'b0;
+    else         du_stall_dly <= du_stall_o;
 
-  assign du_flush_o = du_stall_dly_o & ~dbg_stall_i;// & |du_exceptions_i; //flush upon debug exit. Maybe program memory contents changed
-  assign du_latch_nxt_pc_o = dbg_stall_i & ~du_stall_dly_o;
+
+  assign du_latch_nxt_pc_o =  dbg_stall_i & ~du_stall_dly; //Latch nxt-pc address while entering debug
+  assign du_flush_o        = ~dbg_stall_i &  du_stall_dly; // & |du_exceptions_i; //flush upon debug exit. Maybe program memory contents changed
+
   
   always @(posedge clk_i)
   begin
@@ -256,7 +262,7 @@ module riscv_du #(
        {DBG_INTERNAL,12'h???}: dbg_q_o <= du_internal_regs;
        {DBG_GPRS    ,DBG_GPR}: dbg_q_o <= du_rf_q_i;
        {DBG_GPRS    ,DBG_FPR}: dbg_q_o <= du_frf_q_i;
-       {DBG_GPRS    ,DBG_NPC}: dbg_q_o <= bu_flush_i ? bu_nxt_pc_i : id_pc_i;
+       {DBG_GPRS    ,DBG_NPC}: dbg_q_o <= bu_nxt_pc_i;
        {DBG_GPRS    ,DBG_PPC}: dbg_q_o <= ex_pc_i;
        {DBG_CSRS    ,12'h???}: dbg_q_o <= st_csr_q_i;
        default               : dbg_q_o <= 'h0;
@@ -417,8 +423,8 @@ endgenerate
    * Combinatorial generation of break-point hit logic
    * For actual registers see 'Registers' section
    */
-  assign bp_instr_hit  = dbg.ctrl.instr_break_ena  & ~if_insn_i.bubble;
-  assign bp_branch_hit = dbg.ctrl.branch_break_ena & ~if_insn_i.bubble & (if_insn_i.instr[6:2] == OPC_BRANCH);
+  assign bp_instr_hit  = dbg.ctrl.instr_break_ena  & ~pd_insn_i.bubble;
+  assign bp_branch_hit = dbg.ctrl.branch_break_ena & ~pd_insn_i.bubble & (pd_insn_i.instr[6:2] == OPC_BRANCH);
 
   //Memory access
   assign mem_read  = ~mem_exceptions_i.any & ~mem_insn_i.bubble & (mem_insn_i.instr[6:2] == OPC_LOAD );
@@ -435,7 +441,7 @@ begin: gen_bp_hit
         if (!dbg.bp[n].ctrl.enabled || !dbg.bp[n].ctrl.implemented) bp_hit[n] = 1'b0;
         else
           case (dbg.bp[n].ctrl.cc)
-             BP_CTRL_CC_FETCH    : bp_hit[n] = (if_pc_i     == dbg.bp[n].data) & ~bu_flush_i & ~st_flush_i;
+             BP_CTRL_CC_FETCH    : bp_hit[n] = (pd_pc_i      == dbg.bp[n].data) & ~bu_flush_i & ~st_flush_i;
              BP_CTRL_CC_LD_ADR   : bp_hit[n] = (mem_memadr_i == dbg.bp[n].data) & dmem_ack_i & mem_read;
              BP_CTRL_CC_ST_ADR   : bp_hit[n] = (mem_memadr_i == dbg.bp[n].data) & dmem_ack_i & mem_write;
              BP_CTRL_CC_LDST_ADR : bp_hit[n] = (mem_memadr_i == dbg.bp[n].data) & dmem_ack_i & (mem_read | mem_write);

@@ -158,8 +158,7 @@ module riscv_core #(
                              ex_stall,
                              mem_stall,
                              wb_stall,
-                             du_stall,
-                             du_stall_dly;
+                             du_stall;
 
   //Branch Prediction
   logic [               1:0] bp_bp_predict,
@@ -225,6 +224,13 @@ module riscv_core #(
   logic [XLEN          -1:0] wb_badaddr;
 
   //Debug
+  logic                      dbg_if,  //Debug (stall) in pipeline
+                             dbg_pd,
+                             dbg_id,
+                             dbg_ex,
+                             dbg_mem,
+                             dbg_wb;
+
   logic                      du_latch_nxt_pc;
   logic                      du_we_rf,
                              du_we_frf,
@@ -286,12 +292,17 @@ module riscv_core #(
     .bu_flush_i               ( bu_flush                 ),   //flush pipe & load new program counter
     .st_flush_i               ( st_flush                 ),
     .du_stall_i               ( du_stall                 ),
+    .du_flush_i               ( du_flush                 ),
     .du_latch_nxt_pc_i        ( du_latch_nxt_pc          ),
     .pd_latch_nxt_pc_i        ( pd_latch_nxt_pc          ),
     
     .pd_nxt_pc_i              ( pd_nxt_pc                ),   //Branch Prediction Next Program Counter    
     .bu_nxt_pc_i              ( bu_nxt_pc                ),   //Branch Unit Next Program Counter
-    .st_nxt_pc_i              ( st_nxt_pc                ) ); //State Next Program Counter
+    .st_nxt_pc_i              ( st_nxt_pc                ),   //State Next Program Counter
+
+    .st_xlen_i                ( st_xlen                  ),
+
+    .dbg_if_o                 ( dbg_if                  ) );
 
 
   /*
@@ -306,13 +317,11 @@ module riscv_core #(
     .clk_i             ( clk_i           ),
     
     .id_stall_i        ( id_stall        ),
-    .du_stall_i        ( du_stall        ),
     .pd_stall_o        ( pd_stall        ),
+    .du_stall_i        ( du_stall        ),
 
     .bu_flush_i        ( bu_flush        ),
     .st_flush_i        ( st_flush        ),
-    .du_flush_i        ( du_flush        ),
-    .du_latch_nxt_pc_i ( du_latch_nxt_pc ),
     .pd_flush_o        ( pd_flush        ),
 
     .pd_rs1_o          ( pd_rs1          ),
@@ -332,7 +341,10 @@ module riscv_core #(
 
     .pd_pc_o           ( pd_pc           ),
     .pd_insn_o         ( pd_insn         ),
-    .pd_exceptions_o   ( pd_exceptions   ) );
+    .pd_exceptions_o   ( pd_exceptions   ),
+
+    .dbg_if_i          ( dbg_if          ),
+    .dbg_pd_o          ( dbg_pd          ) );
 
   
   /*
@@ -369,7 +381,7 @@ module riscv_core #(
 
     .pd_pc_i          ( pd_pc          ),
     .id_pc_o          ( id_pc          ),
-    .if_bp_predict_i  ( pd_bp_predict  ),
+    .pd_bp_predict_i  ( pd_bp_predict  ),
     .id_bp_predict_o  ( id_bp_predict  ),
 
 
@@ -409,7 +421,10 @@ module riscv_core #(
     .mem_r_i          ( mem_r          ),
     .wb_r_i           ( wb_r           ),
     .wb_memq_i        ( wb_memq        ),
-    .dwb_r_i          ( dwb_r          ) );
+    .dwb_r_i          ( dwb_r          ),
+
+    .dbg_pd_i         ( dbg_pd         ),
+    .dbg_id_o         ( dbg_id         ) );
 
 
   /*
@@ -478,11 +493,13 @@ module riscv_core #(
     .dmem_page_fault_i ( dmem_page_fault_i ),
 
     .du_stall_i        ( du_stall          ),
-    .du_stall_dly_i    ( du_stall_dly      ),
     .du_flush_i        ( du_flush          ),
     .du_we_pc_i        ( du_we_pc          ),
     .du_dato_i         ( du_dato           ),
-    .du_ie_i           ( du_ie             ) );
+    .du_ie_i           ( du_ie             ),
+
+    .dbg_id_i          ( dbg_id            ),
+    .dbg_ex_o          ( dbg_ex            ) );
 
 
   /*
@@ -510,15 +527,18 @@ module riscv_core #(
     .ex_r_i           ( ex_r           ),
     .dmem_adr_i       ( dmem_adr_o     ),
     .mem_r_o          ( mem_r          ),
-    .mem_memadr_o     ( mem_memadr     ) );
+    .mem_memadr_o     ( mem_memadr     ),
+
+    .dbg_ex_i         ( dbg_ex         ),
+    .dbg_mem_o        ( dbg_mem        ) );
 
 
   /*
    * Memory acknowledge + Write Back unit
    */
   riscv_wb #(
-    .XLEN              ( XLEN             ),
-    .PC_INIT           ( PC_INIT          ) )
+    .XLEN              ( XLEN              ),
+    .PC_INIT           ( PC_INIT           ) )
   wb_unit   (
     .rst_ni            ( rst_ni            ),
     .clk_i             ( clk_i             ),
@@ -540,7 +560,10 @@ module riscv_core #(
     .wb_dst_o          ( wb_dst            ),
     .wb_r_o            ( wb_r              ),
     .wb_memq_o         ( wb_memq           ),
-    .wb_we_o           ( wb_we             ) );
+    .wb_we_o           ( wb_we             ),
+
+    .dbg_mem_i         ( dbg_mem           ),
+    .dbg_wb_o          ( dbg_wb            ) );
 
 
   /*
@@ -716,7 +739,12 @@ endgenerate
     .dbg_bp_o          ( dbg_bp_o        ),
   
     .du_stall_o        ( du_stall        ),
-    .du_stall_dly_o    ( du_stall_dly    ),
+    .dbg_wb_i          ( dbg_wb          ),
+
+
+
+
+
     .du_latch_nxt_pc_o ( du_latch_nxt_pc ),
     .du_flush_o        ( du_flush        ),
     .du_we_rf_o        ( du_we_rf        ),
@@ -729,14 +757,14 @@ endgenerate
     .du_rf_q_i         ( du_dati_rf      ),
     .du_frf_q_i        ( du_dati_frf     ),
     .st_csr_q_i        ( st_csr_rval     ),
-    .if_pc_i           ( if_pc           ),
+    .pd_pc_i           ( pd_pc           ),
     .id_pc_i           ( id_pc           ),
     .ex_pc_i           ( ex_pc           ),
     .bu_nxt_pc_i       ( bu_nxt_pc       ),
     .bu_flush_i        ( bu_flush        ),
     .st_flush_i        ( st_flush        ),
 
-    .if_insn_i         ( if_insn         ),
+    .pd_insn_i         ( pd_insn         ),
     .mem_insn_i        ( mem_insn        ),
     .mem_exceptions_i  ( mem_exceptions  ),
     .mem_memadr_i      ( mem_memadr      ),

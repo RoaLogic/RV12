@@ -64,14 +64,17 @@ module riscv_if #(
   input                             bu_flush_i,               //flush pipe & load new program counter
                                     st_flush_i,
 
-				    du_stall_i,
+                                    du_stall_i,
                                     du_latch_nxt_pc_i,
+				    du_flush_i,
 
   input      [XLEN            -1:0] pd_nxt_pc_i,              //pre-decoder Next Program Counter
                                     bu_nxt_pc_i,              //Branch Unit Next Program Counter
                                     st_nxt_pc_i,              //State Next Program Counter
 
-  input      [                 1:0] st_xlen_i                 //Current XLEN setting
+  input      [                 1:0] st_xlen_i,                //Current XLEN setting
+
+  output reg                        dbg_if_o
 );
 
   ////////////////////////////////////////////////////////////////
@@ -155,9 +158,9 @@ module riscv_if #(
 
   //All flush signals
   assign flushes = pd_flush_i;
-  assign is_rv32  = st_xlen_i == RV32I;
-  assign is_rv64  = st_xlen_i == RV64I;
-  assign is_rv128 = st_xlen_i == RV128I;
+  assign xlen32  = st_xlen_i == RV32I;
+  assign xlen64  = st_xlen_i == RV64I;
+  assign xlen128 = st_xlen_i == RV128I;
 
 
   //request new parcel when parcel_queue not full and no flushes
@@ -172,13 +175,13 @@ module riscv_if #(
     else if ( bu_flush_i || du_latch_nxt_pc_i ) imem_adr_o <= bu_nxt_pc_i;
     else
     begin
-        if      ( pd_latch_nxt_pc_i        )    imem_adr_o <= pd_nxt_pc_i;
-        else if ( imem_req_o && imem_ack_i )    imem_adr_o <= (imem_adr_o + (XLEN/8)) & ( {XLEN{1'b1}} << $clog2(XLEN/8) );
+        if      ( pd_latch_nxt_pc_i        ) imem_adr_o <= pd_nxt_pc_i;
+        else if ( imem_req_o && imem_ack_i ) imem_adr_o <= (imem_adr_o + (XLEN/8)) & ( {XLEN{1'b1}} << $clog2(XLEN/8) );
     end
 
 
   //Flush upper layer (memory BIU) 
-  assign imem_flush_o = flushes | pd_latch_nxt_pc_i;
+  assign imem_flush_o = flushes | pd_latch_nxt_pc_i | du_latch_nxt_pc_i;
 
   
   /*
@@ -570,10 +573,10 @@ module riscv_if #(
 
   //Internal program counter
   always @(posedge clk_i, negedge rst_ni)
-    if      (!rst_ni                         ) pc <= PC_INIT;
-    else if ( st_flush_i                     ) pc <= st_nxt_pc_i;
-    else if ( bu_flush_i || du_latch_nxt_pc_i) pc <= bu_nxt_pc_i;
-    else if ( pd_latch_nxt_pc_i              ) pc <= pd_nxt_pc_i;
+    if      (!rst_ni                          ) pc <= PC_INIT;
+    else if ( st_flush_i                      ) pc <= st_nxt_pc_i;
+    else if ( bu_flush_i || du_latch_nxt_pc_i ) pc <= bu_nxt_pc_i;
+    else if ( pd_latch_nxt_pc_i               ) pc <= pd_nxt_pc_i;
     else if (!pd_stall_i && !rv_bubble)
       if (is_16bit_instruction) pc <= pc +2;
       else                      pc <= pc +4;
@@ -609,5 +612,11 @@ module riscv_if #(
   always @(posedge clk_i, negedge rst_ni)
     if      (!rst_ni    ) if_exceptions_o <= {$bits(if_exceptions_o){1'b0}};
     else if (!pd_stall_i) if_exceptions_o <= parcel_exceptions;
+
+
+  always @(posedge clk_i, negedge rst_ni)
+    if (!rst_ni) dbg_if_o <= 1'b0;
+    else         dbg_if_o <= du_stall_i;
+
 endmodule
 

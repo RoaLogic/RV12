@@ -91,7 +91,7 @@ module riscv_ex #(
   //From State
   input      [               1:0] st_xlen_i,
   input                           st_flush_i,
-  input      [XLEN          -1:0] st_csr_rval_i,
+  input      [XLEN          -1:0] st_csr_rval_i, //TODO: read during ID
 
   //To DCACHE/Memory
   output                          dmem_req_o,
@@ -106,11 +106,14 @@ module riscv_ex #(
 
   //Debug Unit
   input                           du_stall_i,
-                                  du_stall_dly_i,
                                   du_flush_i,
   input                           du_we_pc_i,
   input      [XLEN          -1:0] du_dato_i,
-  input      [              31:0] du_ie_i
+  input      [              31:0] du_ie_i,
+
+  //Debug (stall)
+  input                           dbg_id_i,
+  output reg                      dbg_ex_o
 );
 
 
@@ -154,7 +157,7 @@ module riscv_ex #(
    */
   always @(posedge clk_i, negedge rst_ni)
     if      (!rst_ni                   ) ex_pc_o <= PC_INIT;
-    else if (!ex_stall_o && !du_stall_i) ex_pc_o <= id_pc_i;  //stall during DBG to retain PPC
+    else if (!ex_stall_o)                ex_pc_o <= id_pc_i; // && !du_stall_i) ex_pc_o <= id_pc_i;  //stall during DBG to retain PPC
 
 
   /*
@@ -163,6 +166,13 @@ module riscv_ex #(
   always @(posedge clk_i)
     if (!ex_stall_o) ex_insn_o.instr <= id_insn_i.instr;
 
+
+  /*
+   * Debug (stall) 
+   */
+  always @(posedge clk_i, negedge rst_ni)
+    if (!rst_ni) dbg_ex_o <= 1'b0;
+    else         dbg_ex_o <= dbg_id_i;
 
   /*
    * Bypasses
