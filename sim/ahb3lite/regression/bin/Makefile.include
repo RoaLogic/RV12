@@ -68,7 +68,7 @@ DEFINES:=SIM
 MEM_SRC_DIR=$(ROOT_DIR)/memory/rtl/verilog
 DUT_SRC_DIR=$(ROOT_DIR)/rtl/verilog
 RTL_TOP  = riscv_top_$(busif) 
-RTL_VLOG = $(DUT_SRC_DIR)/pkg/riscv_rvlat_pkg.sv		\
+RTL_VLOG = $(DUT_SRC_DIR)/pkg/riscv_rvl_pkg.sv			\
 	   $(DUT_SRC_DIR)/pkg/riscv_opcodes_pkg.sv		\
 	   $(DUT_SRC_DIR)/pkg/riscv_state1.10_pkg.sv		\
 	   $(DUT_SRC_DIR)/pkg/riscv_pma_pkg.sv			\
@@ -87,7 +87,7 @@ RTL_VLOG = $(DUT_SRC_DIR)/pkg/riscv_rvlat_pkg.sv		\
 	   $(DUT_SRC_DIR)/core/riscv_mem.sv			\
 	   $(DUT_SRC_DIR)/core/riscv_wb.sv			\
 	   $(DUT_SRC_DIR)/core/riscv_dwb.sv			\
-	   $(DUT_SRC_DIR)/core/riscv_rf_lat.sv			\
+	   $(DUT_SRC_DIR)/core/riscv_rf.sv			\
 	   $(DUT_SRC_DIR)/core/riscv_state1.10.sv		\
 	   $(DUT_SRC_DIR)/core/riscv_bp.sv			\
 	   $(DUT_SRC_DIR)/core/riscv_du.sv			\
