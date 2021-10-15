@@ -130,6 +130,8 @@ module riscv_du #(
   // Variables
   //
   logic                                dbg_strb_i_dly;
+                                       du_stall_dly;
+				       
   logic [DBG_ADDR_SIZE-1:DU_ADDR_SIZE] du_bank_addr;
   logic                                du_sel_internal,
                                        du_sel_gprs,
