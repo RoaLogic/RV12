@@ -143,14 +143,15 @@ logic [XLEN-1:0] host_csr_tohost,
 
 
 //Unified memory interface
+logic            mem_hsel  [2];
 logic [     1:0] mem_htrans[2];
 logic [     3:0] mem_hburst[2];
 logic            mem_hready[2],
-                 mem_hresp[2];
-logic [ALEN-1:0] mem_haddr[2];
+                 mem_hresp [2];
+logic [ALEN-1:0] mem_haddr [2];
 logic [XLEN-1:0] mem_hwdata[2],
                  mem_hrdata[2];
-logic [     2:0] mem_hsize[2];
+logic [     2:0] mem_hsize [2];
 logic            mem_hwrite[2];
 
 
@@ -278,25 +279,27 @@ dbg_ctrl (
 
 
 //bus <-> memory model connections
+assign mem_hsel  [0] = ins_HSEL;
 assign mem_htrans[0] = ins_HTRANS;
 assign mem_hburst[0] = ins_HBURST;
-assign mem_haddr[0]  = ins_HADDR;
+assign mem_haddr [0] = ins_HADDR;
 assign mem_hwrite[0] = ins_HWRITE;
-assign mem_hsize[0]  = 4'h0;
+assign mem_hsize [0] = 4'h0;
 assign mem_hwdata[0] = {XLEN{1'b0}};
 assign ins_HRDATA    = mem_hrdata[0];
 assign ins_HREADY    = mem_hready[0];
-assign ins_HRESP     = mem_hresp[0];
+assign ins_HRESP     = mem_hresp [0];
 
+assign mem_hsel  [1] = dat_HSEL;
 assign mem_htrans[1] = dat_HTRANS;
 assign mem_hburst[1] = dat_HBURST;
-assign mem_haddr[1]  = dat_HADDR;
+assign mem_haddr [1] = dat_HADDR;
 assign mem_hwrite[1] = dat_HWRITE;
-assign mem_hsize[1]  = dat_HSIZE;
+assign mem_hsize [1] = dat_HSIZE;
 assign mem_hwdata[1] = dat_HWDATA;
 assign dat_HRDATA    = mem_hrdata[1];
 assign dat_HREADY    = mem_hready[1];
-assign dat_HRESP     = mem_hresp[1];
+assign dat_HRESP     = mem_hresp [1];
 
 
 //hookup memory model
@@ -309,6 +312,7 @@ memory_model_ahb3lite #(
 unified_memory (
   .HRESETn ( HRESETn ),
   .HCLK   ( HCLK       ),
+  .HSEL   ( mem_hsel   ),
   .HTRANS ( mem_htrans ),
   .HREADY ( mem_hready ),
   .HRESP  ( mem_hresp  ),
@@ -341,7 +345,7 @@ generate
       mmio_if #(XLEN, ALEN, TOHOST, UART_TX)
       mmio_if_inst (
         .HRESETn ( HRESETn ),
-        .HCLK    ( HCLK    ),
+        .HCLK    ( HCLK        ),
         .HTRANS  ( dat_HTRANS  ),
         .HWRITE  ( dat_HWRITE  ),
         .HSIZE   ( dat_HSIZE   ),
@@ -395,7 +399,7 @@ begin
   repeat (5) @(negedge HCLK);
   HRESETn = 'b1;
 
-/*
+
   #112;
   //stall CPU
   dbg_ctrl.stall;
@@ -422,7 +426,7 @@ begin
   dbg_ctrl.write('h0000,'h0000);
   dbg_ctrl.write('h0001,'h0000);
   dbg_ctrl.unstall;
-*/
+
 end		
 
 initial

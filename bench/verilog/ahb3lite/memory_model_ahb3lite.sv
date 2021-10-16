@@ -53,6 +53,7 @@ module memory_model_ahb3lite #(
   input                          HCLK,
   input                          HRESETn,
 
+  input                          HSEL   [PORTS],
   input      [              1:0] HTRANS [PORTS],
   output                         HREADY [PORTS],
   output                         HRESP  [PORTS],
@@ -273,8 +274,8 @@ generate
            if      (!HRESETn                   ) ack_latency[p] <= {LATENCY{1'b1}};
            else if (HREADY[p])
            begin
-               if      ( HTRANS[p] == HTRANS_IDLE  ) ack_latency[p] <= {LATENCY{1'b1}};
-               else if ( HTRANS[p] == HTRANS_NONSEQ) ack_latency[p] <= 'h0;
+               if      (!HSEL[p] || HTRANS[p] == HTRANS_IDLE  ) ack_latency[p] <= {LATENCY{1'b1}};
+               else if (            HTRANS[p] == HTRANS_NONSEQ) ack_latency[p] <= 'h0;
            end
            else                                      ack_latency[p] <= {ack_latency[p],1'b1};
 
@@ -300,7 +301,7 @@ generate
         end
 
       always @(posedge HCLK)
-        if (HREADY[p] && HTRANS[p] != HTRANS_BUSY)
+        if (HREADY[p] && HSEL[p] && HTRANS[p] != HTRANS_BUSY)
         begin
             waddr[p] <= HADDR[p] & ( {DATA_WIDTH{1'b1}} << $clog2(DATA_WIDTH/8) );
 
@@ -314,7 +315,7 @@ generate
 
 
      always @(posedge HCLK)
-       if (HREADY[p]) wreq[p] <= (HTRANS[p] != HTRANS_IDLE & HTRANS[p] != HTRANS_BUSY) & HWRITE[p];
+       if (HREADY[p]) wreq[p] <= HSEL[p] & (HTRANS[p] != HTRANS_IDLE) & (HTRANS[p] != HTRANS_BUSY) & HWRITE[p];
 
 
       always @(posedge HCLK)
@@ -328,7 +329,7 @@ generate
 
 
       always @(posedge HCLK)
-        if (HREADY[p] && (HTRANS[p] != HTRANS_IDLE) && (HTRANS[p] != HTRANS_BUSY) && !HWRITE[p])
+        if (HREADY[p] && HSEL[p] && (HTRANS[p] != HTRANS_IDLE) && (HTRANS[p] != HTRANS_BUSY) && !HWRITE[p])
           if (iaddr[p] == waddr[p] && wreq[p])
           begin
               for (j=0; j<DATA_WIDTH/8; j++)
