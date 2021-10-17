@@ -173,8 +173,10 @@ module biu_ahb3lite #(
   logic [          3:0] burst_cnt;
   logic                 data_ena,
                         ddata_ena;
+
   logic [DATA_SIZE-1:0] biu_di_dly;
 
+  logic                 incr_burst;
 
   //////////////////////////////////////////////////////////////////
   //
@@ -191,6 +193,7 @@ module biu_ahb3lite #(
         data_ena    <= 1'b0;
         biu_err_o   <= 1'b0;
         burst_cnt   <= 'h0;
+	incr_burst  <= 1'b0;
 
         HSEL        <= 1'b0;
         HADDR       <= 'h0;
@@ -208,12 +211,13 @@ module biu_ahb3lite #(
 
         if (HREADY)
         begin
-            if (~|burst_cnt)  //burst complete
+            if (~|burst_cnt && !incr_burst)  //burst complete or start of INCR burst
             begin
                 if (biu_stb_i && !biu_err_o)
                 begin
                     data_ena    <= 1'b1;
                     burst_cnt   <= biu_type2cnt(biu_type_i);
+                    incr_burst  <= biu_type2hburst(biu_type_i) == INCR;
 
                     HSEL        <= 1'b1;
                     HTRANS      <= HTRANS_NONSEQ; //start of burst
@@ -226,20 +230,35 @@ module biu_ahb3lite #(
                 end
                 else
                 begin
-                    data_ena  <= 1'b0;
+                    data_ena   <= 1'b0;
+                    incr_burst <= 1'b0;
 
-                    HSEL      <= 1'b0;
-                    HTRANS    <= HTRANS_IDLE; //no new transfer
-                    HMASTLOCK <= biu_lock_i;
+                    HSEL       <= 1'b0;
+                    HTRANS     <= HTRANS_IDLE; //no new transfer
+                    HMASTLOCK  <= biu_lock_i;
                 end
             end
             else //continue burst
             begin
-                data_ena  <= 1'b1;
-                burst_cnt <= burst_cnt -1;
+                if (biu_type_i == INCR)
+                begin
+                    data_ena   <= biu_stb_i;
+                    burst_cnt  <= 'h0; //continuous incrementing burst
+                    incr_burst <= biu_stb_i;
 
-                HTRANS    <= HTRANS_SEQ; //continue burst
-                HADDR     <= nxt_addr(HADDR,HBURST); //next address
+                    HSEL       <= biu_stb_i;
+                    HTRANS     <= biu_stb_i ? HTRANS_SEQ : HTRANS_IDLE;
+                    HADDR      <= biu_stb_i ? nxt_addr(HADDR,HBURST) : HADDR;
+		end
+                else
+                begin
+                    data_ena   <= 1'b1;
+                    burst_cnt  <= burst_cnt -1;
+                    incr_burst <= 1'b0;
+
+                    HTRANS     <= HTRANS_SEQ; //continue burst
+                    HADDR      <= nxt_addr(HADDR,HBURST); //next address
+                end
             end
         end
         else
@@ -247,13 +266,14 @@ module biu_ahb3lite #(
             //error response
             if (HRESP == HRESP_ERROR)
             begin
-                burst_cnt <= 'h0; //burst done (interrupted)
+                burst_cnt  <= 'h0; //burst done (interrupted)
+                incr_burst <= 1'b0;
 
-                HSEL      <= 1'b0;
-                HTRANS    <= HTRANS_IDLE;
+                HSEL       <= 1'b0;
+                HTRANS     <= HTRANS_IDLE;
 
-                data_ena  <= 1'b0;
-                biu_err_o <= 1'b1;
+                data_ena   <= 1'b0;
+                biu_err_o  <= 1'b1;
             end
         end
     end
