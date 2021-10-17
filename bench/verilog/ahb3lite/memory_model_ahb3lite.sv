@@ -53,17 +53,18 @@ module memory_model_ahb3lite #(
   input                          HCLK,
   input                          HRESETn,
 
-  input                          HSEL   [PORTS],
-  input      [              1:0] HTRANS [PORTS],
-  output                         HREADY [PORTS],
-  output                         HRESP  [PORTS],
+  input                          HSEL      [PORTS],
+  input      [              1:0] HTRANS    [PORTS],
+  input                          HREADY    [PORTS],
+  output                         HREADYOUT [PORTS],
+  output                         HRESP     [PORTS],
 
-  input      [ADDR_WIDTH   -1:0] HADDR  [PORTS],
-  input                          HWRITE [PORTS],
-  input      [              2:0] HSIZE  [PORTS],
-  input      [              3:0] HBURST [PORTS],
-  input      [DATA_WIDTH   -1:0] HWDATA [PORTS],
-  output reg [DATA_WIDTH   -1:0] HRDATA [PORTS]
+  input      [ADDR_WIDTH   -1:0] HADDR     [PORTS],
+  input                          HWRITE    [PORTS],
+  input      [              2:0] HSIZE     [PORTS],
+  input      [              3:0] HBURST    [PORTS],
+  input      [DATA_WIDTH   -1:0] HWDATA    [PORTS],
+  output reg [DATA_WIDTH   -1:0] HRDATA    [PORTS]
 );
   ////////////////////////////////////////////////////////////////
   //
@@ -271,7 +272,10 @@ generate
      if (LATENCY > 0)
      begin
          always @(posedge HCLK,negedge HRESETn)
-           if      (!HRESETn                   ) ack_latency[p] <= {LATENCY{1'b1}};
+           if      (!HRESETn                   )
+           begin
+               ack_latency[p] <= {LATENCY{1'b1}};
+           end
            else if (HREADY[p])
            begin
                if      (!HSEL[p] || HTRANS[p] == HTRANS_IDLE  ) ack_latency[p] <= {LATENCY{1'b1}};
@@ -279,10 +283,10 @@ generate
            end
            else                                      ack_latency[p] <= {ack_latency[p],1'b1};
 
-         assign HREADY[p] = ack_latency[p][LATENCY];
+         assign HREADYOUT[p] = ack_latency[p][LATENCY];
      end
      else
-         assign HREADY[p] = 1'b1;
+         assign HREADYOUT[p] = 1'b1;
 
       assign HRESP[p] = HRESP_OKAY;
 
