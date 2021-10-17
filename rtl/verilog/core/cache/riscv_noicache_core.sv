@@ -124,8 +124,6 @@ module riscv_noicache_core #(
     else if (|discard && (biu_ack_i | biu_err_i)) discard <= discard -1;
 
 
-
-
   /*
    * To CPU
    */
@@ -148,7 +146,8 @@ module riscv_noicache_core #(
                                    st_prv_i == PRV_U ? PROT_USER : PROT_PRIVILEGED);
   assign biu_we_o    = 1'b0;   //no writes
   assign biu_d_o     =  'h0;
-  assign biu_type_o  = INCR;   //incrementing burst access
+  assign biu_type_o  = (XLEN==64 && |if_nxt_pc_i[2:0]) ||
+                       (XLEN==32 && |if_nxt_pc_i[1:0]) ? SINGLE : INCR;   //incrementing burst access
 
 endmodule
 
