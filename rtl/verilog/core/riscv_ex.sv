@@ -95,6 +95,7 @@ module riscv_ex #(
 
   //To DCACHE/Memory
   output                          dmem_req_o,
+  output                          dmem_lock_o,
   output     [XLEN          -1:0] dmem_adr_o,
   output     biu_size_t           dmem_size_o,
   output                          dmem_we_o,
@@ -250,6 +251,7 @@ module riscv_ex #(
     .st_xlen_i         ( st_xlen_i         ),
 
     .dmem_req_o        ( dmem_req_o        ),
+    .dmem_lock_o       ( dmem_lock_o       ),
     .dmem_we_o         ( dmem_we_o         ),
     .dmem_size_o       ( dmem_size_o       ),
     .dmem_adr_o        ( dmem_adr_o        ),

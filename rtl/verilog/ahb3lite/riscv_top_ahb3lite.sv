@@ -267,6 +267,7 @@ module riscv_top_ahb3lite #(
     .dmem_q_i                 ( dmem_q                 ),
     .dmem_we_o                ( dmem_we                ),
     .dmem_size_o              ( dmem_size              ),
+    .dmem_lock_o              ( dmem_lock              ),
     .dmem_req_o               ( dmem_req               ),
     .dmem_ack_i               ( dmem_ack               ),
     .dmem_err_i               ( dmem_err               ),

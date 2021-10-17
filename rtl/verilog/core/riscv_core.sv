@@ -95,6 +95,7 @@ module riscv_core #(
   input           [XLEN            -1:0] dmem_q_i,
   output                                 dmem_we_o,
   output biu_size_t                      dmem_size_o,
+  output                                 dmem_lock_o,
   output                                 dmem_req_o,
   input                                  dmem_ack_i,
                                          dmem_err_i,
@@ -483,6 +484,7 @@ module riscv_core #(
     .st_csr_rval_i     ( st_csr_rval       ),
 
     .dmem_req_o        ( dmem_req_o        ),
+    .dmem_lock_o       ( dmem_lock_o       ),
     .dmem_adr_o        ( dmem_adr_o        ),
     .dmem_size_o       ( dmem_size_o       ),
     .dmem_we_o         ( dmem_we_o         ),

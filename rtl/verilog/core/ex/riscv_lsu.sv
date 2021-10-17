@@ -66,6 +66,7 @@ module riscv_lsu #(
 
   //To Memory
   output reg                      dmem_req_o,
+                                  dmem_lock_o,
                                   dmem_we_o,
   output biu_size_t               dmem_size_o,
   output reg [XLEN          -1:0] dmem_adr_o,
@@ -129,6 +130,7 @@ module riscv_lsu #(
         lsu_stall_o  <= 1'b0;
         lsu_bubble_o <= 1'b1;
         dmem_req_o   <= 1'b0;
+        dmem_lock_o  <= 1'b0;
     end
     else
     begin
@@ -142,18 +144,21 @@ module riscv_lsu #(
                            unique case (opcR.opcode)
                               OPC_LOAD : begin
                                              dmem_req_o   <= 1'b1;
+                                             dmem_lock_o  <= 1'b0;
                                              lsu_stall_o  <= 1'b0;
                                              lsu_bubble_o <= 1'b0;
                                              state        <= IDLE;
                                          end
                               OPC_STORE: begin
                                              dmem_req_o   <= 1'b1;
+                                             dmem_lock_o  <= 1'b0;
                                              lsu_stall_o  <= 1'b0;
                                              lsu_bubble_o <= 1'b0;
                                              state        <= IDLE;
                                          end
                               default  : begin
                                              dmem_req_o   <= 1'b0;
+                                             dmem_lock_o  <= 1'b0;
                                              lsu_stall_o  <= 1'b0;
                                              lsu_bubble_o <= 1'b1;
                                              state        <= IDLE;
@@ -163,6 +168,7 @@ module riscv_lsu #(
                        else
                        begin
                            dmem_req_o   <= 1'b0;
+                           dmem_lock_o  <= 1'b0;
                            lsu_stall_o  <= 1'b0;
                            lsu_bubble_o <= 1'b1;
                            state        <= IDLE;
@@ -171,6 +177,7 @@ module riscv_lsu #(
 
           default: begin
                        dmem_req_o   <= 1'b0;
+                       dmem_lock_o  <= 1'b0;
                        lsu_stall_o  <= 1'b0;
                        lsu_bubble_o <= 1'b1;
                        state        <= IDLE;
