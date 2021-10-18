@@ -311,17 +311,18 @@ memory_model_ahb3lite #(
   .LATENCY    ( MEM_LATENCY ) )
 unified_memory (
   .HRESETn ( HRESETn ),
-  .HCLK   ( HCLK       ),
-  .HSEL   ( mem_hsel   ),
-  .HTRANS ( mem_htrans ),
-  .HREADY ( mem_hready ),
-  .HRESP  ( mem_hresp  ),
-  .HADDR  ( mem_haddr  ),
-  .HWRITE ( mem_hwrite ),
-  .HSIZE  ( mem_hsize  ),
-  .HBURST ( mem_hburst ),
-  .HWDATA ( mem_hwdata ),
-  .HRDATA ( mem_hrdata ) );
+  .HCLK      ( HCLK       ),
+  .HSEL      ( mem_hsel   ),
+  .HTRANS    ( mem_htrans ),
+  .HREADYOUT ( mem_hready ),
+  .HREADY    ( mem_hready ),
+  .HRESP     ( mem_hresp  ),
+  .HADDR     ( mem_haddr  ),
+  .HWRITE    ( mem_hwrite ),
+  .HSIZE     ( mem_hsize  ),
+  .HBURST    ( mem_hburst ),
+  .HWDATA    ( mem_hwdata ),
+  .HRDATA    ( mem_hrdata ) );
 
 
 //Front-End Server
