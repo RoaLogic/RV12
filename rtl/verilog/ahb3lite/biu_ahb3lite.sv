@@ -208,6 +208,7 @@ module biu_ahb3lite #(
     begin
         //strobe/ack signals
         biu_err_o   <= 1'b0;
+        incr_burst  <= incr_burst & biu_stb_i; // kill incr_burst when biu_stb_i drops
 
         if (HREADY)
         begin
