@@ -93,8 +93,9 @@ logic [XLEN-1:0] dout1,
   //during a stall are handled
 
   //register read port
-  always @(posedge clk_i) if (!stall_i) src1 <= rf_src1_i;
-  always @(posedge clk_i) if (!stall_i) src2 <= rf_src2_i;
+  always @(posedge clk_i) if (du_stall_i)    src1 <= rsd_t'(du_addr_i[4:0]);
+                          else if (!stall_i) src1 <= rf_src1_i;
+  always @(posedge clk_i) if      (!stall_i) src2 <= rf_src2_i;
 
 
   //RW contention
@@ -136,10 +137,10 @@ logic [XLEN-1:0] dout1,
   end
 
 
+//Debug Unit output
+always @(posedge clk_i)
+  du_rf_q_o <= ~|src1 ? 'h0 : rfout1;
 
-
-//TODO: For the Debug Unit ... mux with port0
-assign du_rf_q_o = |du_addr_i[4:0] ? rf[ du_addr_i[4:0] ] : {XLEN{1'b0}};
 
 
 //Writes are synchronous
