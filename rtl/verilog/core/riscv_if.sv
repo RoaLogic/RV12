@@ -164,7 +164,7 @@ module riscv_if #(
 
 
   //request new parcel when parcel_queue not full and no flushes
-  assign imem_req_o = ~parcel_queue_full & ~flushes;
+  assign imem_req_o = ~parcel_queue_full & ~flushes & ~du_stall_i;
 
 
   //Instruction Memory Address generator
