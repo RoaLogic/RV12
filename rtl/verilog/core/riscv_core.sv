@@ -134,7 +134,7 @@ module riscv_core #(
   logic [XLEN          -1:0] pd_nxt_pc,
                              bu_nxt_pc,
                              st_nxt_pc,
-                             if_bp_pc,
+                             if_nxt_pc,
 			     if_pc,
                              pd_pc,
                              id_pc,
@@ -282,11 +282,12 @@ module riscv_core #(
     .imem_parcel_page_fault_i ( imem_parcel_page_fault_i ),
     .imem_parcel_error_i      ( imem_parcel_error_i      ),
 
-    .if_bp_pc_o               ( if_bp_pc                 ),   //Program Counter for Branch Prediction
+    .if_nxt_pc_o              ( if_nxt_pc                ),   //Program Counter for Branch Prediction
     .if_pc_o                  ( if_pc                    ),   //Program Counter
     .if_insn_o                ( if_insn                  ),   //Instruction out
     .if_exceptions_o          ( if_exceptions            ),   //Exceptions
 
+    .pd_pc_i                  ( pd_pc                    ),
     .pd_stall_i               ( pd_stall                 ),
     .pd_flush_i               ( pd_flush                 ),
 
@@ -294,6 +295,8 @@ module riscv_core #(
     .st_flush_i               ( st_flush                 ),
     .du_stall_i               ( du_stall                 ),
     .du_flush_i               ( du_flush                 ),
+    .du_we_pc_i               ( du_we_pc                 ),
+    .du_dato_i                ( du_dato                  ),
     .du_latch_nxt_pc_i        ( du_latch_nxt_pc          ),
     .pd_latch_nxt_pc_i        ( pd_latch_nxt_pc          ),
     
@@ -710,7 +713,7 @@ generate
       .clk_i             ( clk_i          ),
 
       .id_stall_i        ( id_stall       ),
-      .if_parcel_pc_i    ( if_bp_pc       ),
+      .if_parcel_pc_i    ( if_nxt_pc       ),
       .bp_bp_predict_o   ( bp_bp_predict  ),
 
       .ex_pc_i           ( ex_pc          ),
@@ -743,10 +746,6 @@ endgenerate
     .du_stall_o        ( du_stall        ),
     .dbg_wb_i          ( dbg_wb          ),
 
-
-
-
-
     .du_latch_nxt_pc_o ( du_latch_nxt_pc ),
     .du_flush_o        ( du_flush        ),
     .du_we_rf_o        ( du_we_rf        ),
@@ -759,13 +758,15 @@ endgenerate
     .du_rf_q_i         ( du_dati_rf      ),
     .du_frf_q_i        ( du_dati_frf     ),
     .st_csr_q_i        ( st_csr_rval     ),
+    .if_nxt_pc_i       ( if_nxt_pc       ),
+    .if_pc_i           ( if_pc           ),
     .pd_pc_i           ( pd_pc           ),
     .id_pc_i           ( id_pc           ),
     .ex_pc_i           ( ex_pc           ),
-    .bu_nxt_pc_i       ( bu_nxt_pc       ),
     .bu_flush_i        ( bu_flush        ),
     .st_flush_i        ( st_flush        ),
 
+    .if_insn_i         ( if_insn         ),
     .pd_insn_i         ( pd_insn         ),
     .mem_insn_i        ( mem_insn        ),
     .mem_exceptions_i  ( mem_exceptions  ),
