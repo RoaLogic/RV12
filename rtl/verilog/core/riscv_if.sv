@@ -52,11 +52,12 @@ module riscv_if #(
   input                             imem_parcel_page_fault_i,
   input                             imem_parcel_error_i,
 
-  output reg [XLEN            -1:0] if_bp_pc_o,               //Program counter toward Branch Prediction
+  output reg [XLEN            -1:0] if_nxt_pc_o,              //Next Program Counter
                                     if_pc_o,                  //Program Counter
   output instruction_t              if_insn_o,
   output exceptions_t               if_exceptions_o,          //Exceptions
 
+  input      [XLEN            -1:0] pd_pc_i,
   input                             pd_stall_i,
                                     pd_flush_i,
 				    pd_latch_nxt_pc_i,
@@ -65,8 +66,10 @@ module riscv_if #(
                                     st_flush_i,
 
                                     du_stall_i,
+                                    du_we_pc_i,
                                     du_latch_nxt_pc_i,
 				    du_flush_i,
+  input      [XLEN            -1:0] du_dato_i,
 
   input      [XLEN            -1:0] pd_nxt_pc_i,              //pre-decoder Next Program Counter
                                     bu_nxt_pc_i,              //Branch Unit Next Program Counter
@@ -103,6 +106,8 @@ module riscv_if #(
                     xlen128;
 
   logic             flushes;
+  logic             ddu_we_pc,
+                    du_we_pc_strb;
 
 
   //Parcel queue signals
@@ -121,7 +126,6 @@ module riscv_if #(
 
   exceptions_t      parcel_exceptions;
 
-  logic [XLEN -1:0] pc;
 
   //Instruction length decoding
   logic             is_16bit_instruction;
@@ -141,6 +145,13 @@ module riscv_if #(
 
   assign has_rvc = (HAS_RVC != 0);
 
+
+  //Create strobed PC write signal
+  always @(posedge clk_i)
+    ddu_we_pc <= du_we_pc_i;
+
+  assign du_we_pc_strb = du_we_pc_i & ~ddu_we_pc;
+
   
   /*
    * Next Parcel
@@ -157,7 +168,7 @@ module riscv_if #(
    */
 
   //All flush signals
-  assign flushes = pd_flush_i;
+  assign flushes = pd_flush_i | du_flush_i;
   assign xlen32  = st_xlen_i == RV32I;
   assign xlen64  = st_xlen_i == RV64I;
   assign xlen128 = st_xlen_i == RV128I;
@@ -172,7 +183,9 @@ module riscv_if #(
   always @(posedge clk_i, negedge rst_ni)
     if      (!rst_ni                          ) imem_adr_o <= PC_INIT;
     else if ( st_flush_i                      ) imem_adr_o <= st_nxt_pc_i;
-    else if ( bu_flush_i || du_latch_nxt_pc_i ) imem_adr_o <= bu_nxt_pc_i;
+//    else if ( du_we_pc_strb                   ) imem_adr_o <= du_dato_i;
+    else if ( du_flush_i                      ) imem_adr_o <= if_pc_o;
+    else if ( bu_flush_i /*|| du_latch_nxt_pc_i*/ ) imem_adr_o <= bu_nxt_pc_i;
     else
     begin
         if      ( pd_latch_nxt_pc_i        ) imem_adr_o <= pd_nxt_pc_i;
@@ -232,8 +245,8 @@ module riscv_if #(
 
 
   //queue read signal
-  assign parcel_queue_rd = {~pd_stall_i & parcel_valid & is_32bit_instruction,
-                            ~pd_stall_i & parcel_valid & is_16bit_instruction};
+  assign parcel_queue_rd = {~pd_stall_i & ~du_stall_i & parcel_valid & is_32bit_instruction,
+                            ~pd_stall_i & ~du_stall_i & parcel_valid & is_16bit_instruction};
 
 
   //assign parcel exception signals
@@ -571,26 +584,25 @@ module riscv_if #(
    * IF Outputs
    */
 
-  //Internal program counter
+
+  //Next Program Counter
   always @(posedge clk_i, negedge rst_ni)
-    if      (!rst_ni                          ) pc <= PC_INIT;
-    else if ( st_flush_i                      ) pc <= st_nxt_pc_i;
-    else if ( bu_flush_i || du_latch_nxt_pc_i ) pc <= bu_nxt_pc_i;
-    else if ( pd_latch_nxt_pc_i               ) pc <= pd_nxt_pc_i;
-    else if (!pd_stall_i && !rv_bubble)
-      if (is_16bit_instruction) pc <= pc +2;
-      else                      pc <= pc +4;
+    if      (!rst_ni            ) if_nxt_pc_o <= PC_INIT;
+    else if ( st_flush_i        ) if_nxt_pc_o <= st_nxt_pc_i;
+    else if ( du_we_pc_strb     ) if_nxt_pc_o <= du_dato_i; 
+    else if ( du_flush_i        ) if_nxt_pc_o <= if_pc_o;
+    else if ( bu_flush_i        ) if_nxt_pc_o <= bu_nxt_pc_i;
+    else if ( pd_latch_nxt_pc_i ) if_nxt_pc_o <= pd_nxt_pc_i;
+    else if (!pd_stall_i && !rv_bubble && !du_stall_i)
+      if (is_16bit_instruction) if_nxt_pc_o <= if_nxt_pc_o +2;
+      else                      if_nxt_pc_o <= if_nxt_pc_o +4;
 
 
-  //Branch Predictor PC
-  assign if_bp_pc_o = pc;
-
-
-
-  //Program Counter
+  //Current Program Counter
   always @(posedge clk_i, negedge rst_ni)
-    if       (!rst_ni    ) if_pc_o <= PC_INIT;
-    else  if (!pd_stall_i) if_pc_o <= pc;
+    if      (!rst_ni       ) if_pc_o <= PC_INIT;
+    else if ( du_we_pc_strb) if_pc_o <= du_dato_i;
+    else if (!pd_stall_i && !du_stall_i  ) if_pc_o <= if_nxt_pc_o;
 
 
   //Instruction
