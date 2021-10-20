@@ -159,6 +159,7 @@ module riscv_bu #(
    * - Exceptions
    * - Debug Unit NPC access
    */
+/*
   always @(posedge clk_i)
     du_we_pc_i_dly <= du_we_pc_i;
 
@@ -169,7 +170,7 @@ module riscv_bu #(
 
   always @(posedge clk_i)
     if (du_we_pc_i) du_nxt_pc <= du_dato_i;
-
+*/
 
   always_comb 
     casex ( {id_insn_i.bubble,opcR} )
@@ -271,6 +272,7 @@ module riscv_bu #(
         bu_bp_update_o  <= 'b0;
         bp_history      <= 'h0;
     end
+/*
     else if (du_wrote_pc)
     begin
         bu_flush_o      <= du_we_pc_i_dly;
@@ -281,6 +283,7 @@ module riscv_bu #(
         bu_bp_btaken_o  <= 'b0;
         bu_bp_update_o  <= 'b0;
     end
+*/
     else
     begin
         bu_flush_o      <= pipeflush; //(pipeflush & ~du_stall_i & ~du_flush_i);
@@ -299,7 +302,7 @@ module riscv_bu #(
 
   always @(posedge clk_i, negedge rst_ni)
    if      (!rst_ni     ) bu_nxt_pc_o <= PC_INIT;
-   else if ( du_wrote_pc) bu_nxt_pc_o <= du_nxt_pc;
+//   else if ( du_wrote_pc) bu_nxt_pc_o <= du_nxt_pc;
    else if (!ex_stall_i ) bu_nxt_pc_o <= nxt_pc;
 
 
