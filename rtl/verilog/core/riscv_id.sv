@@ -237,8 +237,8 @@ module riscv_id #(
 
 
   //local stall
-  assign stalls           = ex_stall_i | (du_stall_i & ~exceptions); //Do not enter debug mode when there's an exception in the pipeline
-  assign flushes          = bu_flush_i | st_flush_i;// | du_flush_i;
+  assign stalls           = ex_stall_i;
+  assign flushes          = bu_flush_i | st_flush_i;
   assign exceptions       = ex_exceptions_i.any | mem_exceptions_i.any | wb_exceptions_i.any;
   assign id_insn_o.bubble = stalls | flushes | exceptions | id_bubble_r;
 
