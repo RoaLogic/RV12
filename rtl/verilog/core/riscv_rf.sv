@@ -66,16 +66,14 @@ module riscv_rf #(
 //Need to figure out if an array of rsd_t is actually allowed
 logic [XLEN-1:0] rf [32];
 
-rsd_t src1,
-      src2;
+rsd_t            src1,
+                 src2;
 
 //read data from register file
 logic [XLEN-1:0] rfout1,
                  rfout2;
 
 //Exceptions
-rsd_t            src1_hold,
-                 src2_hold;
 logic            src1_is_x0,
 	         src2_is_x0,
                  dst_is_src1,
@@ -83,19 +81,26 @@ logic            src1_is_x0,
 logic [XLEN-1:0] dout1,
                  dout2;
 
+ logic           du_stall_dly;
+
+
 /////////////////////////////////////////////////////////////////
 //
 // Module Body
 //
+
+  //delay du_stall signal, to ensure src1 reaches RF before du_stall takes over
+  always @(posedge clk_i)
+    du_stall_dly <= du_stall_i;
 
 
   //Use traditional registered memory description to ensure that writes to RF
   //during a stall are handled
 
   //register read port
-  always @(posedge clk_i) if (du_stall_i)    src1 <= rsd_t'(du_addr_i[4:0]);
-                          else if (!stall_i) src1 <= rf_src1_i;
-  always @(posedge clk_i) if      (!stall_i) src2 <= rf_src2_i;
+  always @(posedge clk_i) if      ( du_stall_dly)  src1 <= rsd_t'(du_addr_i[4:0]);
+                          else if (!stall_i     ) src1 <= rf_src1_i;
+  always @(posedge clk_i) if      (!stall_i     ) src2 <= rf_src2_i;
 
 
   //RW contention
