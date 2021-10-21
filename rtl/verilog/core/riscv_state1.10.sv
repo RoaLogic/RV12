@@ -507,7 +507,7 @@ endgenerate
     begin
         st_prv_o           <= PRV_M;    //start in machine mode
         st_nxt_pc_o        <= PC_INIT;
-        st_flush_o         <= 1'b1;
+        st_flush_o         <= 1'b1;     //flush CPU(heart) upon reset exit
 
 //        csr.mstatus.vm   <= VM_MBARE;
         csr.mstatus.sxl  <= has_s ? csr.misa.base : 2'b00;
@@ -702,12 +702,12 @@ $display ("take_interrupt");
                 csr.mstatus.mpp  <= st_prv_o;
             end
         end
-        else if ( |(wb_exceptions_i[$bits(wb_exceptions_i)-1:0] & ~du_ie_i[15:0]) )
+        else if ( |(wb_exceptions_i[$bits(wb_exceptions_i)-2:0] & ~du_ie_i[15:0]) )
         begin
-$display("exception");
+$display("exception %.15b %.15b %.15b", wb_exceptions_i[15:0], du_ie_i[15:0], wb_exceptions_i[$bits(wb_exceptions_i)-2:0]);
             st_flush_o  <= 1'b1;
 
-            if (has_n && st_prv_o == PRV_U && |(wb_exceptions_i[$bits(wb_exceptions_i)-1:0] & csr.medeleg))
+            if (has_n && st_prv_o == PRV_U && |(wb_exceptions_i[$bits(wb_exceptions_i)-2:0] & csr.medeleg))
             begin
                 st_prv_o    <= PRV_U;
                 st_nxt_pc_o <= csr.utvec;
@@ -715,7 +715,7 @@ $display("exception");
                 csr.mstatus.upie <= csr.mstatus.uie;
                 csr.mstatus.uie  <= 1'b0;
             end
-            else if (has_s && st_prv_o >= PRV_S && |(wb_exceptions_i[$bits(wb_exceptions_i)-1:0] & csr.medeleg))
+            else if (has_s && st_prv_o >= PRV_S && |(wb_exceptions_i[$bits(wb_exceptions_i)-2:0] & csr.medeleg))
             begin
                 st_prv_o    <= PRV_S;
                 st_nxt_pc_o <= csr.stvec;
@@ -1060,7 +1060,7 @@ endgenerate
       csr.mscratch <= csr_wval;
 
 
-  assign trap_cause = get_trap_cause( wb_exceptions_i[$bits(wb_exceptions_i)-1:0] & ~du_ie_i[15:0]);
+  assign trap_cause = get_trap_cause( wb_exceptions_i[$bits(wb_exceptions_i)-2:0] & ~du_ie_i[15:0]);
 
 
   //decode interrupts
