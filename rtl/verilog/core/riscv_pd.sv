@@ -41,7 +41,7 @@ module riscv_pd #(
   
   input                  id_stall_i,
   output                 pd_stall_o,
-  input                  du_stall_i,
+  input                  du_mode_i,
 
   input                  bu_flush_i,      //flush pipe & load new program counter
                          st_flush_i,
@@ -60,12 +60,17 @@ module riscv_pd #(
   output reg [      1:0] pd_bp_predict_o, //push down the pipe
 
   input      [XLEN -1:0] if_pc_i,
-  input  instruction_t   if_insn_i,
-  input  exceptions_t    if_exceptions_i, //Exceptions
-
   output reg [XLEN -1:0] pd_pc_o,
+
+  input  instruction_t   if_insn_i,
   output instruction_t   pd_insn_o,
+
+  input  exceptions_t    if_exceptions_i,
   output exceptions_t    pd_exceptions_o,
+  input  exceptions_t    id_exceptions_i,
+                         ex_exceptions_i,
+                         mem_exceptions_i,
+                         wb_exceptions_i,
 
   
   //Pipeline Debug (stall)
@@ -104,7 +109,6 @@ module riscv_pd #(
    * To Register File (registered outputs)
    */
   //address into register file. Gets registered in memory
-  //Should the hold be handled by the memory?!
   assign pd_rs1_o = decode_rs1(if_insn_i.instr);
   assign pd_rs2_o = decode_rs2(if_insn_i.instr);
 
@@ -125,10 +129,13 @@ module riscv_pd #(
 
   //Bubble
   always @(posedge clk_i, negedge rst_ni)
-    if      (!rst_ni     ) pd_insn_o.bubble <= 1'b1;
-    else if ( pd_flush_o ) pd_insn_o.bubble <= 1'b1;
-    else if ( du_stall_i ) pd_insn_o.bubble <= 1'b1;
-    else if (!id_stall_i ) pd_insn_o.bubble <= if_insn_i.bubble;
+    if      (!rst_ni              ) pd_insn_o.bubble <= 1'b1;
+    else if ( pd_flush_o          ) pd_insn_o.bubble <= 1'b1;
+    else if ( id_exceptions_i.any  ||
+              ex_exceptions_i.any  ||
+              mem_exceptions_i.any ||
+              wb_exceptions_i.any ) pd_insn_o.bubble <= 1'b1;
+    else if (!id_stall_i          ) pd_insn_o.bubble <= if_insn_i.bubble;
 
 
   //Exceptions
@@ -155,13 +162,13 @@ module riscv_pd #(
 
   // Branch and Jump prediction
   always_comb
-    casex ( {if_insn_i.bubble, decode_opcode(if_insn_i.instr)} )
-      {1'b0,OPC_JAL   } : begin
+    casex ( {du_mode_i, if_insn_i.bubble, decode_opcode(if_insn_i.instr)} )
+      {1'b0, 1'b0,OPC_JAL   } : begin
                              branch_taken     = 1'b1;
 			     branch_predicted = 2'b10;
                              pd_nxt_pc_o      = if_pc_i + ext_immUJ;
                           end
-      {1'b0,OPC_BRANCH} : begin
+      {1'b0, 1'b0,OPC_BRANCH} : begin
                               //if this CPU has a Branch Predict Unit, then use it's prediction
                               //otherwise assume backwards jumps taken, forward jumps not taken
                               branch_taken     = (HAS_BPU != 0) ? bp_bp_predict_i[1] : ext_immSB[31];
