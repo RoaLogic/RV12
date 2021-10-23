@@ -53,7 +53,9 @@ module riscv_du #(
   
 
   //CPU signals
+  output                          du_dbg_mode_o,
   output                          du_stall_o,
+                                  du_stall_if_o,
   input                           dbg_wb_i,
 
 
@@ -76,10 +78,12 @@ module riscv_du #(
                                   pd_pc_i,
                                   id_pc_i,
                                   ex_pc_i,
+                                  wb_pc_i,
   input                           bu_flush_i,
                                   st_flush_i,
 
-  input  instruction_t            if_insn_i,
+  input  instruction_t            if_nxt_insn_i,
+                                  if_insn_i,
                                   pd_insn_i,
                                   mem_insn_i,
 
@@ -153,6 +157,10 @@ module riscv_du #(
   logic                                mem_read,
                                        mem_write;
 
+
+  logic [XLEN                   -1:0] dpc; //debug program counter
+
+
   genvar n;
 
 
@@ -200,8 +208,9 @@ module riscv_du #(
    * CPU Interface
    */
   // assign CPU signals
-  assign du_stall_o = dbg_stall_i | (|dbg.hit);
-
+  assign du_stall_o    = dbg_stall_i;
+  assign du_stall_if_o = dbg_stall_i | (|dbg.hit);
+  
 
   always @(posedge clk_i,negedge rst_ni)
     if (!rst_ni) du_stall_dly <= 1'b0;
@@ -267,7 +276,7 @@ module riscv_du #(
        {DBG_GPRS    ,DBG_GPR}: dbg_q_o <= du_rf_q_i;
        {DBG_GPRS    ,DBG_FPR}: dbg_q_o <= du_frf_q_i;
        {DBG_GPRS    ,DBG_NPC}: dbg_q_o <= if_nxt_pc_i;
-       {DBG_GPRS    ,DBG_PPC}: dbg_q_o <= ex_pc_i;
+       {DBG_GPRS    ,DBG_PPC}: dbg_q_o <= dpc;
        {DBG_CSRS    ,12'h???}: dbg_q_o <= st_csr_q_i;
        default               : dbg_q_o <= 'h0;
     endcase
@@ -305,10 +314,8 @@ module riscv_du #(
     end
     else
     begin
-       dbg.hit.instr_break_hit  <= bp_instr_hit  | (dbg.hit.instr_break_hit  & ~dbg_stall_i);
-       dbg.hit.branch_break_hit <= bp_branch_hit | (dbg.hit.branch_break_hit & ~dbg_stall_i);
-//        if (bp_instr_hit ) dbg.hit.instr_break_hit  <= 1'b1;
-//        if (bp_branch_hit) dbg.hit.branch_break_hit <= 1'b1;
+        if (bp_instr_hit ) dbg.hit.instr_break_hit  <= 1'b1;
+        if (bp_branch_hit) dbg.hit.branch_break_hit <= 1'b1;
     end
 
 generate
@@ -327,6 +334,16 @@ begin: gen_bp_hits
 
 end
 endgenerate
+
+
+  //DBG PC
+  //Debug Triggers are caught at different stages of the pipeline, thus need to
+  //latch PC from different levels of the pipeline
+  always @(posedge clk_i)
+    if      (|du_exceptions_i) dpc <= wb_pc_i;
+    else if (|bp_hit         ) dpc <= id_pc_i;
+    else if ( bp_branch_hit  ) dpc <= id_pc_i;
+    else if ( bp_instr_hit   ) dpc <= if_pc_i;
 
 
   //DBG IE
@@ -429,7 +446,7 @@ endgenerate
    * Combinatorial generation of break-point hit logic
    * For actual registers see 'Registers' section
    */
-  assign bp_instr_hit  = dbg.ctrl.instr_break_ena  & ~if_insn_i.bubble;
+  assign bp_instr_hit  = dbg.ctrl.instr_break_ena  & ~if_nxt_insn_i.bubble;
   assign bp_branch_hit = dbg.ctrl.branch_break_ena & ~if_insn_i.bubble & (if_insn_i.instr[6:2] == OPC_BRANCH);
 
   //Memory access
