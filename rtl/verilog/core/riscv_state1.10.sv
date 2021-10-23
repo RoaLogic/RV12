@@ -1104,8 +1104,8 @@ endgenerate
 
   //for Debug Unit
   assign du_exceptions_o = du_ie_i & { {16-$bits(st_int){1'b0}}, st_int,
-                                       {16-($bits(wb_exceptions_i)-1){1'b0}},
-                                        wb_exceptions_i[$bits(wb_exceptions_i)-1:0] };
+                                       {16-($bits(wb_exceptions_i)-2){1'b0}},
+                                        wb_exceptions_i[$bits(wb_exceptions_i)-2:0] };
 
 
   //Update mepc and mcause
@@ -1224,16 +1224,16 @@ endgenerate
                 csr.mepc   <= id_pc_i;
             end
         end
-        else if (|(wb_exceptions_i[$bits(wb_exceptions_i)-1:0] & ~du_ie_i[15:0]))
+        else if (|(wb_exceptions_i[$bits(wb_exceptions_i)-2:0] & ~du_ie_i[15:0]))
         begin
             //Trap
-            if (has_n && st_prv_o == PRV_U && |(wb_exceptions_i[$bits(wb_exceptions_i)-1:0] & csr.medeleg))
+            if (has_n && st_prv_o == PRV_U && |(wb_exceptions_i[$bits(wb_exceptions_i)-2:0] & csr.medeleg))
             begin
                 csr.uepc   <= wb_pc_i;
                 csr.ucause <= trap_cause;
                 csr.utval  <= wb_badaddr_i;
             end
-            else if (has_s && st_prv_o >= PRV_S && |(wb_exceptions_i[$bits(wb_exceptions_i)-1:0] & csr.medeleg))
+            else if (has_s && st_prv_o >= PRV_S && |(wb_exceptions_i[$bits(wb_exceptions_i)-2:0] & csr.medeleg))
             begin
                 csr.sepc   <= wb_pc_i;
                 csr.scause <= trap_cause;
