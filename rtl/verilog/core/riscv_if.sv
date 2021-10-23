@@ -54,8 +54,14 @@ module riscv_if #(
 
   output reg [XLEN            -1:0] if_nxt_pc_o,              //Next Program Counter
                                     if_pc_o,                  //Program Counter
-  output instruction_t              if_insn_o,
+  output instruction_t              if_nxt_insn_o,
+                                    if_insn_o,
   output exceptions_t               if_exceptions_o,          //Exceptions
+  input  exceptions_t               pd_exceptions_i,
+                                    id_exceptions_i,
+                                    ex_exceptions_i,
+                                    mem_exceptions_i,
+                                    wb_exceptions_i,
 
   input      [XLEN            -1:0] pd_pc_i,
   input                             pd_stall_i,
@@ -122,8 +128,6 @@ module riscv_if #(
                     rv_instr;
   rvc_instr_t       rvc_parcel;
 
-  logic             rv_bubble;
-
   exceptions_t      parcel_exceptions;
 
 
@@ -184,7 +188,7 @@ module riscv_if #(
     if      (!rst_ni                          ) imem_adr_o <= PC_INIT;
     else if ( st_flush_i                      ) imem_adr_o <= st_nxt_pc_i;
 //    else if ( du_we_pc_strb                   ) imem_adr_o <= du_dato_i;
-    else if ( du_flush_i                      ) imem_adr_o <= if_pc_o;
+    else if ( du_stall_i                      ) imem_adr_o <= if_nxt_pc_o; //if_pc_o;
     else if ( bu_flush_i /*|| du_latch_nxt_pc_i*/ ) imem_adr_o <= bu_nxt_pc_i;
     else
     begin
@@ -210,27 +214,27 @@ module riscv_if #(
     .ALMOST_FULL_THRESHOLD   ( FULL_THRESHOLD   )
   )
   parcel_queue_inst (
-    .rst_ni              ( rst_ni                   ),
-    .clk_i               ( clk_i                    ),
+    .rst_ni              ( rst_ni                     ),
+    .clk_i               ( clk_i                      ),
 
-    .flush_i             ( imem_flush_o             ),
+    .flush_i             ( imem_flush_o               ),
 
-    .parcel_i            ( imem_parcel_i            ),
-    .parcel_valid_i      ( imem_parcel_valid_i      ),
-    .parcel_misaligned_i ( imem_parcel_misaligned_i ),
-    .parcel_page_fault_i ( imem_parcel_page_fault_i ),
-    .parcel_error_i      ( imem_parcel_error_i      ),
+    .parcel_i            ( imem_parcel_i              ),
+    .parcel_valid_i      ( imem_parcel_valid_i        ),
+    .parcel_misaligned_i ( imem_parcel_misaligned_i   ),
+    .parcel_page_fault_i ( imem_parcel_page_fault_i   ),
+    .parcel_error_i      ( imem_parcel_error_i        ),
 
-    .parcel_rd_i         ( {1'b0,parcel_queue_rd}          ),
-    .parcel_q_o          ( {ext_parcel,active_parcel}            ),
-    .parcel_misaligned_o ( parcel_misaligned        ),
-    .parcel_page_fault_o ( parcel_page_fault        ),
-    .parcel_error_o      ( parcel_error             ),
+    .parcel_rd_i         ( {1'b0,parcel_queue_rd}     ),
+    .parcel_q_o          ( {ext_parcel,active_parcel} ),
+    .parcel_misaligned_o ( parcel_misaligned          ),
+    .parcel_page_fault_o ( parcel_page_fault          ),
+    .parcel_error_o      ( parcel_error               ),
 
-    .almost_empty_o      ( parcel_queue_empty       ),
-    .almost_full_o       ( parcel_queue_full        ),
-    .empty_o             (                          ),
-    .full_o              (                          ) );
+    .almost_empty_o      ( parcel_queue_empty         ),
+    .almost_full_o       ( parcel_queue_full          ),
+    .empty_o             (                            ),
+    .full_o              (                            ) );
  
 
   //queue points to valid parcel
@@ -279,7 +283,7 @@ module riscv_if #(
   assign rvc_parcel = active_parcel.instr[15:0];
 
   //Instruction Bubble
-  assign rv_bubble = flushes | ~parcel_valid;
+  assign if_nxt_insn_o.bubble = flushes | ~parcel_valid;
 
 
   //Instruction conversion
@@ -580,6 +584,10 @@ module riscv_if #(
     endcase
 
 
+    assign if_nxt_insn_o.instr = rv_instr;
+
+
+
   /*
    * IF Outputs
    */
@@ -590,34 +598,42 @@ module riscv_if #(
     if      (!rst_ni            ) if_nxt_pc_o <= PC_INIT;
     else if ( st_flush_i        ) if_nxt_pc_o <= st_nxt_pc_i;
     else if ( du_we_pc_strb     ) if_nxt_pc_o <= du_dato_i; 
-    else if ( du_flush_i        ) if_nxt_pc_o <= if_pc_o;
+//    else if ( du_stall_i        ) if_nxt_pc_o <= if_pc_o;
     else if ( bu_flush_i        ) if_nxt_pc_o <= bu_nxt_pc_i;
     else if ( pd_latch_nxt_pc_i ) if_nxt_pc_o <= pd_nxt_pc_i;
-    else if (!pd_stall_i && !rv_bubble && !du_stall_i)
+//    else if ( du_stall_i        ) if_nxt_pc_o <= if_pc_o;
+    else if (!pd_stall_i && !if_nxt_insn_o.bubble && !du_stall_i)
       if (is_16bit_instruction) if_nxt_pc_o <= if_nxt_pc_o +2;
       else                      if_nxt_pc_o <= if_nxt_pc_o +4;
 
 
   //Current Program Counter
   always @(posedge clk_i, negedge rst_ni)
-    if      (!rst_ni       ) if_pc_o <= PC_INIT;
-    else if ( du_we_pc_strb) if_pc_o <= du_dato_i;
-    else if (!pd_stall_i && !du_stall_i  ) if_pc_o <= if_nxt_pc_o;
+    if      (!rst_ni                    ) if_pc_o <= PC_INIT;
+    else if ( du_we_pc_strb             ) if_pc_o <= du_dato_i;
+//    else if ( bu_flush_i                ) if_pc_o <= bu_nxt_pc_i;
+//    else if ( pd_latch_nxt_pc_i         ) if_pc_o <= pd_nxt_pc_i;
+    else if (!pd_stall_i && !du_stall_i ) if_pc_o <= if_nxt_pc_o;
 
 
   //Instruction
   always @(posedge clk_i, negedge rst_ni)
     if      (!rst_ni    ) if_insn_o.instr  <= NOP;
-    else if (!pd_stall_i) if_insn_o.instr  <= rv_instr;
+    else if (!pd_stall_i) if_insn_o.instr  <= if_nxt_insn_o.instr;
 
 
   always @(posedge clk_i, negedge rst_ni)
-    if      (!rst_ni    ) if_insn_o.bubble <= 1'b1;
-    else if ( pd_flush_i) if_insn_o.bubble <= 1'b1;
-    else if ( du_stall_i) if_insn_o.bubble <= 1'b1;
+    if      (!rst_ni               ) if_insn_o.bubble <= 1'b1;
+    else if ( pd_flush_i           ) if_insn_o.bubble <= 1'b1;
+    else if ( du_stall_i           ) if_insn_o.bubble <= 1'b1;
+    else if ( pd_exceptions_i.any  ||
+	      id_exceptions_i.any  ||
+	      ex_exceptions_i.any  ||
+	      mem_exceptions_i.any ||
+	      wb_exceptions_i.any  ) if_insn_o.bubble <= 1'b1;
     else if (!pd_stall_i)
-      if (pd_latch_nxt_pc_i) if_insn_o.bubble <= 1'b1;
-      else                   if_insn_o.bubble <= rv_bubble;
+      if (pd_latch_nxt_pc_i)         if_insn_o.bubble <= 1'b1;
+      else                           if_insn_o.bubble <= if_nxt_insn_o.bubble;
 
       
   //exceptions
