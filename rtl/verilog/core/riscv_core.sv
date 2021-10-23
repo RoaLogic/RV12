@@ -142,7 +142,8 @@ module riscv_core #(
                              mem_pc,
                              wb_pc;
 
-  instruction_t              if_insn,
+  instruction_t              if_nxt_insn,
+                             if_insn,
                              pd_insn,
                              id_insn,
                              ex_insn,
@@ -159,7 +160,8 @@ module riscv_core #(
                              ex_stall,
                              mem_stall,
                              wb_stall,
-                             du_stall;
+                             du_stall,
+                             du_stall_if;
 
   //Branch Prediction
   logic [               1:0] bp_bp_predict,
@@ -283,9 +285,15 @@ module riscv_core #(
     .imem_parcel_error_i      ( imem_parcel_error_i      ),
 
     .if_nxt_pc_o              ( if_nxt_pc                ),   //Program Counter for Branch Prediction
+    .if_nxt_insn_o            ( if_nxt_insn              ),
     .if_pc_o                  ( if_pc                    ),   //Program Counter
     .if_insn_o                ( if_insn                  ),   //Instruction out
     .if_exceptions_o          ( if_exceptions            ),   //Exceptions
+    .pd_exceptions_i          ( pd_exceptions            ),
+    .id_exceptions_i          ( id_exceptions            ),
+    .ex_exceptions_i          ( ex_exceptions            ),
+    .mem_exceptions_i         ( mem_exceptions           ),
+    .wb_exceptions_i          ( wb_exceptions            ),
 
     .pd_pc_i                  ( pd_pc                    ),
     .pd_stall_i               ( pd_stall                 ),
@@ -293,7 +301,7 @@ module riscv_core #(
 
     .bu_flush_i               ( bu_flush                 ),   //flush pipe & load new program counter
     .st_flush_i               ( st_flush                 ),
-    .du_stall_i               ( du_stall                 ),
+    .du_stall_i               ( du_stall_if              ),
     .du_flush_i               ( du_flush                 ),
     .du_we_pc_i               ( du_we_pc                 ),
     .du_dato_i                ( du_dato                  ),
@@ -322,8 +330,8 @@ module riscv_core #(
     
     .id_stall_i        ( id_stall        ),
     .pd_stall_o        ( pd_stall        ),
-    .du_stall_i        ( du_stall        ),
-
+    .du_mode_i         ( du_stall_if     ),
+    
     .bu_flush_i        ( bu_flush        ),
     .st_flush_i        ( st_flush        ),
     .pd_flush_o        ( pd_flush        ),
@@ -341,11 +349,16 @@ module riscv_core #(
 
     .if_pc_i           ( if_pc           ),
     .if_insn_i         ( if_insn         ),
-    .if_exceptions_i   ( if_exceptions   ),
 
     .pd_pc_o           ( pd_pc           ),
     .pd_insn_o         ( pd_insn         ),
+
+    .if_exceptions_i   ( if_exceptions   ),
     .pd_exceptions_o   ( pd_exceptions   ),
+    .id_exceptions_i   ( id_exceptions   ),
+    .ex_exceptions_i   ( ex_exceptions   ),
+    .mem_exceptions_i  ( mem_exceptions  ),
+    .wb_exceptions_i   ( wb_exceptions   ),
 
     .dbg_if_i          ( dbg_if          ),
     .dbg_pd_o          ( dbg_pd          ) );
@@ -744,6 +757,7 @@ endgenerate
     .dbg_bp_o          ( dbg_bp_o        ),
   
     .du_stall_o        ( du_stall        ),
+    .du_stall_if_o     ( du_stall_if     ),
     .dbg_wb_i          ( dbg_wb          ),
 
     .du_latch_nxt_pc_o ( du_latch_nxt_pc ),
@@ -763,9 +777,11 @@ endgenerate
     .pd_pc_i           ( pd_pc           ),
     .id_pc_i           ( id_pc           ),
     .ex_pc_i           ( ex_pc           ),
+    .wb_pc_i           ( wb_pc           ),
     .bu_flush_i        ( bu_flush        ),
     .st_flush_i        ( st_flush        ),
 
+    .if_nxt_insn_i     ( if_nxt_insn     ),
     .if_insn_i         ( if_insn         ),
     .pd_insn_i         ( pd_insn         ),
     .mem_insn_i        ( mem_insn        ),
