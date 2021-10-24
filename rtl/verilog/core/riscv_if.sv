@@ -184,11 +184,10 @@ module riscv_if #(
   //Instruction Memory Address generator
   //Branches can go to misaligned addresses, however next address is aligned
   always @(posedge clk_i, negedge rst_ni)
-    if      (!rst_ni                          ) imem_adr_o <= PC_INIT;
-    else if ( st_flush_i                      ) imem_adr_o <= st_nxt_pc_i;
-//    else if ( du_we_pc_strb                   ) imem_adr_o <= du_dato_i;
-    else if ( du_stall_i                      ) imem_adr_o <= if_nxt_pc_o; //if_pc_o;
-    else if ( bu_flush_i /*|| du_latch_nxt_pc_i*/ ) imem_adr_o <= bu_nxt_pc_i;
+    if      (!rst_ni     ) imem_adr_o <= PC_INIT;
+    else if ( st_flush_i ) imem_adr_o <= st_nxt_pc_i;
+    else if ( du_stall_i ) imem_adr_o <= if_nxt_pc_o; //if_pc_o;
+    else if ( bu_flush_i ) imem_adr_o <= bu_nxt_pc_i;
     else
     begin
         if      ( pd_latch_nxt_pc_i        ) imem_adr_o <= pd_nxt_pc_i;
@@ -269,7 +268,9 @@ module riscv_if #(
    * Instruction Translation (RVC -> RV, op-fusion)
    */
 
-  logic test;
+  //
+  // Macro Fusion
+  //
 
   //                         f3  opcode(ADDI) opcode(AUIPC)
   parameter AUIPC_ADDI = 17'b000_00100_11_____01101_11;
@@ -278,7 +279,9 @@ module riscv_if #(
 //    endcase
 
 
-  //RVC parcel
+  //
+  //RVC
+  //
   assign rvc_parcel = active_parcel.instr[15:0];
 
   //Instruction Bubble
@@ -695,10 +698,8 @@ module riscv_if #(
     if      (!rst_ni            ) if_nxt_pc_o <= PC_INIT;
     else if ( st_flush_i        ) if_nxt_pc_o <= st_nxt_pc_i;
     else if ( du_we_pc_strb     ) if_nxt_pc_o <= du_dato_i; 
-//    else if ( du_stall_i        ) if_nxt_pc_o <= if_pc_o;
     else if ( bu_flush_i        ) if_nxt_pc_o <= bu_nxt_pc_i;
     else if ( pd_latch_nxt_pc_i ) if_nxt_pc_o <= pd_nxt_pc_i;
-//    else if ( du_stall_i        ) if_nxt_pc_o <= if_pc_o;
     else if (!pd_stall_i && !if_nxt_insn_o.bubble && !du_stall_i)
       if (is_16bit_instruction) if_nxt_pc_o <= if_nxt_pc_o +2;
       else                      if_nxt_pc_o <= if_nxt_pc_o +4;
@@ -708,8 +709,6 @@ module riscv_if #(
   always @(posedge clk_i, negedge rst_ni)
     if      (!rst_ni                    ) if_pc_o <= PC_INIT;
     else if ( du_we_pc_strb             ) if_pc_o <= du_dato_i;
-//    else if ( bu_flush_i                ) if_pc_o <= bu_nxt_pc_i;
-//    else if ( pd_latch_nxt_pc_i         ) if_pc_o <= pd_nxt_pc_i;
     else if (!pd_stall_i && !du_stall_i ) if_pc_o <= if_nxt_pc_o;
 
 
