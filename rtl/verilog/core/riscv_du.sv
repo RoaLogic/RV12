@@ -56,10 +56,6 @@ module riscv_du #(
   output                          du_dbg_mode_o,
   output                          du_stall_o,
                                   du_stall_if_o,
-  input                           dbg_wb_i,
-
-
-
 
   output reg                      du_latch_nxt_pc_o,
   output reg                      du_flush_o,
