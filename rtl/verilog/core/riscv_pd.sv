@@ -153,22 +153,22 @@ module riscv_pd #(
   always_comb
     casex ( {du_mode_i, if_insn_i.bubble, decode_opcode(if_insn_i.instr)} )
       {1'b0, 1'b0,OPC_JAL   } : begin
-                             branch_taken     = 1'b1;
-			     branch_predicted = 2'b10;
-                             pd_nxt_pc_o      = if_pc_i + ext_immUJ;
-                          end
+                                    branch_taken     = 1'b1;
+                                    branch_predicted = 2'b10;
+                                   pd_nxt_pc_o      = if_pc_i + ext_immUJ;
+                                end
       {1'b0, 1'b0,OPC_BRANCH} : begin
-                              //if this CPU has a Branch Predict Unit, then use it's prediction
-                              //otherwise assume backwards jumps taken, forward jumps not taken
-                              branch_taken     = (HAS_BPU != 0) ? bp_bp_predict_i[1] : ext_immSB[31];
-			      branch_predicted = (HAS_BPU != 0) ? bp_bp_predict_i    : {ext_immSB[31], 1'b0};
-			      pd_nxt_pc_o      = if_pc_i + ext_immSB;
-                          end
-      default           : begin
-                              branch_taken     = 1'b0;
-			      branch_predicted = 2'b00;
-                              pd_nxt_pc_o      = 'hx;
-                          end
+                                   //if this CPU has a Branch Predict Unit, then use it's prediction
+                                   //otherwise assume backwards jumps taken, forward jumps not taken
+                                   branch_taken     = (HAS_BPU != 0) ? bp_bp_predict_i[1] : ext_immSB[31];
+                                   branch_predicted = (HAS_BPU != 0) ? bp_bp_predict_i    : {ext_immSB[31], 1'b0};
+                                   pd_nxt_pc_o      = if_pc_i + ext_immSB;
+                                end
+      default                 : begin
+                                    branch_taken     = 1'b0;
+                                    branch_predicted = 2'b00;
+                                    pd_nxt_pc_o      = 'hx;
+                                end
     endcase
 
 
