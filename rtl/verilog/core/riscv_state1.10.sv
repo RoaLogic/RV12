@@ -593,7 +593,7 @@ endgenerate
         end
 
         //MRET,HRET,SRET,URET
-        if (!id_insn_i.bubble && !bu_flush_i && !du_stall_i)
+        if (!id_insn_i.bubble && !bu_flush_i)
         begin
             case (id_insn_i.instr)
               //pop privilege stack
