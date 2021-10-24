@@ -770,7 +770,7 @@ endgenerate
     .du_d_o            ( du_dato         ),
     .du_ie_o           ( du_ie           ),
     .du_rf_q_i         ( du_dati_rf      ),
-    .du_frf_q_i        ( du_dati_frf     ),
+    .du_frf_q_i        ( {XLEN{1'b0}}    ), //du_dati_frf     ),
     .st_csr_q_i        ( st_csr_rval     ),
     .if_nxt_pc_i       ( if_nxt_pc       ),
     .if_pc_i           ( if_pc           ),
