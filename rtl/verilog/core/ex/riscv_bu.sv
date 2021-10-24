@@ -135,7 +135,7 @@ module riscv_bu #(
         begin
             bu_exceptions_o    <= 'h0;
         end
-        else if (!du_stall_i)
+        else //if (!du_stall_i)
         begin
             bu_exceptions_o                        <= id_exceptions_i;
             bu_exceptions_o.misaligned_instruction <= misaligned_instruction;
