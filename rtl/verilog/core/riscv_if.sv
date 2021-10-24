@@ -127,6 +127,7 @@ module riscv_if #(
                     active_parcel,     //parcel from queue
                     rv_instr;
   rvc_instr_t       rvc_parcel;
+  logic             rvc_illegal;
 
   exceptions_t      parcel_exceptions;
 
@@ -286,13 +287,111 @@ module riscv_if #(
   assign if_nxt_insn_o.bubble = flushes | ~parcel_valid;
 
 
-  //Instruction conversion
+   //RVC Illegal Instruction
+  always_comb
+    if (!has_rvc || !is_16bit_instruction)
+      rvc_illegal = 1'b0;
+    else
+    casex ( {xlen128, xlen64, xlen32, decode_rvc_opcA(rvc_parcel)} )
+
+      {3'b???,C_LWSP}    : rvc_illegal = rvc_parcel.CI.rd == 0
+                                       ? 1'b1                     //reserved ILLEGAL
+                                       : 1'b0;
+
+      {3'b??0,C_LDSP}    : rvc_illegal = rvc_parcel.CI.rd == 0
+                                       ? 1'b1                    //reserved ILLEGAL
+                                       : 1'b0;
+
+    //{3'b1??,C_LQSP}
+    //{3'b??1,C_FLWSP} F-only
+    //{3'0b??,C_FLDSP} D-only
+
+      {3'b???,C_SWSP}    : rvc_illegal = 1'b0;
+
+      {3'b??0,C_SDSP}    : rvc_illegal = 1'b0;
+
+    //{3'b1??,C_SQSP}
+    //{3'b??1,C_FSWSP}  F-only
+    //{3'b0??,C_FSDSP}  D-only
+
+      {3'b???,C_LW}      : rvc_illegal = 1'b0;
+
+      {3'b??0,C_LD}      : rvc_illegal = 1'b0;
+
+    //{3'b1??,C_LQ}
+    //{3'b??1,C_FLW} F-only
+    //{3'b0??,C_FLD} D-only
+
+      {3'b???,C_SW}      : rvc_illegal = 1'b0;
+
+      {3'b??0,C_SD}      : rvc_illegal = 1'b0;
+
+    //{3'b1??,C_SQ}
+    //{3'b??1,C_FSW} F-only
+    //{3'b0??,C_FSD} D-only
+ 
+      {3'b???,C_J}       : rvc_illegal = 1'b0;
+
+      {3'b??1,C_JAL}     : rvc_illegal = 1'b0;
+
+      //C.JR and C.MV
+      {3'b???,C_JR}      : rvc_illegal = rvc_parcel.CR.rs2 != 0
+				       ? 1'b0
+                                       : rvc_parcel.CR.rd == 0
+				       ? 1'b1
+                                       : 1'b0;
+
+      //C.JALR and and C.ADD and C.EBREAK
+      {3'b???,C_JALR}    : rvc_illegal = 1'b0;
+
+      {3'b???,C_BEQZ}    : rvc_illegal = 1'b0;
+
+      {3'b???,C_BNEZ}    : rvc_illegal = 1'b0;
+
+      {3'b???,C_LI}      : rvc_illegal = 1'b0;
+
+      //C.LUI and C.ADDI16SP
+      {3'b???,C_ADDI16SP}: rvc_illegal = {rvc_parcel.CI.pos12,rvc_parcel.CI.pos6_2} == 0
+                                       ? 1'b1
+                                       : 1'b0;
+
+      //C.NOP and C.ADDI
+      {3'b???,C_ADDI}    : rvc_illegal = 1'b0;
+
+      {3'b??0,C_ADDIW}   : rvc_illegal = rvc_parcel.CI.rd == 0
+                                       ? 1'b1
+                                       : 1'b0;
+
+      {3'b???,C_ADDI4SPN}: rvc_illegal = (rvc_parcel == 16'h0)                            //All zeros is defined illegal
+                                       ? 1'b1
+                                       : 1'b0;
+
+      {3'b???,C_SLLI}    : rvc_illegal = 1'b0;
+
+      {3'b???,C_SRLI}    : rvc_illegal = 1'b0;
+
+      {3'b???,C_SRAI}    : rvc_illegal = 1'b0;
+
+      {3'b???,C_ANDI}    : rvc_illegal = 1'b0;
+      {3'b???,C_AND}     : rvc_illegal = 1'b0;
+      {3'b???,C_OR}      : rvc_illegal = 1'b0;
+      {3'b???,C_XOR}     : rvc_illegal = 1'b0;
+      {3'b???,C_SUB}     : rvc_illegal = 1'b0;
+      {3'b??0,C_ADDW}    : rvc_illegal = 1'b0;
+      {3'b??0,C_SUBW}    : rvc_illegal = 1'b0;
+
+      default            : rvc_illegal = 1'b1;
+    endcase
+
+
+
+  //Instruction conversion RVC-->RV
   always_comb
     if (has_rvc && is_16bit_instruction) //Convert RVC to RV
     casex ( {xlen128, xlen64, xlen32, decode_rvc_opcA(rvc_parcel)} )
 
       {3'b???,C_LWSP}    : rv_instr = rvc_parcel.CI.rd == 0
-                                    ? ILLEGAL                                          //reserved
+                                    ? {{XLEN-16{1'b0}},rvc_parcel}                     //reserved ILLEGAL
                                     : encode_I (LW,                                    //C.LWSP=lw rd,imm(x2)
                                                 rvc_parcel.CI.rd,
                                                 rsd_t'             ( 5'h2      ),      //x2
@@ -302,8 +401,8 @@ module riscv_if #(
 
 
       {3'b??0,C_LDSP}    : rv_instr = rvc_parcel.CI.rd == 0
-                                    ? ILLEGAL                                          //reserved
-				    : encode_I (LD,                                    //C.LDSP=ld rd,imm(x2)
+                                    ? {{XLEN-16{1'b0}},rvc_parcel}                     //reserved ILLEGAL
+                                    : encode_I (LD,                                    //C.LDSP=ld rd,imm(x2)
                                                 rvc_parcel.CI.rd,
                                                 rsd_t'             ( 5'h2      ),
                                                 rvc_decode_immCIDSP(rvc_parcel ),      //x2
@@ -397,7 +496,7 @@ module riscv_if #(
                                                rvc_parcel.CR.size
                                               )
                                     : rvc_parcel.CR.rd == 0
-				    ? ILLEGAL                                          //reserved
+				    ? {{XLEN-16{1'b0}},rvc_parcel}                     //reserved ILLEGAL
                                     : encode_I (JALR,                                  //C.JR=jalr x0, 0(rd)
                                                 rsd_t'(0),                             //x0
 						rvc_parcel.CR.rd,
@@ -449,7 +548,7 @@ module riscv_if #(
 
       //C.LUI and C.ADDI16SP
       {3'b???,C_ADDI16SP}: rv_instr = {rvc_parcel.CI.pos12,rvc_parcel.CI.pos6_2} == 0
-                                    ? ILLEGAL                                          //reserved
+                                    ? {{XLEN-16{1'b0}},rvc_parcel}                     //reserved ILLEGAL
                                     : rvc_parcel.CI.rd == 2
                                     ? encode_I (ADDI,                                  //C.ADDI16SP=addi x2,x2,imm
                                                 rsd_t'           (5'h2       ),        //x2
@@ -476,7 +575,7 @@ module riscv_if #(
 
 
       {3'b??0,C_ADDIW}   : rv_instr = rvc_parcel.CI.rd == 0
-                                    ? ILLEGAL                                          //reserved
+                                    ? {{XLEN-16{1'b0}},rvc_parcel}                     //reserved ILLEGAL
                                     : encode_I (ADDIW,                                 //C.ADDIW=addiw rd,rd,imm
                                                 rvc_parcel.CI.rd,
                                                 rvc_parcel.CI.rd,
@@ -486,7 +585,7 @@ module riscv_if #(
 
 
       {3'b???,C_ADDI4SPN}: rv_instr = (rvc_parcel == 16'h0)                            //All zeros is defined illegal
-                                    ? ILLEGAL                                          //illegal instruction
+                                    ? {{XLEN-16{1'b0}},rvc_parcel}                     //illegal instruction (definition)
                                     : encode_I (ADDI,
                                                 rvc_rsdp2rsd     (rvc_parcel.CIW.rd),
                                                 rsd_t'           (5'h2             ),  //x2
@@ -575,7 +674,7 @@ module riscv_if #(
                                               );
 
 
-      default            : rv_instr = ILLEGAL;
+      default            : rv_instr = {{XLEN-16{1'b0}},rvc_parcel};                    //ILLEGAL
     endcase
     else    //32bit instructions
     case(active_parcel)
@@ -639,7 +738,11 @@ module riscv_if #(
   //exceptions
   always @(posedge clk_i, negedge rst_ni)
     if      (!rst_ni    ) if_exceptions_o <= {$bits(if_exceptions_o){1'b0}};
-    else if (!pd_stall_i) if_exceptions_o <= parcel_exceptions;
+    else if (!pd_stall_i)
+    begin
+        if_exceptions_o                     <= parcel_exceptions;
+	if_exceptions_o.illegal_instruction <= rvc_illegal;
+    end
 
 
   always @(posedge clk_i, negedge rst_ni)

@@ -279,7 +279,7 @@ module riscv_id #(
   always_comb
     begin
         my_exceptions                     =  pd_exceptions_i;
-        my_exceptions.illegal_instruction = ~pd_insn_i.bubble & illegal_instr;
+        my_exceptions.illegal_instruction = ~pd_insn_i.bubble & (illegal_instr | pd_exceptions_i.illegal_instruction);
         my_exceptions.breakpoint          = ~pd_insn_i.bubble & (pd_insn_i.instr == EBREAK);
         my_exceptions.umode_ecall         = ~pd_insn_i.bubble & (pd_insn_i.instr == ECALL ) & (st_prv_i == PRV_U) & has_u;
         my_exceptions.smode_ecall         = ~pd_insn_i.bubble & (pd_insn_i.instr == ECALL ) & (st_prv_i == PRV_S) & has_s;
@@ -834,6 +834,7 @@ module riscv_id #(
    * Generate Illegal Instruction
    */
 
+  //TODO RVC Illegal Instructions
   always_comb
     casex (pd_opcR.opcode)
       OPC_LOAD  : illegal_instr = illegal_lsu_instr;
