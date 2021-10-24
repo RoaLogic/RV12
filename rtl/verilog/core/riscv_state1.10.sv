@@ -108,6 +108,7 @@ module riscv_state1_10 #(
   //Debug interface
   input                             du_stall_i,
                                     du_flush_i,
+                                    du_re_csr_i,
                                     du_we_csr_i,
   input                [XLEN  -1:0] du_dato_i,       //output from debug unit
   input                [      11:0] du_addr_i,
@@ -295,8 +296,8 @@ module riscv_state1_10 #(
   assign has_ext   = (HAS_EXT    !=   0);
 
   //Mux address/data for Debug-Unit access
-  assign csr_raddr = du_stall_i ? du_addr_i : ex_csr_reg_i;
-  assign csr_wval  = du_stall_i ? du_dato_i : ex_csr_wval_i;
+  assign csr_raddr = du_re_csr_i ? du_addr_i : ex_csr_reg_i;
+  assign csr_wval  = du_we_csr_i ? du_dato_i : ex_csr_wval_i;
 
 
 
@@ -704,7 +705,6 @@ $display ("take_interrupt");
         end
         else if ( |(wb_exceptions_i[$bits(wb_exceptions_i)-2:0] & ~du_ie_i[15:0]) )
         begin
-$display("exception %.15b %.15b %.15b", wb_exceptions_i[15:0], du_ie_i[15:0], wb_exceptions_i[$bits(wb_exceptions_i)-2:0]);
             st_flush_o  <= 1'b1;
 
             if (has_n && st_prv_o == PRV_U && |(wb_exceptions_i[$bits(wb_exceptions_i)-2:0] & csr.medeleg))

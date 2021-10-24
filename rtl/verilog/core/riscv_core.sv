@@ -237,6 +237,7 @@ module riscv_core #(
   logic                      du_latch_nxt_pc;
   logic                      du_we_rf,
                              du_we_frf,
+                             du_re_csr,
                              du_we_csr,
                              du_we_pc;
   logic [DU_ADDR_SIZE  -1:0] du_addr;
@@ -664,6 +665,7 @@ module riscv_core #(
 
     .du_stall_i      ( du_stall      ),
     .du_flush_i      ( du_flush      ),
+    .du_re_csr_i     ( du_re_csr     ),
     .du_we_csr_i     ( du_we_csr     ),
     .du_dato_i       ( du_dato       ),
     .du_addr_i       ( du_addr       ),
@@ -764,6 +766,7 @@ endgenerate
     .du_flush_o        ( du_flush        ),
     .du_we_rf_o        ( du_we_rf        ),
     .du_we_frf_o       ( du_we_frf       ),
+    .du_re_csr_o       ( du_re_csr       ),
     .du_we_csr_o       ( du_we_csr       ),
     .du_we_pc_o        ( du_we_pc        ),
     .du_addr_o         ( du_addr         ),

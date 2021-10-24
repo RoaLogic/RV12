@@ -66,6 +66,7 @@ module riscv_du #(
   output reg                      du_we_rf_o,
   output reg                      du_we_frf_o,
   output reg                      du_we_csr_o,
+  output reg                      du_re_csr_o,
   output reg                      du_we_pc_o,
   output reg [DU_ADDR_SIZE  -1:0] du_addr_o,
   output reg [XLEN          -1:0] du_d_o,
@@ -142,6 +143,8 @@ module riscv_du #(
   logic                                du_sel_internal,
                                        du_sel_gprs,
                                        du_sel_csrs;
+  logic [                         4:0] du_re_csrs;
+
   logic                                du_access,
                                        du_we;
   logic [                         2:0] du_ack;
@@ -233,6 +236,9 @@ module riscv_du #(
       du_we_pc_o     <= du_we & du_sel_gprs & (dbg_addr_i[DU_ADDR_SIZE-1:0] == DBG_NPC);
   end
 
+  assign du_re_csr_o = dbg_strb_i & du_sel_csrs;
+
+  
 
   // Return signals
 
