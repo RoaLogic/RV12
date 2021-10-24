@@ -103,18 +103,7 @@ module riscv_ex #(
   input      [XLEN          -1:0] dmem_q_i,
   input                           dmem_ack_i,
                                   dmem_misaligned_i,
-                                  dmem_page_fault_i,
-
-  //Debug Unit
-  input                           du_stall_i,
-                                  du_flush_i,
-  input                           du_we_pc_i,
-  input      [XLEN          -1:0] du_dato_i,
-  input      [              31:0] du_ie_i,
-
-  //Debug (stall)
-  input                           dbg_id_i,
-  output reg                      dbg_ex_o
+                                  dmem_page_fault_i
 );
 
 
@@ -157,8 +146,8 @@ module riscv_ex #(
    * Program Counter
    */
   always @(posedge clk_i, negedge rst_ni)
-    if      (!rst_ni                   ) ex_pc_o <= PC_INIT;
-    else if (!ex_stall_o)                ex_pc_o <= id_pc_i; // && !du_stall_i) ex_pc_o <= id_pc_i;  //stall during DBG to retain PPC
+    if      (!rst_ni    ) ex_pc_o <= PC_INIT;
+    else if (!ex_stall_o) ex_pc_o <= id_pc_i;
 
 
   /*
@@ -167,13 +156,6 @@ module riscv_ex #(
   always @(posedge clk_i)
     if (!ex_stall_o) ex_insn_o.instr <= id_insn_i.instr;
 
-
-  /*
-   * Debug (stall) 
-   */
-  always @(posedge clk_i, negedge rst_ni)
-    if (!rst_ni) dbg_ex_o <= 1'b0;
-    else         dbg_ex_o <= dbg_id_i;
 
   /*
    * Bypasses
@@ -292,13 +274,7 @@ module riscv_ex #(
     .bu_exceptions_o  ( ex_exceptions_o  ),
 
     .opA_i            ( opA              ),
-    .opB_i            ( opB              ),
-
-    .du_stall_i       ( du_stall_i       ),
-    .du_flush_i       ( du_flush_i       ),
-    .du_we_pc_i       ( du_we_pc_i       ),
-    .du_dato_i        ( du_dato_i        ),
-    .du_ie_i          ( du_ie_i          ) );
+    .opB_i            ( opB              ) );
 
 
 generate

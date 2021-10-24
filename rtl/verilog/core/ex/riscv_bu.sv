@@ -65,14 +65,7 @@ module riscv_bu #(
 
   //from ID
   input      [XLEN          -1:0] opA_i,
-                                  opB_i,
-
-  //Debug Unit
-  input                           du_stall_i,
-                                  du_flush_i,
-  input                           du_we_pc_i,
-  input      [XLEN          -1:0] du_dato_i,
-  input      [              31:0] du_ie_i
+                                  opB_i
 );
   ////////////////////////////////////////////////////////////////
   //
@@ -97,10 +90,8 @@ module riscv_bu #(
                            btaken,
                            bp_update;
   logic [BP_GLOBAL_BITS:0] bp_history;
-  logic [XLEN        -1:0] nxt_pc,
-                           du_nxt_pc;
-  logic                    du_we_pc_i_dly,
-                           du_wrote_pc;
+  logic [XLEN        -1:0] nxt_pc;
+
 
   ////////////////////////////////////////////////////////////////
   //
@@ -135,7 +126,7 @@ module riscv_bu #(
         begin
             bu_exceptions_o    <= 'h0;
         end
-        else //if (!du_stall_i)
+        else
         begin
             bu_exceptions_o                        <= id_exceptions_i;
             bu_exceptions_o.misaligned_instruction <= misaligned_instruction;
@@ -157,20 +148,7 @@ module riscv_bu #(
    * Program Counter modifications
    * - Branches/JALR (JAL/JALR results handled by ALU)
    * - Exceptions
-   * - Debug Unit NPC access
    */
-/*
-  always @(posedge clk_i)
-    du_we_pc_i_dly <= du_we_pc_i;
-
-  always @(posedge clk_i,negedge rst_ni)
-    if (!rst_ni) du_wrote_pc <= 1'b0;
-    else         du_wrote_pc <= du_we_pc_i | (du_wrote_pc & du_stall_i);
-
-
-  always @(posedge clk_i)
-    if (du_we_pc_i) du_nxt_pc <= du_dato_i;
-*/
 
   always_comb 
     casex ( {id_insn_i.bubble,opcR} )
@@ -265,30 +243,16 @@ module riscv_bu #(
     begin
         bu_flush_o      <= 'b1;
         bu_cacheflush_o <= 'b0;
-//        bu_nxt_pc_o     <= PC_INIT;
 
         bu_bp_predict_o <= 'b00;
         bu_bp_btaken_o  <= 'b0;
         bu_bp_update_o  <= 'b0;
         bp_history      <= 'h0;
     end
-/*
-    else if (du_wrote_pc)
-    begin
-        bu_flush_o      <= du_we_pc_i_dly;
-        bu_cacheflush_o <= 1'b0;
-//        bu_nxt_pc_o     <= du_nxt_pc;
-
-        bu_bp_predict_o <= 'b00;
-        bu_bp_btaken_o  <= 'b0;
-        bu_bp_update_o  <= 'b0;
-    end
-*/
     else
     begin
-        bu_flush_o      <= pipeflush; //(pipeflush & ~du_stall_i & ~du_flush_i);
+        bu_flush_o      <= pipeflush;
         bu_cacheflush_o <= cacheflush;
-//        bu_nxt_pc_o     <= nxt_pc;
 
         bu_bp_predict_o <= id_bp_predict_i;
         bu_bp_btaken_o  <= btaken;
@@ -302,7 +266,6 @@ module riscv_bu #(
 
   always @(posedge clk_i, negedge rst_ni)
    if      (!rst_ni     ) bu_nxt_pc_o <= PC_INIT;
-//   else if ( du_wrote_pc) bu_nxt_pc_o <= du_nxt_pc;
    else if (!ex_stall_i ) bu_nxt_pc_o <= nxt_pc;
 
 
