@@ -66,11 +66,7 @@ module riscv_wb #(
   //To Register File
   output rsd_t             wb_dst_o,
   output logic [XLEN -1:0] wb_r_o,
-  output logic             wb_we_o,
-
-  //Debug (stall)
-  input                    dbg_mem_i,
-  output reg               dbg_wb_o
+  output logic             wb_we_o
 );
 
 
@@ -111,14 +107,6 @@ module riscv_wb #(
 
   assign opcR = decode_opcR(mem_insn_i.instr);
   assign dst  = decode_rd(mem_insn_i.instr);
-
-
-  /*
-   * Debug (stall)
-   */
-  always @(posedge clk_i, negedge rst_ni)
-    if (!rst_ni) dbg_wb_o <= 1'b0;
-    else         dbg_wb_o <= dbg_mem_i;
 
 
   /*

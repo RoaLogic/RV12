@@ -116,11 +116,7 @@ module riscv_id #(
                            mem_r_i,
                            wb_r_i,
                            wb_memq_i,
-                           dwb_r_i,
-
-  //Pipeline Debug (stall)
-  input                    dbg_pd_i,
-  output reg               dbg_id_o
+                           dwb_r_i
 );
 
 
@@ -295,14 +291,6 @@ module riscv_id #(
     else if (!stalls                  )
         if ( id_stall_o) id_exceptions_o <= 'h0;
         else             id_exceptions_o <= my_exceptions;
-
-
-  /*
-   * Debug (stall)
-   */
-  always @(posedge clk_i, negedge rst_ni)
-    if (!rst_ni) dbg_id_o <= 1'b0;
-    else         dbg_id_o <= du_stall_i; //dbg_pd_i;
 
 
   /*

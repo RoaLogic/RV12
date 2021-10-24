@@ -61,11 +61,7 @@ module riscv_mem #(
 
   //To WB
   output reg [XLEN -1:0] mem_r_o,
-  output reg [XLEN -1:0] mem_memadr_o,
-
-  //Debug (stall)
-  input                  dbg_ex_i,
-  output reg             dbg_mem_o
+  output reg [XLEN -1:0] mem_memadr_o
 );
   ////////////////////////////////////////////////////////////////
   //
@@ -97,13 +93,6 @@ module riscv_mem #(
     else if ( wb_exceptions_i.any) mem_insn_o.bubble <= 1'b1;
     else if (!wb_stall_i         ) mem_insn_o.bubble <= ex_insn_i.bubble;
 
-
-  /*
-   * Debug (stall)
-   */
-  always @(posedge clk_i, negedge rst_ni)
-    if (!rst_ni) dbg_mem_o <= 1'b0;
-    else         dbg_mem_o <= dbg_ex_i;
 
 
   /*

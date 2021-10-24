@@ -70,12 +70,7 @@ module riscv_pd #(
   input  exceptions_t    id_exceptions_i,
                          ex_exceptions_i,
                          mem_exceptions_i,
-                         wb_exceptions_i,
-
-  
-  //Pipeline Debug (stall)
-  input                  dbg_if_i,
-  output reg             dbg_pd_o
+                         wb_exceptions_i
 );
 
   ////////////////////////////////////////////////////////////////
@@ -143,12 +138,6 @@ module riscv_pd #(
     if      (!rst_ni     ) pd_exceptions_o <= 'h0;
     else if ( pd_flush_o ) pd_exceptions_o <= 'h0;
     else if (!id_stall_i ) pd_exceptions_o <= if_exceptions_i;
-
-
-  //Debug (stall)
-  always @(posedge clk_i, negedge rst_ni)
-    if (!rst_ni) dbg_pd_o <= 1'b0;
-    else         dbg_pd_o <= dbg_if_i;
 
 
   /*

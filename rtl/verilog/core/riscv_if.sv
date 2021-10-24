@@ -81,9 +81,7 @@ module riscv_if #(
                                     bu_nxt_pc_i,              //Branch Unit Next Program Counter
                                     st_nxt_pc_i,              //State Next Program Counter
 
-  input      [                 1:0] st_xlen_i,                //Current XLEN setting
-
-  output reg                        dbg_if_o
+  input      [                 1:0] st_xlen_i                 //Current XLEN setting
 );
 
   ////////////////////////////////////////////////////////////////
@@ -743,11 +741,6 @@ module riscv_if #(
         if_exceptions_o                     <= parcel_exceptions;
 	if_exceptions_o.illegal_instruction <= rvc_illegal;
     end
-
-
-  always @(posedge clk_i, negedge rst_ni)
-    if (!rst_ni) dbg_if_o <= 1'b0;
-    else         dbg_if_o <= du_stall_i;
 
 endmodule
 
