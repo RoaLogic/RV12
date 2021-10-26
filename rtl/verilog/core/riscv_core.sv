@@ -169,7 +169,7 @@ module riscv_core #(
                              id_bp_predict,
                              bu_bp_predict;
 
-  logic                      pd_latch_nxt_pc;
+  logic                      pd_latch_nxt_pc; //Yes, this is needed.
 
   logic [BP_GLOBAL_BITS-1:0] bu_bp_history;
   logic                      bu_bp_btaken,
