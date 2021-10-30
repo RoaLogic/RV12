@@ -359,6 +359,7 @@ else
    riscv_noicache_core #(
      .XLEN                   ( XLEN                   ),
      .ALEN                   ( ALEN                   ),
+     .HAS_RVC                ( HAS_RVC                ),
      .PARCEL_SIZE            ( PARCEL_SIZE            ) )
    noicache_core_inst (
      //common signals
