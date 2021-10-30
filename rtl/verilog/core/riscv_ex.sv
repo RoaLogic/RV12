@@ -179,7 +179,8 @@ module riscv_ex #(
    * Execution Units
    */
   riscv_alu #(
-    .XLEN            ( XLEN            ) )
+    .XLEN            ( XLEN            ),
+    .HAS_RVC         ( HAS_RVC         ))
   alu (
     .rst_ni          ( rst_ni          ),
     .clk_i           ( clk_i           ),
@@ -247,6 +248,8 @@ module riscv_ex #(
   // Branch Unit
   riscv_bu #(
     .XLEN             ( XLEN             ),
+    .HAS_RVC          ( HAS_RVC          ),
+    .PC_INIT          ( PC_INIT          ),
     .BP_GLOBAL_BITS   ( BP_GLOBAL_BITS   ) )
   bu (
     .rst_ni           ( rst_ni           ),
