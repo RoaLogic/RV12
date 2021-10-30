@@ -41,21 +41,21 @@ module riscv_bp #(
   parameter            AVOID_X           = 0
 )
 (
-  input                       rst_ni,
-  input                       clk_i,
+  input                           rst_ni,
+  input                           clk_i,
  
   //Read side
-  input                       id_stall_i,
-  input  [XLEN          -1:0] if_parcel_pc_i,
-  output [               1:0] bp_bp_predict_o,
+  input                           id_stall_i,
+  input      [XLEN          -1:0] if_parcel_pc_i,
+  output reg [               1:0] bp_bp_predict_o,
 
 
   //Write side
-  input  [XLEN          -1:0] ex_pc_i,
-  input  [BP_GLOBAL_BITS-1:0] bu_bp_history_i,      //branch history
-  input  [               1:0] bu_bp_predict_i,      //prediction bits for branch
-  input                       bu_bp_btaken_i,
-  input                       bu_bp_update_i
+  input      [XLEN          -1:0] ex_pc_i,
+  input      [BP_GLOBAL_BITS-1:0] bu_bp_history_i,      //branch history
+  input      [               1:0] bu_bp_predict_i,      //prediction bits for branch
+  input                           bu_bp_btaken_i,
+  input                           bu_bp_update_i
 );
 
 
@@ -125,10 +125,15 @@ module riscv_bp #(
 generate
   //synopsys translate_off
   if (AVOID_X)
-     assign bp_bp_predict_o = (current_prediction == 2'bxx) ? $random : current_prediction;
+
+     always @(posedge clk_i)
+       bp_bp_predict_o <= (current_prediction == 2'bxx) ? $random : current_prediction;
+
   else
   //synopsys translate_on
-     assign bp_bp_predict_o = current_prediction;
+
+     always @(posedge clk_i)
+       bp_bp_predict_o <= current_prediction;
 endgenerate
 
 endmodule

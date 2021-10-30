@@ -134,6 +134,7 @@ module riscv_core #(
   logic [XLEN          -1:0] pd_nxt_pc,
                              bu_nxt_pc,
                              st_nxt_pc,
+			     if_predict_pc,
                              if_nxt_pc,
 			     if_pc,
                              pd_pc,
@@ -278,6 +279,7 @@ module riscv_core #(
     .imem_parcel_page_fault_i ( imem_parcel_page_fault_i ),
     .imem_parcel_error_i      ( imem_parcel_error_i      ),
 
+    .if_predict_pc_o          ( if_predict_pc            ),
     .if_nxt_pc_o              ( if_nxt_pc                ),   //Program Counter for Branch Prediction
     .if_nxt_insn_o            ( if_nxt_insn              ),
     .if_pc_o                  ( if_pc                    ),   //Program Counter
@@ -698,7 +700,7 @@ generate
       .clk_i             ( clk_i          ),
 
       .id_stall_i        ( id_stall       ),
-      .if_parcel_pc_i    ( if_nxt_pc       ),
+      .if_parcel_pc_i    ( if_predict_pc  ),
       .bp_bp_predict_o   ( bp_bp_predict  ),
 
       .ex_pc_i           ( ex_pc          ),
@@ -727,7 +729,8 @@ endgenerate
     .dbg_q_o           ( dbg_dato_o      ),
     .dbg_ack_o         ( dbg_ack_o       ),
     .dbg_bp_o          ( dbg_bp_o        ),
-  
+
+    .du_dbg_mode_o     (),  
     .du_stall_o        ( du_stall        ),
     .du_stall_if_o     ( du_stall_if     ),
 

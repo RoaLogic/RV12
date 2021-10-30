@@ -38,50 +38,51 @@ module riscv_if #(
   localparam PARCEL_SIZE = 16
 )
 (
-  input                             rst_ni,                   //Reset
-  input                             clk_i,                    //Clock
+  input                               rst_ni,                   //Reset
+  input                               clk_i,                    //Clock
 
-  output reg [XLEN            -1:0] imem_adr_o,               //next Instruction Memory location
-  output                            imem_req_o,               //request new parcel from BIU (cache/bus-interface)
-  input                             imem_ack_i,               //acknowledge from BIU; send new imem_adr
-  output                            imem_flush_o,             //flush instruction fetch BIU (cache/bus-interface)
+  output logic [XLEN            -1:0] imem_adr_o,               //next Instruction Memory location
+  output                              imem_req_o,               //request new parcel from BIU (cache/bus-interface)
+  input                               imem_ack_i,               //acknowledge from BIU; send new imem_adr
+  output                              imem_flush_o,             //flush instruction fetch BIU (cache/bus-interface)
 
-  input      [XLEN            -1:0] imem_parcel_i,
-  input      [XLEN/PARCEL_SIZE-1:0] imem_parcel_valid_i,
-  input                             imem_parcel_misaligned_i,
-  input                             imem_parcel_page_fault_i,
-  input                             imem_parcel_error_i,
+  input        [XLEN            -1:0] imem_parcel_i,
+  input        [XLEN/PARCEL_SIZE-1:0] imem_parcel_valid_i,
+  input                               imem_parcel_misaligned_i,
+  input                               imem_parcel_page_fault_i,
+  input                               imem_parcel_error_i,
 
-  output reg [XLEN            -1:0] if_nxt_pc_o,              //Next Program Counter
-                                    if_pc_o,                  //Program Counter
-  output instruction_t              if_nxt_insn_o,
-                                    if_insn_o,
-  output exceptions_t               if_exceptions_o,          //Exceptions
-  input  exceptions_t               pd_exceptions_i,
-                                    id_exceptions_i,
-                                    ex_exceptions_i,
-                                    mem_exceptions_i,
-                                    wb_exceptions_i,
+  output logic [XLEN            -1:0] if_predict_pc_o,          //Early program counters towards predictor
+  output reg   [XLEN            -1:0] if_nxt_pc_o,              //Next Program Counter
+                                      if_pc_o,                  //Program Counter
+  output instruction_t                if_nxt_insn_o,
+                                      if_insn_o,
+  output exceptions_t                 if_exceptions_o,          //Exceptions
+  input  exceptions_t                 pd_exceptions_i,
+                                      id_exceptions_i,
+                                      ex_exceptions_i,
+                                      mem_exceptions_i,
+                                      wb_exceptions_i,
 
-  input      [XLEN            -1:0] pd_pc_i,
-  input                             pd_stall_i,
-                                    pd_flush_i,
-				    pd_latch_nxt_pc_i,
+  input        [XLEN            -1:0] pd_pc_i,
+  input                               pd_stall_i,
+                                      pd_flush_i,
+	                              pd_latch_nxt_pc_i,
 
-  input                             bu_flush_i,               //flush pipe & load new program counter
-                                    st_flush_i,
+  input                               bu_flush_i,               //flush pipe & load new program counter
+                                      st_flush_i,
 
-                                    du_stall_i,
-                                    du_we_pc_i,
-                                    du_latch_nxt_pc_i,
-				    du_flush_i,
-  input      [XLEN            -1:0] du_dato_i,
+                                      du_stall_i,
+                                      du_we_pc_i,
+                                      du_latch_nxt_pc_i,
+	                              du_flush_i,
+  input        [XLEN            -1:0] du_dato_i,
 
-  input      [XLEN            -1:0] pd_nxt_pc_i,              //pre-decoder Next Program Counter
-                                    bu_nxt_pc_i,              //Branch Unit Next Program Counter
-                                    st_nxt_pc_i,              //State Next Program Counter
+  input        [XLEN            -1:0] pd_nxt_pc_i,              //pre-decoder Next Program Counter
+                                      bu_nxt_pc_i,              //Branch Unit Next Program Counter
+                                      st_nxt_pc_i,              //State Next Program Counter
 
-  input      [                 1:0] st_xlen_i                 //Current XLEN setting
+  input        [                 1:0] st_xlen_i                 //Current XLEN setting
 );
 
   ////////////////////////////////////////////////////////////////
@@ -694,22 +695,34 @@ module riscv_if #(
 
 
   //Next Program Counter
+
+  //Combinatorial to Predictor predict_pc is registered by the memory address
+  //register. Then we can use registered output to reduce critical path
+  always_comb
+    if      ( st_flush_i        ) if_predict_pc_o = st_nxt_pc_i;
+    else if ( du_we_pc_strb     ) if_predict_pc_o = du_dato_i; 
+    else if ( bu_flush_i        ) if_predict_pc_o = bu_nxt_pc_i;
+    else if ( pd_latch_nxt_pc_i ) if_predict_pc_o = pd_nxt_pc_i;      //pd_flush absolutely breaks the CPU here
+    else if (!pd_stall_i           &&
+	     !if_nxt_insn_o.bubble &&
+	     !du_stall_i)
+      if (is_16bit_instruction)   if_predict_pc_o = if_nxt_pc_o +2;
+      else                        if_predict_pc_o = if_nxt_pc_o +4;
+    else                          if_predict_pc_o = if_nxt_pc_o;
+
+
   always @(posedge clk_i, negedge rst_ni)
-    if      (!rst_ni            ) if_nxt_pc_o <= PC_INIT;
-    else if ( st_flush_i        ) if_nxt_pc_o <= st_nxt_pc_i;
-    else if ( du_we_pc_strb     ) if_nxt_pc_o <= du_dato_i; 
-    else if ( bu_flush_i        ) if_nxt_pc_o <= bu_nxt_pc_i;
-    else if ( pd_latch_nxt_pc_i ) if_nxt_pc_o <= pd_nxt_pc_i;      //pd_flush absolutely breaks the CPU here
-    else if (!pd_stall_i && !if_nxt_insn_o.bubble && !du_stall_i)
-      if (is_16bit_instruction) if_nxt_pc_o <= if_nxt_pc_o +2;
-      else                      if_nxt_pc_o <= if_nxt_pc_o +4;
+    if (!rst_ni ) if_nxt_pc_o <= PC_INIT;
+    else          if_nxt_pc_o <= if_predict_pc_o;
 
 
+    
   //Current Program Counter
   always @(posedge clk_i, negedge rst_ni)
-    if      (!rst_ni                    ) if_pc_o <= PC_INIT;
-    else if ( du_we_pc_strb             ) if_pc_o <= du_dato_i;
-    else if (!pd_stall_i && !du_stall_i ) if_pc_o <= if_nxt_pc_o;
+    if      (!rst_ni        ) if_pc_o <= PC_INIT;
+    else if ( du_we_pc_strb ) if_pc_o <= du_dato_i;
+    else if (!pd_stall_i &&
+             !du_stall_i    ) if_pc_o <= if_nxt_pc_o;
 
 
   //Instruction
