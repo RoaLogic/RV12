@@ -113,7 +113,7 @@ module riscv_pd #(
   /*
    * To State (CSR - registered output)
    */
-  assign pd_csr_reg_o = pd_stall_o ? pd_insn_o.instr.I.imm : if_insn_i.instr.I.imm;
+  assign pd_csr_reg_o = if_insn_i.instr.I.imm;
 
 
   //Program counter
