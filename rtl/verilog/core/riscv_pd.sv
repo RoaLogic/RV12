@@ -51,6 +51,8 @@ module riscv_pd #(
   output rsd_t           pd_rs1_o,
                          pd_rs2_o,
 
+  output     [     11:0] pd_csr_reg_o,
+
   input      [XLEN -1:0] bu_nxt_pc_i,     //Branch Unit Next Program Counter
                          st_nxt_pc_i,     //State Next Program Counter
   output reg [XLEN -1:0] pd_nxt_pc_o,     //Branch Preditor Next Program Counter
@@ -107,7 +109,13 @@ module riscv_pd #(
   assign pd_rs1_o = decode_rs1(if_insn_i.instr);
   assign pd_rs2_o = decode_rs2(if_insn_i.instr);
 
-  
+
+  /*
+   * To State (CSR - registered output)
+   */
+  assign pd_csr_reg_o = pd_stall_o ? pd_insn_o.instr.I.imm : if_insn_i.instr.I.imm;
+
+
   //Program counter
   always @(posedge clk_i, negedge rst_ni)
     if      (!rst_ni     ) pd_pc_o <= PC_INIT;

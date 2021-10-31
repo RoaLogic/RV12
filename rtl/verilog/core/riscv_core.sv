@@ -217,9 +217,11 @@ module riscv_core #(
                              st_tsr;
   logic [XLEN          -1:0] st_mcounteren,
                              st_scounteren;
-  logic [              11:0] ex_csr_reg;
+  logic [              11:0] pd_csr_reg,
+	                     ex_csr_reg;
   logic [XLEN          -1:0] ex_csr_wval,
-                             st_csr_rval;
+                             st_csr_rval,
+                             du_csr_rval;
   logic                      ex_csr_we;
 
   //Write back
@@ -332,6 +334,8 @@ module riscv_core #(
 
     .pd_rs1_o          ( pd_rs1          ),
     .pd_rs2_o          ( pd_rs2          ),
+
+    .pd_csr_reg_o      ( pd_csr_reg      ),
   
     .bp_bp_predict_i   ( bp_bp_predict   ),
     .pd_bp_predict_o   ( pd_bp_predict   ),
@@ -630,6 +634,8 @@ module riscv_core #(
     .ext_sint_i      ( ext_sint_i    ),
     .ext_nmi_i       ( ext_nmi_i     ),
 
+    .pd_stall_i      ( pd_stall      ),
+    .pd_csr_reg_i    ( pd_csr_reg    ),
     .ex_csr_reg_i    ( ex_csr_reg    ),
     .ex_csr_we_i     ( ex_csr_we     ),
     .ex_csr_wval_i   ( ex_csr_wval   ),
@@ -639,6 +645,7 @@ module riscv_core #(
     .du_flush_i      ( du_flush      ),
     .du_re_csr_i     ( du_re_csr     ),
     .du_we_csr_i     ( du_we_csr     ),
+    .du_csr_rval_o   ( du_csr_rval   ),
     .du_dato_i       ( du_dato       ),
     .du_addr_i       ( du_addr       ),
     .du_ie_i         ( du_ie         ),
@@ -746,7 +753,7 @@ endgenerate
     .du_ie_o           ( du_ie           ),
     .du_rf_q_i         ( du_dati_rf      ),
     .du_frf_q_i        ( {XLEN{1'b0}}    ), //du_dati_frf     ),
-    .st_csr_q_i        ( st_csr_rval     ),
+    .st_csr_q_i        ( du_csr_rval     ),
     .if_nxt_pc_i       ( if_nxt_pc       ),
     .if_pc_i           ( if_pc           ),
     .pd_pc_i           ( pd_pc           ),

@@ -100,6 +100,8 @@ module riscv_state1_10 #(
   input                             ext_nmi_i,       //non-maskable interrupt
 
   //CSR interface
+  input                             pd_stall_i,
+  input               [       11:0] pd_csr_reg_i,
   input               [       11:0] ex_csr_reg_i,
   input                             ex_csr_we_i,
   input               [XLEN   -1:0] ex_csr_wval_i,
@@ -110,6 +112,7 @@ module riscv_state1_10 #(
                                     du_flush_i,
                                     du_re_csr_i,
                                     du_we_csr_i,
+  output reg           [XLEN  -1:0] du_csr_rval_o,
   input                [XLEN  -1:0] du_dato_i,       //output from debug unit
   input                [      11:0] du_addr_i,
   input                [      31:0] du_ie_i,
@@ -264,8 +267,10 @@ module riscv_state1_10 #(
   logic [      3:0] interrupt_cause,
                     trap_cause;
 
-  //Mux for debug-unit
+
+  //CSR access
   logic [     11:0] csr_raddr;    //CSR read address
+  logic [XLEN -1:0] csr_rval;     //CSR read value
   logic [XLEN -1:0] csr_wval;     //CSR write value
 
 
@@ -296,7 +301,11 @@ module riscv_state1_10 #(
   assign has_ext   = (HAS_EXT    !=   0);
 
   //Mux address/data for Debug-Unit access
-  assign csr_raddr = du_re_csr_i ? du_addr_i : ex_csr_reg_i;
+//  assign csr_raddr = du_re_csr_i ? du_addr_i : pd_csr_reg_i;
+  always @(posedge clk_i)
+	  if      ( du_re_csr_i) csr_raddr <= du_addr_i;
+	  else if (!pd_stall_i ) csr_raddr <= pd_csr_reg_i;
+
   assign csr_wval  = du_we_csr_i ? du_dato_i : ex_csr_wval_i;
 
 
@@ -334,98 +343,107 @@ module riscv_state1_10 #(
   
   //Read
   always_comb
-    case (csr_raddr)
+    unique case (csr_raddr)
       //User
-      USTATUS   : st_csr_rval_o = {mstatus[127],mstatus[XLEN-2:0]} & 'h11;
-      UIE       : st_csr_rval_o = has_n ? csr.mie & 12'h111               : 'h0;
-      UTVEC     : st_csr_rval_o = has_n ? csr.utvec                       : 'h0;
-      USCRATCH  : st_csr_rval_o = has_n ? csr.uscratch                    : 'h0;
-      UEPC      : st_csr_rval_o = has_n ? csr.uepc                        : 'h0;
-      UCAUSE    : st_csr_rval_o = has_n ? csr.ucause                      : 'h0;
-      UTVAL     : st_csr_rval_o = has_n ? csr.utval                       : 'h0;
-      UIP       : st_csr_rval_o = has_n ? csr.mip & csr.mideleg & 12'h111 : 'h0;
+      USTATUS   : csr_rval = {mstatus[127],mstatus[XLEN-2:0]} & 'h11;
+      UIE       : csr_rval = has_n ? csr.mie & 12'h111               : 'h0;
+      UTVEC     : csr_rval = has_n ? csr.utvec                       : 'h0;
+      USCRATCH  : csr_rval = has_n ? csr.uscratch                    : 'h0;
+      UEPC      : csr_rval = has_n ? csr.uepc                        : 'h0;
+      UCAUSE    : csr_rval = has_n ? csr.ucause                      : 'h0;
+      UTVAL     : csr_rval = has_n ? csr.utval                       : 'h0;
+      UIP       : csr_rval = has_n ? csr.mip & csr.mideleg & 12'h111 : 'h0;
 
-      FFLAGS    : st_csr_rval_o = has_fpu ? { {XLEN-$bits(csr.fcsr.flags){1'b0}},csr.fcsr.flags } : 'h0;
-      FRM       : st_csr_rval_o = has_fpu ? { {XLEN-$bits(csr.fcsr.rm   ){1'b0}},csr.fcsr.rm    } : 'h0;
-      FCSR      : st_csr_rval_o = has_fpu ? { {XLEN-$bits(csr.fcsr      ){1'b0}},csr.fcsr       } : 'h0;
-      CYCLE     : st_csr_rval_o = csr.mcycle[XLEN-1:0];
-//      TIME      : st_csr_rval_o = csr.timer[XLEN-1:0];
-      INSTRET   : st_csr_rval_o = csr.minstret[XLEN-1:0];
-      CYCLEH    : st_csr_rval_o = is_rv32 ? csr.mcycle.h   : 'h0;
-//      TIMEH     : st_csr_rval_o = is_rv32 ? csr.timer.h   : 'h0;
-      INSTRETH  : st_csr_rval_o = is_rv32 ? csr.minstret.h : 'h0;
+      FFLAGS    : csr_rval = has_fpu ? { {XLEN-$bits(csr.fcsr.flags){1'b0}},csr.fcsr.flags } : 'h0;
+      FRM       : csr_rval = has_fpu ? { {XLEN-$bits(csr.fcsr.rm   ){1'b0}},csr.fcsr.rm    } : 'h0;
+      FCSR      : csr_rval = has_fpu ? { {XLEN-$bits(csr.fcsr      ){1'b0}},csr.fcsr       } : 'h0;
+      CYCLE     : csr_rval = csr.mcycle[XLEN-1:0];
+//      TIME      : csr_rval = csr.timer[XLEN-1:0];
+      INSTRET   : csr_rval = csr.minstret[XLEN-1:0];
+      CYCLEH    : csr_rval = is_rv32 ? csr.mcycle.h   : 'h0;
+//      TIMEH     : csr_rval = is_rv32 ? csr.timer.h   : 'h0;
+      INSTRETH  : csr_rval = is_rv32 ? csr.minstret.h : 'h0;
 
       //Supervisor
-      SSTATUS   : st_csr_rval_o = {mstatus[127],mstatus[XLEN-2:0]} & (1 << XLEN-1 | 2'b11 << 32 | 'hde133);
-      STVEC     : st_csr_rval_o = has_s            ? csr.stvec                       : 'h0;
-      SCOUNTEREN: st_csr_rval_o = has_s            ? csr.scounteren                  : 'h0;
-      SIE       : st_csr_rval_o = has_s            ? csr.mie               & 12'h333 : 'h0;
-      SEDELEG   : st_csr_rval_o = has_s            ? csr.sedeleg                     : 'h0;
-      SIDELEG   : st_csr_rval_o = has_s            ? csr.mideleg           & 12'h111 : 'h0;
-      SSCRATCH  : st_csr_rval_o = has_s            ? csr.sscratch                    : 'h0;
-      SEPC      : st_csr_rval_o = has_s            ? csr.sepc                        : 'h0;
-      SCAUSE    : st_csr_rval_o = has_s            ? csr.scause                      : 'h0;
-      STVAL     : st_csr_rval_o = has_s            ? csr.stval                       : 'h0;
-      SIP       : st_csr_rval_o = has_s            ? csr.mip & csr.mideleg & 12'h333 : 'h0;
-      SATP      : st_csr_rval_o = has_s && has_mmu ? csr.satp                        : 'h0;
+      SSTATUS   : csr_rval = {mstatus[127],mstatus[XLEN-2:0]} & (1 << XLEN-1 | 2'b11 << 32 | 'hde133);
+      STVEC     : csr_rval = has_s            ? csr.stvec                       : 'h0;
+      SCOUNTEREN: csr_rval = has_s            ? csr.scounteren                  : 'h0;
+      SIE       : csr_rval = has_s            ? csr.mie               & 12'h333 : 'h0;
+      SEDELEG   : csr_rval = has_s            ? csr.sedeleg                     : 'h0;
+      SIDELEG   : csr_rval = has_s            ? csr.mideleg           & 12'h111 : 'h0;
+      SSCRATCH  : csr_rval = has_s            ? csr.sscratch                    : 'h0;
+      SEPC      : csr_rval = has_s            ? csr.sepc                        : 'h0;
+      SCAUSE    : csr_rval = has_s            ? csr.scause                      : 'h0;
+      STVAL     : csr_rval = has_s            ? csr.stval                       : 'h0;
+      SIP       : csr_rval = has_s            ? csr.mip & csr.mideleg & 12'h333 : 'h0;
+      SATP      : csr_rval = has_s && has_mmu ? csr.satp                        : 'h0;
 /*
       //Hypervisor
-      HSTATUS   : st_csr_rval_o = {mstatus[127],mstatus[XLEN-2:0] & (1 << XLEN-1 | 2'b11 << 32 | 'hde133);
-      HTVEC     : st_csr_rval_o = has_h ? csr.htvec                       : 'h0;
-      HIE       : st_csr_rval_o = has_h ? csr.mie & 12'h777               : 'h0;
-      HEDELEG   : st_csr_rval_o = has_h ? csr.hedeleg                     : 'h0;
-      HIDELEG   : st_csr_rval_o = has_h ? csr.mideleg & 12'h333           : 'h0;
-      HSCRATCH  : st_csr_rval_o = has_h ? csr.hscratch                    : 'h0;
-      HEPC      : st_csr_rval_o = has_h ? csr.hepc                        : 'h0;
-      HCAUSE    : st_csr_rval_o = has_h ? csr.hcause                      : 'h0;
-      HTVAL     : st_csr_rval_o = has_h ? csr.htval                       : 'h0;
-      HIP       : st_csr_rval_o = has_h ? csr.mip & csr.mideleg & 12'h777 : 'h0;
+      HSTATUS   : csr_rval = {mstatus[127],mstatus[XLEN-2:0] & (1 << XLEN-1 | 2'b11 << 32 | 'hde133);
+      HTVEC     : csr_rval = has_h ? csr.htvec                       : 'h0;
+      HIE       : csr_rval = has_h ? csr.mie & 12'h777               : 'h0;
+      HEDELEG   : csr_rval = has_h ? csr.hedeleg                     : 'h0;
+      HIDELEG   : csr_rval = has_h ? csr.mideleg & 12'h333           : 'h0;
+      HSCRATCH  : csr_rval = has_h ? csr.hscratch                    : 'h0;
+      HEPC      : csr_rval = has_h ? csr.hepc                        : 'h0;
+      HCAUSE    : csr_rval = has_h ? csr.hcause                      : 'h0;
+      HTVAL     : csr_rval = has_h ? csr.htval                       : 'h0;
+      HIP       : csr_rval = has_h ? csr.mip & csr.mideleg & 12'h777 : 'h0;
 */
       //Machine
-      MISA      : st_csr_rval_o = {csr.misa.base, {XLEN-$bits(csr.misa){1'b0}}, csr.misa.extensions};
-      MVENDORID : st_csr_rval_o = {{XLEN-$bits(csr.mvendorid){1'b0}}, csr.mvendorid};
-      MARCHID   : st_csr_rval_o = csr.marchid;
-      MIMPID    : st_csr_rval_o = is_rv32 ? csr.mimpid : { {XLEN-$bits(csr.mimpid){1'b0}}, csr.mimpid };
-      MHARTID   : st_csr_rval_o = csr.mhartid;
-      MSTATUS   : st_csr_rval_o = {mstatus[127],mstatus[XLEN-2:0]};
-      MTVEC     : st_csr_rval_o = csr.mtvec;
-      MCOUNTEREN: st_csr_rval_o = csr.mcounteren;
-      MNMIVEC   : st_csr_rval_o = csr.mnmivec;
-      MEDELEG   : st_csr_rval_o = csr.medeleg;
-      MIDELEG   : st_csr_rval_o = csr.mideleg;
-      MIE       : st_csr_rval_o = csr.mie & 12'hFFF;
-      MSCRATCH  : st_csr_rval_o = csr.mscratch;
-      MEPC      : st_csr_rval_o = csr.mepc;
-      MCAUSE    : st_csr_rval_o = csr.mcause;
-      MTVAL     : st_csr_rval_o = csr.mtval;
-      MIP       : st_csr_rval_o = csr.mip;
-      PMPCFG0   : st_csr_rval_o =            csr.pmpcfg[ 0 +: XLEN/8];
-      PMPCFG1   : st_csr_rval_o = is_rv32  ? csr.pmpcfg[ 4 +: XLEN/8] : 'h0;
-      PMPCFG2   : st_csr_rval_o =~is_rv128 ? csr.pmpcfg[ 8 +: XLEN/8] : 'h0;
-      PMPCFG3   : st_csr_rval_o = is_rv32  ? csr.pmpcfg[12 +: XLEN/8] : 'h0;
-      PMPADDR0  : st_csr_rval_o = csr.pmpaddr[0];
-      PMPADDR1  : st_csr_rval_o = csr.pmpaddr[1];
-      PMPADDR2  : st_csr_rval_o = csr.pmpaddr[2];
-      PMPADDR3  : st_csr_rval_o = csr.pmpaddr[3];
-      PMPADDR4  : st_csr_rval_o = csr.pmpaddr[4];
-      PMPADDR5  : st_csr_rval_o = csr.pmpaddr[5];
-      PMPADDR6  : st_csr_rval_o = csr.pmpaddr[6];
-      PMPADDR7  : st_csr_rval_o = csr.pmpaddr[7];
-      PMPADDR8  : st_csr_rval_o = csr.pmpaddr[8];
-      PMPADDR9  : st_csr_rval_o = csr.pmpaddr[9];
-      PMPADDR10 : st_csr_rval_o = csr.pmpaddr[10];
-      PMPADDR11 : st_csr_rval_o = csr.pmpaddr[11];
-      PMPADDR12 : st_csr_rval_o = csr.pmpaddr[12];
-      PMPADDR13 : st_csr_rval_o = csr.pmpaddr[13];
-      PMPADDR14 : st_csr_rval_o = csr.pmpaddr[14];
-      PMPADDR15 : st_csr_rval_o = csr.pmpaddr[15];
-      MCYCLE    : st_csr_rval_o = csr.mcycle[XLEN-1:0];
-      MINSTRET  : st_csr_rval_o = csr.minstret[XLEN-1:0];
-      MCYCLEH   : st_csr_rval_o = is_rv32 ? csr.mcycle.h   : 'h0;
-      MINSTRETH : st_csr_rval_o = is_rv32 ? csr.minstret.h : 'h0;
+      MISA      : csr_rval = {csr.misa.base, {XLEN-$bits(csr.misa){1'b0}}, csr.misa.extensions};
+      MVENDORID : csr_rval = {{XLEN-$bits(csr.mvendorid){1'b0}}, csr.mvendorid};
+      MARCHID   : csr_rval = csr.marchid;
+      MIMPID    : csr_rval = is_rv32 ? csr.mimpid : { {XLEN-$bits(csr.mimpid){1'b0}}, csr.mimpid };
+      MHARTID   : csr_rval = csr.mhartid;
+      MSTATUS   : csr_rval = {mstatus[127],mstatus[XLEN-2:0]};
+      MTVEC     : csr_rval = csr.mtvec;
+      MCOUNTEREN: csr_rval = csr.mcounteren;
+      MNMIVEC   : csr_rval = csr.mnmivec;
+      MEDELEG   : csr_rval = csr.medeleg;
+      MIDELEG   : csr_rval = csr.mideleg;
+      MIE       : csr_rval = csr.mie & 12'hFFF;
+      MSCRATCH  : csr_rval = csr.mscratch;
+      MEPC      : csr_rval = csr.mepc;
+      MCAUSE    : csr_rval = csr.mcause;
+      MTVAL     : csr_rval = csr.mtval;
+      MIP       : csr_rval = csr.mip;
+      PMPCFG0   : csr_rval =            csr.pmpcfg[ 0 +: XLEN/8];
+      PMPCFG1   : csr_rval = is_rv32  ? csr.pmpcfg[ 4 +: XLEN/8] : 'h0;
+      PMPCFG2   : csr_rval =~is_rv128 ? csr.pmpcfg[ 8 +: XLEN/8] : 'h0;
+      PMPCFG3   : csr_rval = is_rv32  ? csr.pmpcfg[12 +: XLEN/8] : 'h0;
+      PMPADDR0  : csr_rval = csr.pmpaddr[0];
+      PMPADDR1  : csr_rval = csr.pmpaddr[1];
+      PMPADDR2  : csr_rval = csr.pmpaddr[2];
+      PMPADDR3  : csr_rval = csr.pmpaddr[3];
+      PMPADDR4  : csr_rval = csr.pmpaddr[4];
+      PMPADDR5  : csr_rval = csr.pmpaddr[5];
+      PMPADDR6  : csr_rval = csr.pmpaddr[6];
+      PMPADDR7  : csr_rval = csr.pmpaddr[7];
+      PMPADDR8  : csr_rval = csr.pmpaddr[8];
+      PMPADDR9  : csr_rval = csr.pmpaddr[9];
+      PMPADDR10 : csr_rval = csr.pmpaddr[10];
+      PMPADDR11 : csr_rval = csr.pmpaddr[11];
+      PMPADDR12 : csr_rval = csr.pmpaddr[12];
+      PMPADDR13 : csr_rval = csr.pmpaddr[13];
+      PMPADDR14 : csr_rval = csr.pmpaddr[14];
+      PMPADDR15 : csr_rval = csr.pmpaddr[15];
+      MCYCLE    : csr_rval = csr.mcycle[XLEN-1:0];
+      MINSTRET  : csr_rval = csr.minstret[XLEN-1:0];
+      MCYCLEH   : csr_rval = is_rv32 ? csr.mcycle.h   : 'h0;
+      MINSTRETH : csr_rval = is_rv32 ? csr.minstret.h : 'h0;
 
-      default   : st_csr_rval_o = 32'h0;
+      default   : csr_rval = 32'h0;
     endcase
+
+
+  always @(posedge clk_i)
+    if (!pd_stall_i) st_csr_rval_o <= csr_rval;
+
+
+  always @(posedge clk_i)
+    du_csr_rval_o <= csr_rval;
+
 
 
   ////////////////////////////////////////////////////////////////
