@@ -1222,12 +1222,16 @@ endgenerate
             if (has_n && st_prv_o == PRV_U && ( st_int & csr.mideleg & 12'h111) )
             begin
                 csr.ucause <= (1 << (XLEN-1)) | interrupt_cause;
-                csr.uepc   <= id_pc_i;
+
+		//don't update application return address if state caused a flush (ISR exit)
+		if (!st_flush_o) csr.uepc <= id_pc_i;
             end
             else if (has_s && st_prv_o >= PRV_S && (st_int & csr.mideleg & 12'h333) )
             begin
-                csr.scause <= (1 << (XLEN-1)) | interrupt_cause;;
-                csr.sepc   <= id_pc_i;
+                csr.scause <= (1 << (XLEN-1)) | interrupt_cause;
+		
+		//don't update application return address if state caused a flush (ISR exit)
+                if (!st_flush_o) csr.sepc <= id_pc_i;
             end
 /*
             else if (has_h && st_prv_o >= PRV_H && (st_int & csr.mideleg & 12'h777) )
@@ -1239,7 +1243,9 @@ endgenerate
             else
             begin
                 csr.mcause <= (1 << (XLEN-1)) | interrupt_cause;;
-                csr.mepc   <= id_pc_i;
+
+		//don't update application return address if state caused a flush (ISR exit)
+                if (!st_flush_o) csr.mepc <= id_pc_i;
             end
         end
         else if (|(wb_exceptions_i[$bits(wb_exceptions_i)-2:0] & ~du_ie_i[15:0]))
