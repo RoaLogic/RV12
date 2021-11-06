@@ -209,7 +209,7 @@ module riscv_if #(
     .DEPTH                   ( QUEUE_DEPTH      ),
     .WR_PARCELS              ( XLEN/PARCEL_SIZE ),
     .RD_PARCELS              ( 4                ), //max 32bit instructions
-    .ALMOST_EMPTY_THRESHOLD  ( 1                ),
+    .ALMOST_EMPTY_THRESHOLD  ( 1                ), //must update for marco-fusion
     .ALMOST_FULL_THRESHOLD   ( FULL_THRESHOLD   )
   )
   parcel_queue_inst (
@@ -230,6 +230,7 @@ module riscv_if #(
     .parcel_page_fault_o ( parcel_page_fault          ),
     .parcel_error_o      ( parcel_error               ),
 
+    //use almost_empty, because we (can) read more than 1 parcel (16bit) at a time
     .almost_empty_o      ( parcel_queue_empty         ),
     .almost_full_o       ( parcel_queue_full          ),
     .empty_o             (                            ),
