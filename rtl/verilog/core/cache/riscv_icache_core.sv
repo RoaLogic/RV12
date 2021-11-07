@@ -66,7 +66,7 @@ import biu_constants_pkg::*;
 
 module riscv_icache_core #(
   parameter XLEN        = 32,
-  parameter ALEN        = XLEN,
+  parameter PLEN        = XLEN,
   parameter PARCEL_SIZE = XLEN,
 
   parameter SIZE        = 64,     //KBYTES
@@ -75,7 +75,7 @@ module riscv_icache_core #(
   parameter WAYS        =  2,     // 1           : Direct Mapped
                                   //<n>          : n-way set associative
                                   //<n>==<blocks>: fully associative
-  parameter REPLACE_ALG = 1,      //0: Random
+  parameter REPLACE_ALG = 0,      //0: Random
                                   //1: FIFO
                                   //2: LRU
 
@@ -87,10 +87,9 @@ module riscv_icache_core #(
   input  logic            clr_i,          //clear any pending request
 
   //CPU side
-  input  logic            mem_vreq_i,
-  input  logic            mem_preq_i,
-  input  logic [XLEN-1:0] mem_vadr_i,
-  input  logic [ALEN-1:0] mem_padr_i,
+  input  logic            is_cacheable_i, //cacheable transfer?
+  input  logic            mem_req_i,
+  input  logic [XLEN-1:0] mem_adr_i,
   input  biu_size_t       mem_size_i,
   input                   mem_lock_i,
   input  biu_prot_t       mem_prot_i,
@@ -104,8 +103,8 @@ module riscv_icache_core #(
   output logic            biu_stb_o,      //access request
   input  logic            biu_stb_ack_i,  //access acknowledge
   input  logic            biu_d_ack_i,    //BIU needs new data (biu_d_o)
-  output logic [ALEN-1:0] biu_adri_o,     //access start address
-  input  logic [ALEN-1:0] biu_adro_i,
+  output logic [PLEN-1:0] biu_adri_o,     //access start address
+  input  logic [PLEN-1:0] biu_adro_i,
   output biu_size_t       biu_size_o,     //transfer size
   output biu_type_t       biu_type_o,     //burst type
   output logic            biu_lock_o,     //locked transfer
@@ -197,7 +196,7 @@ module riscv_icache_core #(
   //pipeline-write-buffer
   typedef struct {
     logic [IDX_BITS -1:0] idx;
-    logic [ALEN     -1:0] adr;  //physical address
+    logic [PLEN     -1:0] adr;  //physical address
     logic [XLEN/8   -1:0] be;
     logic [XLEN     -1:0] data;
 
@@ -226,10 +225,8 @@ module riscv_icache_core #(
 
   /* Memory Interface State Machine Section
    */
-  logic                                   mem_vreq_dly,
-                                          mem_preq_dly;
-  logic      [XLEN        -1:0]           mem_vadr_dly;
-  logic      [ALEN        -1:0]           mem_padr_dly;
+  logic                                   mem_req_dly;
+  logic      [XLEN        -1:0]           mem_adr_dly;
   logic      [XLEN/8      -1:0]           mem_be,
                                           mem_be_dly;
 
@@ -246,10 +243,8 @@ module riscv_icache_core #(
   logic      [IDX_BITS       -1:0]           tag_idx,
                                              tag_idx_dly,          //delayed version for writing valid/dirty
                                              tag_idx_hold,         //stretched version for writing TAG during fill
-                                             vadr_idx,             //index bits extracted from vadr_i
-                                             vadr_dly_idx,         //index bits extracted from vadr_dly
-                                             padr_idx,
-                                             padr_dly_idx;
+                                             adr_idx,              //index bits extracted from adr_i
+                                             adr_dly_idx;          //index bits extracted from adr_dly
 
   logic      [WAYS           -1:0]           tag_we;
   tag_struct                                 tag_in      [WAYS],
@@ -293,7 +288,7 @@ module riscv_icache_core #(
   logic      [BURST_SIZE     -1:0]           biu_buffer_valid;
   logic                                      in_biubuffer;
 
-  logic      [ALEN           -1:0]           biu_adri_hold;
+  logic      [PLEN           -1:0]           biu_adri_hold;
   logic      [XLEN           -1:0]           biu_d_hold;
 
   logic      [BURST_BITS     -1:0]           burst_cnt;
@@ -312,42 +307,32 @@ module riscv_icache_core #(
   //----------------------------------------------------------------
 
   //generate cache_* signals
-  assign mem_be = size2be(mem_size_i, mem_vadr_i);
+  assign mem_be = size2be(mem_size_i, mem_adr_i);
 
 
   //generate delayed mem_* signals
   always @(posedge clk_i,negedge rst_ni)
-    if      (!rst_ni) mem_vreq_dly <= 1'b0;
-    else if ( clr_i ) mem_vreq_dly <= 1'b0;
-    else              mem_vreq_dly <= mem_vreq_i | (mem_vreq_dly & ~mem_ack_o);
-
-  always @(posedge clk_i,negedge rst_ni)
-    if      (!rst_ni) mem_preq_dly <= 1'b0;
-    else if ( clr_i ) mem_preq_dly <= 1'b0;
-    else              mem_preq_dly <= (mem_preq_i | mem_preq_dly) & ~mem_ack_o;
+    if      (!rst_ni) mem_req_dly <= 1'b0;
+    else if ( clr_i ) mem_req_dly <= 1'b0;
+    else              mem_req_dly <= mem_req_i | (mem_req_dly & ~mem_ack_o);
 
 
   //register memory signals
   always @(posedge clk_i)
-    if (mem_vreq_i)
+    if (mem_req_i)
     begin
-        mem_vadr_dly <= mem_vadr_i;
-        mem_be_dly   <= mem_be;
+        mem_adr_dly <= mem_adr_i;
+        mem_be_dly  <= mem_be;
     end
 
-  always @(posedge clk_i)
-    if (mem_preq_i) mem_padr_dly <= mem_padr_i;
+
+  //extract index bits from address(es)
+  assign adr_idx     = mem_adr_i  [BLK_OFF_BITS +: IDX_BITS];
+  assign adr_dly_idx = mem_adr_dly[BLK_OFF_BITS +: IDX_BITS];
 
 
-  //extract index bits from virtual address(es)
-  assign vadr_idx     = mem_vadr_i  [BLK_OFF_BITS +: IDX_BITS];
-  assign vadr_dly_idx = mem_vadr_dly[BLK_OFF_BITS +: IDX_BITS];
-  assign padr_idx     = mem_padr_i  [BLK_OFF_BITS +: IDX_BITS];
-  assign padr_dly_idx = mem_padr_dly[BLK_OFF_BITS +: IDX_BITS];
-
-
-  //extract core_tag from physical address
-  assign core_tag = mem_padr_i[XLEN-1 -: TAG_BITS];
+  //extract core_tag from address
+  assign core_tag = mem_adr_i[XLEN-1 -: TAG_BITS];
 
 
   //hold core_tag during filling. Prevents new mem_req (during fill) to mess up the 'tag' value
@@ -377,7 +362,7 @@ module riscv_icache_core #(
                           memfsm_state <= FLUSH;
                           flushing     <= 1'b1;
                       end
-                      else if (mem_vreq_dly && !cache_hit && (mem_preq_i || mem_preq_dly) ) //it takes 1 cycle to read TAG
+                      else if (mem_req_dly && !cache_hit && (mem_req_i || mem_req_dly) ) //it takes 1 cycle to read TAG
                       begin
                           //Load way
                           memfsm_state <= WAIT4BIUCMD0;
@@ -397,13 +382,13 @@ module riscv_icache_core #(
 
         WAIT4BIUCMD0: if (biufsm_err)
                       begin
-                          memfsm_state <= vadr_idx != tag_idx_hold ? RECOVER : ARMED;
+                          memfsm_state <= adr_idx != tag_idx_hold ? RECOVER : ARMED;
                           biucmd       <= NOP;
                           filling      <= 1'b0;
                       end
                       else if (biufsm_ack)
                       begin
-                          memfsm_state <= vadr_idx != tag_idx_hold ? RECOVER : ARMED;
+                          memfsm_state <= adr_idx != tag_idx_hold ? RECOVER : ARMED;
                           biucmd       <= NOP;
                           filling      <= 1'b0;
                       end
@@ -418,14 +403,14 @@ module riscv_icache_core #(
 
 
   //address check, used in a few places
-  assign biu_adro_eq_cache_adr_dly = (biu_adro_i[ALEN-1:BURST_LSB] == mem_padr_i  [ALEN-1:BURST_LSB]);
+  assign biu_adro_eq_cache_adr_dly = (biu_adro_i[PLEN-1:BURST_LSB] == mem_adr_i  [PLEN-1:BURST_LSB]); //mem_adr_dly!
 
 
   //signal downstream that data is ready
   always_comb
     unique case (memfsm_state)
-      ARMED       : mem_ack_o = mem_vreq_dly & (mem_preq_i | mem_preq_dly) & cache_hit;
-      WAIT4BIUCMD0: mem_ack_o = mem_vreq_dly & (mem_preq_i | mem_preq_dly) & biu_ack_i & biu_adro_eq_cache_adr_dly;
+      ARMED       : mem_ack_o = mem_req_dly & (mem_req_i | mem_req_dly) & cache_hit;
+      WAIT4BIUCMD0: mem_ack_o = mem_req_dly & (mem_req_i | mem_req_dly) & biu_ack_i & biu_adro_eq_cache_adr_dly;
       default     : mem_ack_o = 1'b0;
     endcase
 
@@ -436,7 +421,7 @@ module riscv_icache_core #(
 
   //Assign mem_q
   //biu_q_i and cache_q are XLEN size. If PARCEL_SIZE is smaller, adjust
-  assign parcel_offset = mem_vadr_dly[1 + PARCEL_OFF_BITS : 1]; //[1 +: PARCEL_OFF_BITS] errors out
+  assign parcel_offset = mem_adr_dly[1 + PARCEL_OFF_BITS : 1]; //[1 +: PARCEL_OFF_BITS] errors out
 
   always_comb
     unique case (memfsm_state)
@@ -534,8 +519,8 @@ endgenerate
 
 
   //get requested data (XLEN-size) from way_q_mux(BLK_BITS-size)
-  assign in_biubuffer = mem_preq_dly ? (biu_adri_hold[ALEN-1:BLK_OFF_BITS] == mem_padr_dly[ALEN-1:BLK_OFF_BITS]) & (biu_buffer_valid >> dat_offset)
-                                     : (biu_adri_hold[ALEN-1:BLK_OFF_BITS] == mem_padr_i  [ALEN-1:BLK_OFF_BITS]) & (biu_buffer_valid >> dat_offset);
+  assign in_biubuffer = mem_req_dly ? (biu_adri_hold[PLEN-1:BLK_OFF_BITS] == mem_adr_dly[PLEN-1:BLK_OFF_BITS]) & (biu_buffer_valid >> dat_offset)
+                                    : (biu_adri_hold[PLEN-1:BLK_OFF_BITS] == mem_adr_i  [PLEN-1:BLK_OFF_BITS]) & (biu_buffer_valid >> dat_offset);
 
 
   assign cache_q = (in_biubuffer ? biu_buffer : way_q_mux[WAYS-1]) >> (dat_offset * XLEN);
@@ -557,8 +542,12 @@ endgenerate
 
 
   //select which way to fill
-  assign fill_way_select = (WAYS <= 1) ? 1 : 1 << way_random[$clog2(WAYS)-1:0];
-
+generate
+  if (WAYS <= 1)
+    assign fill_way_select = 1;
+  else
+    assign fill_way_select = 1 << way_random[$clog2(WAYS)-1:0];
+endgenerate
 
   //FILL / WRITE_WAYS use fill_way_select 1 cycle later
   always @(posedge clk_i)
@@ -576,9 +565,9 @@ endgenerate
 
       //TAG read
       FLUSH       : tag_idx = flush_idx;
-      RECOVER     : tag_idx = mem_vreq_dly ? vadr_dly_idx  //pending access
-                                           : vadr_idx;     //new access
-      default     : tag_idx = vadr_idx;                    //current access
+      RECOVER     : tag_idx = mem_req_dly ? adr_dly_idx  //pending access
+                                          : adr_idx;     //new access
+      default     : tag_idx = adr_idx;                   //current access
     endcase
 
 
@@ -587,12 +576,12 @@ endgenerate
     tag_idx_dly <= tag_idx;
 
 
-  //hold tag-idx; prevent new mem_vreq_i from messing up tag during filling
+  //hold tag-idx; prevent new mem_req_i from messing up tag during filling
   always @(posedge clk_i)
     unique case (memfsm_state)
-      ARMED   : if (mem_vreq_dly && !cache_hit) tag_idx_hold <= vadr_dly_idx;
-      RECOVER : tag_idx_hold <= mem_vreq_dly ? vadr_dly_idx  //pending access
-                                             : vadr_idx;     //current access
+      ARMED   : if (mem_req_dly && !cache_hit) tag_idx_hold <= adr_dly_idx;
+      RECOVER : tag_idx_hold <= mem_req_dly ? adr_dly_idx  //pending access
+                                            : adr_idx;     //current access
        default: ;
     endcase
 
@@ -621,7 +610,7 @@ endgenerate
 
 
   //Shift amount for data
-  assign dat_offset = mem_vadr_dly[BLK_OFF_BITS-1 -: DAT_OFF_BITS];
+  assign dat_offset = mem_adr_dly[BLK_OFF_BITS-1 -: DAT_OFF_BITS];
 
 
   //DAT Byte Enable
@@ -631,9 +620,9 @@ endgenerate
   //DAT Index
    always_comb
      unique case (memfsm_state)
-       ARMED       : dat_idx = vadr_idx;                          //read access
-       RECOVER     : dat_idx = mem_vreq_dly  ? vadr_dly_idx       //read pending cycle
-                                             : vadr_idx;          //read new access
+       ARMED       : dat_idx = adr_idx;                         //read access
+       RECOVER     : dat_idx = mem_req_dly  ? adr_dly_idx       //read pending cycle
+                                            : adr_idx;          //read new access
        default     : dat_idx = tag_idx_hold;
      endcase
 
@@ -785,7 +774,7 @@ endgenerate
 
                   READ_WAY  : begin
                                   biu_stb_o  = 1'b1;
-                                  biu_adri_o = {mem_padr_dly[ALEN-1 : BURST_LSB],{BURST_LSB{1'b0}}};
+                                  biu_adri_o = {mem_adr_dly[PLEN-1 : BURST_LSB],{BURST_LSB{1'b0}}};
                               end
                 endcase
 

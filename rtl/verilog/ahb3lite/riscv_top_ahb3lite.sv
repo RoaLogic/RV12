@@ -85,7 +85,7 @@ module riscv_top_ahb3lite #(
 
   parameter            HARTID             = 0,
 
-  parameter            PARCEL_SIZE        = 16
+  parameter            PARCEL_SIZE        = 16 //16bits per parcel
 )
 (
   //AHB interfaces
@@ -164,6 +164,8 @@ module riscv_top_ahb3lite #(
                                       dmem_misaligned;
   logic                               dmem_page_fault;
 
+  pmpcfg_t [15:0]                     st_pmpcfg;
+  logic    [15:0][XLEN          -1:0] st_pmpaddr;
   logic          [               1:0] st_prv;
 
   logic                               cacheflush,
@@ -276,8 +278,8 @@ module riscv_top_ahb3lite #(
 
     //cpu state
     .st_prv_o                 ( st_prv                 ),
-    .st_pmpcfg_o              (),
-    .st_pmpaddr_o             (),
+    .st_pmpcfg_o              ( st_pmpcfg              ),
+    .st_pmpaddr_o             ( st_pmpaddr             ),
     .bu_cacheflush_o          ( cacheflush             ),
 
 
@@ -301,6 +303,61 @@ module riscv_top_ahb3lite #(
   /*
    * Instantiate bus interfaces and optional caches
    */
+
+  riscv_imem_ctrl #(
+    .XLEN              ( XLEN              ),
+    .PLEN              ( XLEN              ),
+    .PARCEL_SIZE       ( PARCEL_SIZE       ),
+    .HAS_RVC           ( HAS_RVC           ),
+    .PMA_CNT           ( PMA_CNT           ),
+    .PMP_CNT           ( PMP_CNT           ),
+    .CACHE_SIZE        ( ICACHE_SIZE       ),
+    .CACHE_BLOCK_SIZE  ( ICACHE_BLOCK_SIZE ),
+    .CACHE_WAYS        ( ICACHE_WAYS       ),
+    .TECHNOLOGY        ( TECHNOLOGY        ) )
+  imem_ctrl_inst (
+    .rst_ni            ( HRESETn           ),
+    .clk_i             ( HCLK              ),
+ 
+    //Configuration
+    .pma_cfg_i         ( pma_cfg_i         ),
+    .pma_adr_i         ( pma_adr_i         ),
+
+    //CPU side
+    .imem_req_i        ( imem_req          ),
+    .imem_ack_o        ( imem_ack          ),
+    .imem_flush_i      ( imem_flush        ),
+    .imem_adr_i        ( imem_adr          ),
+    .parcel_o          ( imem_parcel       ),
+    .parcel_valid_o    ( imem_parcel_valid ),
+    .err_o             ( imem_err          ),
+    .misaligned_o      ( imem_misaligned   ),
+    .page_fault_o      ( imem_page_fault   ),
+    .cache_flush_i     ( cacheflush        ),
+    .dcflush_rdy_i     ( dcflush_rdy       ),
+
+    .st_pmpcfg_i       ( st_pmpcfg         ),
+    .st_pmpaddr_i      ( st_pmpaddr        ),
+    .st_prv_i          ( st_prv            ),
+
+    //BIU ports
+    .biu_stb_o         ( ibiu_stb          ),
+    .biu_stb_ack_i     ( ibiu_stb_ack      ),
+    .biu_d_ack_i       ( ibiu_d_ack        ),
+    .biu_adri_o        ( ibiu_adri         ),
+    .biu_adro_i        ( ibiu_adro         ),
+    .biu_size_o        ( ibiu_size         ),
+    .biu_type_o        ( ibiu_type         ),
+    .biu_we_o          ( ibiu_we           ),
+    .biu_lock_o        ( ibiu_lock         ),
+    .biu_prot_o        ( ibiu_prot         ),
+    .biu_d_o           ( ibiu_d            ),
+    .biu_q_i           ( ibiu_q            ),
+    .biu_ack_i         ( ibiu_ack          ),
+    .biu_err_i         ( ibiu_err          ) );
+
+
+/*  
   assign imem_parcel_page_fault = 0; //No MMU
 
 generate
@@ -319,6 +376,19 @@ if (ICACHE_SIZE > 0)
     icache_inst (
       .rst_ni           ( HRESETn           ),
       .clk_i            ( HCLK              ),
+      .clr_i            (  ),
+
+      .mem_vreq_i       ( ),
+      .mem_preq_i       ( ),
+      .mem_vadr_i       ( ),
+      .mem_padr_i       ( ),
+      .size_i           ( ),
+      .lock_i           ( ),
+      .prot_i           ( ),
+      .mem_q_o          ( ),
+      .mem_ack_o        ( ),
+      .mem_err_o
+
 
       .nxt_pc_i         ( imem_adr            ),
       .stall_nxt_pc_o   ( if_stall_nxt_pc      ),
@@ -350,12 +420,15 @@ if (ICACHE_SIZE > 0)
       .biu_err_i        ( ibiu_err         )
     );
     */
+/*
+
    assign ibiu_stb = 1'b0;
 else
    /*
     * No Instruction Cache Core
     * Control and glue logic only
     */
+/*   
    riscv_noicache_core #(
      .XLEN                   ( XLEN                   ),
      .ALEN                   ( ALEN                   ),
@@ -395,7 +468,7 @@ else
      .biu_ack_i              ( ibiu_ack               ),
      .biu_err_i              ( ibiu_err               ) );
 endgenerate
-
+*/
 
 
   riscv_memmisaligned #(

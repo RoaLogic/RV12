@@ -45,6 +45,7 @@ module riscv_noicache_core #(
   input      [XLEN            -1:0] if_nxt_pc_i,
   input                             if_req_i,
   output                            if_ack_o,
+  input  biu_prot_t                 if_prot_i,
   input                             if_flush_i,
   output     [XLEN            -1:0] if_parcel_pc_o,
   output     [XLEN            -1:0] if_parcel_o,
@@ -142,8 +143,9 @@ module riscv_noicache_core #(
   assign biu_adri_o  = if_nxt_pc_i[ALEN -1:0];
   assign biu_size_o  = XLEN==64 ? DWORD : WORD;
   assign biu_lock_o  = 1'b0;
-  assign biu_prot_o  = biu_prot_t'(PROT_INSTRUCTION |
-                                   st_prv_i == PRV_U ? PROT_USER : PROT_PRIVILEGED);
+  assign biu_prot_o  = if_prot_i;
+//  assign biu_prot_o  = biu_prot_t'(PROT_INSTRUCTION |
+//                                   st_prv_i == PRV_U ? PROT_USER : PROT_PRIVILEGED);
   assign biu_we_o    = 1'b0;   //no writes
   assign biu_d_o     =  'h0;
   assign biu_type_o  = (XLEN==64 && |if_nxt_pc_i[2:0]) ||
