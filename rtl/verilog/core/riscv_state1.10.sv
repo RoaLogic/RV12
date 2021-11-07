@@ -677,10 +677,10 @@ $display ("NMI");
             csr.mstatus.mie  <= 1'b0;
             csr.mstatus.mpp  <= st_prv_o;
         end
-        else if (take_interrupt)
+        else if (take_interrupt && !du_stall_i && !du_flush_i)
         begin
 $display ("take_interrupt");
-            st_flush_o  <= ~du_stall_i & ~du_flush_i;
+            st_flush_o  <= 1'b1;
 
             //Check if interrupts are delegated
             if (has_n && st_prv_o == PRV_U && ( st_int & csr.mideleg & 12'h111) )
@@ -1086,17 +1086,17 @@ endgenerate
   assign st_int[CAUSE_MEINT] = ( ((st_prv_o < PRV_M) | (st_prv_o == PRV_M & csr.mstatus.mie)) & (csr.mip.meip & csr.mie.meie) );
   assign st_int[CAUSE_HEINT] = ( ((st_prv_o < PRV_H) | (st_prv_o == PRV_H & csr.mstatus.hie)) & (csr.mip.heip & csr.mie.heie) );
   assign st_int[CAUSE_SEINT] = ( ((st_prv_o < PRV_S) | (st_prv_o == PRV_S & csr.mstatus.sie)) & (csr.mip.seip & csr.mie.seie) );
-  assign st_int[CAUSE_UEINT] = (                     (st_prv_o == PRV_U & csr.mstatus.uie)  & (csr.mip.ueip & csr.mie.ueie) );
+  assign st_int[CAUSE_UEINT] = (                       (st_prv_o == PRV_U & csr.mstatus.uie)  & (csr.mip.ueip & csr.mie.ueie) );
 
   assign st_int[CAUSE_MSINT] = ( ((st_prv_o < PRV_M) | (st_prv_o == PRV_M & csr.mstatus.mie)) & (csr.mip.msip & csr.mie.msie) ) & ~st_int[CAUSE_MEINT];
   assign st_int[CAUSE_HSINT] = ( ((st_prv_o < PRV_H) | (st_prv_o == PRV_H & csr.mstatus.hie)) & (csr.mip.hsip & csr.mie.hsie) ) & ~st_int[CAUSE_HEINT];
   assign st_int[CAUSE_SSINT] = ( ((st_prv_o < PRV_S) | (st_prv_o == PRV_S & csr.mstatus.sie)) & (csr.mip.ssip & csr.mie.ssie) ) & ~st_int[CAUSE_SEINT];
-  assign st_int[CAUSE_USINT] = (                     (st_prv_o == PRV_U & csr.mstatus.uie)  & (csr.mip.usip & csr.mie.usie) ) & ~st_int[CAUSE_UEINT];
+  assign st_int[CAUSE_USINT] = (                       (st_prv_o == PRV_U & csr.mstatus.uie)  & (csr.mip.usip & csr.mie.usie) ) & ~st_int[CAUSE_UEINT];
 
   assign st_int[CAUSE_MTINT] = ( ((st_prv_o < PRV_M) | (st_prv_o == PRV_M & csr.mstatus.mie)) & (csr.mip.mtip & csr.mie.mtie) ) & ~(st_int[CAUSE_MEINT] | st_int[CAUSE_MSINT]);
   assign st_int[CAUSE_HTINT] = ( ((st_prv_o < PRV_H) | (st_prv_o == PRV_H & csr.mstatus.hie)) & (csr.mip.htip & csr.mie.htie) ) & ~(st_int[CAUSE_HEINT] | st_int[CAUSE_HSINT]);
   assign st_int[CAUSE_STINT] = ( ((st_prv_o < PRV_S) | (st_prv_o == PRV_S & csr.mstatus.sie)) & (csr.mip.stip & csr.mie.stie) ) & ~(st_int[CAUSE_SEINT] | st_int[CAUSE_SSINT]);
-  assign st_int[CAUSE_UTINT] = (                     (st_prv_o == PRV_U & csr.mstatus.uie)  & (csr.mip.utip & csr.mie.utie) ) & ~(st_int[CAUSE_UEINT] | st_int[CAUSE_USINT]);
+  assign st_int[CAUSE_UTINT] = (                       (st_prv_o == PRV_U & csr.mstatus.uie)  & (csr.mip.utip & csr.mie.utie) ) & ~(st_int[CAUSE_UEINT] | st_int[CAUSE_USINT]);
 
 
   //interrupt cause priority
