@@ -677,10 +677,10 @@ $display ("NMI");
             csr.mstatus.mie  <= 1'b0;
             csr.mstatus.mpp  <= st_prv_o;
         end
-        else if (take_interrupt)
+        else if (take_interrupt && !du_stall_i && !du_flush_i)
         begin
 $display ("take_interrupt");
-            st_flush_o  <= ~du_stall_i & ~du_flush_i;
+            st_flush_o  <= 1'b1;
 
             //Check if interrupts are delegated
             if (has_n && st_prv_o == PRV_U && ( st_int & csr.mideleg & 12'h111) )
