@@ -102,9 +102,10 @@ module riscv_bp #(
    * Hookup 1R1W memory
    */
   rl_ram_1r1w #(
-    .ABITS      ( ADR_BITS   ),
-    .DBITS      ( 2          ),
-    .TECHNOLOGY ( TECHNOLOGY )
+    .ABITS         ( ADR_BITS    ),
+    .DBITS         ( 2           ),
+    .TECHNOLOGY    ( TECHNOLOGY  ),
+    .RW_CONTENTION ( "DONT_CARE" ) //it's a prediction anyways ...
   )
   bp_ram_inst(
     .rst_ni  ( rst_ni             ),
