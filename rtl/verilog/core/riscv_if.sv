@@ -31,11 +31,12 @@ import riscv_opcodes_pkg::*;
 import riscv_state_pkg::*;
 
 module riscv_if #(
-  parameter            XLEN           = 32,
-  parameter [XLEN-1:0] PC_INIT        = 'h200,
-  parameter            HAS_RVC        = 0,
+  parameter                           XLEN           = 32,
+  parameter    [XLEN            -1:0] PC_INIT        = 'h200,
+  parameter                           HAS_RVC        = 0,
+  parameter                           BP_GLOBAL_BITS = 2,
 
-  localparam PARCEL_SIZE = 16
+  localparam                          PARCEL_SIZE    = 16
 )
 (
   input                               rst_ni,                   //Reset
@@ -52,6 +53,9 @@ module riscv_if #(
   input                               imem_parcel_page_fault_i,
   input                               imem_parcel_error_i,
 
+  input        [BP_GLOBAL_BITS  -1:0] bu_bp_history_i,          //Branch Predictor History
+  output       [BP_GLOBAL_BITS  -1:0] if_predict_history_o,     //Predictor History to BP unit
+  output reg   [BP_GLOBAL_BITS  -1:0] if_bp_history_o,          //Predictor History to PD
   output logic [XLEN            -1:0] if_predict_pc_o,          //Early program counters towards predictor
   output reg   [XLEN            -1:0] if_nxt_pc_o,              //Next Program Counter
                                       if_pc_o,                  //Program Counter
@@ -712,6 +716,10 @@ module riscv_if #(
     else                          if_predict_pc_o = if_nxt_pc_o;
 
 
+  //BP history aligned with predict PC
+  assign if_predict_history_o = bu_bp_history_i;
+
+
   always @(posedge clk_i, negedge rst_ni)
     if (!rst_ni ) if_nxt_pc_o <= PC_INIT;
     else          if_nxt_pc_o <= if_predict_pc_o;
@@ -755,5 +763,9 @@ module riscv_if #(
 	if_exceptions_o.illegal_instruction <= rvc_illegal;
     end
 
+
+  //BP history
+  always @(posedge clk_i)
+    if (!pd_stall_i) if_bp_history_o <= bu_bp_history_i;
 endmodule
 

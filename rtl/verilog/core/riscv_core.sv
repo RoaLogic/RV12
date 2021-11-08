@@ -170,9 +170,14 @@ module riscv_core #(
                              id_bp_predict,
                              bu_bp_predict;
 
-  logic                      pd_latch_nxt_pc; //Yes, this is needed.
+  logic                      pd_latch_nxt_pc;      //Yes, this is needed.
 
-  logic [BP_GLOBAL_BITS-1:0] bu_bp_history;
+  logic [BP_GLOBAL_BITS-1:0] bu_bp_history,        //Global BP history from BU
+                             if_predict_history,   //Global history to BP (read)
+                             if_bp_history,        //Global history to PD
+                             pd_bp_history,
+                             id_bp_history,
+                             bu_bp_history_update; //Global history to BP (write)
   logic                      bu_bp_btaken,
                              bu_bp_update;
 
@@ -264,7 +269,8 @@ module riscv_core #(
   riscv_if #(
     .XLEN                     ( XLEN                     ),
     .PC_INIT                  ( PC_INIT                  ),
-    .HAS_RVC                  ( HAS_RVC                  ) )
+    .HAS_RVC                  ( HAS_RVC                  ),
+    .BP_GLOBAL_BITS           ( BP_GLOBAL_BITS           ) )
   if_unit (
     .rst_ni                   ( rst_ni                   ),   //Reset
     .clk_i                    ( clk_i                    ),   //Clock
@@ -280,6 +286,10 @@ module riscv_core #(
     .imem_parcel_misaligned_i ( imem_parcel_misaligned_i ),
     .imem_parcel_page_fault_i ( imem_parcel_page_fault_i ),
     .imem_parcel_error_i      ( imem_parcel_error_i      ),
+
+    .bu_bp_history_i          ( bu_bp_history            ),
+    .if_predict_history_o     ( if_predict_history       ),
+    .if_bp_history_o          ( if_bp_history            ),
 
     .if_predict_pc_o          ( if_predict_pc            ),
     .if_nxt_pc_o              ( if_nxt_pc                ),   //Program Counter for Branch Prediction
@@ -319,7 +329,8 @@ module riscv_core #(
   riscv_pd #(
     .XLEN              ( XLEN            ),
     .PC_INIT           ( PC_INIT         ),
-    .HAS_BPU           ( HAS_BPU         ) )
+    .HAS_BPU           ( HAS_BPU         ),
+    .BP_GLOBAL_BITS    ( BP_GLOBAL_BITS  ) )
   pd_unit (
     .rst_ni            ( rst_ni          ),
     .clk_i             ( clk_i           ),
@@ -337,6 +348,8 @@ module riscv_core #(
 
     .pd_csr_reg_o      ( pd_csr_reg      ),
   
+    .if_bp_history_i   ( if_bp_history   ),
+    .pd_bp_history_o   ( pd_bp_history   ),
     .bp_bp_predict_i   ( bp_bp_predict   ),
     .pd_bp_predict_o   ( pd_bp_predict   ),
     .pd_latch_nxt_pc_o ( pd_latch_nxt_pc ),
@@ -365,142 +378,148 @@ module riscv_core #(
    * Data from RF/ROB is available here
    */
   riscv_id #(
-    .XLEN            ( XLEN            ),
-    .PC_INIT         ( PC_INIT         ),
-    .HAS_USER        ( HAS_USER        ),
-    .HAS_SUPER       ( HAS_SUPER       ),
-    .HAS_HYPER       ( HAS_HYPER       ),
-    .HAS_RVA         ( HAS_RVA         ),
-    .HAS_RVM         ( HAS_RVM         ),
-    .HAS_RVC         ( HAS_RVC         ),
-    .MULT_LATENCY    ( MULT_LATENCY    ),
-    .RF_REGOUT       ( RF_REGOUT       ) )
+    .XLEN             ( XLEN            ),
+    .PC_INIT          ( PC_INIT         ),
+    .HAS_USER         ( HAS_USER        ),
+    .HAS_SUPER        ( HAS_SUPER       ),
+    .HAS_HYPER        ( HAS_HYPER       ),
+    .HAS_RVA          ( HAS_RVA         ),
+    .HAS_RVM          ( HAS_RVM         ),
+    .HAS_RVC          ( HAS_RVC         ),
+    .MULT_LATENCY     ( MULT_LATENCY    ),
+    .RF_REGOUT        ( RF_REGOUT       ),
+    .BP_GLOBAL_BITS   ( BP_GLOBAL_BITS  ) )
   id_unit (
-    .rst_ni           ( rst_ni         ),
-    .clk_i            ( clk_i          ),
+    .rst_ni           ( rst_ni          ),
+    .clk_i            ( clk_i           ),
 
-    .id_stall_o       ( id_stall       ),
-    .ex_stall_i       ( ex_stall       ),
-    .du_stall_i       ( du_stall       ),
+    .id_stall_o       ( id_stall        ),
+    .ex_stall_i       ( ex_stall        ),
+    .du_stall_i       ( du_stall        ),
 
-    .bu_flush_i       ( bu_flush       ),
-    .st_flush_i       ( st_flush       ),
-    .du_flush_i       ( du_flush       ),
+    .bu_flush_i       ( bu_flush        ),
+    .st_flush_i       ( st_flush        ),
+    .du_flush_i       ( du_flush        ),
 
-    .bu_nxt_pc_i      ( bu_nxt_pc      ),
-    .st_nxt_pc_i      ( st_nxt_pc      ),
-
-
-    .pd_pc_i          ( pd_pc          ),
-    .id_pc_o          ( id_pc          ),
-    .pd_bp_predict_i  ( pd_bp_predict  ),
-    .id_bp_predict_o  ( id_bp_predict  ),
+    .bu_nxt_pc_i      ( bu_nxt_pc       ),
+    .st_nxt_pc_i      ( st_nxt_pc       ),
 
 
-    .pd_insn_i        ( pd_insn        ),
-    .id_insn_o        ( id_insn        ),
-    .ex_insn_i        ( ex_insn        ),
-    .mem_insn_i       ( mem_insn       ),
-    .wb_insn_i        ( wb_insn        ),
-    .dwb_insn_i       ( dwb_insn       ),
+    .pd_pc_i          ( pd_pc           ),
+    .id_pc_o          ( id_pc           ),
 
-    .pd_exceptions_i  ( pd_exceptions  ),
-    .id_exceptions_o  ( id_exceptions  ),
-    .ex_exceptions_i  ( ex_exceptions  ),
-    .mem_exceptions_i ( mem_exceptions ),
-    .wb_exceptions_i  ( wb_exceptions  ),
+    .pd_bp_history_i  ( pd_bp_history   ),
+    .id_bp_history_o  ( id_bp_history   ),
+    .pd_bp_predict_i  ( pd_bp_predict   ),
+    .id_bp_predict_o  ( id_bp_predict   ),
 
 
-    .st_prv_i         ( st_prv_o       ),
-    .st_xlen_i        ( st_xlen        ),
-    .st_tvm_i         ( st_tvm         ),
-    .st_tw_i          ( st_tw          ),
-    .st_tsr_i         ( st_tsr         ),
-    .st_mcounteren_i  ( st_mcounteren  ),
-    .st_scounteren_i  ( st_scounteren  ),
+    .pd_insn_i        ( pd_insn         ),
+    .id_insn_o        ( id_insn         ),
+    .ex_insn_i        ( ex_insn         ),
+    .mem_insn_i       ( mem_insn        ),
+    .wb_insn_i        ( wb_insn         ),
+    .dwb_insn_i       ( dwb_insn        ),
 
-    .id_rs1_o         ( id_rs1         ),
-    .id_rs2_o         ( id_rs2         ),
+    .pd_exceptions_i  ( pd_exceptions   ),
+    .id_exceptions_o  ( id_exceptions   ),
+    .ex_exceptions_i  ( ex_exceptions   ),
+    .mem_exceptions_i ( mem_exceptions  ),
+    .wb_exceptions_i  ( wb_exceptions   ),
 
-    .id_opA_o         ( id_opA         ),
-    .id_opB_o         ( id_opB         ),
-    .id_userf_opA_o   ( id_userf_opA   ),
-    .id_userf_opB_o   ( id_userf_opB   ),
-    .id_bypex_opA_o   ( id_bypex_opA   ),
-    .id_bypex_opB_o   ( id_bypex_opB   ),
+    .st_prv_i         ( st_prv_o        ),
+    .st_xlen_i        ( st_xlen         ),
+    .st_tvm_i         ( st_tvm          ),
+    .st_tw_i          ( st_tw           ),
+    .st_tsr_i         ( st_tsr          ),
+    .st_mcounteren_i  ( st_mcounteren   ),
+    .st_scounteren_i  ( st_scounteren   ),
 
-    .ex_r_i           ( ex_r           ),
-    .mem_r_i          ( mem_r          ),
-    .wb_r_i           ( wb_r           ),
-    .wb_memq_i        ( wb_memq        ),
-    .dwb_r_i          ( dwb_r          ) );
+    .id_rs1_o         ( id_rs1          ),
+    .id_rs2_o         ( id_rs2          ),
+
+    .id_opA_o         ( id_opA          ),
+    .id_opB_o         ( id_opB          ),
+    .id_userf_opA_o   ( id_userf_opA    ),
+    .id_userf_opB_o   ( id_userf_opB    ),
+    .id_bypex_opA_o   ( id_bypex_opA    ),
+    .id_bypex_opB_o   ( id_bypex_opB    ),
+
+    .ex_r_i           ( ex_r            ),
+    .mem_r_i          ( mem_r           ),
+    .wb_r_i           ( wb_r            ),
+    .wb_memq_i        ( wb_memq         ),
+    .dwb_r_i          ( dwb_r           ) );
 
 
   /*
    * Execution units
    */
   riscv_ex #(
-    .XLEN              ( XLEN              ),
-    .PC_INIT           ( PC_INIT           ),
-    .HAS_RVC           ( HAS_RVC           ),
-    .HAS_RVA           ( HAS_RVA           ),
-    .HAS_RVM           ( HAS_RVM           ),
-    .MULT_LATENCY      ( MULT_LATENCY      ) )
+    .XLEN                   ( XLEN                 ),
+    .PC_INIT                ( PC_INIT              ),
+    .HAS_RVC                ( HAS_RVC              ),
+    .HAS_RVA                ( HAS_RVA              ),
+    .HAS_RVM                ( HAS_RVM              ),
+    .MULT_LATENCY           ( MULT_LATENCY         ),
+    .BP_GLOBAL_BITS         ( BP_GLOBAL_BITS       ) )
   ex_units (
-    .rst_ni            ( rst_ni            ),
-    .clk_i             ( clk_i             ),
+    .rst_ni                 ( rst_ni               ),
+    .clk_i                  ( clk_i                ),
 
-    .mem_stall_i       ( mem_stall         ),
-    .ex_stall_o        ( ex_stall          ),
+    .mem_stall_i            ( mem_stall            ),
+    .ex_stall_o             ( ex_stall             ),
 
-    .id_pc_i           ( id_pc             ),
-    .ex_pc_o           ( ex_pc             ),
-    .bu_nxt_pc_o       ( bu_nxt_pc         ),
-    .bu_flush_o        ( bu_flush          ),
-    .bu_cacheflush_o   ( bu_cacheflush_o   ),
-    .id_bp_predict_i   ( id_bp_predict     ),
-    .bu_bp_predict_o   ( bu_bp_predict     ),
-    .bu_bp_history_o   ( bu_bp_history     ),
-    .bu_bp_btaken_o    ( bu_bp_btaken      ),
-    .bu_bp_update_o    ( bu_bp_update      ),
+    .id_pc_i                ( id_pc                ),
+    .ex_pc_o                ( ex_pc                ),
+    .bu_nxt_pc_o            ( bu_nxt_pc            ),
+    .bu_flush_o             ( bu_flush             ),
+    .bu_cacheflush_o        ( bu_cacheflush_o      ),
+    .id_bp_predict_i        ( id_bp_predict        ),
+    .bu_bp_predict_o        ( bu_bp_predict        ),
+    .id_bp_history_i        ( id_bp_history        ),
+    .bu_bp_history_update_o ( bu_bp_history_update ),
+    .bu_bp_history_o        ( bu_bp_history        ),
+    .bu_bp_btaken_o         ( bu_bp_btaken         ),
+    .bu_bp_update_o         ( bu_bp_update         ),
 
-    .id_insn_i         ( id_insn           ),
-    .ex_insn_o         ( ex_insn           ),
+    .id_insn_i              ( id_insn              ),
+    .ex_insn_o              ( ex_insn              ),
 
-    .id_exceptions_i   ( id_exceptions     ),
-    .ex_exceptions_o   ( ex_exceptions     ),
-    .mem_exceptions_i  ( mem_exceptions    ),
-    .wb_exceptions_i   ( wb_exceptions     ),
+    .id_exceptions_i        ( id_exceptions        ),
+    .ex_exceptions_o        ( ex_exceptions        ),
+    .mem_exceptions_i       ( mem_exceptions       ),
+    .wb_exceptions_i        ( wb_exceptions        ),
 
-    .id_userf_opA_i    ( id_userf_opA      ),
-    .id_userf_opB_i    ( id_userf_opB      ),
-    .id_bypex_opA_i    ( id_bypex_opA      ),
-    .id_bypex_opB_i    ( id_bypex_opB      ),
-    .id_opA_i          ( id_opA            ),
-    .id_opB_i          ( id_opB            ),
+    .id_userf_opA_i         ( id_userf_opA         ),
+    .id_userf_opB_i         ( id_userf_opB         ),
+    .id_bypex_opA_i         ( id_bypex_opA         ),
+    .id_bypex_opB_i         ( id_bypex_opB         ),
+    .id_opA_i               ( id_opA               ),
+    .id_opB_i               ( id_opB               ),
 
-    .rf_srcv1_i        ( rf_srcv1          ),
-    .rf_srcv2_i        ( rf_srcv2          ),
+    .rf_srcv1_i             ( rf_srcv1             ),
+    .rf_srcv2_i             ( rf_srcv2             ),
 
-    .ex_r_o            ( ex_r              ),
+    .ex_r_o                 ( ex_r                 ),
 
-    .ex_csr_reg_o      ( ex_csr_reg        ),
-    .ex_csr_wval_o     ( ex_csr_wval       ),
-    .ex_csr_we_o       ( ex_csr_we         ),
-    .st_xlen_i         ( st_xlen           ),
-    .st_flush_i        ( st_flush          ),
-    .st_csr_rval_i     ( st_csr_rval       ),
+    .ex_csr_reg_o           ( ex_csr_reg           ),
+    .ex_csr_wval_o          ( ex_csr_wval          ),
+    .ex_csr_we_o            ( ex_csr_we            ),
+    .st_xlen_i              ( st_xlen              ),
+    .st_flush_i             ( st_flush             ),
+    .st_csr_rval_i          ( st_csr_rval          ),
 
-    .dmem_req_o        ( dmem_req_o        ),
-    .dmem_lock_o       ( dmem_lock_o       ),
-    .dmem_adr_o        ( dmem_adr_o        ),
-    .dmem_size_o       ( dmem_size_o       ),
-    .dmem_we_o         ( dmem_we_o         ),
-    .dmem_d_o          ( dmem_d_o          ),
-    .dmem_q_i          ( dmem_q_i          ),
-    .dmem_ack_i        ( dmem_ack_i        ),
-    .dmem_misaligned_i ( dmem_misaligned_i ),
-    .dmem_page_fault_i ( dmem_page_fault_i ) );
+    .dmem_req_o             ( dmem_req_o           ),
+    .dmem_lock_o            ( dmem_lock_o          ),
+    .dmem_adr_o             ( dmem_adr_o           ),
+    .dmem_size_o            ( dmem_size_o          ),
+    .dmem_we_o              ( dmem_we_o            ),
+    .dmem_d_o               ( dmem_d_o             ),
+    .dmem_q_i               ( dmem_q_i             ),
+    .dmem_ack_i             ( dmem_ack_i           ),
+    .dmem_misaligned_i      ( dmem_misaligned_i    ),
+    .dmem_page_fault_i      ( dmem_page_fault_i    ) );
 
 
   /*
@@ -694,27 +713,29 @@ generate
   end
   else
     riscv_bp #(
-      .XLEN              ( XLEN           ),
-      .PC_INIT           ( PC_INIT        ),
-      .HAS_RVC           ( HAS_RVC        ),
-      .BP_GLOBAL_BITS    ( BP_GLOBAL_BITS ),
-      .BP_LOCAL_BITS     ( BP_LOCAL_BITS  ),
-      .BP_LOCAL_BITS_LSB ( 2              ), 
-      .TECHNOLOGY        ( TECHNOLOGY     )
-    )
+      .XLEN                   ( XLEN                 ),
+      .PC_INIT                ( PC_INIT              ),
+      .HAS_RVC                ( HAS_RVC              ),
+      .BP_GLOBAL_BITS         ( BP_GLOBAL_BITS       ),
+      .BP_LOCAL_BITS          ( BP_LOCAL_BITS        ),
+      .BP_LOCAL_BITS_LSB      ( 2                    ), 
+      .TECHNOLOGY             ( TECHNOLOGY           ) )
     bp_unit(
-      .rst_ni            ( rst_ni         ),
-      .clk_i             ( clk_i          ),
+      .rst_ni                 ( rst_ni               ),
+      .clk_i                  ( clk_i                ),
 
-      .id_stall_i        ( id_stall       ),
-      .if_parcel_pc_i    ( if_predict_pc  ),
-      .bp_bp_predict_o   ( bp_bp_predict  ),
+      //read branch prediciton
+      .id_stall_i             ( id_stall             ),
+      .if_parcel_bp_history_i ( if_predict_history   ),
+      .if_parcel_pc_i         ( if_predict_pc        ),
+      .bp_bp_predict_o        ( bp_bp_predict        ),
 
-      .ex_pc_i           ( ex_pc          ),
-      .bu_bp_history_i   ( bu_bp_history  ),
-      .bu_bp_predict_i   ( bu_bp_predict  ),
-      .bu_bp_btaken_i    ( bu_bp_btaken   ),
-      .bu_bp_update_i    ( bu_bp_update   ) );
+      //update branch prediction
+      .ex_pc_i                ( ex_pc                ),
+      .bu_bp_history_i        ( bu_bp_history_update ),
+      .bu_bp_predict_i        ( bu_bp_predict        ),
+      .bu_bp_btaken_i         ( bu_bp_btaken         ),
+      .bu_bp_update_i         ( bu_bp_update         ) );
 endgenerate
 
 

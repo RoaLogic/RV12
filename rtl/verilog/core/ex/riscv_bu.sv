@@ -50,7 +50,9 @@ module riscv_bu #(
                                   bu_cacheflush_o,
   input      [               1:0] id_bp_predict_i,
   output reg [               1:0] bu_bp_predict_o,
-  output reg [BP_GLOBAL_BITS-1:0] bu_bp_history_o,
+  input      [BP_GLOBAL_BITS-1:0] id_bp_history_i,
+  output reg [BP_GLOBAL_BITS-1:0] bu_bp_history_update_o,
+                                  bu_bp_history_o,
   output reg                      bu_bp_btaken_o,
   output reg                      bu_bp_update_o,
 
@@ -247,7 +249,8 @@ module riscv_bu #(
         bu_bp_predict_o <= 'b00;
         bu_bp_btaken_o  <= 'b0;
         bu_bp_update_o  <= 'b0;
-        bp_history      <= 'h0;
+	bu_bp_history_update_o <= 'h0;
+        bp_history             <= 'h0;
     end
     else
     begin
@@ -257,6 +260,7 @@ module riscv_bu #(
         bu_bp_predict_o <= id_bp_predict_i;
         bu_bp_btaken_o  <= btaken;
         bu_bp_update_o  <= bp_update;
+	bu_bp_history_update_o <= id_bp_history_i;
 
 	//Branch History is a simple shift register
         if (bp_update) bp_history <= {bp_history[BP_GLOBAL_BITS-1:0],btaken};

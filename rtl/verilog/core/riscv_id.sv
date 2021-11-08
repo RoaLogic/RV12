@@ -37,86 +37,90 @@ import riscv_opcodes_pkg::*;
 import riscv_state_pkg::*;
 
 module riscv_id #(
-  parameter            XLEN           = 32,
-  parameter [XLEN-1:0] PC_INIT        = 'h200,
-  parameter            HAS_HYPER      = 0,
-  parameter            HAS_SUPER      = 0,
-  parameter            HAS_USER       = 0,
-  parameter            HAS_FPU        = 0,
-  parameter            HAS_RVA        = 0,
-  parameter            HAS_RVM        = 0,
-  parameter            HAS_RVC        = 0,
-  parameter            MULT_LATENCY   = 0,
-  parameter            RF_REGOUT      = 1
+  parameter                         XLEN           = 32,
+  parameter    [XLEN          -1:0] PC_INIT        = 'h200,
+  parameter                         HAS_HYPER      = 0,
+  parameter                         HAS_SUPER      = 0,
+  parameter                         HAS_USER       = 0,
+  parameter                         HAS_FPU        = 0,
+  parameter                         HAS_RVA        = 0,
+  parameter                         HAS_RVM        = 0,
+  parameter                         HAS_RVC        = 0,
+  parameter                         MULT_LATENCY   = 0,
+  parameter                         RF_REGOUT      = 1,
+  parameter                         BP_GLOBAL_BITS = 2
 )
 (
-  input                    rst_ni,
-  input                    clk_i,
+  input                             rst_ni,
+  input                             clk_i,
 
-  output reg               id_stall_o,
-  input                    ex_stall_i,
-                           du_stall_i,
+  output reg                        id_stall_o,
+  input                             ex_stall_i,
+                                    du_stall_i,
 
-  input                    bu_flush_i,
-                           st_flush_i,
-                           du_flush_i,
+  input                             bu_flush_i,
+                                    st_flush_i,
+                                    du_flush_i,
 
-  input        [XLEN -1:0] bu_nxt_pc_i,
-                           st_nxt_pc_i,
+  input        [XLEN          -1:0] bu_nxt_pc_i,
+                                    st_nxt_pc_i,
 
 
   //Program counter
-  input        [XLEN -1:0] pd_pc_i,
-  output logic [XLEN -1:0] id_pc_o,
-  input        [      1:0] pd_bp_predict_i,
-  output logic [      1:0] id_bp_predict_o,
+  input        [XLEN          -1:0] pd_pc_i,
+  output logic [XLEN          -1:0] id_pc_o,
+
+  input        [BP_GLOBAL_BITS-1:0] pd_bp_history_i,
+  output logic [BP_GLOBAL_BITS-1:0] id_bp_history_o,
+  input        [               1:0] pd_bp_predict_i,
+  output logic [               1:0] id_bp_predict_o,
 
 
   //Instruction
-  input  instruction_t     pd_insn_i,
-  output instruction_t     id_insn_o,
-  input  instruction_t     ex_insn_i,
-                           mem_insn_i,
-                           wb_insn_i,
-                           dwb_insn_i,
+  input  instruction_t              pd_insn_i,
+  output instruction_t              id_insn_o,
+  input  instruction_t              ex_insn_i,
+                                    mem_insn_i,
+                                    wb_insn_i,
+                                    dwb_insn_i,
 
   //Exceptions
-  input  exceptions_t      pd_exceptions_i,
-  output exceptions_t      id_exceptions_o,
-  input  exceptions_t      ex_exceptions_i,
-                           mem_exceptions_i,
-                           wb_exceptions_i,
+  input  exceptions_t               pd_exceptions_i,
+  output exceptions_t               id_exceptions_o,
+  input  exceptions_t               ex_exceptions_i,
+                                    mem_exceptions_i,
+                                    wb_exceptions_i,
 
 
   //From State
-  input        [      1:0] st_prv_i,
-                           st_xlen_i,
-  input                    st_tvm_i,
-                           st_tw_i,
-                           st_tsr_i,
-  input        [XLEN -1:0] st_mcounteren_i,
-                           st_scounteren_i,
+  input        [              1:0] st_prv_i,
+                                   st_xlen_i,
+  input                            st_tvm_i,
+                                   st_tw_i,
+                                   st_tsr_i,
+  input        [XLEN         -1:0] st_mcounteren_i,
+                                   st_scounteren_i,
 
 
   //To RF
-  output rsd_t             id_rs1_o,
-                           id_rs2_o,
+  output rsd_t                     id_rs1_o,
+                                   id_rs2_o,
 
   //To execution units
-  output logic [XLEN -1:0] id_opA_o,
-                           id_opB_o,
+  output logic [XLEN         -1:0] id_opA_o,
+                                   id_opB_o,
 
-  output logic             id_userf_opA_o,
-                           id_userf_opB_o,
-                           id_bypex_opA_o,
-                           id_bypex_opB_o,
+  output logic                     id_userf_opA_o,
+                                   id_userf_opB_o,
+                                   id_bypex_opA_o,
+                                   id_bypex_opB_o,
 
   //from MEM/WB
-  input        [XLEN -1:0] ex_r_i,
-                           mem_r_i,
-                           wb_r_i,
-                           wb_memq_i,
-                           dwb_r_i
+  input        [XLEN         -1:0] ex_r_i,
+                                   mem_r_i,
+                                   wb_r_i,
+                                   wb_memq_i,
+                                   dwb_r_i
 );
 
 
@@ -265,8 +269,10 @@ module riscv_id #(
   assign xlen32     = st_xlen_i == RV32I;
 
 
+  //Branch Predict History
   always @(posedge clk_i)
     if (!stalls && !id_stall_o) id_bp_predict_o <= pd_bp_predict_i;
+
 
   /*
    * Exceptions
@@ -291,6 +297,10 @@ module riscv_id #(
     else if (!stalls                  )
         if ( id_stall_o) id_exceptions_o <= 'h0;
         else             id_exceptions_o <= my_exceptions;
+
+
+  always @(posedge clk_i)
+    if (!stalls && !id_stall_o) id_bp_history_o <= pd_bp_history_i;
 
 
   /*
