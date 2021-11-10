@@ -68,6 +68,7 @@ module riscv_icache_core #(
   parameter XLEN        = 32,
   parameter PLEN        = XLEN,
   parameter PARCEL_SIZE = XLEN,
+  parameter HAS_RVC     = 0,
 
   parameter SIZE        = 64,     //KBYTES
   parameter BLOCK_SIZE  = XLEN,   //BYTES, number of bytes in a block (way)
@@ -79,41 +80,47 @@ module riscv_icache_core #(
                                   //1: FIFO
                                   //2: LRU
 
-  parameter TECHNOLOGY  = "GENERIC"
+  parameter TECHNOLOGY  = "GENERIC",
+
+  parameter DEPTH       = 2       //number of transactions in flight
 )
 (
-  input  logic            rst_ni,
-  input  logic            clk_i,
-  input  logic            clr_i,          //clear any pending request
+  input  logic                        rst_ni,
+  input  logic                        clk_i,
 
   //CPU side
-  input  logic            is_cacheable_i, //cacheable transfer?
-  input  logic            mem_req_i,
-  input  logic [XLEN-1:0] mem_adr_i,
-  input  biu_size_t       mem_size_i,
-  input                   mem_lock_i,
-  input  biu_prot_t       mem_prot_i,
-  output logic [PARCEL_SIZE-1:0] mem_q_o,
-  output logic            mem_ack_o,
-  output logic            mem_err_o,
-  input  logic            flush_i,
-  input  logic            flushrdy_i,
+  input  logic                        is_cacheable_i,       //cacheable transfer?
+  input  logic                        misaligned_i,
+  input  logic                        mem_flush_i,
+  input  logic                        mem_req_i,
+  output logic                        mem_ack_o,
+  input  logic [XLEN            -1:0] mem_adr_i,
+  input  biu_size_t                   mem_size_i,
+  input                               mem_lock_i,
+  input  biu_prot_t                   mem_prot_i,
+  output logic [XLEN            -1:0] parcel_pc_o,
+  output logic [XLEN            -1:0] parcel_o,
+  output logic [XLEN/PARCEL_SIZE-1:0] parcel_valid_o,
+  output logic                        parcel_error_o,
+  output logic                        parcel_misaligned_o,
+  input  logic                        flush_i,              //flush (invalidate) cache
+  input  logic                        flushrdy_i,           //data cache ready flushing
 
   //To BIU
-  output logic            biu_stb_o,      //access request
-  input  logic            biu_stb_ack_i,  //access acknowledge
-  input  logic            biu_d_ack_i,    //BIU needs new data (biu_d_o)
-  output logic [PLEN-1:0] biu_adri_o,     //access start address
-  input  logic [PLEN-1:0] biu_adro_i,
-  output biu_size_t       biu_size_o,     //transfer size
-  output biu_type_t       biu_type_o,     //burst type
-  output logic            biu_lock_o,     //locked transfer
-  output biu_prot_t       biu_prot_o,     //protection bits
-  output logic            biu_we_o,       //write enable
-  output logic [XLEN-1:0] biu_d_o,        //write data
-  input  logic [XLEN-1:0] biu_q_i,        //read data
-  input  logic            biu_ack_i,      //transfer acknowledge
-  input  logic            biu_err_i       //transfer error
+  output logic                        biu_stb_o,            //access request
+  input  logic                        biu_stb_ack_i,        //access acknowledge
+  input  logic                        biu_d_ack_i,          //BIU needs new data (biu_d_o)
+  output logic [PLEN            -1:0] biu_adri_o,           //access start address
+  input  logic [PLEN            -1:0] biu_adro_i,
+  output biu_size_t                   biu_size_o,           //transfer size
+  output biu_type_t                   biu_type_o,           //burst type
+  output logic                        biu_lock_o,           //locked transfer
+  output biu_prot_t                   biu_prot_o,           //protection bits
+  output logic                        biu_we_o,             //write enable
+  output logic [XLEN            -1:0] biu_d_o,              //write data
+  input  logic [XLEN            -1:0] biu_q_i,              //read data
+  input  logic                        biu_ack_i,            //transfer acknowledge
+  input  logic                        biu_err_i             //transfer error
 );
 
   //////////////////////////////////////////////////////////////////
@@ -124,8 +131,8 @@ module riscv_icache_core #(
   //----------------------------------------------------------------
   // Cache
   //----------------------------------------------------------------
-  localparam PAGE_SIZE    = 4*1024;                             //4KB pages
-  localparam MAX_IDX_BITS = $clog2(PAGE_SIZE) - $clog2(BLOCK_SIZE); //Maximum IDX_BITS
+  localparam PAGE_SIZE       = 4*1024;                             //4KB pages
+  localparam MAX_IDX_BITS    = $clog2(PAGE_SIZE) - $clog2(BLOCK_SIZE); //Maximum IDX_BITS
   
 
   localparam SETS            = (SIZE*1024) / BLOCK_SIZE / WAYS;    //Number of sets TODO:SETS=1 doesn't work
@@ -225,17 +232,16 @@ module riscv_icache_core #(
 
   /* Memory Interface State Machine Section
    */
-  logic                                   mem_req_dly;
-  logic      [XLEN        -1:0]           mem_adr_dly;
-  logic      [XLEN/8      -1:0]           mem_be,
-                                          mem_be_dly;
+  logic                                      mem_req_dly;
+  logic      [XLEN           -1:0]           mem_adr_dly;
+  logic                                      is_cacheable_dly;
 
-  logic      [TAG_BITS    -1:0]           core_tag,
-                                          core_tag_hold;
+  logic      [TAG_BITS       -1:0]           core_tag,
+                                             core_tag_hold;
 
-  logic                                   hold_flush;              //stretch flush_i until FSM is ready to serve
+  logic                                      hold_flush;           //stretch flush_i until FSM is ready to serve
 
-  enum logic [             2:0] {ARMED=0, FLUSH=1, WAIT4BIUCMD0=2, RECOVER=4} memfsm_state;
+  enum logic [                2:0] {ARMED=0, FLUSH=1, WAIT4BIUCMD0=2, RECOVER=4} memfsm_state;
 
 
   /* Cache Section
@@ -268,7 +274,7 @@ module riscv_icache_core #(
   logic                                      cache_hit;
   logic      [XLEN           -1:0]           cache_q;
 
-  logic      [               19:0]           way_random;
+  logic      [                3:0]           way_random;
   logic      [WAYS           -1:0]           fill_way_select, fill_way_select_hold; 
 
   logic                                      biu_adro_eq_cache_adr_dly;
@@ -279,8 +285,8 @@ module riscv_icache_core #(
 
   /* Bus Interface State Machine Section
    */
-  enum logic [                1:0] {IDLE, WAIT4BIU, BURST} biufsm_state;
-  enum logic [                1:0] {NOP=0, WRITE_WAY=1, READ_WAY=2} biucmd;
+  enum logic [                1:0]           {IDLE, WAIT4BIU, BURST} biufsm_state;
+  enum logic [                1:0]           {NOP=0, WRITE_WAY=1, READ_WAY=2} biucmd;
   logic                                      biufsm_ack,
                                              biufsm_err,
                                              biufsm_ack_write_way; //BIU FSM should generate biufsm_ack on WRITE_WAY
@@ -293,7 +299,9 @@ module riscv_icache_core #(
 
   logic      [BURST_BITS     -1:0]           burst_cnt;
 
-
+  logic      [$clog2(DEPTH)    :0]           inflight,
+	                                     discard;
+  logic                                      biu_non_cacheable_ack;
 
 
 
@@ -306,24 +314,23 @@ module riscv_icache_core #(
   // Memory Interface State Machine
   //----------------------------------------------------------------
 
-  //generate cache_* signals
-  assign mem_be = size2be(mem_size_i, mem_adr_i);
-
-
   //generate delayed mem_* signals
   always @(posedge clk_i,negedge rst_ni)
-    if      (!rst_ni) mem_req_dly <= 1'b0;
-    else if ( clr_i ) mem_req_dly <= 1'b0;
-    else              mem_req_dly <= mem_req_i | (mem_req_dly & ~mem_ack_o);
+    if      (!rst_ni      ) mem_req_dly <= 1'b0;
+    else if ( mem_flush_i ) mem_req_dly <= 1'b0;
+    else                    mem_req_dly <= mem_req_i | (mem_req_dly & ~mem_ack_o);
+
+    
+  always @(posedge clk_i,negedge rst_ni)
+    if (!rst_ni) is_cacheable_dly <= 1'b0;
+    else         is_cacheable_dly <= is_cacheable_i;
+
 
 
   //register memory signals
-  always @(posedge clk_i)
-    if (mem_req_i)
-    begin
-        mem_adr_dly <= mem_adr_i;
-        mem_be_dly  <= mem_be;
-    end
+  always @(posedge clk_i, negedge rst_ni)
+    if      (!rst_ni   ) mem_adr_dly <= 'h0;
+    else if ( mem_req_i) mem_adr_dly <= mem_adr_i;
 
 
   //extract index bits from address(es)
@@ -362,7 +369,7 @@ module riscv_icache_core #(
                           memfsm_state <= FLUSH;
                           flushing     <= 1'b1;
                       end
-                      else if (mem_req_dly && !cache_hit && (mem_req_i || mem_req_dly) ) //it takes 1 cycle to read TAG
+                      else if (is_cacheable_dly && mem_req_dly && !cache_hit && (mem_req_i || mem_req_dly) ) //it takes 1 cycle to read TAG
                       begin
                           //Load way
                           memfsm_state <= WAIT4BIUCMD0;
@@ -409,25 +416,52 @@ module riscv_icache_core #(
   //signal downstream that data is ready
   always_comb
     unique case (memfsm_state)
-      ARMED       : mem_ack_o = mem_req_dly & (mem_req_i | mem_req_dly) & cache_hit;
-      WAIT4BIUCMD0: mem_ack_o = mem_req_dly & (mem_req_i | mem_req_dly) & biu_ack_i & biu_adro_eq_cache_adr_dly;
+      ARMED       : mem_ack_o = is_cacheable_dly ? mem_req_dly & (mem_req_i | mem_req_dly) & cache_hit
+                                                 : biu_stb_ack_i;
+      WAIT4BIUCMD0: mem_ack_o = biu_stb_ack_i;
+//      WAIT4BIUCMD0: mem_ack_o = mem_req_dly & (mem_req_i | mem_req_dly) & biu_ack_i & biu_adro_eq_cache_adr_dly;
       default     : mem_ack_o = 1'b0;
     endcase
 
 
   //signal downstream the BIU reported an error
-  assign mem_err_o = biu_err_i;
+  assign parcel_error_o = biu_err_i;
 
 
-  //Assign mem_q
-  //biu_q_i and cache_q are XLEN size. If PARCEL_SIZE is smaller, adjust
-  assign parcel_offset = mem_adr_dly[1 + PARCEL_OFF_BITS : 1]; //[1 +: PARCEL_OFF_BITS] errors out
+  //Assign parcel_pc
+  assign parcel_pc_o = { {XLEN-PLEN{1'b0}}, biu_adro_i };
+
+  //Assign parcel_q
+  always_comb
+    unique case (memfsm_state)
+      WAIT4BIUCMD0: parcel_o = biu_q_i;
+      default     : parcel_o = is_cacheable_dly ? cache_q : biu_q_i;
+    endcase
+
+
+  //Assign parcel_valid
+  always_comb
+    unique case (memfsm_state)
+      ARMED       : parcel_valid_o = is_cacheable_dly ? {$bits(parcel_valid_o){                 1'b1}} << mem_adr_dly[1 +: $clog2(XLEN/PARCEL_SIZE)]
+                                                      : {$bits(parcel_valid_o){biu_non_cacheable_ack}} << parcel_pc_o[1 +: $clog2(XLEN/PARCEL_SIZE)];
+      WAIT4BIUCMD0: parcel_valid_o = {$bits(parcel_valid_o){biu_non_cacheable_ack}} << parcel_pc_o[1 +: $clog2(XLEN/PARCEL_SIZE)];
+      default     : parcel_valid_o = {$bits(parcel_valid_o){1'b0}};
+    endcase    
+
 
   always_comb
     unique case (memfsm_state)
-      WAIT4BIUCMD0: mem_q_o = biu_q_i >> (parcel_offset *16);
-      default     : mem_q_o = cache_q >> (parcel_offset *16);
+      WAIT4BIUCMD0: parcel_misaligned_o = (HAS_RVC != 0) ? mem_adr_dly[0] : |mem_adr_dly[1:0];
+      default     : parcel_misaligned_o = is_cacheable_dly ? (HAS_RVC != 0) ? mem_adr_dly[0] : |mem_adr_dly[1:0]
+	                                                   : (HAS_RVC != 0) ? parcel_pc_o[0] : |parcel_pc_o[1:0]; 
     endcase
+
+
+/*
+  assign if_parcel_valid_o      = dcflush_rdy_i & ~(if_flush_i | if_flush_dly) & biu_ack_i & ~|discard       ?
+                                   {XLEN/PARCEL_SIZE{1'b1}} << if_parcel_pc_o[1 +: $clog2(XLEN/PARCEL_SIZE)] :
+				   {XLEN/PARCEL_SIZE{1'b0}};
+*/
 
 
   //----------------------------------------------------------------
@@ -538,7 +572,7 @@ endgenerate
   //Random generator for RANDOM replacement algorithm
   always @(posedge clk_i, negedge rst_ni)
     if      (!rst_ni ) way_random <= 'h0;
-    else if (!filling) way_random <= {way_random, way_random[19] ~^ way_random[16]};
+    else if (!filling) way_random <= {way_random, way_random[3] ~^ way_random[2]};
 
 
   //select which way to fill
@@ -663,7 +697,9 @@ endgenerate
   // Bus Interface State Machine
   //----------------------------------------------------------------
   assign biu_lock_o = 1'b0;
-  assign biu_prot_o = biu_prot_t'(mem_prot_i | PROT_CACHEABLE);
+
+  //TODO
+  assign biu_prot_o = biu_prot_t'( mem_prot_i | (is_cacheable_i ? PROT_CACHEABLE : PROT_NONCACHEABLE) );
 
 
   always @(posedge clk_i, negedge rst_ni)
@@ -760,6 +796,30 @@ endgenerate
   assign biufsm_err = biu_err_i;
 
 
+  //Keep track of inflight transactions
+  always @(posedge clk_i, negedge rst_ni)
+    if      (!rst_ni) inflight <= 'h0;
+    else
+      unique case ({biu_stb_ack_i, biu_ack_i | biu_err_i})
+        2'b01  : inflight <= inflight -1;
+        2'b10  : inflight <= inflight +1;
+        default: ; //do nothing
+      endcase
+
+      
+  always @(posedge clk_i, negedge rst_ni)
+    if (!rst_ni) discard <= 'h0;
+    else if (mem_flush_i)
+    begin
+        if (|inflight && (biu_ack_i | biu_err_i)) discard <= inflight -1;
+        else                                      discard <= inflight;
+    end
+    else if (|discard && (biu_ack_i | biu_err_i)) discard <= discard -1;
+
+
+  assign biu_non_cacheable_ack = biu_ack_i & ~mem_flush_i & ~|discard;
+
+
   //output BIU signals asynchronously for speed reasons. BIU will synchronize ...
   assign biu_d_o  = 'h0;
   assign biu_we_o = 1'b0;
@@ -768,8 +828,8 @@ endgenerate
     unique case (biufsm_state)
       IDLE    : unique case (biucmd)
                   NOP       : begin
-                                  biu_stb_o  = 1'b0;
-                                  biu_adri_o =  'hx;
+                                  biu_stb_o  = ~is_cacheable_i & ~mem_flush_i & mem_req_i;
+                                  biu_adri_o = mem_adr_i[PLEN-1:0];
                               end
 
                   READ_WAY  : begin
@@ -806,10 +866,15 @@ endgenerate
 
 
   //transfer size
-  assign biu_size_o = XLEN == 64 ? DWORD : WORD;
+  assign biu_size_o = mem_size_i; // --> XLEN == 64 ? DWORD : WORD;
+
 
   //burst length
   always_comb
+    if ( (biufsm_state == IDLE) && (biucmd == NOP) )
+      biu_type_o = (XLEN==64 && |mem_adr_i[2:0]) ||
+                   (XLEN==32 && |mem_adr_i[1:0]) ? SINGLE : INCR;
+    else
     unique case(BURST_SIZE)
        16     : biu_type_o = WRAP16;
        8      : biu_type_o = WRAP8;
