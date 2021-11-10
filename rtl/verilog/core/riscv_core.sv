@@ -329,6 +329,7 @@ module riscv_core #(
   riscv_pd #(
     .XLEN              ( XLEN            ),
     .PC_INIT           ( PC_INIT         ),
+    .HAS_RVC           ( HAS_RVC         ),
     .HAS_BPU           ( HAS_BPU         ),
     .BP_GLOBAL_BITS    ( BP_GLOBAL_BITS  ) )
   pd_unit (
