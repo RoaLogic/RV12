@@ -148,9 +148,9 @@ module riscv_top_ahb3lite #(
   logic                               imem_flush;
   logic          [XLEN          -1:0] imem_parcel;
   logic          [XLEN/PARCEL_SIZE-1:0] imem_parcel_valid;
-  logic                               imem_parcel_misaligned;
-  logic                               imem_parcel_page_fault;
-  logic                               imem_parcel_error;
+  logic                               imem_misaligned;
+  logic                               imem_page_fault;
+  logic                               imem_error;
 
   logic                               dmem_req;
   logic          [XLEN          -1:0] dmem_adr;
@@ -259,9 +259,9 @@ module riscv_top_ahb3lite #(
     .imem_flush_o             ( imem_flush             ),
     .imem_parcel_i            ( imem_parcel            ),
     .imem_parcel_valid_i      ( imem_parcel_valid      ),
-    .imem_parcel_misaligned_i ( imem_parcel_misaligned ),
-    .imem_parcel_page_fault_i ( 1'b0                   ),
-    .imem_parcel_error_i      ( imem_parcel_error      ),
+    .imem_parcel_misaligned_i ( imem_misaligned        ),
+    .imem_parcel_page_fault_i ( imem_page_fault        ),
+    .imem_parcel_error_i      ( imem_error             ),
 
     //Data Memory Access bus
     .dmem_adr_o               ( dmem_adr               ),
@@ -322,25 +322,24 @@ module riscv_top_ahb3lite #(
     //Configuration
     .pma_cfg_i         ( pma_cfg_i         ),
     .pma_adr_i         ( pma_adr_i         ),
+    .st_pmpcfg_i       ( st_pmpcfg         ),
+    .st_pmpaddr_i      ( st_pmpaddr        ),
+    .st_prv_i          ( st_prv            ),
 
     //CPU side
     .imem_req_i        ( imem_req          ),
     .imem_ack_o        ( imem_ack          ),
     .imem_flush_i      ( imem_flush        ),
     .imem_adr_i        ( imem_adr          ),
+    .imem_misaligned_o ( imem_misaligned   ),
+    .imem_page_fault_o ( imem_page_fault   ),
+    .imem_error_o      ( imem_error        ),
     .parcel_o          ( imem_parcel       ),
     .parcel_valid_o    ( imem_parcel_valid ),
-    .err_o             ( imem_err          ),
-    .misaligned_o      ( imem_misaligned   ),
-    .page_fault_o      ( imem_page_fault   ),
     .cache_flush_i     ( cacheflush        ),
     .dcflush_rdy_i     ( dcflush_rdy       ),
 
-    .st_pmpcfg_i       ( st_pmpcfg         ),
-    .st_pmpaddr_i      ( st_pmpaddr        ),
-    .st_prv_i          ( st_prv            ),
-
-    //BIU ports
+     //BIU ports
     .biu_stb_o         ( ibiu_stb          ),
     .biu_stb_ack_i     ( ibiu_stb_ack      ),
     .biu_d_ack_i       ( ibiu_d_ack        ),
