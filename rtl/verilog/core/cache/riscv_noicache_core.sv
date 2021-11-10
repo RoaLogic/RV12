@@ -35,7 +35,7 @@ module riscv_noicache_core #(
   parameter ALEN        = XLEN,
   parameter PARCEL_SIZE = 16,
   parameter HAS_RVC     = 0,
-  parameter DEPTH       = 2
+  parameter DEPTH       = 2         //number of transactions in flight
 )
 (
   input                             rst_ni,
@@ -76,7 +76,6 @@ module riscv_noicache_core #(
   //
   // Variables
   //
-  logic is_cacheable;
   logic if_flush_dly;
 
   logic [$clog2(DEPTH):0] inflight,
@@ -88,22 +87,10 @@ module riscv_noicache_core #(
   // Module Body
   //
 
-  //Is this a cacheable region?
-  //MSB=1 non-cacheable (IO region)
-  //MSB=0 cacheable (instruction/data region)
-  assign is_cacheable = ~if_nxt_pc_i[ALEN -1];
-  
-
-  //Address misaligned?
-  assign if_parcel_misaligned_o = (HAS_RVC != 0) ? if_parcel_pc_o[0] : |if_parcel_pc_o[1:0];
-  
-
   //delay IF-flush
   always @(posedge clk_i, negedge rst_ni)
     if (!rst_ni) if_flush_dly <= 1'b0;
     else         if_flush_dly <= if_flush_i;
-
-
 
 
   always @(posedge clk_i, negedge rst_ni)
@@ -115,6 +102,7 @@ module riscv_noicache_core #(
         default: ; //do nothing
       endcase
 
+      
   always @(posedge clk_i, negedge rst_ni)
     if (!rst_ni) discard <= 'h0;
     else if (if_flush_i)
@@ -128,11 +116,14 @@ module riscv_noicache_core #(
   /*
    * To CPU
    */
-  assign if_ack_o          = dcflush_rdy_i & biu_stb_ack_i;  //get next parcel address
-  assign if_parcel_error_o = biu_err_i;
-  assign if_parcel_valid_o = dcflush_rdy_i & ~(if_flush_i | if_flush_dly) & biu_ack_i & ~|discard ? {XLEN/PARCEL_SIZE{1'b1}} << if_parcel_pc_o[1 +: $clog2(XLEN/PARCEL_SIZE)]: {XLEN/PARCEL_SIZE{1'b0}};
-  assign if_parcel_pc_o    = { {XLEN-ALEN{1'b0}},biu_adro_i};
-  assign if_parcel_o       = biu_q_i;
+  assign if_ack_o               = dcflush_rdy_i & biu_stb_ack_i;  //get next parcel address
+  assign if_parcel_misaligned_o = (HAS_RVC != 0) ? if_parcel_pc_o[0] : |if_parcel_pc_o[1:0];
+  assign if_parcel_error_o      = biu_err_i;
+  assign if_parcel_valid_o      = dcflush_rdy_i & ~(if_flush_i | if_flush_dly) & biu_ack_i & ~|discard       ?
+                                   {XLEN/PARCEL_SIZE{1'b1}} << if_parcel_pc_o[1 +: $clog2(XLEN/PARCEL_SIZE)] :
+				   {XLEN/PARCEL_SIZE{1'b0}};
+  assign if_parcel_pc_o         = { {XLEN-ALEN{1'b0}},biu_adro_i};
+  assign if_parcel_o            = biu_q_i;
 
 
 
