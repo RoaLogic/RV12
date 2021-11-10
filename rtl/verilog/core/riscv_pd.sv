@@ -33,6 +33,7 @@ import riscv_state_pkg::*;
 module riscv_pd #(
   parameter                       XLEN           = 32,
   parameter  [XLEN          -1:0] PC_INIT        = 'h200,
+  parameter                       HAS_RVC        = 0,
   parameter                       HAS_BPU        = 0,
   parameter                       BP_GLOBAL_BITS = 2
 )
@@ -81,6 +82,15 @@ module riscv_pd #(
 
   ////////////////////////////////////////////////////////////////
   //
+  // Constants
+  //
+
+  //Instruction address mask
+  localparam ADR_MASK = HAS_RVC != 0 ? {XLEN{1'b1}} << 1 : {XLEN{1'b1}} << 2;
+
+
+  ////////////////////////////////////////////////////////////////
+  //
   // Variables
   //
 
@@ -122,10 +132,10 @@ module riscv_pd #(
 
   //Program counter
   always @(posedge clk_i, negedge rst_ni)
-    if      (!rst_ni     ) pd_pc_o <= PC_INIT;
-    else if ( st_flush_i ) pd_pc_o <= st_nxt_pc_i;
-    else if ( bu_flush_i ) pd_pc_o <= bu_nxt_pc_i;
-    else if (!pd_stall_o ) pd_pc_o <= if_pc_i;
+    if      (!rst_ni     ) pd_pc_o <= PC_INIT     & ADR_MASK;
+    else if ( st_flush_i ) pd_pc_o <= st_nxt_pc_i & ADR_MASK;
+    else if ( bu_flush_i ) pd_pc_o <= bu_nxt_pc_i & ADR_MASK;
+    else if (!pd_stall_o ) pd_pc_o <= if_pc_i     & ADR_MASK;
 
 
   //Instruction	
