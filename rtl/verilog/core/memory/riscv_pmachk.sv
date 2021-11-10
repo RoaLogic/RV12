@@ -291,7 +291,7 @@ endgenerate
 
   /* Access Types
    */
-  assign is_cacheble_o = matched_pma.c; //implies MEM_TYPE_MAIN
-  assign req_o         = req_i & ~exception_o & ~misaligned_o &  matched_pma.c; //implies MEM_TYPE_MAIN
+  assign is_cacheable_o = matched_pma.c; //implies MEM_TYPE_MAIN
+  assign req_o          = req_i;
 endmodule
 
