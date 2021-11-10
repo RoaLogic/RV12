@@ -39,3 +39,7 @@ Use DHRYSTONE v2.2 as reference/benchmark
 - Added Correlating Branch Predictor. Correct prediction reduces branch/jump penalty from 3 to 1 cycles (excluding external bus latency)
   - Dhrystones: 1184 (0.67DMIPS) + 13%
 
+- General small updates
+  - No BP: 1201 (0.68DMIPS) +1.5%
+  - BP   : 1245 (0.71DMIPS) +3.6%
+
