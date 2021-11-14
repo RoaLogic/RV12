@@ -250,8 +250,8 @@ generate
         .parcel_valid_o      ( parcel_valid_o    ),
 	.parcel_misaligned_o ( imem_misaligned_o ),
         .parcel_error_o      ( imem_error_o      ),
-        .flush_i             ( cache_flush_i     ),
-        .flushrdy_i          ( dcflush_rdy_i     ),
+        .cache_flush_i       ( cache_flush_i     ),
+        .dcflush_rdy_i       ( dcflush_rdy_i     ),
 
         //To BIU
         .biu_stb_o           ( biu_stb_o         ),
