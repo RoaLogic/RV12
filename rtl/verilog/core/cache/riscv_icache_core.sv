@@ -405,10 +405,8 @@ endgenerate
 
     .core_tag_i         ( setup_core_tag  ),
     .tag_idx_i          ( setup_tag_idx   ),
-    .tag_we_i           ( tag_we          ),
 
     .dat_idx_i          ( setup_dat_idx   ),
-    .dat_we_i           ( dat_we          ),
     .dat_be_i           ( dat_be          ),
     .writebuffer_data_i ( {XLEN{1'b0}}    ),
     .biu_d_i            ( cachemem_dat    ),
