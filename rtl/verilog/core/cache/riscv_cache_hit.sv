@@ -261,10 +261,9 @@ module riscv_cache_hit #(
                       end
 
         RECOVER     : begin
-                          //Allow DATA memory read after writing/filling
+                          //Read TAG and DATA memory after writing/filling
                           memfsm_state <= ARMED;
                           biucmd_o     <= BIUCMD_NOP;
-                          filling_o    <= 1'b0;
                       end
     endcase
 
