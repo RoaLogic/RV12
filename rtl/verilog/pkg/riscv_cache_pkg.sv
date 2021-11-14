@@ -55,7 +55,7 @@ package riscv_cache_pkg;
   endfunction : no_of_index_bits
 
 
-  //Number of Block Offset Bits; that is the number of bits in the address that reference the block
+  //Number of Block Offset Bits; that is the number of bits in the address that form one block
   function automatic integer no_of_block_offset_bits (input integer block_size);
     no_of_block_offset_bits = $clog2(block_size);
   endfunction : no_of_block_offset_bits
