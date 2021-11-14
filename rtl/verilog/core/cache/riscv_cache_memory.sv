@@ -55,10 +55,8 @@ module riscv_cache_tag_memory #(
 
   input  logic [TAG_BITS  -1:0] core_tag_i,
   input  logic [IDX_BITS  -1:0] tag_idx_i,
-  input  logic                  tag_we_i,
 
   input  logic [IDX_BITS  -1:0] dat_idx_i,
-  input                         dat_we_i,
   input  logic [BLK_BITS/8-1:0] dat_be_i,
 
   input  logic [XLEN      -1:0] writebuffer_data_i,
@@ -92,6 +90,7 @@ module riscv_cache_tag_memory #(
   logic [WAYS        -1:0]           tag_we;              //tag memory write enable
   logic [WAYS        -1:0]           fill_way_select_dly;
 
+  logic [IDX_BITS    -1:0]           tag_idx;
   tag_struct                         tag_in      [WAYS],  //tag memory input data
                                      tag_out     [WAYS];  //tag memory output data
   logic [IDX_BITS    -1:0]           tag_byp_idx [WAYS];
@@ -100,6 +99,7 @@ module riscv_cache_tag_memory #(
 
   logic [WAYS        -1:0]           way_hit;             //got a hit on a way
 
+  logic [IDX_BITS    -1:0]           dat_idx;
   logic [BLK_BITS    -1:0]           dat_in;              //data into memory
   logic [WAYS        -1:0]           dat_we;              //data memory write enable
   logic [BLK_BITS    -1:0]           dat_out     [WAYS];  //data memory output
@@ -119,7 +119,7 @@ module riscv_cache_tag_memory #(
 
   //delay tag-idx, same delay as through memory
   always @(posedge clk_i)
-    if (!stall_i) tag_idx_dly <= tag_idx_i;
+    if (!stall_i && !filling_i) tag_idx_dly <= tag_idx_i;
 
 
   //delay fill-way-select, same delay as through memory
@@ -127,10 +127,13 @@ module riscv_cache_tag_memory #(
     if (!stall_i) fill_way_select_dly <= fill_way_select_i;
 
 
+  //Tag-index
+  assign tag_idx = filling_i ? tag_idx_dly : tag_idx;
+
+
 generate
   for (way=0; way<WAYS; way++)
   begin: gen_ways_tag
-
       /* TAG RAM
        */
       rl_ram_1rw #(
@@ -140,7 +143,7 @@ generate
       tag_ram (
         .rst_ni     ( rst_ni                 ),
         .clk_i      ( clk_i                  ),
-        .addr_i     ( tag_idx_i              ),
+        .addr_i     ( tag_idx                ),
         .we_i       ( tag_we [way]           ),
         .be_i       ( {(TAG_BITS+7)/8{1'b1}} ),
         .din_i      ( tag_in [way].tag       ),
@@ -173,9 +176,8 @@ generate
 
 
       /* TAG Write Enable
-       * Update tag during flushing (clear valid bits)
        */
-      assign tag_we[way] = fill_way_select_dly[way] & tag_we_i;
+      assign tag_we[way] = filling_i & fill_way_select_dly[way] & biucmd_ack_i;
 
 
       /* TAG Write Data
@@ -204,6 +206,10 @@ endgenerate
   assign dat_in = biucmd_ack_i ? biu_d_i : {BLK_BITS/XLEN{writebuffer_data_i}};
 
 
+  //Dat-index
+  assign dat_idx = filling_i ? tag_idx_dly : dat_idx_i;
+
+
 generate
   for (way=0; way<WAYS; way++)
   begin: gen_ways_dat
@@ -214,7 +220,7 @@ generate
       data_ram (
         .rst_ni     ( rst_ni        ),
         .clk_i      ( clk_i         ),
-        .addr_i     ( dat_idx_i     ),
+        .addr_i     ( dat_idx       ),
         .we_i       ( dat_we [way]  ),
         .be_i       ( dat_be_i      ),
         .din_i      ( dat_in        ),
@@ -223,7 +229,7 @@ generate
 
       /* Data Write Enable
        */
-      assign dat_we[way] = fill_way_select_dly[way] & dat_we_i;
+      assign dat_we[way] = filling_i & fill_way_select_dly[way] & biucmd_ack_i;
       
 
       /* Data Ouput Mux
