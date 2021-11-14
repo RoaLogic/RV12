@@ -98,7 +98,7 @@ module riscv_if #(
   localparam ADR_MASK = HAS_RVC != 0 ? {XLEN{1'b1}} << 1 : {XLEN{1'b1}} << 2;
 
   //HandLe up to 2 inflight instruction fetches
-  localparam INFLIGHT_CNT   = 2;
+  localparam INFLIGHT_CNT   = 3;
 
   //Queue depth, in parcels
   localparam QUEUE_DEPTH    = 3*INFLIGHT_CNT * XLEN/PARCEL_SIZE;
