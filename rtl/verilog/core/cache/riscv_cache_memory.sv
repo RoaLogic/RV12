@@ -233,7 +233,7 @@ endgenerate
   /* Generate Hit
    */
   always @(posedge clk_i)
-    hit_o <= tag_idx_dly == tag_byp_idx ? tag_byp_valid & (rd_core_tag_i == tag_byp_tag) : |way_hit & ~biumem_we_dly;
+    if (!stall_i) hit_o <= tag_idx_dly == tag_byp_idx ? tag_byp_valid & (rd_core_tag_i == tag_byp_tag) : |way_hit & ~biumem_we_dly;
 
 
 
@@ -303,7 +303,7 @@ endgenerate
 
 
   always @(posedge clk_i)
-    cache_line_o <= dat_idx_dly == dat_byp_idx ? dat_byp_q : way_q_mux[WAYS-1];
+    if (!stall_i) cache_line_o <= dat_idx_dly == dat_byp_idx ? dat_byp_q : way_q_mux[WAYS-1];
 
 endmodule
 
