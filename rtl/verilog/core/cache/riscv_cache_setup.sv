@@ -33,7 +33,7 @@ module riscv_cache_setup #(
   parameter  XLEN          = 32,
   parameter  SIZE          = 64, 
   parameter  BLOCK_SIZE    = XLEN,
-  parameter  WAYS          =  2,
+  parameter  WAYS          = 2,
 
   localparam SETS          = no_of_sets(SIZE, BLOCK_SIZE, WAYS),
   localparam BLK_OFFS_BITS = no_of_block_offset_bits(BLOCK_SIZE),
@@ -80,6 +80,8 @@ module riscv_cache_setup #(
   //
   // Variables
   //
+  logic                flush_dly;
+
   logic [IDX_BITS-1:0] adr_idx,
                        adr_idx_dly;
 
@@ -88,6 +90,12 @@ module riscv_cache_setup #(
   //
   // Module Body
   //
+
+
+  /*delay flush signals
+   */
+  always @(posedge clk_i)
+    flush_dly <= flush_i;
 
 
   /*feed input signals to next stage
@@ -116,11 +124,12 @@ module riscv_cache_setup #(
   assign adr_idx = adr_i[BLK_OFFS_BITS +: IDX_BITS];
 
   always @(posedge clk_i)
-    if (!stall_i) adr_idx_dly <= adr_idx;	  
+    if (!stall_i || flush_dly) adr_idx_dly <= adr_idx;
 
-  assign tag_idx_o = stall_i ? adr_idx_dly : adr_idx;
-  assign dat_idx_o = stall_i ? adr_idx_dly : adr_idx; 
-
+  assign tag_idx_o = stall_i && !flush_dly ? adr_idx_dly : adr_idx;
+  assign dat_idx_o = stall_i && !flush_dly ? adr_idx_dly : adr_idx;
+//  assign tag_idx_o = adr_idx;
+//  assign dat_idx_o = adr_idx;
 
   /* Core Tag
    */
