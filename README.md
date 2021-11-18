@@ -43,3 +43,6 @@ Use DHRYSTONE v2.2 as reference/benchmark
   - No BP: 1201 (0.68DMIPS) +1.5%
   - BP   : 1245 (0.71DMIPS) +3.6%
 
+- Initial release of instruction cache. This requires a longer instruction fetch pipeline
+  - Dhrystones: 1244 (0.71DMIPS)
+
