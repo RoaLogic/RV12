@@ -452,6 +452,7 @@ endgenerate
     .biucmd_noncacheable_ack_o ( biucmd_noncacheable_ack ),
     .inflight_cnt_o            ( inflight_cnt            ),
 
+    .req_i                     ( tag_req                 ),
     .adr_i                     ( tag_adr                 ),
     .size_i                    ( tag_size                ),
     .prot_i                    ( tag_prot                ),

@@ -56,6 +56,7 @@ module riscv_cache_biu_ctrl #(
   output logic                     biucmd_noncacheable_ack_o,
   output logic [INFLIGHT_BITS-1:0] inflight_cnt_o,
 
+  input  logic                     req_i,
   input  logic [PLEN         -1:0] adr_i,
   input  biu_size_t                size_i,
   input  biu_prot_t                prot_i,
@@ -208,7 +209,7 @@ module riscv_cache_biu_ctrl #(
 
 
   //Is requested data in biubuffer?
-  assign in_biubuffer_o = (biu_adri_hold[PLEN-1:BLK_OFFS_BITS] == adr_i  [PLEN-1:BLK_OFFS_BITS]) & (biubuffer_valid >> dat_offset);
+  assign in_biubuffer_o = req_i & (biu_adri_hold[PLEN-1:BLK_OFFS_BITS] == adr_i[PLEN-1:BLK_OFFS_BITS]) & (biubuffer_valid >> dat_offset);
 
 
   //Data to be written into DAT memory
