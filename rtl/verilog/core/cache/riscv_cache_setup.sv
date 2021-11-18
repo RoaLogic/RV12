@@ -27,6 +27,7 @@
 //                                                                 //
 /////////////////////////////////////////////////////////////////////
 
+import riscv_cache_pkg::*;
 import biu_constants_pkg::*;
 
 module riscv_cache_setup #(
