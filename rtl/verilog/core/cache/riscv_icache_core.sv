@@ -176,43 +176,47 @@ module riscv_icache_core #(
   // Variables
   //
 
-  logic [           6:0] way_random; //Up to 128ways
-  logic [WAYS      -1:0] fill_way_select;
-  logic                  cacheflush;
+  logic [              6:0] way_random; //Up to 128ways
+  logic [WAYS         -1:0] fill_way_select;
+  logic                     cacheflush;
 
-  logic                  stall;
+  logic                     stall;
 
-  logic                  setup_req,           tag_req;
-  logic [PLEN      -1:0] setup_adr,           tag_adr; 
-  biu_size_t             setup_size,          tag_size;
-  logic                  setup_lock,          tag_lock;
-  biu_prot_t             setup_prot,          tag_prot;
-  logic                  setup_is_cacheable,  tag_is_cacheable;
-  logic                  setup_is_misaligned, tag_is_misaligned;
-
-
-  logic [TAG_BITS  -1:0] setup_core_tag;
-  logic [IDX_BITS  -1:0] setup_tag_idx,
-                         setup_dat_idx;
-  logic [BLK_BITS/8-1:0] dat_be;
+  logic                     setup_req,           tag_req;
+  logic [PLEN         -1:0] setup_adr,           tag_adr; 
+  biu_size_t                setup_size,          tag_size;
+  logic                     setup_lock,          tag_lock;
+  biu_prot_t                setup_prot,          tag_prot;
+  logic                     setup_is_cacheable,  tag_is_cacheable;
+  logic                     setup_is_misaligned, tag_is_misaligned;
 
 
-  logic                  cache_hit;
-  logic [WAYS      -1:0] way_hit;
-  logic [BLK_BITS  -1:0] cache_line;
+  logic [TAG_BITS     -1:0] setup_core_tag,
+                            hit_core_tag;
+  logic [IDX_BITS     -1:0] setup_tag_idx,
+                            setup_dat_idx,
+                            hit_tag_idx,
+                            hit_dat_idx;
+  logic [BLK_BITS/8   -1:0] dat_be;
+
+
+  logic                     cache_hit;
+  logic [WAYS         -1:0] way_hit;
+  logic [BLK_BITS     -1:0] cache_line;
 
 
   logic [INFLIGHT_BITS-1:0] inflight_cnt;
 
-  biucmd_t               biucmd;
-  logic                  biucmd_noncacheable_req,
-                         biucmd_noncacheable_ack;
-  logic                  in_biubuffer;
-  logic [BLK_BITS  -1:0] biubuffer;
-  logic [BLK_BITS  -1:0] cachemem_dat;
+  biucmd_t                  biucmd;
+  logic                     biucmd_noncacheable_req,
+                            biucmd_noncacheable_ack;
+  logic                     in_biubuffer;
+  logic [BLK_BITS     -1:0] biubuffer;
+  logic [BLK_BITS     -1:0] cachemem_dat;
 
-  logic                  flushing,
-	                 filling;
+  logic                     armed,
+                            flushing,
+	                    filling;
 
 
   //////////////////////////////////////////////////////////////////
@@ -345,6 +349,7 @@ endgenerate
 
     .cacheflush_req_i          ( cacheflush              ),
     .dcflush_rdy_i             ( dcflush_rdy_i           ),
+    .armed_o                   ( armed                   ),
     .flushing_o                ( flushing                ),
     .filling_o                 ( filling                 ),
 
@@ -354,6 +359,10 @@ endgenerate
     .lock_i                    ( tag_lock                ),
     .prot_i                    ( tag_prot                ),
     .is_cacheable_i            ( tag_cacheable           ),
+
+    .tag_idx_o                 ( hit_tag_idx             ),
+    .dat_idx_o                 ( hit_dat_idx             ),
+    .core_tag_o                ( hit_core_tag            ),
 
     .biucmd_o                  ( biucmd                  ),
     .biucmd_ack_i              ( biucmd_ack              ),
@@ -386,7 +395,7 @@ endgenerate
 
   assign dat_be = {$bits(dat_be){1'b1}};
   
-  riscv_cache_tag_memory #(
+  riscv_cache_memory #(
     .XLEN               ( XLEN            ),
     .SIZE               ( SIZE            ),
     .BLOCK_SIZE         ( BLOCK_SIZE      ),
@@ -399,14 +408,18 @@ endgenerate
 
     .stall_i            ( stall           ),
 
+    .armed_i            ( armed           ),
     .flushing_i         ( flushing        ),
     .filling_i          ( filling         ),
     .fill_way_select_i  ( fill_way_select ),
 
-    .core_tag_i         ( setup_core_tag  ),
-    .tag_idx_i          ( setup_tag_idx   ),
+    .rd_core_tag_i      ( setup_core_tag  ),
+    .wr_core_tag_i      ( hit_core_tag    ),
+    .rd_tag_idx_i       ( setup_tag_idx   ),
+    .wr_tag_idx_i       ( hit_tag_idx     ),
 
-    .dat_idx_i          ( setup_dat_idx   ),
+    .rd_dat_idx_i       ( setup_dat_idx   ),
+    .wr_dat_idx_i       ( hit_dat_idx     ),
     .dat_be_i           ( dat_be          ),
     .writebuffer_data_i ( {XLEN{1'b0}}    ),
     .biu_d_i            ( cachemem_dat    ),
