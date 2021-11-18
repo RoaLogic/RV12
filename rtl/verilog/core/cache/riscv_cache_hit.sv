@@ -195,7 +195,7 @@ module riscv_cache_hit #(
   logic                     cache_ack,
                             biu_cacheable_ack;
 
-  logic                     parcel_valid_dly;
+  logic                     biu_cache_we_unstall;
 
 
   enum logic [2:0] {ARMED=0,
@@ -231,12 +231,12 @@ module riscv_cache_hit #(
                           armed_o      <= 1'b0;
                           flushing_o   <= 1'b1;
                       end
-		      else if (req_i && !is_cacheable_i)
+		      else if (req_i && !is_cacheable_i && !flush_i)
                       begin
                           memfsm_state <= NONCACHEABLE;
                           armed_o      <= 1'b0;
                       end
-                      else if (req_i && is_cacheable_i && !cache_hit_i)
+                      else if (req_i && is_cacheable_i && !cache_hit_i && !flush_i)
                       begin
                           //Load way
                           memfsm_state <= WAIT4BIUCMD0;
@@ -311,9 +311,13 @@ module riscv_cache_hit #(
 	                             : is_cacheable_i ? ~biu_ack_i : ~biu_stb_ack_i;
 
       //TODO: Add in_biubuffer
-      WAIT4BIUCMD0: stall_o = ~(req_i & biu_ack_i & biu_adro_eq_cache_adr_dly & ~biucmd_ack_i);
+      WAIT4BIUCMD0: stall_o = ~( (req_i & biu_ack_i & biu_adro_eq_cache_adr_dly & ~biucmd_ack_i) |
+                                 (req_i & cache_hit_i)
+	                       );
 
-      RECOVER     : stall_o = ~parcel_valid_dly;
+      RECOVER     : stall_o = ~( biu_cache_we_unstall |
+	                         (req_i & cache_hit_i)
+                               );
       default     : stall_o = 1'b0;
     endcase
 
@@ -334,14 +338,15 @@ module riscv_cache_hit #(
 
   always_comb
     unique case (memfsm_state)
-      WAIT4BIUCMD0: parcel_o = biu_q_i;
+      WAIT4BIUCMD0: parcel_o = cache_hit_i    ? cache_q : biu_q_i;
       default     : parcel_o = is_cacheable_i ? cache_q : biu_q_i;
     endcase
 
 
   //acknowledge cache hit
-  assign cache_ack         = req_i & is_cacheable_i & cache_hit_i & ~flush_i;
-  assign biu_cacheable_ack = req_i & biu_ack_i & biu_adro_eq_cache_adr_dly & ~flush_i;
+  assign cache_ack         =  req_i & is_cacheable_i & cache_hit_i & ~flush_i;
+  assign biu_cacheable_ack = (req_i & biu_ack_i & biu_adro_eq_cache_adr_dly & ~flush_i) |
+                              cache_ack; //(req_i & is_cacheable_i & cache_hit_i & ~flush_i);
 
 
   //Assign parcel_valid
@@ -354,12 +359,14 @@ module riscv_cache_hit #(
       ARMED       : parcel_valid_o = {$bits(parcel_valid_o){cache_ack                }} << adr_i      [1 +: $clog2(XLEN/PARCEL_SIZE)]; 
       NONCACHEABLE: parcel_valid_o = {$bits(parcel_valid_o){biucmd_noncacheable_ack_i}} << parcel_pc_o[1 +: $clog2(XLEN/PARCEL_SIZE)];
       WAIT4BIUCMD0: parcel_valid_o = {$bits(parcel_valid_o){biu_cacheable_ack        }} << adr_i      [1 +: $clog2(XLEN/PARCEL_SIZE)];
+      RECOVER     : parcel_valid_o = {$bits(parcel_valid_o){cache_ack                }} << adr_i      [1 +: $clog2(XLEN/PARCEL_SIZE)];
       default     : parcel_valid_o = {$bits(parcel_valid_o){1'b0}};
     endcase    
 
 
+  //unstall when parcel was valid during Cache Memory write
   always @(posedge clk_i)
-    parcel_valid_dly = |parcel_valid_o; //unstall when parcel was valid during Cache memory write
+    biu_cache_we_unstall = req_i & biu_adro_eq_cache_adr_dly & biucmd_ack_i & |parcel_valid_o;
 
 
   always_comb
