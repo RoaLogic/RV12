@@ -100,6 +100,12 @@ RTL_VLOG = $(DUT_SRC_DIR)/pkg/riscv_rvl_pkg.sv			\
 	   $(MEM_SRC_DIR)/rl_ram_1rw.sv				\
 	   $(MEM_SRC_DIR)/rl_ram_1rw_generic.sv			\
 	   $(MEM_SRC_DIR)/rl_ram_1rw_easic_n3x.sv		\
+	   $(DUT_SRC_DIR)/pkg/riscv_cache_pkg.sv		\
+	   $(DUT_SRC_DIR)/core/cache/riscv_cache_setup.sv	\
+	   $(DUT_SRC_DIR)/core/cache/riscv_cache_tag.sv		\
+	   $(DUT_SRC_DIR)/core/cache/riscv_cache_hit.sv		\
+	   $(DUT_SRC_DIR)/core/cache/riscv_cache_biu_ctrl.sv	\
+	   $(DUT_SRC_DIR)/core/cache/riscv_cache_memory.sv	\
 	   $(DUT_SRC_DIR)/core/cache/riscv_icache_core.sv	\
 	   $(DUT_SRC_DIR)/core/cache/riscv_noicache_core.sv	\
 	   $(DUT_SRC_DIR)/core/cache/riscv_dcache_core.sv	\
