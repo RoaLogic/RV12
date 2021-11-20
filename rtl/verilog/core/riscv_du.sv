@@ -225,8 +225,8 @@ module riscv_du #(
       du_addr_o      <= dbg_addr_i[DU_ADDR_SIZE-1:0];
       du_d_o         <= dbg_d_i;
 
-      du_we_rf_o     <= du_we & du_sel_gprs & (dbg_addr_i[DU_ADDR_SIZE-1:0] == DBG_GPR);
-      du_we_frf_o    <= du_we & du_sel_gprs & (dbg_addr_i[DU_ADDR_SIZE-1:0] == DBG_FPR);
+      du_we_rf_o     <= du_we & du_sel_gprs & (dbg_adr_i[11:8] == 4'h0); //(dbg_addr_i[DU_ADDR_SIZE-1:0] == DBG_GPR);
+      du_we_frf_o    <= du_we & du_sel_gprs & (dbg_adr_i[11:8] == 4'h1); //(dbg_addr_i[DU_ADDR_SIZE-1:0] == DBG_FPR);
       du_we_internal <= du_we & du_sel_internal;
       du_we_csr_o    <= du_we & du_sel_csrs;
       du_we_pc_o     <= du_we & du_sel_gprs & (dbg_addr_i[DU_ADDR_SIZE-1:0] == DBG_NPC);
