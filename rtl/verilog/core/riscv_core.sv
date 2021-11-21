@@ -107,7 +107,7 @@ module riscv_core #(
   output pmpcfg_t [                15:0] st_pmpcfg_o,
   output [   15:0][XLEN            -1:0] st_pmpaddr_o,
 
-  output                                 bu_cacheflush_o,
+  output                                 cacheflush_o,
 
   //Interrupts
   input                                  ext_nmi_i,
@@ -154,7 +154,8 @@ module riscv_core #(
 
   logic                      bu_flush,
                              st_flush,
-                             du_flush;
+                             du_flush,
+                             bu_cacheflush;
 
   logic                      id_stall,
                              pd_stall,
@@ -253,6 +254,9 @@ module riscv_core #(
   //
   // Module Body
   //
+
+  assign cacheflush_o = du_flush | bu_cacheflush;
+
 
   /*
    * Instruction pipeline
@@ -475,7 +479,7 @@ module riscv_core #(
     .ex_pc_o                ( ex_pc                ),
     .bu_nxt_pc_o            ( bu_nxt_pc            ),
     .bu_flush_o             ( bu_flush             ),
-    .bu_cacheflush_o        ( bu_cacheflush_o      ),
+    .bu_cacheflush_o        ( bu_cacheflush        ),
     .id_bp_predict_i        ( id_bp_predict        ),
     .bu_bp_predict_o        ( bu_bp_predict        ),
     .id_bp_history_i        ( id_bp_history        ),
