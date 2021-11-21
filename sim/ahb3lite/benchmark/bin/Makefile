@@ -45,7 +45,7 @@ MS     = -s
 
 ROOT_DIR    = ../../../..
 TST_SRC_DIR = $(ROOT_DIR)/../bench/tests/benchmarks
-POSTFIX     = .riscv.hex
+POSTFIX     = .riscv$(XLEN).hex
 
 
 #####################################################################
@@ -55,7 +55,7 @@ POSTFIX     = .riscv.hex
 #####################################################################
 XLEN              = 64
 DCACHE_SIZE       = 0
-ICACHE_SIZE       = 0
+ICACHE_SIZE       = 4
 WRITEBUFFER_SIZE  = 0
 HAS_U             = 1
 HAS_S             = 0
