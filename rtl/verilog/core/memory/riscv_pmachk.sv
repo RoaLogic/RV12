@@ -58,9 +58,8 @@ module riscv_pmachk #(
   output pmacfg_t            pma_o,
   output logic               exception_o,
                              misaligned_o,
-                             is_cache_access_o,
-                             is_ext_access_o,
-                             is_tcm_access_o
+                             is_cacheable_o,
+                             req_o
 );
 
   //////////////////////////////////////////////////////////////////
@@ -292,8 +291,7 @@ endgenerate
 
   /* Access Types
    */
-  assign is_cache_access_o = req_i & ~exception_o & ~misaligned_o &  matched_pma.c;          //implies MEM_TYPE_MAIN
-  assign is_ext_access_o   = req_i & ~exception_o & ~misaligned_o & ~matched_pma.c & matched_pma.mem_type != MEM_TYPE_TCM;
-  assign is_tcm_access_o   = req_i & ~exception_o & ~misaligned_o & (matched_pma.mem_type == MEM_TYPE_TCM);
+  assign is_cacheable_o = matched_pma.c; //implies MEM_TYPE_MAIN
+  assign req_o          = req_i;
 endmodule
 

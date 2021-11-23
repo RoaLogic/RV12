@@ -31,11 +31,12 @@ import riscv_opcodes_pkg::*;
 import riscv_state_pkg::*;
 
 module riscv_if #(
-  parameter            XLEN           = 32,
-  parameter [XLEN-1:0] PC_INIT        = 'h200,
-  parameter            HAS_RVC        = 0,
+  parameter                           XLEN           = 32,
+  parameter    [XLEN            -1:0] PC_INIT        = 'h200,
+  parameter                           HAS_RVC        = 0,
+  parameter                           BP_GLOBAL_BITS = 2,
 
-  localparam PARCEL_SIZE = 16
+  localparam                          PARCEL_SIZE    = 16
 )
 (
   input                               rst_ni,                   //Reset
@@ -52,6 +53,9 @@ module riscv_if #(
   input                               imem_parcel_page_fault_i,
   input                               imem_parcel_error_i,
 
+  input        [BP_GLOBAL_BITS  -1:0] bu_bp_history_i,          //Branch Predictor History
+  output       [BP_GLOBAL_BITS  -1:0] if_predict_history_o,     //Predictor History to BP unit
+  output reg   [BP_GLOBAL_BITS  -1:0] if_bp_history_o,          //Predictor History to PD
   output logic [XLEN            -1:0] if_predict_pc_o,          //Early program counters towards predictor
   output reg   [XLEN            -1:0] if_nxt_pc_o,              //Next Program Counter
                                       if_pc_o,                  //Program Counter
@@ -90,8 +94,11 @@ module riscv_if #(
   // Constants
   //
 
-  //Hanlde up to 2 inflight instruction fetches
-  localparam INFLIGHT_CNT   = 2;
+  //Instruction address mask
+  localparam ADR_MASK = HAS_RVC != 0 ? {XLEN{1'b1}} << 1 : {XLEN{1'b1}} << 2;
+
+  //HandLe up to 2 inflight instruction fetches
+  localparam INFLIGHT_CNT   = 3;
 
   //Queue depth, in parcels
   localparam QUEUE_DEPTH    = 3*INFLIGHT_CNT * XLEN/PARCEL_SIZE;
@@ -185,13 +192,13 @@ module riscv_if #(
   //Instruction Memory Address generator
   //Branches can go to misaligned addresses, however next address is aligned
   always @(posedge clk_i, negedge rst_ni)
-    if      (!rst_ni     ) imem_adr_o <= PC_INIT;
-    else if ( st_flush_i ) imem_adr_o <= st_nxt_pc_i;
-    else if ( du_stall_i ) imem_adr_o <= if_nxt_pc_o; 
-    else if ( bu_flush_i ) imem_adr_o <= bu_nxt_pc_i;
+    if      (!rst_ni     ) imem_adr_o <= PC_INIT     & ADR_MASK;
+    else if ( st_flush_i ) imem_adr_o <= st_nxt_pc_i & ADR_MASK;
+    else if ( du_stall_i ) imem_adr_o <= if_nxt_pc_o & ADR_MASK;
+    else if ( bu_flush_i ) imem_adr_o <= bu_nxt_pc_i & ADR_MASK;
     else
     begin
-        if      ( pd_latch_nxt_pc_i        ) imem_adr_o <= pd_nxt_pc_i;
+        if      ( pd_latch_nxt_pc_i        ) imem_adr_o <= pd_nxt_pc_i & ADR_MASK;
         else if ( imem_req_o && imem_ack_i ) imem_adr_o <= (imem_adr_o + (XLEN/8)) & ( {XLEN{1'b1}} << $clog2(XLEN/8) );
     end
 
@@ -700,16 +707,20 @@ module riscv_if #(
   //Combinatorial to Predictor predict_pc is registered by the memory address
   //register. Then we can use registered output to reduce critical path
   always_comb
-    if      ( st_flush_i        ) if_predict_pc_o = st_nxt_pc_i;
-    else if ( du_we_pc_strb     ) if_predict_pc_o = du_dato_i; 
-    else if ( bu_flush_i        ) if_predict_pc_o = bu_nxt_pc_i;
-    else if ( pd_latch_nxt_pc_i ) if_predict_pc_o = pd_nxt_pc_i;      //pd_flush absolutely breaks the CPU here
+    if      ( st_flush_i        ) if_predict_pc_o = st_nxt_pc_i    & ADR_MASK;
+    else if ( du_we_pc_strb     ) if_predict_pc_o = du_dato_i      & ADR_MASK; 
+    else if ( bu_flush_i        ) if_predict_pc_o = bu_nxt_pc_i    & ADR_MASK;
+    else if ( pd_latch_nxt_pc_i ) if_predict_pc_o = pd_nxt_pc_i    & ADR_MASK; //pd_flush absolutely breaks the CPU here
     else if (!pd_stall_i           &&
 	     !if_nxt_insn_o.bubble &&
 	     !du_stall_i)
-      if (is_16bit_instruction)   if_predict_pc_o = if_nxt_pc_o +2;
-      else                        if_predict_pc_o = if_nxt_pc_o +4;
-    else                          if_predict_pc_o = if_nxt_pc_o;
+      if (is_16bit_instruction)   if_predict_pc_o = if_nxt_pc_o +2 & ADR_MASK;
+      else                        if_predict_pc_o = if_nxt_pc_o +4 & ADR_MASK;
+    else                          if_predict_pc_o = if_nxt_pc_o    & ADR_MASK;
+
+
+  //BP history aligned with predict PC
+  assign if_predict_history_o = bu_bp_history_i;
 
 
   always @(posedge clk_i, negedge rst_ni)
@@ -755,5 +766,9 @@ module riscv_if #(
 	if_exceptions_o.illegal_instruction <= rvc_illegal;
     end
 
+
+  //BP history
+  always @(posedge clk_i)
+    if (!pd_stall_i) if_bp_history_o <= bu_bp_history_i;
 endmodule
 

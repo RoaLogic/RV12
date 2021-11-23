@@ -31,49 +31,63 @@ import riscv_opcodes_pkg::*;
 import riscv_state_pkg::*;
 
 module riscv_pd #(
-  parameter            XLEN           = 32,
-  parameter [XLEN-1:0] PC_INIT        = 'h200,
-  parameter            HAS_BPU        = 0
+  parameter                       XLEN           = 32,
+  parameter  [XLEN          -1:0] PC_INIT        = 'h200,
+  parameter                       HAS_RVC        = 0,
+  parameter                       HAS_BPU        = 0,
+  parameter                       BP_GLOBAL_BITS = 2
 )
 (
-  input                  rst_ni,          //Reset
-  input                  clk_i,           //Clock
+  input                           rst_ni,          //Reset
+  input                           clk_i,           //Clock
   
-  input                  id_stall_i,
-  output                 pd_stall_o,
-  input                  du_mode_i,
+  input                           id_stall_i,
+  output                          pd_stall_o,
+  input                           du_mode_i,
 
-  input                  bu_flush_i,      //flush pipe & load new program counter
-                         st_flush_i,
+  input                           bu_flush_i,      //flush pipe & load new program counter
+                                  st_flush_i,
 
-  output                 pd_flush_o,
+  output                          pd_flush_o,
 
-  output rsd_t           pd_rs1_o,
-                         pd_rs2_o,
+  output rsd_t                    pd_rs1_o,
+                                  pd_rs2_o,
 
-  output     [     11:0] pd_csr_reg_o,
+  output     [              11:0] pd_csr_reg_o,
 
-  input      [XLEN -1:0] bu_nxt_pc_i,     //Branch Unit Next Program Counter
-                         st_nxt_pc_i,     //State Next Program Counter
-  output reg [XLEN -1:0] pd_nxt_pc_o,     //Branch Preditor Next Program Counter
-  output reg             pd_latch_nxt_pc_o,
+  input      [XLEN          -1:0] bu_nxt_pc_i,     //Branch Unit Next Program Counter
+                                  st_nxt_pc_i,     //State Next Program Counter
+  output reg [XLEN          -1:0] pd_nxt_pc_o,     //Branch Preditor Next Program Counter
+  output reg                      pd_latch_nxt_pc_o,
 
-  input      [      1:0] bp_bp_predict_i, //Branch Prediction bits
-  output reg [      1:0] pd_bp_predict_o, //push down the pipe
+  input      [BP_GLOBAL_BITS-1:0] if_bp_history_i,
+  output reg [BP_GLOBAL_BITS-1:0] pd_bp_history_o,
 
-  input      [XLEN -1:0] if_pc_i,
-  output reg [XLEN -1:0] pd_pc_o,
+  input      [               1:0] bp_bp_predict_i, //Branch Prediction bits
+  output reg [               1:0] pd_bp_predict_o, //push down the pipe
 
-  input  instruction_t   if_insn_i,
-  output instruction_t   pd_insn_o,
+  input      [XLEN          -1:0] if_pc_i,
+  output reg [XLEN          -1:0] pd_pc_o,
 
-  input  exceptions_t    if_exceptions_i,
-  output exceptions_t    pd_exceptions_o,
-  input  exceptions_t    id_exceptions_i,
-                         ex_exceptions_i,
-                         mem_exceptions_i,
-                         wb_exceptions_i
+  input  instruction_t            if_insn_i,
+  output instruction_t            pd_insn_o,
+
+  input  exceptions_t             if_exceptions_i,
+  output exceptions_t             pd_exceptions_o,
+  input  exceptions_t             id_exceptions_i,
+                                  ex_exceptions_i,
+                                  mem_exceptions_i,
+                                  wb_exceptions_i
 );
+
+  ////////////////////////////////////////////////////////////////
+  //
+  // Constants
+  //
+
+  //Instruction address mask
+  localparam ADR_MASK = HAS_RVC != 0 ? {XLEN{1'b1}} << 1 : {XLEN{1'b1}} << 2;
+
 
   ////////////////////////////////////////////////////////////////
   //
@@ -118,10 +132,10 @@ module riscv_pd #(
 
   //Program counter
   always @(posedge clk_i, negedge rst_ni)
-    if      (!rst_ni     ) pd_pc_o <= PC_INIT;
-    else if ( st_flush_i ) pd_pc_o <= st_nxt_pc_i;
-    else if ( bu_flush_i ) pd_pc_o <= bu_nxt_pc_i;
-    else if (!pd_stall_o ) pd_pc_o <= if_pc_i;
+    if      (!rst_ni     ) pd_pc_o <= PC_INIT     & ADR_MASK;
+    else if ( st_flush_i ) pd_pc_o <= st_nxt_pc_i & ADR_MASK;
+    else if ( bu_flush_i ) pd_pc_o <= bu_nxt_pc_i & ADR_MASK;
+    else if (!pd_stall_o ) pd_pc_o <= if_pc_i     & ADR_MASK;
 
 
   //Instruction	
@@ -148,6 +162,11 @@ module riscv_pd #(
     else if (!id_stall_i ) pd_exceptions_o <= if_exceptions_i;
 
 
+  //Branch Predict History
+  always @(posedge clk_i)
+    if (!id_stall_i) pd_bp_history_o <= if_bp_history_i;
+
+    
   /*
    * Branches & Jump
    */

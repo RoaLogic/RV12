@@ -55,7 +55,9 @@ module riscv_ex #(
                                   bu_cacheflush_o,
   input      [               1:0] id_bp_predict_i,
   output     [               1:0] bu_bp_predict_o,
-  output     [BP_GLOBAL_BITS-1:0] bu_bp_history_o,
+  input      [BP_GLOBAL_BITS-1:0] id_bp_history_i,
+  output     [BP_GLOBAL_BITS-1:0] bu_bp_history_update_o,
+                                  bu_bp_history_o,
   output                          bu_bp_btaken_o,
   output                          bu_bp_update_o,
 
@@ -266,6 +268,8 @@ module riscv_ex #(
 
     .id_bp_predict_i  ( id_bp_predict_i  ),
     .bu_bp_predict_o  ( bu_bp_predict_o  ),
+    .id_bp_history_i  ( id_bp_history_i  ),
+    .bu_bp_history_update_o ( bu_bp_history_update_o ),
     .bu_bp_history_o  ( bu_bp_history_o  ),
     .bu_bp_btaken_o   ( bu_bp_btaken_o   ),
     .bu_bp_update_o   ( bu_bp_update_o   ),

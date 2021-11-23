@@ -6,11 +6,11 @@
 //   `--' '--' `---'  `--`--'    `-----' `---' `-   /`--' `---'    //
 //                                             `---'               //
 //    RISC-V                                                       //
-//    Data Cache  (Write Back)                                     //
+//    Cache Pipeline                                               //
 //                                                                 //
 /////////////////////////////////////////////////////////////////////
 //                                                                 //
-//             Copyright (C) 2014-2018 ROA Logic BV                //
+//             Copyright (C) 2021 ROA Logic BV                     //
 //             www.roalogic.com                                    //
 //                                                                 //
 //     Unless specifically agreed in writing, this software is     //
@@ -62,12 +62,14 @@
     64KB: 16
  */
 
+import riscv_cache_pkg::*;
 import biu_constants_pkg::*;
 
 module riscv_icache_core #(
   parameter XLEN        = 32,
-  parameter ALEN        = XLEN,
+  parameter PLEN        = XLEN,
   parameter PARCEL_SIZE = XLEN,
+  parameter HAS_RVC     = 0,
 
   parameter SIZE        = 64,     //KBYTES
   parameter BLOCK_SIZE  = XLEN,   //BYTES, number of bytes in a block (way)
@@ -75,46 +77,51 @@ module riscv_icache_core #(
   parameter WAYS        =  2,     // 1           : Direct Mapped
                                   //<n>          : n-way set associative
                                   //<n>==<blocks>: fully associative
-  parameter REPLACE_ALG = 1,      //0: Random
+  parameter REPLACE_ALG = 0,      //0: Random
                                   //1: FIFO
                                   //2: LRU
 
-  parameter TECHNOLOGY  = "GENERIC"
+  parameter TECHNOLOGY  = "GENERIC",
+
+  parameter DEPTH       = 2       //number of transactions in flight
 )
 (
-  input  logic            rst_ni,
-  input  logic            clk_i,
-  input  logic            clr_i,          //clear any pending request
+  input  logic                        rst_ni,
+  input  logic                        clk_i,
 
   //CPU side
-  input  logic            mem_vreq_i,
-  input  logic            mem_preq_i,
-  input  logic [XLEN-1:0] mem_vadr_i,
-  input  logic [ALEN-1:0] mem_padr_i,
-  input  biu_size_t       mem_size_i,
-  input                   mem_lock_i,
-  input  biu_prot_t       mem_prot_i,
-  output logic [PARCEL_SIZE-1:0] mem_q_o,
-  output logic            mem_ack_o,
-  output logic            mem_err_o,
-  input  logic            flush_i,
-  input  logic            flushrdy_i,
+  input  logic                        is_cacheable_i,       //cacheable transfer?
+  input  logic                        misaligned_i,
+  input  logic                        mem_flush_i,
+  input  logic                        mem_req_i,
+  output logic                        mem_ack_o,
+  input  logic [XLEN            -1:0] mem_adr_i,
+  input  biu_size_t                   mem_size_i,
+  input                               mem_lock_i,
+  input  biu_prot_t                   mem_prot_i,
+  output logic [XLEN            -1:0] parcel_pc_o,
+  output logic [XLEN            -1:0] parcel_o,
+  output logic [XLEN/PARCEL_SIZE-1:0] parcel_valid_o,
+  output logic                        parcel_error_o,
+  output logic                        parcel_misaligned_o,
+  input  logic                        cache_flush_i,        //flush (invalidate) cache
+  input  logic                        dcflush_rdy_i,        //data cache ready flushing
 
   //To BIU
-  output logic            biu_stb_o,      //access request
-  input  logic            biu_stb_ack_i,  //access acknowledge
-  input  logic            biu_d_ack_i,    //BIU needs new data (biu_d_o)
-  output logic [ALEN-1:0] biu_adri_o,     //access start address
-  input  logic [ALEN-1:0] biu_adro_i,
-  output biu_size_t       biu_size_o,     //transfer size
-  output biu_type_t       biu_type_o,     //burst type
-  output logic            biu_lock_o,     //locked transfer
-  output biu_prot_t       biu_prot_o,     //protection bits
-  output logic            biu_we_o,       //write enable
-  output logic [XLEN-1:0] biu_d_o,        //write data
-  input  logic [XLEN-1:0] biu_q_i,        //read data
-  input  logic            biu_ack_i,      //transfer acknowledge
-  input  logic            biu_err_i       //transfer error
+  output logic                        biu_stb_o,            //access request
+  input  logic                        biu_stb_ack_i,        //access acknowledge
+  input  logic                        biu_d_ack_i,          //BIU needs new data (biu_d_o)
+  output logic [PLEN            -1:0] biu_adri_o,           //access start address
+  input  logic [PLEN            -1:0] biu_adro_i,
+  output biu_size_t                   biu_size_o,           //transfer size
+  output biu_type_t                   biu_type_o,           //burst type
+  output logic                        biu_lock_o,           //locked transfer
+  output biu_prot_t                   biu_prot_o,           //protection bits
+  output logic                        biu_we_o,             //write enable
+  output logic [XLEN            -1:0] biu_d_o,              //write data
+  input  logic [XLEN            -1:0] biu_q_i,              //read data
+  input  logic                        biu_ack_i,            //transfer acknowledge
+  input  logic                        biu_err_i             //transfer error
 );
 
   //////////////////////////////////////////////////////////////////
@@ -125,8 +132,8 @@ module riscv_icache_core #(
   //----------------------------------------------------------------
   // Cache
   //----------------------------------------------------------------
-  localparam PAGE_SIZE    = 4*1024;                             //4KB pages
-  localparam MAX_IDX_BITS = $clog2(PAGE_SIZE) - $clog2(BLOCK_SIZE); //Maximum IDX_BITS
+  localparam PAGE_SIZE       = 4*1024;                             //4KB pages
+  localparam MAX_IDX_BITS    = $clog2(PAGE_SIZE) - $clog2(BLOCK_SIZE); //Maximum IDX_BITS
   
 
   localparam SETS            = (SIZE*1024) / BLOCK_SIZE / WAYS;    //Number of sets TODO:SETS=1 doesn't work
@@ -144,162 +151,72 @@ module riscv_icache_core #(
   localparam PARCEL_OFF_BITS = $clog2(XLEN / PARCEL_SIZE);
 
 
+  //Inflight transfers
+  localparam INFLIGHT_DEPTH  = 2;                                  //Wishbone has 1 transfers in flight
+                                                                   //AHB      has 2 transfers in flight
+                                                                   //AXI can have many transfers in flight
+  localparam INFLIGHT_BITS   = $clog2(INFLIGHT_DEPTH);
+
+
   //////////////////////////////////////////////////////////////////
   //
   // Functions
   //
-  function automatic integer onehot2int;
-    input [WAYS-1:0] a;
-
-    integer i;
-
-    onehot2int = 0;
-
-    for (i=0; i<WAYS; i++)
-      if (a[i]) onehot2int = i;
-  endfunction: onehot2int
-
-
-  function automatic [XLEN/8-1:0] size2be;
-    input [     2:0] size;
-    input [XLEN-1:0] adr;
-
-    logic [$clog2(XLEN/8)-1:0] adr_lsbs;
-
-    adr_lsbs = adr[$clog2(XLEN/8)-1:0];
-
-    unique case (size)
-      BYTE : size2be = 'h1  << adr_lsbs;
-      HWORD: size2be = 'h3  << adr_lsbs;
-      WORD : size2be = 'hf  << adr_lsbs;
-      DWORD: size2be = 'hff << adr_lsbs;
-    endcase
-  endfunction: size2be
-
-
-  function automatic [XLEN-1:0] be_mux;
-    input [XLEN/8-1:0] be;
-    input [XLEN  -1:0] o; //old data
-    input [XLEN  -1:0] n; //new data
-
-    integer i;
-
-    for (i=0; i<XLEN/8;i++)
-      be_mux[i*8 +: 8] = be[i] ? n[i*8 +: 8] : o[i*8 +: 8];
-  endfunction: be_mux
-
+   
 
   //////////////////////////////////////////////////////////////////
   //
   // Typedefs
   //
 
-  //pipeline-write-buffer
-  typedef struct {
-    logic [IDX_BITS -1:0] idx;
-    logic [ALEN     -1:0] adr;  //physical address
-    logic [XLEN/8   -1:0] be;
-    logic [XLEN     -1:0] data;
-
-    //internal signals
-    logic [WAYS     -1:0] hit;
-    logic                 was_write;
-  } pwb_t;
-
-
-  //TAG-structure
-  typedef struct packed {
-    logic                valid;
-    logic [TAG_BITS-1:0] tag;
-  } tag_struct;
-
-  localparam TAG_STRUCT_BITS = $bits(tag_struct);
 
 
   //////////////////////////////////////////////////////////////////
   //
   // Variables
   //
-  genvar  way;
-  integer n;
+
+  logic [              6:0] way_random; //Up to 128ways
+  logic [WAYS         -1:0] fill_way_select;
+  logic                     cacheflush;
+
+  logic                     stall;
+
+  logic                     setup_req,           tag_req;
+  logic [PLEN         -1:0] setup_adr,           tag_adr; 
+  biu_size_t                setup_size,          tag_size;
+  logic                     setup_lock,          tag_lock;
+  biu_prot_t                setup_prot,          tag_prot;
+  logic                     setup_is_cacheable,  tag_is_cacheable;
+  logic                     setup_is_misaligned, tag_is_misaligned;
 
 
-  /* Memory Interface State Machine Section
-   */
-  logic                                   mem_vreq_dly,
-                                          mem_preq_dly;
-  logic      [XLEN        -1:0]           mem_vadr_dly;
-  logic      [ALEN        -1:0]           mem_padr_dly;
-  logic      [XLEN/8      -1:0]           mem_be,
-                                          mem_be_dly;
-
-  logic      [TAG_BITS    -1:0]           core_tag,
-                                          core_tag_hold;
-
-  logic                                   hold_flush;              //stretch flush_i until FSM is ready to serve
-
-  enum logic [             2:0] {ARMED=0, FLUSH=1, WAIT4BIUCMD0=2, RECOVER=4} memfsm_state;
+  logic [TAG_BITS     -1:0] setup_core_tag,
+                            hit_core_tag;
+  logic [IDX_BITS     -1:0] setup_tag_idx,
+                            setup_dat_idx,
+                            hit_tag_idx,
+                            hit_dat_idx;
+  logic [BLK_BITS/8   -1:0] dat_be;
 
 
-  /* Cache Section
-   */
-  logic      [IDX_BITS       -1:0]           tag_idx,
-                                             tag_idx_dly,          //delayed version for writing valid/dirty
-                                             tag_idx_hold,         //stretched version for writing TAG during fill
-                                             vadr_idx,             //index bits extracted from vadr_i
-                                             vadr_dly_idx,         //index bits extracted from vadr_dly
-                                             padr_idx,
-                                             padr_dly_idx;
-
-  logic      [WAYS           -1:0]           tag_we;
-  tag_struct                                 tag_in      [WAYS],
-                                             tag_out     [WAYS];
-  logic      [IDX_BITS       -1:0]           tag_byp_idx [WAYS];
-  logic      [TAG_BITS       -1:0]           tag_byp_tag [WAYS];
-  logic      [WAYS           -1:0][SETS-1:0] tag_valid;
-
-  logic      [IDX_BITS       -1:0]           dat_idx, dat_idx_dly;
-  logic      [WAYS           -1:0]           dat_we;
-  logic      [BLK_BITS/8     -1:0]           dat_be;
-  logic      [BLK_BITS       -1:0]           dat_in;
-  logic      [BLK_BITS       -1:0]           dat_out     [WAYS];
-
-  logic      [BLK_BITS       -1:0]           way_q_mux   [WAYS];
-  logic      [WAYS           -1:0]           way_hit;
-
-  logic      [DAT_OFF_BITS   -1:0]           dat_offset;
-  logic      [PARCEL_OFF_BITS  :0]           parcel_offset;
-
-  logic                                      cache_hit;
-  logic      [XLEN           -1:0]           cache_q;
-
-  logic      [               19:0]           way_random;
-  logic      [WAYS           -1:0]           fill_way_select, fill_way_select_hold; 
-
-  logic                                      biu_adro_eq_cache_adr_dly;
-  logic                                      flushing,
-                                             filling;
-  logic      [IDX_BITS       -1:0]           flush_idx;
+  logic                     cache_hit;
+  logic [WAYS         -1:0] way_hit;
+  logic [BLK_BITS     -1:0] cache_line;
 
 
-  /* Bus Interface State Machine Section
-   */
-  enum logic [                1:0] {IDLE, WAIT4BIU, BURST} biufsm_state;
-  enum logic [                1:0] {NOP=0, WRITE_WAY=1, READ_WAY=2} biucmd;
-  logic                                      biufsm_ack,
-                                             biufsm_err,
-                                             biufsm_ack_write_way; //BIU FSM should generate biufsm_ack on WRITE_WAY
-  logic      [BLK_BITS       -1:0]           biu_buffer;
-  logic      [BURST_SIZE     -1:0]           biu_buffer_valid;
-  logic                                      in_biubuffer;
+  logic [INFLIGHT_BITS-1:0] inflight_cnt;
 
-  logic      [ALEN           -1:0]           biu_adri_hold;
-  logic      [XLEN           -1:0]           biu_d_hold;
+  biucmd_t                  biucmd;
+  logic                     biucmd_noncacheable_req,
+                            biucmd_noncacheable_ack;
+  logic                     in_biubuffer;
+  logic [BLK_BITS     -1:0] biubuffer;
+  logic [BLK_BITS     -1:0] cachemem_dat;
 
-  logic      [BURST_BITS     -1:0]           burst_cnt;
-
-
-
+  logic                     armed,
+                            flushing,
+	                    filling;
 
 
   //////////////////////////////////////////////////////////////////
@@ -307,525 +224,261 @@ module riscv_icache_core #(
   // Module Body
   //
 
+  assign mem_ack_o = ~stall;
+
+  
   //----------------------------------------------------------------
-  // Memory Interface State Machine
-  //----------------------------------------------------------------
-
-  //generate cache_* signals
-  assign mem_be = size2be(mem_size_i, mem_vadr_i);
-
-
-  //generate delayed mem_* signals
-  always @(posedge clk_i,negedge rst_ni)
-    if      (!rst_ni) mem_vreq_dly <= 1'b0;
-    else if ( clr_i ) mem_vreq_dly <= 1'b0;
-    else              mem_vreq_dly <= mem_vreq_i | (mem_vreq_dly & ~mem_ack_o);
-
-  always @(posedge clk_i,negedge rst_ni)
-    if      (!rst_ni) mem_preq_dly <= 1'b0;
-    else if ( clr_i ) mem_preq_dly <= 1'b0;
-    else              mem_preq_dly <= (mem_preq_i | mem_preq_dly) & ~mem_ack_o;
-
-
-  //register memory signals
-  always @(posedge clk_i)
-    if (mem_vreq_i)
-    begin
-        mem_vadr_dly <= mem_vadr_i;
-        mem_be_dly   <= mem_be;
-    end
-
-  always @(posedge clk_i)
-    if (mem_preq_i) mem_padr_dly <= mem_padr_i;
-
-
-  //extract index bits from virtual address(es)
-  assign vadr_idx     = mem_vadr_i  [BLK_OFF_BITS +: IDX_BITS];
-  assign vadr_dly_idx = mem_vadr_dly[BLK_OFF_BITS +: IDX_BITS];
-  assign padr_idx     = mem_padr_i  [BLK_OFF_BITS +: IDX_BITS];
-  assign padr_dly_idx = mem_padr_dly[BLK_OFF_BITS +: IDX_BITS];
-
-
-  //extract core_tag from physical address
-  assign core_tag = mem_padr_i[XLEN-1 -: TAG_BITS];
-
-
-  //hold core_tag during filling. Prevents new mem_req (during fill) to mess up the 'tag' value
-  always @(posedge clk_i)
-    if (!filling) core_tag_hold <= core_tag;
-
-
-  //hold flush until ready to service it
-  always @(posedge clk_i, negedge rst_ni)
-    if (!rst_ni) hold_flush <= 1'b0;
-    else         hold_flush <= ~flushing & (flush_i | hold_flush);
-
-
-  //State Machine
-  always @(posedge clk_i, negedge rst_ni)
-    if (!rst_ni)
-    begin
-        memfsm_state <= ARMED;
-        flushing     <= 1'b0;
-        filling      <= 1'b0;
-        biucmd       <= NOP;
-    end
-    else
-    unique case (memfsm_state)
-       ARMED        : if (flush_i || hold_flush)
-                      begin
-                          memfsm_state <= FLUSH;
-                          flushing     <= 1'b1;
-                      end
-                      else if (mem_vreq_dly && !cache_hit && (mem_preq_i || mem_preq_dly) ) //it takes 1 cycle to read TAG
-                      begin
-                          //Load way
-                          memfsm_state <= WAIT4BIUCMD0;
-                          biucmd       <= READ_WAY;
-                          filling      <= 1'b1;
-                      end
-                      else
-                      begin
-                          biucmd <= NOP;
-                      end
-
-       FLUSH        : if (flushrdy_i) 
-                      begin
-                          memfsm_state <= RECOVER; //allow to read new tag_idx
-                          flushing     <= 1'b0;
-                      end
-
-        WAIT4BIUCMD0: if (biufsm_err)
-                      begin
-                          memfsm_state <= vadr_idx != tag_idx_hold ? RECOVER : ARMED;
-                          biucmd       <= NOP;
-                          filling      <= 1'b0;
-                      end
-                      else if (biufsm_ack)
-                      begin
-                          memfsm_state <= vadr_idx != tag_idx_hold ? RECOVER : ARMED;
-                          biucmd       <= NOP;
-                          filling      <= 1'b0;
-                      end
-
-        RECOVER     : begin
-                          //Allow DATA memory read after writing/filling
-                          memfsm_state <= ARMED;
-                          biucmd       <= NOP;
-                          filling      <= 1'b0;
-                      end
-    endcase
-
-
-  //address check, used in a few places
-  assign biu_adro_eq_cache_adr_dly = (biu_adro_i[ALEN-1:BURST_LSB] == mem_padr_i  [ALEN-1:BURST_LSB]);
-
-
-  //signal downstream that data is ready
-  always_comb
-    unique case (memfsm_state)
-      ARMED       : mem_ack_o = mem_vreq_dly & (mem_preq_i | mem_preq_dly) & cache_hit;
-      WAIT4BIUCMD0: mem_ack_o = mem_vreq_dly & (mem_preq_i | mem_preq_dly) & biu_ack_i & biu_adro_eq_cache_adr_dly;
-      default     : mem_ack_o = 1'b0;
-    endcase
-
-
-  //signal downstream the BIU reported an error
-  assign mem_err_o = biu_err_i;
-
-
-  //Assign mem_q
-  //biu_q_i and cache_q are XLEN size. If PARCEL_SIZE is smaller, adjust
-  assign parcel_offset = mem_vadr_dly[1 + PARCEL_OFF_BITS : 1]; //[1 +: PARCEL_OFF_BITS] errors out
-
-  always_comb
-    unique case (memfsm_state)
-      WAIT4BIUCMD0: mem_q_o = biu_q_i >> (parcel_offset *16);
-      default     : mem_q_o = cache_q >> (parcel_offset *16);
-    endcase
-
-
-  //----------------------------------------------------------------
-  // End Memory Interface State Machine
+  // Cache Pipeline
   //----------------------------------------------------------------
 
-
-  //----------------------------------------------------------------
-  // TAG and Data memory
-  //----------------------------------------------------------------
-
-  /* TAG
-   */
-generate
-  for (way=0; way<WAYS; way++)
-  begin: gen_ways_tag
-      //TAG is stored in RAM
-      rl_ram_1rw #(
-        .ABITS      ( IDX_BITS   ),
-        .DBITS      ( TAG_BITS   ),
-        .TECHNOLOGY ( TECHNOLOGY )
-      )
-      tag_ram (
-        .rst_ni ( rst_ni       ),
-        .clk_i  ( clk_i        ),
-        .addr_i ( tag_idx      ),
-        .we_i   ( tag_we [way] ),
-        .be_i   ( {(TAG_BITS+7)/8{1'b1}} ),
-        .din_i  ( tag_in [way].tag ),
-        .dout_o ( tag_out[way].tag )
-      );
-
-      //tag-register for bypass (RAW hazard)
-      always @(posedge clk_i)
-        if (tag_we[way])
-        begin
-            tag_byp_tag[way] <= tag_in[way].tag;
-            tag_byp_idx[way] <= tag_idx;
-        end
-
-
-      //Valid is stored in DFF
-      always @(posedge clk_i, negedge rst_ni)
-        if      (!rst_ni     ) tag_valid[way]          <= 'h0;
-        else if ( flush_i    ) tag_valid[way]          <= 'h0;
-        else if ( tag_we[way]) tag_valid[way][tag_idx] <= tag_in[way].valid;
-
-      assign tag_out[way].valid = tag_valid[way][tag_idx_dly];
-
-
-      //compare way-tag to TAG;
-      assign way_hit[way] = tag_out[way].valid &
-                            (core_tag == (tag_idx_dly == tag_byp_idx[way] ? tag_byp_tag[way] : tag_out[way].tag) );
-  end
-endgenerate
-
-  // Generate 'hit'
-  assign cache_hit = |way_hit; // & mem_vreq_dly;
-
-
-  /* DATA
-   */
-generate
-  for (way=0; way<WAYS; way++)
-  begin: gen_ways_dat
-      rl_ram_1rw #(
-        .ABITS      ( IDX_BITS   ),
-        .DBITS      ( BLK_BITS   ),
-        .TECHNOLOGY ( TECHNOLOGY )
-      )
-      data_ram (
-        .rst_ni ( rst_ni      ),
-        .clk_i  ( clk_i       ),
-        .addr_i ( dat_idx     ),
-        .we_i   ( dat_we[way] ),
-        .be_i   ( dat_be      ),
-        .din_i  ( dat_in      ),
-        .dout_o ( dat_out[way])
-      );
-
-
-      //assign way_q; Build MUX (AND/OR) structure
-      if (way == 0)
-        assign way_q_mux[way] =  dat_out[way] & {BLK_BITS{way_hit[way]}};
-      else
-        assign way_q_mux[way] = (dat_out[way] & {BLK_BITS{way_hit[way]}}) | way_q_mux[way -1];
-  end
-endgenerate
-
-
-  //get requested data (XLEN-size) from way_q_mux(BLK_BITS-size)
-  assign in_biubuffer = mem_preq_dly ? (biu_adri_hold[ALEN-1:BLK_OFF_BITS] == mem_padr_dly[ALEN-1:BLK_OFF_BITS]) & (biu_buffer_valid >> dat_offset)
-                                     : (biu_adri_hold[ALEN-1:BLK_OFF_BITS] == mem_padr_i  [ALEN-1:BLK_OFF_BITS]) & (biu_buffer_valid >> dat_offset);
-
-
-  assign cache_q = (in_biubuffer ? biu_buffer : way_q_mux[WAYS-1]) >> (dat_offset * XLEN);
-
-
-  //----------------------------------------------------------------
-  // END TAG and Data memory
-  //----------------------------------------------------------------
-
-
-  //----------------------------------------------------------------
-  // TAG and Data memory control signals
-  //----------------------------------------------------------------
-
+  //This should go into a 'way-replacement module'
   //Random generator for RANDOM replacement algorithm
   always @(posedge clk_i, negedge rst_ni)
     if      (!rst_ni ) way_random <= 'h0;
-    else if (!filling) way_random <= {way_random, way_random[19] ~^ way_random[16]};
+    else if (!filling) way_random <= {way_random, way_random[6] ~^ way_random[5]};
 
 
-  //select which way to fill
-  assign fill_way_select = (WAYS <= 1) ? 1 : 1 << way_random[$clog2(WAYS)-1:0];
-
-
-  //FILL / WRITE_WAYS use fill_way_select 1 cycle later
-  always @(posedge clk_i)
-    unique case (memfsm_state)
-      ARMED  : fill_way_select_hold <= fill_way_select;
-      default: ;
-    endcase
-
-
-  //TAG Index
-  always_comb
-    unique case (memfsm_state)
-      //TAG write
-      WAIT4BIUCMD0: tag_idx = tag_idx_hold;
-
-      //TAG read
-      FLUSH       : tag_idx = flush_idx;
-      RECOVER     : tag_idx = mem_vreq_dly ? vadr_dly_idx  //pending access
-                                           : vadr_idx;     //new access
-      default     : tag_idx = vadr_idx;                    //current access
-    endcase
-
-
-  //registered version, for tag_valid
-  always @(posedge clk_i)
-    tag_idx_dly <= tag_idx;
-
-
-  //hold tag-idx; prevent new mem_vreq_i from messing up tag during filling
-  always @(posedge clk_i)
-    unique case (memfsm_state)
-      ARMED   : if (mem_vreq_dly && !cache_hit) tag_idx_hold <= vadr_dly_idx;
-      RECOVER : tag_idx_hold <= mem_vreq_dly ? vadr_dly_idx  //pending access
-                                             : vadr_idx;     //current access
-       default: ;
-    endcase
-
+  //fill-way-select
 generate
-  //TAG Write Enable
-  //Update tag during flushing    (clear valid bits)
-  for (way=0; way < WAYS; way++)
-  begin: gen_way_we
-      always_comb
-        unique case (memfsm_state)
-          default: tag_we[way] = filling & fill_way_select_hold[way] & biufsm_ack; 
-        endcase
-  end
-
-
-  //TAG Write Data
-  for (way=0; way < WAYS; way++)
-  begin: gen_tag
-      //clear valid tag during flushing and cache-coherency checks
-      assign tag_in[way].valid = ~flushing;
-
-      assign tag_in[way].tag   = core_tag_hold;
-  end
+  if (WAYS == 1) assign fill_way_select = 1;
+  else           assign fill_way_select = 1 << way_random[$clog2(WAYS)-1:0];
 endgenerate
+  
 
-
-
-  //Shift amount for data
-  assign dat_offset = mem_vadr_dly[BLK_OFF_BITS-1 -: DAT_OFF_BITS];
-
-
-  //DAT Byte Enable
-  assign dat_be = {BLK_BITS/8{1'b1}};
-
-
-  //DAT Index
-   always_comb
-     unique case (memfsm_state)
-       ARMED       : dat_idx = vadr_idx;                          //read access
-       RECOVER     : dat_idx = mem_vreq_dly  ? vadr_dly_idx       //read pending cycle
-                                             : vadr_idx;          //read new access
-       default     : dat_idx = tag_idx_hold;
-     endcase
-
-
-  //delayed dat_idx
-  always @(posedge clk_i)
-    dat_idx_dly <= dat_idx;
-
-
-generate
-  //DAT Write Enable
-  for (way=0; way < WAYS; way++)
-  begin: gen_dat_we
-      always_comb
-        unique case (memfsm_state)
-          WAIT4BIUCMD0: dat_we[way] = fill_way_select_hold[way] & biufsm_ack; //write BIU data
-          default     : dat_we[way] = 1'b0;
-        endcase
-  end
-endgenerate
-
-
-  //DAT Write Data
-  always_comb
-    begin
-        dat_in = biu_buffer;                                                          //dat_in = biu_buffer
-        dat_in[ biu_adro_i[BLK_OFF_BITS-1 -: DAT_OFF_BITS] * XLEN +: XLEN] = biu_q_i; //except for last transaction
-    end
-
-   
-  //----------------------------------------------------------------
-  // TAG and Data memory control signals
-  //----------------------------------------------------------------
-
-
-
-  //----------------------------------------------------------------
-  // Bus Interface State Machine
-  //----------------------------------------------------------------
-  assign biu_lock_o = 1'b0;
-  assign biu_prot_o = biu_prot_t'(mem_prot_i | PROT_CACHEABLE);
-
-
+  //hold flush until ready to be serviced
   always @(posedge clk_i, negedge rst_ni)
-    if (!rst_ni)
-    begin
-        biufsm_state <= IDLE;
-    end
-    else
-    begin
-        unique case (biufsm_state)
-          IDLE    : unique case (biucmd)
-                      NOP      : ; //do nothing
-
-                      READ_WAY : begin
-                                     //read a way from main memory
-                                     if (biu_stb_ack_i)
-                                     begin
-                                         biufsm_state <= BURST;
-                                     end
-                                     else
-                                     begin
-                                         //BIU is not ready to start a new transfer
-                                         biufsm_state <= WAIT4BIU;
-                                     end
-                                 end
-
-                      WRITE_WAY: begin
-                                     //write way back to main memory
-                                     if (biu_stb_ack_i)
-                                     begin
-                                         biufsm_state <= BURST;
-                                     end
-                                     else
-                                     begin
-                                         //BIU is not ready to start a new transfer
-                                         biufsm_state <= WAIT4BIU;
-                                     end
-                                 end
-                       endcase
-
-          WAIT4BIU : if (biu_stb_ack_i)
-                     begin
-                         //BIU acknowledged burst transfer
-                         biufsm_state <= BURST;
-                     end
-
-          BURST    : if (biu_err_i || (~|burst_cnt && biu_ack_i))
-                     begin
-                         //write complete
-                         biufsm_state <= IDLE; //TODO: detect if another BURST request is pending, skip IDLE
-                     end
-        endcase
-    end
-
-
-  //write data
-  always @(posedge clk_i)
-    unique case (biufsm_state)
-     IDLE   : begin
-                  biu_buffer       <=  'h0;
-                  biu_buffer_valid <=  'h0;
-              end
-
-     BURST  : begin
-                  if (biu_ack_i)   //latch incoming data when transfer-acknowledged
-                  begin
-                      biu_buffer      [ biu_adro_i[BLK_OFF_BITS-1 -: DAT_OFF_BITS] * XLEN +: XLEN ] <= biu_q_i;
-                      biu_buffer_valid[ biu_adro_i[BLK_OFF_BITS-1 -: DAT_OFF_BITS] ]                <= 1'b1;
-                  end
-              end
-      default: ;
-    endcase
+    if (!rst_ni) cacheflush <= 1'b0;
+    else         cacheflush <= cache_flush_i | (cacheflush & ~flushing);
 
 
 
-  //acknowledge burst to memfsm
-  always_comb
-    unique case (biufsm_state)
-      BURST   : biufsm_ack = (~|burst_cnt & biu_ack_i ) | biu_err_i;
-      default : biufsm_ack = 1'b0;
-    endcase
+  /* Address Setup Stage
+   * Drives signals into TAG and DATA memories
+   */
+  riscv_cache_setup #(
+    .XLEN               ( XLEN                ),
+    .SIZE               ( SIZE                ),
+    .BLOCK_SIZE         ( BLOCK_SIZE          ),
+    .WAYS               ( WAYS                ) )
+  cache_setup_inst (
+    .rst_ni             ( rst_ni              ),
+    .clk_i              ( clk_i               ),
+
+    .stall_i            ( stall               ),
+    .flush_i            ( mem_flush_i         ),
+
+    .req_i              ( mem_req_i           ),
+    .adr_i              ( mem_adr_i           ),
+    .size_i             ( mem_size_i          ),
+    .lock_i             ( mem_lock_i          ),
+    .prot_i             ( mem_prot_i          ),
+    .we_i               ( 1'b0                ),
+    .d_i                ( {XLEN{1'b0}}        ),
+    .be_i               ( {XLEN/8{1'b0}}      ),
+    .is_cacheable_i     ( is_cacheable_i      ),
+    .is_misaligned_i    ( misaligned_i        ),
+
+    .req_o              ( setup_req           ),
+    .adr_o              ( setup_adr           ),
+    .size_o             ( setup_size          ),
+    .lock_o             ( setup_lock          ),
+    .prot_o             ( setup_prot          ),
+    .is_cacheable_o     ( setup_is_cacheable  ),
+    .is_misaligned_o    ( setup_is_misaligned ),
+    .core_tag_o         ( setup_core_tag      ),
+    .tag_idx_o          ( setup_tag_idx       ),
+    .dat_idx_o          ( setup_dat_idx       ),
+
+    .writebuffer_we_o   (                     ),
+    .writebuffer_idx_o  (                     ),
+    .writebuffer_data_o (                     ),
+    .writebuffer_be_o   (                     ) );
 
 
-  always @(posedge clk_i)
-    unique case (biufsm_state)
-      IDLE  : case (biucmd)
-                READ_WAY : burst_cnt <= {BURST_BITS{1'b1}};
-                WRITE_WAY: burst_cnt <= {BURST_BITS{1'b1}};
-              endcase
-      BURST : if (biu_ack_i) burst_cnt <= burst_cnt -1;
-    endcase
+
+  /* Tag stage
+   * Tag/Data memory access. Hit and cache-line available after this stage
+   * Physical address is available here
+   */
+  riscv_cache_tag #(
+    .XLEN            ( XLEN                ),
+    .PLEN            ( PLEN                ) )
+  cache_tag_inst (
+    .rst_ni          ( rst_ni              ),
+    .clk_i           ( clk_i               ),
+
+    .stall_i         ( stall               ),
+    .flush_i         ( mem_flush_i         ),
+    .req_i           ( setup_req           ),
+    .adr_i           ( setup_adr           ),
+    .size_i          ( setup_size          ),
+    .lock_i          ( setup_lock          ),
+    .prot_i          ( setup_prot          ),
+    .is_cacheable_i  ( setup_is_cacheable  ),
+    .is_misaligned_i ( setup_is_misaligned ),
+
+    .req_o           ( tag_req             ),
+    .adr_o           ( tag_adr             ),
+    .size_o          ( tag_size            ),
+    .lock_o          ( tag_lock            ),
+    .prot_o          ( tag_prot            ),
+    .is_cacheable_o  ( tag_cacheable       ),
+    .is_misaligned_o ( tag_misaligned      ) );
 
 
-  assign biufsm_err = biu_err_i;
+  
+  /* Hit stage
+   * Takes hit, cache-line and biu signals and generates parcel-output
+   * Contains front-end statemachine
+   */
+  riscv_cache_hit #(
+    .XLEN                      ( XLEN                    ),
+    .PLEN                      ( PLEN                    ),
+    .PARCEL_SIZE               ( PARCEL_SIZE             ),
+    .HAS_RVC                   ( HAS_RVC                 ),
+    .SIZE                      ( SIZE                    ),
+    .BLOCK_SIZE                ( BLOCK_SIZE              ),
+    .WAYS                      ( WAYS                    ),
+    .INFLIGHT_DEPTH            ( INFLIGHT_DEPTH          ) )
+  cache_hit_inst (
+    .rst_ni                    ( rst_ni                  ),
+    .clk_i                     ( clk_i                   ),
+
+    .stall_o                   ( stall                   ),
+    .flush_i                   ( mem_flush_i             ),
+
+    .cacheflush_req_i          ( cacheflush              ),
+    .dcflush_rdy_i             ( dcflush_rdy_i           ),
+    .armed_o                   ( armed                   ),
+    .flushing_o                ( flushing                ),
+    .filling_o                 ( filling                 ),
+
+    .req_i                     ( tag_req                 ),
+    .adr_i                     ( tag_adr                 ),
+    .size_i                    ( tag_size                ),
+    .lock_i                    ( tag_lock                ),
+    .prot_i                    ( tag_prot                ),
+    .is_cacheable_i            ( tag_cacheable           ),
+
+    .tag_idx_o                 ( hit_tag_idx             ),
+    .dat_idx_o                 ( hit_dat_idx             ),
+    .core_tag_o                ( hit_core_tag            ),
+
+    .biucmd_o                  ( biucmd                  ),
+    .biucmd_ack_i              ( biucmd_ack              ),
+    .biucmd_noncacheable_req_o ( biucmd_noncacheable_req ),
+    .biucmd_noncacheable_ack_i ( biucmd_noncacheable_ack ),
+    .inflight_cnt_i            ( inflight_cnt            ),
+
+    .cache_hit_i               ( cache_hit               ),
+    .cache_line_i              ( cache_line              ),
+
+    .biu_stb_ack_i             ( biu_stb_ack_i           ),
+    .biu_ack_i                 ( biu_ack_i               ),
+    .biu_err_i                 ( biu_err_i               ),
+    .biu_adro_i                ( biu_adro_i              ),
+    .biu_q_i                   ( biu_q_i                 ),
+    .in_biubuffer_i            ( in_biubuffer            ),
+    .biubuffer_i               ( biubuffer               ),
+
+    .parcel_pc_o               (                         ),
+    .parcel_o                  ( parcel_o                ),
+    .parcel_valid_o            ( parcel_valid_o          ),
+    .parcel_error_o            ( parcel_error_o          ),
+    .parcel_misaligned_o       ( parcel_misaligned_o     ) );
 
 
-  //output BIU signals asynchronously for speed reasons. BIU will synchronize ...
-  assign biu_d_o  = 'h0;
-  assign biu_we_o = 1'b0;
 
-  always_comb
-    unique case (biufsm_state)
-      IDLE    : unique case (biucmd)
-                  NOP       : begin
-                                  biu_stb_o  = 1'b0;
-                                  biu_adri_o =  'hx;
-                              end
+  //----------------------------------------------------------------
+  // Memory Blocks
+  //----------------------------------------------------------------
 
-                  READ_WAY  : begin
-                                  biu_stb_o  = 1'b1;
-                                  biu_adri_o = {mem_padr_dly[ALEN-1 : BURST_LSB],{BURST_LSB{1'b0}}};
-                              end
-                endcase
+  assign dat_be = {$bits(dat_be){1'b1}};
+  
+  riscv_cache_memory #(
+    .XLEN               ( XLEN            ),
+    .SIZE               ( SIZE            ),
+    .BLOCK_SIZE         ( BLOCK_SIZE      ),
+    .WAYS               ( WAYS            ),
 
-      WAIT4BIU: begin
-                    //stretch biu_*_o signals until BIU acknowledges strobe
-                    biu_stb_o  = 1'b1;
-                    biu_adri_o = biu_adri_hold;
-                end
+    .TECHNOLOGY         ( TECHNOLOGY      ) )
+  cache_memory_inst (
+    .rst_ni             ( rst_ni          ),
+    .clk_i              ( clk_i           ),
 
-      BURST   : begin
-                    biu_stb_o  = 1'b0;
-                    biu_adri_o =  'hx; //don't care
-                end
+    .stall_i            ( stall           ),
 
-      default : begin
-                    biu_stb_o  = 1'b0;
-                    biu_adri_o =  'hx; //don't care
-                end
-    endcase
+    .armed_i            ( armed           ),
+    .flushing_i         ( flushing        ),
+    .filling_i          ( filling         ),
+    .fill_way_select_i  ( fill_way_select ),
 
+    .rd_core_tag_i      ( setup_core_tag  ),
+    .wr_core_tag_i      ( hit_core_tag    ),
+    .rd_tag_idx_i       ( setup_tag_idx   ),
+    .wr_tag_idx_i       ( hit_tag_idx     ),
 
-  //store biu_we/adri/d used when stretching biu_stb
-  always @(posedge clk_i)
-    if (biufsm_state == IDLE)
-    begin
-        biu_adri_hold <= biu_adri_o;
-        biu_d_hold    <= biu_d_o;
-    end
+    .rd_dat_idx_i       ( setup_dat_idx   ),
+    .wr_dat_idx_i       ( hit_dat_idx     ),
+    .dat_be_i           ( dat_be          ),
+    .writebuffer_data_i ( {XLEN{1'b0}}    ),
+    .biu_d_i            ( cachemem_dat    ),
+    .biucmd_ack_i       ( biucmd_ack      ),
+
+    .hit_o              ( cache_hit       ),
+    .cache_line_o       ( cache_line      ) );
 
 
-  //transfer size
-  assign biu_size_o = XLEN == 64 ? DWORD : WORD;
 
-  //burst length
-  always_comb
-    unique case(BURST_SIZE)
-       16     : biu_type_o = WRAP16;
-       8      : biu_type_o = WRAP8;
-       default: biu_type_o = WRAP4;
-    endcase
+  //----------------------------------------------------------------
+  // Bus Interface Statemachine
+  //----------------------------------------------------------------
+  riscv_cache_biu_ctrl #(
+    .XLEN                      ( XLEN                    ),
+    .PLEN                      ( PLEN                    ),
+    .SIZE                      ( SIZE                    ),
+    .BLOCK_SIZE                ( BLOCK_SIZE              ),
+    .WAYS                      ( WAYS                    ),
+    .INFLIGHT_DEPTH            ( INFLIGHT_DEPTH          ) )
+  biu_ctrl_inst (
+    .rst_ni                    ( rst_ni                  ),
+    .clk_i                     ( clk_i                   ),
+
+    .flush_i                   ( mem_flush_i             ),
+
+    .biucmd_i                  ( biucmd                  ),
+    .biucmd_ack_o              ( biucmd_ack              ),
+    .biucmd_noncacheable_req_i ( biucmd_noncacheable_req ),
+    .biucmd_noncacheable_ack_o ( biucmd_noncacheable_ack ),
+    .inflight_cnt_o            ( inflight_cnt            ),
+
+    .req_i                     ( tag_req                 ),
+    .adr_i                     ( tag_adr                 ),
+    .size_i                    ( tag_size                ),
+    .prot_i                    ( tag_prot                ),
+    .lock_i                    ( 1'b0                    ),
+
+    .biu_ack_o                 ( biu_ack                 ),
+    .biubuffer_o               ( biubuffer               ),
+    .in_biubuffer_o            ( in_biubuffer            ),
+    .cachemem_dat_o            ( cachemem_dat            ),
+
+     //To BIU
+    .biu_stb_o                 ( biu_stb_o               ),
+    .biu_stb_ack_i             ( biu_stb_ack_i           ),
+    .biu_d_ack_i               ( biu_d_ack_i             ),
+    .biu_adri_o                ( biu_adri_o              ),
+    .biu_adro_i                ( biu_adro_i              ),
+    .biu_size_o                ( biu_size_o              ),
+    .biu_type_o                ( biu_type_o              ),
+    .biu_lock_o                ( biu_lock_o              ),
+    .biu_prot_o                ( biu_prot_o              ),
+    .biu_we_o                  ( biu_we_o                ),
+    .biu_d_o                   ( biu_d_o                 ),
+    .biu_q_i                   ( biu_q_i                 ),
+    .biu_ack_i                 ( biu_ack_i               ),
+    .biu_err_i                 ( biu_err_i               ) );
+
 endmodule
 
 

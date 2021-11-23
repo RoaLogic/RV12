@@ -85,7 +85,7 @@ module riscv_top_ahb3lite #(
 
   parameter            HARTID             = 0,
 
-  parameter            PARCEL_SIZE        = 16
+  parameter            PARCEL_SIZE        = 16 //16bits per parcel
 )
 (
   //AHB interfaces
@@ -142,65 +142,67 @@ module riscv_top_ahb3lite #(
   //
   // Variables
   //
-  logic          [XLEN          -1:0] imem_adr;
-  logic                               imem_req;
-  logic                               imem_ack;
-  logic                               imem_flush;
-  logic          [XLEN          -1:0] imem_parcel;
+  logic          [XLEN            -1:0] imem_adr;
+  logic                                 imem_req;
+  logic                                 imem_ack;
+  logic                                 imem_flush;
+  logic          [XLEN            -1:0] imem_parcel;
   logic          [XLEN/PARCEL_SIZE-1:0] imem_parcel_valid;
-  logic                               imem_parcel_misaligned;
-  logic                               imem_parcel_page_fault;
-  logic                               imem_parcel_error;
+  logic                                 imem_misaligned;
+  logic                                 imem_page_fault;
+  logic                                 imem_error;
 
-  logic                               dmem_req;
-  logic          [XLEN          -1:0] dmem_adr;
-  biu_size_t                          dmem_size;
-  logic                               dmem_we;
-  logic          [XLEN          -1:0] dmem_d,
-                                      dmem_q;
-  logic                               dmem_ack,
-                                      dmem_err;
-  logic                               dmem_is_misaligned,
-                                      dmem_misaligned;
-  logic                               dmem_page_fault;
+  logic                                 dmem_req;
+  logic          [XLEN            -1:0] dmem_adr;
+  biu_size_t                            dmem_size;
+  logic                                 dmem_we;
+  logic          [XLEN            -1:0] dmem_d,
+                                        dmem_q;
+  logic                                 dmem_ack,
+                                        dmem_err;
+  logic                                 dmem_is_misaligned,
+                                        dmem_misaligned;
+  logic                                 dmem_page_fault;
 
-  logic          [               1:0] st_prv;
+  pmpcfg_t [15:0]                       st_pmpcfg;
+  logic    [15:0][XLEN            -1:0] st_pmpaddr;
+  logic          [                 1:0] st_prv;
 
-  logic                               cacheflush,
-                                      dcflush_rdy;
+  logic                                 cacheflush,
+                                        dcflush_rdy;
 
   /* Instruction Memory BIU connections
    */
-  logic                               ibiu_stb;
-  logic                               ibiu_stb_ack;
-  logic                               ibiu_d_ack;
-  logic          [ALEN          -1:0] ibiu_adri,
-                                      ibiu_adro;
-  biu_size_t                          ibiu_size;
-  biu_type_t                          ibiu_type;
-  logic                               ibiu_we;
-  logic                               ibiu_lock;
-  biu_prot_t                          ibiu_prot;
-  logic          [XLEN          -1:0] ibiu_d;
-  logic          [XLEN          -1:0] ibiu_q;
-  logic                               ibiu_ack,
-                                      ibiu_err;
+  logic                                 ibiu_stb;
+  logic                                 ibiu_stb_ack;
+  logic                                 ibiu_d_ack;
+  logic          [ALEN            -1:0] ibiu_adri,
+                                        ibiu_adro;
+  biu_size_t                            ibiu_size;
+  biu_type_t                            ibiu_type;
+  logic                                 ibiu_we;
+  logic                                 ibiu_lock;
+  biu_prot_t                            ibiu_prot;
+  logic          [XLEN            -1:0] ibiu_d;
+  logic          [XLEN            -1:0] ibiu_q;
+  logic                                 ibiu_ack,
+                                        ibiu_err;
   /* Data Memory BIU connections
    */
-  logic                               dbiu_stb;
-  logic                               dbiu_stb_ack;
-  logic                               dbiu_d_ack;
-  logic          [ALEN          -1:0] dbiu_adri,
-                                      dbiu_adro;
-  biu_size_t                          dbiu_size;
-  biu_type_t                          dbiu_type;
-  logic                               dbiu_we;
-  logic                               dbiu_lock;
-  biu_prot_t                          dbiu_prot;
-  logic          [XLEN          -1:0] dbiu_d;
-  logic          [XLEN          -1:0] dbiu_q;
-  logic                               dbiu_ack,
-                                      dbiu_err;
+  logic                                 dbiu_stb;
+  logic                                 dbiu_stb_ack;
+  logic                                 dbiu_d_ack;
+  logic          [ALEN            -1:0] dbiu_adri,
+                                        dbiu_adro;
+  biu_size_t                            dbiu_size;
+  biu_type_t                            dbiu_type;
+  logic                                 dbiu_we;
+  logic                                 dbiu_lock;
+  biu_prot_t                            dbiu_prot;
+  logic          [XLEN            -1:0] dbiu_d;
+  logic          [XLEN            -1:0] dbiu_q;
+  logic                                 dbiu_ack,
+                                        dbiu_err;
 
 
   ////////////////////////////////////////////////////////////////
@@ -257,9 +259,9 @@ module riscv_top_ahb3lite #(
     .imem_flush_o             ( imem_flush             ),
     .imem_parcel_i            ( imem_parcel            ),
     .imem_parcel_valid_i      ( imem_parcel_valid      ),
-    .imem_parcel_misaligned_i ( imem_parcel_misaligned ),
-    .imem_parcel_page_fault_i ( 1'b0                   ),
-    .imem_parcel_error_i      ( imem_parcel_error      ),
+    .imem_parcel_misaligned_i ( imem_misaligned        ),
+    .imem_parcel_page_fault_i ( imem_page_fault        ),
+    .imem_parcel_error_i      ( imem_error             ),
 
     //Data Memory Access bus
     .dmem_adr_o               ( dmem_adr               ),
@@ -276,9 +278,9 @@ module riscv_top_ahb3lite #(
 
     //cpu state
     .st_prv_o                 ( st_prv                 ),
-    .st_pmpcfg_o              (),
-    .st_pmpaddr_o             (),
-    .bu_cacheflush_o          ( cacheflush             ),
+    .st_pmpcfg_o              ( st_pmpcfg              ),
+    .st_pmpaddr_o             ( st_pmpaddr             ),
+    .cacheflush_o             ( cacheflush             ),
 
 
     //Interrupts
@@ -301,6 +303,60 @@ module riscv_top_ahb3lite #(
   /*
    * Instantiate bus interfaces and optional caches
    */
+
+  riscv_imem_ctrl #(
+    .XLEN              ( XLEN              ),
+    .PLEN              ( XLEN              ),
+    .PARCEL_SIZE       ( PARCEL_SIZE       ),
+    .HAS_RVC           ( HAS_RVC           ),
+    .PMA_CNT           ( PMA_CNT           ),
+    .PMP_CNT           ( PMP_CNT           ),
+    .CACHE_SIZE        ( ICACHE_SIZE       ),
+    .CACHE_BLOCK_SIZE  ( ICACHE_BLOCK_SIZE ),
+    .CACHE_WAYS        ( ICACHE_WAYS       ),
+    .TECHNOLOGY        ( TECHNOLOGY        ) )
+  imem_ctrl_inst (
+    .rst_ni            ( HRESETn           ),
+    .clk_i             ( HCLK              ),
+ 
+    //Configuration
+    .pma_cfg_i         ( pma_cfg_i         ),
+    .pma_adr_i         ( pma_adr_i         ),
+    .st_pmpcfg_i       ( st_pmpcfg         ),
+    .st_pmpaddr_i      ( st_pmpaddr        ),
+    .st_prv_i          ( st_prv            ),
+
+    //CPU side
+    .imem_req_i        ( imem_req          ),
+    .imem_ack_o        ( imem_ack          ),
+    .imem_flush_i      ( imem_flush        ),
+    .imem_adr_i        ( imem_adr          ),
+    .imem_misaligned_o ( imem_misaligned   ),
+    .imem_page_fault_o ( imem_page_fault   ),
+    .imem_error_o      ( imem_error        ),
+    .parcel_o          ( imem_parcel       ),
+    .parcel_valid_o    ( imem_parcel_valid ),
+    .cache_flush_i     ( cacheflush        ),
+    .dcflush_rdy_i     ( dcflush_rdy       ),
+
+     //BIU ports
+    .biu_stb_o         ( ibiu_stb          ),
+    .biu_stb_ack_i     ( ibiu_stb_ack      ),
+    .biu_d_ack_i       ( ibiu_d_ack        ),
+    .biu_adri_o        ( ibiu_adri         ),
+    .biu_adro_i        ( ibiu_adro         ),
+    .biu_size_o        ( ibiu_size         ),
+    .biu_type_o        ( ibiu_type         ),
+    .biu_we_o          ( ibiu_we           ),
+    .biu_lock_o        ( ibiu_lock         ),
+    .biu_prot_o        ( ibiu_prot         ),
+    .biu_d_o           ( ibiu_d            ),
+    .biu_q_i           ( ibiu_q            ),
+    .biu_ack_i         ( ibiu_ack          ),
+    .biu_err_i         ( ibiu_err          ) );
+
+
+/*  
   assign imem_parcel_page_fault = 0; //No MMU
 
 generate
@@ -319,6 +375,19 @@ if (ICACHE_SIZE > 0)
     icache_inst (
       .rst_ni           ( HRESETn           ),
       .clk_i            ( HCLK              ),
+      .clr_i            (  ),
+
+      .mem_vreq_i       ( ),
+      .mem_preq_i       ( ),
+      .mem_vadr_i       ( ),
+      .mem_padr_i       ( ),
+      .size_i           ( ),
+      .lock_i           ( ),
+      .prot_i           ( ),
+      .mem_q_o          ( ),
+      .mem_ack_o        ( ),
+      .mem_err_o
+
 
       .nxt_pc_i         ( imem_adr            ),
       .stall_nxt_pc_o   ( if_stall_nxt_pc      ),
@@ -350,12 +419,15 @@ if (ICACHE_SIZE > 0)
       .biu_err_i        ( ibiu_err         )
     );
     */
+/*
+
    assign ibiu_stb = 1'b0;
 else
    /*
     * No Instruction Cache Core
     * Control and glue logic only
     */
+/*   
    riscv_noicache_core #(
      .XLEN                   ( XLEN                   ),
      .ALEN                   ( ALEN                   ),
@@ -395,7 +467,7 @@ else
      .biu_ack_i              ( ibiu_ack               ),
      .biu_err_i              ( ibiu_err               ) );
 endgenerate
-
+*/
 
 
   riscv_memmisaligned #(

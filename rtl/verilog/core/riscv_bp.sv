@@ -28,17 +28,17 @@
 /////////////////////////////////////////////////////////////////////
 
 module riscv_bp #(
-  parameter            XLEN              = 32,
-  parameter [XLEN-1:0] PC_INIT           = 'h200,
-  parameter            HAS_BPU           = 0,
-  parameter            HAS_RVC           = 0,
+  parameter                       XLEN              = 32,
+  parameter  [XLEN          -1:0] PC_INIT           = 'h200,
+  parameter                       HAS_BPU           = 0,
+  parameter                       HAS_RVC           = 0,
 
-  parameter            BP_GLOBAL_BITS    = 2,
-  parameter            BP_LOCAL_BITS     = 10,
-  parameter            BP_LOCAL_BITS_LSB = HAS_RVC !=0 ? 1 : 2,
+  parameter                       BP_GLOBAL_BITS    = 2,
+  parameter                       BP_LOCAL_BITS     = 10,
+  parameter                       BP_LOCAL_BITS_LSB = HAS_RVC !=0 ? 1 : 2,
 
-  parameter            TECHNOLOGY        = "GENERIC",
-  parameter            AVOID_X           = 0
+  parameter                       TECHNOLOGY        = "GENERIC",
+  parameter                       AVOID_X           = 0
 )
 (
   input                           rst_ni,
@@ -47,6 +47,7 @@ module riscv_bp #(
   //Read side
   input                           id_stall_i,
   input      [XLEN          -1:0] if_parcel_pc_i,
+  input      [BP_GLOBAL_BITS-1:0] if_parcel_bp_history_i,
   output reg [               1:0] bp_bp_predict_o,
 
 
@@ -85,9 +86,9 @@ module riscv_bp #(
     else if (!id_stall_i) if_parcel_pc_dly <= if_parcel_pc_i;
 
 
-  assign radr = id_stall_i ? {bu_bp_history_i, if_parcel_pc_dly[BP_LOCAL_BITS_LSB +: BP_LOCAL_BITS]}
-                           : {bu_bp_history_i, if_parcel_pc_i  [BP_LOCAL_BITS_LSB +: BP_LOCAL_BITS]};
-  assign wadr = {bu_bp_history_i, ex_pc_i[BP_LOCAL_BITS_LSB +: BP_LOCAL_BITS]};
+  assign radr = id_stall_i ? {if_parcel_bp_history_i, if_parcel_pc_dly[BP_LOCAL_BITS_LSB +: BP_LOCAL_BITS]}
+                           : {if_parcel_bp_history_i, if_parcel_pc_i  [BP_LOCAL_BITS_LSB +: BP_LOCAL_BITS]};
+  assign wadr =              {bu_bp_history_i,        ex_pc_i         [BP_LOCAL_BITS_LSB +: BP_LOCAL_BITS]};
 
 
   /*
@@ -102,9 +103,10 @@ module riscv_bp #(
    * Hookup 1R1W memory
    */
   rl_ram_1r1w #(
-    .ABITS      ( ADR_BITS   ),
-    .DBITS      ( 2          ),
-    .TECHNOLOGY ( TECHNOLOGY )
+    .ABITS         ( ADR_BITS    ),
+    .DBITS         ( 2           ),
+    .TECHNOLOGY    ( TECHNOLOGY  ),
+    .RW_CONTENTION ( "DONT_CARE" ) //it's a prediction anyways ...
   )
   bp_ram_inst(
     .rst_ni  ( rst_ni             ),
@@ -125,15 +127,16 @@ module riscv_bp #(
 generate
   //synopsys translate_off
   if (AVOID_X)
-
-     always @(posedge clk_i)
-       bp_bp_predict_o <= (current_prediction == 2'bxx) ? $random : current_prediction;
-
+  begin
+      always @(posedge clk_i)
+        if (!id_stall_i) bp_bp_predict_o <= (current_prediction == 2'bxx) ? $random : current_prediction;
+  end
   else
   //synopsys translate_on
-
-     always @(posedge clk_i)
-       bp_bp_predict_o <= current_prediction;
+  begin
+      always @(posedge clk_i)
+        if (!id_stall_i) bp_bp_predict_o <= current_prediction;
+  end
 endgenerate
 
 endmodule

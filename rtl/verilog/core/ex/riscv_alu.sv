@@ -231,39 +231,49 @@ module riscv_alu #(
   /*
    * CSR
    */
-  assign ex_csr_reg_o = id_insn_i.instr[31:20];
   assign csri = {{XLEN-5{1'b0}},opB_i[4:0]};
 
-  always_comb
-    casex ( {id_insn_i.bubble,opcR} )
-      {1'b0,CSRRW } : begin
-                          ex_csr_we_o   = 'b1;
-                          ex_csr_wval_o = opA_i;
-                      end
-      {1'b0,CSRRWI} : begin
-                          ex_csr_we_o   = |csri;
-                          ex_csr_wval_o = csri;
-                      end
-      {1'b0,CSRRS } : begin
-                          ex_csr_we_o   = |opA_i;
-                          ex_csr_wval_o = st_csr_rval_i | opA_i;
-                      end
-      {1'b0,CSRRSI} : begin
-                          ex_csr_we_o   = |csri;
-                          ex_csr_wval_o = st_csr_rval_i | csri;
-                      end
-      {1'b0,CSRRC } : begin
-                          ex_csr_we_o   = |opA_i;
-                          ex_csr_wval_o = st_csr_rval_i & ~opA_i;
-                      end
-      {1'b0,CSRRCI} : begin
-                          ex_csr_we_o   = |csri;
-                          ex_csr_wval_o = st_csr_rval_i & ~csri;
-                      end
-      default       : begin
-                          ex_csr_we_o   = 'b0;
-                          ex_csr_wval_o = 'hx;
-                      end
+  always @(posedge clk_i,negedge rst_ni)
+    if (!rst_ni)
+    begin
+        ex_csr_reg_o  <= 'hx;
+        ex_csr_wval_o <= 'hx;
+        ex_csr_we_o   <= 1'b0;
+    end
+    else
+    begin
+        ex_csr_reg_o <= id_insn_i.instr.I.imm;
+
+        casex ( {id_insn_i.bubble,opcR} )
+          {1'b0,CSRRW } : begin
+                              ex_csr_we_o   <= 'b1;
+                              ex_csr_wval_o <= opA_i;
+                          end
+          {1'b0,CSRRWI} : begin
+                              ex_csr_we_o   <= |csri;
+                              ex_csr_wval_o <= csri;
+                          end
+          {1'b0,CSRRS } : begin
+                              ex_csr_we_o   <= |opA_i;
+                              ex_csr_wval_o <= st_csr_rval_i | opA_i;
+                          end
+          {1'b0,CSRRSI} : begin
+                              ex_csr_we_o   <= |csri;
+                              ex_csr_wval_o <= st_csr_rval_i | csri;
+                          end
+          {1'b0,CSRRC } : begin
+                              ex_csr_we_o   <= |opA_i;
+                              ex_csr_wval_o <= st_csr_rval_i & ~opA_i;
+                          end
+          {1'b0,CSRRCI} : begin
+                              ex_csr_we_o   <= |csri;
+                              ex_csr_wval_o <= st_csr_rval_i & ~csri;
+                          end
+          default       : begin
+                              ex_csr_we_o   <= 'b0;
+                              ex_csr_wval_o <= 'hx;
+                          end
     endcase
+    end
 
 endmodule 
