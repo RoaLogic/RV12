@@ -362,6 +362,7 @@ endgenerate
   always @(posedge clk_i,negedge rst_ni)
     if (!rst_ni)                                        dbg.cause <= 'h0;
     else if ( du_we_internal && du_addr_o == DBG_CAUSE) dbg.cause <= du_d_o;
+    else if ( du_flush_o & ~|du_exceptions_i          ) dbg.cause <= 'h0;
     else if (|du_exceptions_i[15:0]) //traps
     begin
         casex (du_exceptions_i[15:0])
