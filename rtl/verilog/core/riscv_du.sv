@@ -342,12 +342,11 @@ endgenerate
   //Debug Triggers are caught at different stages of the pipeline, thus need to
   //latch PC from different levels of the pipeline
   always @(posedge clk_i)
-    if      ( du_latch_nxt_pc_o & ~|dbg.cause) dpc <= id_pc_i;
-    else if (|du_exceptions_i) dpc <= wb_pc_i;
+    if      (|du_exceptions_i) dpc <= wb_pc_i;
+    else if ( bp_instr_hit   ) dpc <= if_nxt_pc_i;
     else if (|bp_hit         ) dpc <= id_pc_i;
     else if ( bp_branch_hit  ) dpc <= id_pc_i;
-    else if ( bp_instr_hit   ) dpc <= if_pc_i;
-
+    else if ( du_latch_nxt_pc_o & ~|dbg.cause) dpc <= id_pc_i;
 
   //DBG IE
   always @(posedge clk_i,negedge rst_ni)
