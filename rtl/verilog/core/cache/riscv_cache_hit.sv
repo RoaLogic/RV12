@@ -49,7 +49,7 @@ module riscv_cache_hit #(
   localparam BLK_OFFS_BITS = no_of_block_offset_bits(BLOCK_SIZE),
   localparam IDX_BITS      = no_of_index_bits(SETS),
   localparam TAG_BITS      = no_of_tag_bits(XLEN, IDX_BITS, BLK_OFFS_BITS),
-  localparam INFLIGHT_BITS = $clog2(INFLIGHT_DEPTH)
+  localparam INFLIGHT_BITS = $clog2(INFLIGHT_DEPTH+1)
 )
 (
   input  logic                        rst_ni,

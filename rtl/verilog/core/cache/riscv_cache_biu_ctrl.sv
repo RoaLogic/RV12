@@ -42,7 +42,7 @@ module riscv_cache_biu_ctrl #(
   parameter  INFLIGHT_DEPTH = 2,
 
   localparam BLK_BITS      = no_of_block_bits(BLOCK_SIZE),
-  localparam INFLIGHT_BITS = $clog2(INFLIGHT_DEPTH)
+  localparam INFLIGHT_BITS = $clog2(INFLIGHT_DEPTH+1)
 )
 (
   input  logic                     rst_ni,
