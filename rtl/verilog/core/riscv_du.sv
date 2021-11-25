@@ -339,6 +339,7 @@ endgenerate
 
 
   //DBG PC
+  //Stores the nxt_pc to execute
   //Debug Triggers are caught at different stages of the pipeline, thus need to
   //latch PC from different levels of the pipeline
   always @(posedge clk_i)
