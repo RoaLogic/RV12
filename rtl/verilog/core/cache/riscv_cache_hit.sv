@@ -265,7 +265,6 @@ module riscv_cache_hit #(
 
         WAIT4BIUCMD0: if (biucmd_ack_i || biu_err_i)
                       begin
-//                          memfsm_state <= adr_idx != tag_idx_hold ? RECOVER : ARMED;
                           memfsm_state <= RECOVER;
                           biucmd_o     <= BIUCMD_NOP;
                           filling_o    <= 1'b0;
@@ -292,8 +291,13 @@ module riscv_cache_hit #(
 
 
   //non-cacheable access
-  assign biucmd_noncacheable_req_o = req_i & ~is_cacheable_i & ~flush_i;
-
+  always_comb
+    unique case (memfsm_state)
+      FLUSH       : biucmd_noncacheable_req_o = 1'b0;
+      WAIT4BIUCMD0: biucmd_noncacheable_req_o = 1'b0;
+      RECOVER     : biucmd_noncacheable_req_o = 1'b0;
+      default     : biucmd_noncacheable_req_o = req_i & ~is_cacheable_i & ~flush_i;
+    endcase
 
   //address check, used in a few places
   assign biu_adro_eq_cache_adr_dly = (biu_adro_i[PLEN-1:BURST_LSB] == adr_i[PLEN-1:BURST_LSB]);
