@@ -38,6 +38,7 @@
 //               Fixed some QuestaSim compilation errors
 //
 
+import ahb3lite_pkg::*;
 
 module memory_model_ahb3lite #(
   parameter ADDR_WIDTH = 16,
@@ -54,25 +55,18 @@ module memory_model_ahb3lite #(
   input                          HRESETn,
 
   input                          HSEL      [PORTS],
-  input      [              1:0] HTRANS    [PORTS],
+  input      [HTRANS_SIZE  -1:0] HTRANS    [PORTS],
   input                          HREADY    [PORTS],
   output                         HREADYOUT [PORTS],
   output                         HRESP     [PORTS],
 
   input      [ADDR_WIDTH   -1:0] HADDR     [PORTS],
   input                          HWRITE    [PORTS],
-  input      [              2:0] HSIZE     [PORTS],
-  input      [              3:0] HBURST    [PORTS],
+  input      [HSIZE_SIZE   -1:0] HSIZE     [PORTS],
+  input      [HBURST_SIZE  -1:0] HBURST    [PORTS],
   input      [DATA_WIDTH   -1:0] HWDATA    [PORTS],
   output reg [DATA_WIDTH   -1:0] HRDATA    [PORTS]
 );
-  ////////////////////////////////////////////////////////////////
-  //
-  // Constants
-  //
-  import ahb3lite_pkg::*;
-
-
   ////////////////////////////////////////////////////////////////
   //
   // Typedefs
@@ -103,10 +97,10 @@ module memory_model_ahb3lite #(
   logic [LATENCY        :1] ack_latency [PORTS];
 
 
-  logic [              1:0] dHTRANS [PORTS];
+  logic [HTRANS_SIZE  -1:0] dHTRANS [PORTS];
   logic                     dHWRITE [PORTS];
-  logic [              2:0] dHSIZE  [PORTS];
-  logic [              3:0] dHBURST [PORTS];
+  logic [HSIZE_SIZE   -1:0] dHSIZE  [PORTS];
+  logic [HBURST_SIZE  -1:0] dHBURST [PORTS];
 
 
   ////////////////////////////////////////////////////////////////
