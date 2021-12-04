@@ -145,7 +145,7 @@ logic [XLEN-1:0] host_csr_tohost,
 //Unified memory interface
 logic            mem_hsel  [2];
 logic [     1:0] mem_htrans[2];
-logic [     3:0] mem_hburst[2];
+logic [     2:0] mem_hburst[2];
 logic            mem_hready[2],
                  mem_hresp [2];
 logic [ALEN-1:0] mem_haddr [2];
@@ -400,7 +400,7 @@ begin
   repeat (5) @(negedge HCLK);
   HRESETn = 'b1;
 
-
+/*
   #112;
   //stall CPU
   dbg_ctrl.stall;
@@ -427,7 +427,7 @@ begin
   dbg_ctrl.write('h0000,'h0000);
   dbg_ctrl.write('h0001,'h0000);
   dbg_ctrl.unstall;
-
+*/
 end		
 
 initial
