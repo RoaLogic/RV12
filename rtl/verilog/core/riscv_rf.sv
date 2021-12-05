@@ -47,7 +47,8 @@ module riscv_rf #(
   input        rsd_t         rf_dst_i,
   input        [XLEN   -1:0] rf_dst_d_i,
   input                      rf_we_i,
-  input                      stall_i,
+  input                      pd_stall_i,
+                             id_stall_i,
 
   //Debug Interface
   input                      du_stall_i,
@@ -98,9 +99,9 @@ logic [XLEN-1:0] dout1,
   //during a stall are handled
 
   //register read port
-  always @(posedge clk_i) if      ( du_stall_dly)  src1 <= rsd_t'(du_addr_i[4:0]);
-                          else if (!stall_i     ) src1 <= rf_src1_i;
-  always @(posedge clk_i) if      (!stall_i     ) src2 <= rf_src2_i;
+  always @(posedge clk_i) if      ( du_stall_dly) src1 <= rsd_t'(du_addr_i[4:0]);
+                          else if (!pd_stall_i  ) src1 <= rf_src1_i;
+  always @(posedge clk_i) if      (!pd_stall_i  ) src2 <= rf_src2_i;
 
 
   //RW contention
@@ -114,8 +115,8 @@ logic [XLEN-1:0] dout1,
 
  
   //got data from RAM, now handle X0
-  always @(posedge clk_i) if (!stall_i) src1_is_x0  <= ~|rf_src1_i;
-  always @(posedge clk_i) if (!stall_i) src2_is_x0  <= ~|rf_src2_i;
+  always @(posedge clk_i) if (!pd_stall_i) src1_is_x0  <= ~|rf_src1_i;
+  always @(posedge clk_i) if (!pd_stall_i) src2_is_x0  <= ~|rf_src2_i;
 
   always_comb
     casex (src1_is_x0)
@@ -132,8 +133,8 @@ logic [XLEN-1:0] dout1,
 
   if (REGOUT > 0)
   begin
-      always @(posedge clk_i) if (!stall_i) rf_src1_q_o <= dout1;
-      always @(posedge clk_i) if (!stall_i) rf_src2_q_o <= dout2;
+      always @(posedge clk_i) if (!id_stall_i) rf_src1_q_o <= dout1;
+      always @(posedge clk_i) if (!id_stall_i) rf_src2_q_o <= dout2;
   end
   else
   begin

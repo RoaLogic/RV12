@@ -699,7 +699,8 @@ module riscv_core #(
     .rf_dst_i    ( wb_dst     ),
     .rf_dst_d_i  ( wb_r       ),
     .rf_we_i     ( wb_we      ),
-    .stall_i     ( pd_stall   ),
+    .pd_stall_i  ( pd_stall   ),
+    .id_stall_i  ( id_stall   ),
 
     .du_stall_i  ( du_stall   ),
     .du_we_rf_i  ( du_we_rf   ),
