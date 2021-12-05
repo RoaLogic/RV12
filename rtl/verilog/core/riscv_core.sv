@@ -365,6 +365,7 @@ module riscv_core #(
 
     .if_pc_i           ( if_pc           ),
     .if_insn_i         ( if_insn         ),
+    .id_insn_i         ( id_insn         ),
 
     .pd_pc_o           ( pd_pc           ),
     .pd_insn_o         ( pd_insn         ),
@@ -659,6 +660,7 @@ module riscv_core #(
     .ext_nmi_i       ( ext_nmi_i     ),
 
     .pd_stall_i      ( pd_stall      ),
+    .id_stall_i      ( id_stall      ),
     .pd_csr_reg_i    ( pd_csr_reg    ),
     .ex_csr_reg_i    ( ex_csr_reg    ),
     .ex_csr_we_i     ( ex_csr_we     ),
