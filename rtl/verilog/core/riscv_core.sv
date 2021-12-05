@@ -408,6 +408,7 @@ module riscv_core #(
     .du_flush_i       ( du_flush        ),
 
     .bu_nxt_pc_i      ( bu_nxt_pc       ),
+    .if_nxt_pc_i      ( if_nxt_pc       ), 
     .st_nxt_pc_i      ( st_nxt_pc       ),
 
 

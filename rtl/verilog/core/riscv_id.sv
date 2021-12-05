@@ -68,6 +68,7 @@ module riscv_id #(
 
   //Program counter
   input        [XLEN          -1:0] pd_pc_i,
+  input        [XLEN          -1:0] if_nxt_pc_i,
   output logic [XLEN          -1:0] id_pc_o,
 
   input        [BP_GLOBAL_BITS-1:0] pd_bp_history_i,
@@ -216,7 +217,8 @@ module riscv_id #(
   always @(posedge clk_i,negedge rst_ni)
     if      (!rst_ni                   ) id_pc_o <= PC_INIT;
     else if ( st_flush_i               ) id_pc_o <= st_nxt_pc_i;
-    else if ( bu_flush_i ||  du_flush_i) id_pc_o <= bu_nxt_pc_i; //Is this required?! 
+    else if ( bu_flush_i 	       ) id_pc_o <= bu_nxt_pc_i; //Is this required?! 
+    else if ( du_flush_i 	       ) id_pc_o <= if_nxt_pc_i;
     else if (!stalls   && !id_stall_o  ) id_pc_o <= pd_pc_i;
 
   /*
