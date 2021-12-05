@@ -106,9 +106,6 @@ module riscv_pd #(
   logic             branch_taken,
                     dbranch_taken;
 
-  logic             csr_wr,
-                    csr_rd,
-                    xret;
   logic             local_stall;
 
 
@@ -121,40 +118,22 @@ module riscv_pd #(
   assign pd_flush_o = bu_flush_i | st_flush_i;
 
 
-  //Stall when write-CSR followed by read-CSR (which includes xRET)
-  //This can be more advanced, but who cares ... this is not performance critical
-  always_comb
-    casex ( decode_opcR(if_insn_i.instr) )
-        CSRRW  : csr_rd = ~if_insn_i.bubble; //|decode_rd(if_insn_i.instr)
-        CSRRWI : csr_rd = ~if_insn_i.bubble; //|decode_rd(if_insn_i.instr)
-        CSRRS  : csr_rd = ~if_insn_i.bubble;
-        CSRRSI : csr_rd = ~if_insn_i.bubble;
-        CSRRC  : csr_rd = ~if_insn_i.bubble;
-        CSRRCI : csr_rd = ~if_insn_i.bubble;
-        default: csr_rd = 1'b0;
-    endcase
+  //Stall when write-CSR
+  //This can be more advanced, but who cares ... this is not critical
+  always @(posedge clk_i, negedge rst_ni)
+    if      (!rst_ni     ) local_stall <= 1'b0;
+    else if ( local_stall) local_stall <= 1'b0;
+    else if (!id_stall_i )
+      casex ( decode_opcR(if_insn_i.instr) )
+          CSRRW  : local_stall <= ~if_insn_i.bubble;
+          CSRRWI : local_stall <= ~if_insn_i.bubble;
+          CSRRS  : local_stall <= ~if_insn_i.bubble & |decode_rs1 (if_insn_i.instr);
+          CSRRSI : local_stall <= ~if_insn_i.bubble & |decode_immI(if_insn_i.instr);
+          CSRRC  : local_stall <= ~if_insn_i.bubble & |decode_rs1 (if_insn_i.instr);
+          CSRRCI : local_stall <= ~if_insn_i.bubble & |decode_immI(if_insn_i.instr);
+          default: local_stall <= 1'b0;
+      endcase
 
-  always_comb
-    casex ( if_insn_i.instr )
-        MRET   : xret = ~if_insn_i.bubble;
-        HRET   : xret = ~if_insn_i.bubble;
-        SRET   : xret = ~if_insn_i.bubble;
-        URET   : xret = ~if_insn_i.bubble;
-        default: xret = 1'b0;
-    endcase
-
-  always_comb
-    casex ( decode_opcR(pd_insn_o.instr) )
-        CSRRW  : csr_wr = ~pd_insn_o.bubble;
-        CSRRWI : csr_wr = ~pd_insn_o.bubble;
-        CSRRS  : csr_wr = ~pd_insn_o.bubble; //|decode_rs1 (pd_insn_o.instr);
-        CSRRSI : csr_wr = ~pd_insn_o.bubble; //|decode_immI(pd_insn_o.instr);
-        CSRRC  : csr_wr = ~pd_insn_o.bubble; //|decode_rs1 (pd_insn_o.instr);
-        CSRRCI : csr_wr = ~pd_insn_o.bubble; //|decode_immI(pd_insn_o.instr);
-        default: csr_wr = 1'b0;
-    endcase
-
-  assign local_stall = csr_wr; //( (csr_rd | xret) & csr_wr); //and when CSRrd == CRSwr
 
   assign pd_stall_o = id_stall_i | local_stall;
 
