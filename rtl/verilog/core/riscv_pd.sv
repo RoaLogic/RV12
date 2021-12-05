@@ -109,6 +109,7 @@ module riscv_pd #(
   logic             csr_wr,
                     csr_rd,
                     xret;
+  logic             local_stall;
 
 
   ////////////////////////////////////////////////////////////////
@@ -153,7 +154,9 @@ module riscv_pd #(
         default: csr_wr = 1'b0;
     endcase
 
-  assign pd_stall_o = id_stall_i | ( (csr_rd | xret) & csr_wr); //and when CSRrd == CRSwr
+  assign local_stall = csr_wr; //( (csr_rd | xret) & csr_wr); //and when CSRrd == CRSwr
+
+  assign pd_stall_o = id_stall_i | local_stall;
 
 
   /*
@@ -192,8 +195,8 @@ module riscv_pd #(
               ex_exceptions_i.any  ||
               mem_exceptions_i.any ||
               wb_exceptions_i.any ) pd_insn_o.bubble <= 1'b1;
-    else if ( pd_stall_o          ) pd_insn_o.bubble <= 1'b1;
-    else                            pd_insn_o.bubble <= if_insn_i.bubble;
+    else if ( local_stall         ) pd_insn_o.bubble <= 1'b1;
+    else if (!id_stall_i          ) pd_insn_o.bubble <= if_insn_i.bubble;
 
 
   //Exceptions
