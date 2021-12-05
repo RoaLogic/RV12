@@ -71,6 +71,7 @@ module riscv_pd #(
 
   input  instruction_t            if_insn_i,
   output instruction_t            pd_insn_o,
+  input  instruction_t            id_insn_i,
 
   input  exceptions_t             if_exceptions_i,
   output exceptions_t             pd_exceptions_o,
@@ -105,6 +106,10 @@ module riscv_pd #(
   logic             branch_taken,
                     dbranch_taken;
 
+  logic             csr_wr,
+                    csr_rd,
+                    xret;
+
 
   ////////////////////////////////////////////////////////////////
   //
@@ -114,7 +119,42 @@ module riscv_pd #(
   //All flush signals
   assign pd_flush_o = bu_flush_i | st_flush_i;
 
-  assign pd_stall_o = id_stall_i;
+
+  //Stall when write-CSR followed by read-CSR (which includes xRET)
+  //This can be more advanced, but who cares ... this is not performance critical
+  always_comb
+    casex ( decode_opcR(if_insn_i.instr) )
+        CSRRW  : csr_rd = ~if_insn_i.bubble; //|decode_rd(if_insn_i.instr)
+        CSRRWI : csr_rd = ~if_insn_i.bubble; //|decode_rd(if_insn_i.instr)
+        CSRRS  : csr_rd = ~if_insn_i.bubble;
+        CSRRSI : csr_rd = ~if_insn_i.bubble;
+        CSRRC  : csr_rd = ~if_insn_i.bubble;
+        CSRRCI : csr_rd = ~if_insn_i.bubble;
+        default: csr_rd = 1'b0;
+    endcase
+
+  always_comb
+    casex ( if_insn_i.instr )
+        MRET   : xret = ~if_insn_i.bubble;
+        HRET   : xret = ~if_insn_i.bubble;
+        SRET   : xret = ~if_insn_i.bubble;
+        URET   : xret = ~if_insn_i.bubble;
+        default: xret = 1'b0;
+    endcase
+
+  always_comb
+    casex ( decode_opcR(pd_insn_o.instr) )
+        CSRRW  : csr_wr = ~pd_insn_o.bubble;
+        CSRRWI : csr_wr = ~pd_insn_o.bubble;
+        CSRRS  : csr_wr = ~pd_insn_o.bubble; //|decode_rs1 (pd_insn_o.instr);
+        CSRRSI : csr_wr = ~pd_insn_o.bubble; //|decode_immI(pd_insn_o.instr);
+        CSRRC  : csr_wr = ~pd_insn_o.bubble; //|decode_rs1 (pd_insn_o.instr);
+        CSRRCI : csr_wr = ~pd_insn_o.bubble; //|decode_immI(pd_insn_o.instr);
+        default: csr_wr = 1'b0;
+    endcase
+
+  assign pd_stall_o = id_stall_i | ( (csr_rd | xret) & csr_wr); //and when CSRrd == CRSwr
+
 
   /*
    * To Register File (registered outputs)
@@ -141,7 +181,7 @@ module riscv_pd #(
   //Instruction	
   always @(posedge clk_i, negedge rst_ni)
     if      (!rst_ni    ) pd_insn_o.instr <= INSTR_NOP;
-    else if (!pd_stall_o) pd_insn_o.instr <= if_insn_i.instr;
+    else if (!id_stall_i) pd_insn_o.instr <= if_insn_i.instr;
 
 
   //Bubble
@@ -152,19 +192,21 @@ module riscv_pd #(
               ex_exceptions_i.any  ||
               mem_exceptions_i.any ||
               wb_exceptions_i.any ) pd_insn_o.bubble <= 1'b1;
-    else if (!id_stall_i          ) pd_insn_o.bubble <= if_insn_i.bubble;
+    else if ( pd_stall_o          ) pd_insn_o.bubble <= 1'b1;
+    else                            pd_insn_o.bubble <= if_insn_i.bubble;
 
 
   //Exceptions
   always @(posedge clk_i, negedge rst_ni)
     if      (!rst_ni     ) pd_exceptions_o <= 'h0;
     else if ( pd_flush_o ) pd_exceptions_o <= 'h0;
-    else if (!id_stall_i ) pd_exceptions_o <= if_exceptions_i;
+    else if ( pd_stall_o ) pd_exceptions_o <= 'h0;
+    else                   pd_exceptions_o <= if_exceptions_i;
 
 
   //Branch Predict History
   always @(posedge clk_i)
-    if (!id_stall_i) pd_bp_history_o <= if_bp_history_i;
+    if (!pd_stall_o) pd_bp_history_o <= if_bp_history_i;
 
     
   /*
@@ -210,7 +252,7 @@ module riscv_pd #(
   //to Branch Prediction Unit
   always @(posedge clk_i, negedge rst_ni)
     if      (!rst_ni    ) pd_bp_predict_o <= 2'b00;
-    else if (!id_stall_i) pd_bp_predict_o <= branch_predicted;
+    else if (!pd_stall_o) pd_bp_predict_o <= branch_predicted;
 
 endmodule
 
