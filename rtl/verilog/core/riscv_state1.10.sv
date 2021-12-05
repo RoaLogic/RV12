@@ -101,6 +101,7 @@ module riscv_state1_10 #(
 
   //CSR interface
   input                             pd_stall_i,
+  input                             id_stall_i,
   input               [       11:0] pd_csr_reg_i,
   input               [       11:0] ex_csr_reg_i,
   input                             ex_csr_we_i,
@@ -301,7 +302,6 @@ module riscv_state1_10 #(
   assign has_ext   = (HAS_EXT    !=   0);
 
   //Mux address/data for Debug-Unit access
-//  assign csr_raddr = du_re_csr_i ? du_addr_i : pd_csr_reg_i;
   always @(posedge clk_i)
 	  if      ( du_re_csr_i) csr_raddr <= du_addr_i;
 	  else if (!pd_stall_i ) csr_raddr <= pd_csr_reg_i;
@@ -437,8 +437,9 @@ module riscv_state1_10 #(
     endcase
 
 
+  //output CSR read value; bypass a write
   always @(posedge clk_i)
-    if (!pd_stall_i) st_csr_rval_o <= csr_rval;
+    if (!id_stall_i) st_csr_rval_o <= csr_raddr == ex_csr_reg_i && ex_csr_we_i ? ex_csr_wval_i : csr_rval;
 
 
   always @(posedge clk_i)
