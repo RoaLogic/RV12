@@ -35,38 +35,38 @@ module riscv_wb #(
   parameter   [XLEN -1:0] PC_INIT = 'h200
 )
 (
-  input  logic             rst_ni,        //Reset
-  input  logic             clk_i,         //Clock
+  input  logic                   rst_ni,        //Reset
+  input  logic                   clk_i,         //Clock
 
-  output logic             wb_stall_o,    //Stall on memory-wait
+  output logic                   wb_stall_o,    //Stall on memory-wait
 
-  input  logic [XLEN -1:0] mem_pc_i,
-  output logic [XLEN -1:0] wb_pc_o,
+  input  logic [XLEN       -1:0] mem_pc_i,
+  output logic [XLEN       -1:0] wb_pc_o,
 
-  input  instruction_t     mem_insn_i,
-  output instruction_t     wb_insn_o,
+  input  instruction_t           mem_insn_i,
+  output instruction_t           wb_insn_o,
 
-  input  exceptions_t      mem_exceptions_i,
-  output exceptions_t      wb_exceptions_o,
-  output logic [XLEN -1:0] wb_badaddr_o,
+  input  interrupts_exceptions_t mem_exceptions_i,
+  output interrupts_exceptions_t wb_exceptions_o,
+  output logic [XLEN       -1:0] wb_badaddr_o,
 
-  input  logic [XLEN -1:0] mem_r_i,
-                           mem_memadr_i,
+  input  logic [XLEN       -1:0] mem_r_i,
+                                 mem_memadr_i,
 
   //From Memory System
-  input  logic             dmem_ack_i,
-                           dmem_err_i,
-  input  logic [XLEN -1:0] dmem_q_i,
-  input  logic             dmem_misaligned_i,
-                           dmem_page_fault_i,
+  input  logic                   dmem_ack_i,
+                                 dmem_err_i,
+  input  logic [XLEN       -1:0] dmem_q_i,
+  input  logic                   dmem_misaligned_i,
+                                 dmem_page_fault_i,
 
   //to ID for early feedback to EX
-  output logic [XLEN -1:0] wb_memq_o,
+  output logic [XLEN       -1:0] wb_memq_o,
 
   //To Register File
-  output rsd_t             wb_dst_o,
-  output logic [XLEN -1:0] wb_r_o,
-  output logic             wb_we_o
+  output rsd_t                   wb_dst_o,
+  output logic [XLEN       -1:0] wb_r_o,
+  output logic                   wb_we_o
 );
 
 
@@ -74,15 +74,15 @@ module riscv_wb #(
   //
   // Variables
   //
-  opcR_t            opcR;
-  logic [      6:2] opcode;
-  rsd_t             dst;
+  opcR_t                  opcR;
+  logic [            6:2] opcode;
+  rsd_t                   dst;
 
-  exceptions_t      exceptions;
+  interrupts_exceptions_t exceptions;
 
-  logic [      7:0] m_qb;
-  logic [     15:0] m_qh;
-  logic [     31:0] m_qw;
+  logic [            7:0] m_qb;
+  logic [           15:0] m_qh;
+  logic [           31:0] m_qw;
 
 
   ////////////////////////////////////////////////////////////////
@@ -116,14 +116,14 @@ module riscv_wb #(
     begin
         exceptions = mem_exceptions_i;
 
-        if (opcR.opcode == OPC_LOAD  && !mem_insn_i.bubble) exceptions.misaligned_load    = dmem_misaligned_i;
-        if (opcR.opcode == OPC_STORE && !mem_insn_i.bubble) exceptions.misaligned_store   = dmem_misaligned_i;
-        if (opcR.opcode == OPC_LOAD  && !mem_insn_i.bubble) exceptions.load_access_fault  = dmem_err_i;
-        if (opcR.opcode == OPC_STORE && !mem_insn_i.bubble) exceptions.store_access_fault = dmem_err_i;
-        if (opcR.opcode == OPC_LOAD  && !mem_insn_i.bubble) exceptions.load_page_fault    = dmem_page_fault_i;
-        if (opcR.opcode == OPC_STORE && !mem_insn_i.bubble) exceptions.store_page_fault   = dmem_page_fault_i;
+        if (opcR.opcode == OPC_LOAD  && !mem_insn_i.bubble) exceptions.exceptions.misaligned_load    = dmem_misaligned_i;
+        if (opcR.opcode == OPC_STORE && !mem_insn_i.bubble) exceptions.exceptions.misaligned_store   = dmem_misaligned_i;
+        if (opcR.opcode == OPC_LOAD  && !mem_insn_i.bubble) exceptions.exceptions.load_access_fault  = dmem_err_i;
+        if (opcR.opcode == OPC_STORE && !mem_insn_i.bubble) exceptions.exceptions.store_access_fault = dmem_err_i;
+        if (opcR.opcode == OPC_LOAD  && !mem_insn_i.bubble) exceptions.exceptions.load_page_fault    = dmem_page_fault_i;
+        if (opcR.opcode == OPC_STORE && !mem_insn_i.bubble) exceptions.exceptions.store_page_fault   = dmem_page_fault_i;
 
-        exceptions.any = |exceptions[$bits(exceptions)-1:0];
+        exceptions.any = |exceptions.exceptions | |exceptions.interrupts | exceptions.nmi;
     end
 
 
@@ -135,15 +135,15 @@ module riscv_wb #(
   always @(posedge clk_i, negedge rst_ni)
     if (!rst_ni)
       wb_badaddr_o <= 'h0;
-    else if (exceptions.misaligned_load    ||
-             exceptions.misaligned_store   ||
-             exceptions.load_access_fault  ||
-             exceptions.store_access_fault ||
-             exceptions.load_page_fault    ||
-             exceptions.store_page_fault   ||
-             exceptions.breakpoint         )
+    else if (exceptions.exceptions.misaligned_load    ||
+             exceptions.exceptions.misaligned_store   ||
+             exceptions.exceptions.load_access_fault  ||
+             exceptions.exceptions.store_access_fault ||
+             exceptions.exceptions.load_page_fault    ||
+             exceptions.exceptions.store_page_fault   ||
+             exceptions.exceptions.breakpoint         )
       wb_badaddr_o <= mem_memadr_i;
-    else if (exceptions.illegal_instruction)
+    else if (exceptions.exceptions.illegal_instruction)
       wb_badaddr_o <= mem_insn_i.instr[0 +: XLEN];
     else
       wb_badaddr_o <= {XLEN{1'b0}}; //mem_pc_i;

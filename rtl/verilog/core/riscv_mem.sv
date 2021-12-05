@@ -37,31 +37,31 @@ module riscv_mem #(
   parameter  [XLEN -1:0] PC_INIT = 'h200
 )
 (
-  input                  rst_ni,
-  input                  clk_i,
+  input                          rst_ni,
+  input                          clk_i,
 
-  input                  wb_stall_i,
-  output                 mem_stall_o,
+  input                          wb_stall_i,
+  output                         mem_stall_o,
 
   //Program counter
-  input      [XLEN -1:0] ex_pc_i,
-  output reg [XLEN -1:0] mem_pc_o,
+  input      [XLEN         -1:0] ex_pc_i,
+  output reg [XLEN         -1:0] mem_pc_o,
 
   //Instruction
-  input  instruction_t   ex_insn_i,
-  output instruction_t   mem_insn_o,
+  input  instruction_t           ex_insn_i,
+  output instruction_t           mem_insn_o,
 
-  input  exceptions_t    ex_exceptions_i,
-  output exceptions_t    mem_exceptions_o,
-  input  exceptions_t    wb_exceptions_i,
+  input  interrupts_exceptions_t ex_exceptions_i,
+  output interrupts_exceptions_t mem_exceptions_o,
+  input  interrupts_exceptions_t wb_exceptions_i,
  
   //From EX
-  input      [XLEN -1:0] ex_r_i,
-                         dmem_adr_i,
+  input      [XLEN         -1:0] ex_r_i,
+                                 dmem_adr_i,
 
   //To WB
-  output reg [XLEN -1:0] mem_r_o,
-  output reg [XLEN -1:0] mem_memadr_o
+  output reg [XLEN         -1:0] mem_r_o,
+  output reg [XLEN         -1:0] mem_memadr_o
 );
   ////////////////////////////////////////////////////////////////
   //

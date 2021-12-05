@@ -61,8 +61,8 @@ module riscv_if #(
                                       if_pc_o,                  //Program Counter
   output instruction_t                if_nxt_insn_o,
                                       if_insn_o,
-  output exceptions_t                 if_exceptions_o,          //Exceptions
-  input  exceptions_t                 pd_exceptions_i,
+  output interrupts_exceptions_t      if_exceptions_o,          //Interrupts and Exceptions
+  input  interrupts_exceptions_t      pd_exceptions_i,
                                       id_exceptions_i,
                                       ex_exceptions_i,
                                       mem_exceptions_i,
@@ -112,35 +112,35 @@ module riscv_if #(
   // Variables
   //
 
-  logic             has_rvc,
-                    xlen32,
-                    xlen64,
-                    xlen128;
+  logic                   has_rvc,
+                          xlen32,
+                          xlen64,
+                          xlen128;
 
-  logic             flushes;
-  logic             ddu_we_pc,
-                    du_we_pc_strb;
+  logic                   flushes;
+  logic                   ddu_we_pc,
+                          du_we_pc_strb;
 
 
   //Parcel queue signals
-  logic             parcel_queue_full;
-  logic             parcel_queue_empty;
+  logic                   parcel_queue_full;
+  logic                   parcel_queue_empty;
 
-  logic [      1:0] parcel_queue_rd;
+  logic [            1:0] parcel_queue_rd;
 
-  logic             parcel_valid;
-  instr_t           ext_parcel,
-                    active_parcel,     //parcel from queue
-                    rv_instr;
-  rvc_instr_t       rvc_parcel;
-  logic             rvc_illegal;
+  logic                   parcel_valid;
+  instr_t                 ext_parcel,
+                          active_parcel,     //parcel from queue
+                          rv_instr;
+  rvc_instr_t             rvc_parcel;
+  logic                   rvc_illegal;
 
-  exceptions_t      parcel_exceptions;
+  interrupts_exceptions_t parcel_exceptions;
 
 
   //Instruction length decoding
-  logic             is_16bit_instruction;
-  logic             is_32bit_instruction;
+  logic                   is_16bit_instruction;
+  logic                   is_32bit_instruction;
 //  logic             is_48bit_instruction;
 //  logic             is_64bit_instruction;
 
@@ -264,13 +264,11 @@ module riscv_if #(
   always_comb
   begin
       parcel_exceptions = 0;
-      parcel_exceptions.misaligned_instruction   = parcel_valid & parcel_misaligned;
-      parcel_exceptions.instruction_access_fault = parcel_valid & parcel_error;
-      parcel_exceptions.instruction_page_fault   = parcel_valid & parcel_page_fault;
+      parcel_exceptions.exceptions.misaligned_instruction   = parcel_valid & parcel_misaligned;
+      parcel_exceptions.exceptions.instruction_access_fault = parcel_valid & parcel_error;
+      parcel_exceptions.exceptions.instruction_page_fault   = parcel_valid & parcel_page_fault;
 
-      parcel_exceptions.any                      = parcel_valid & (parcel_misaligned |
-                                                                   parcel_error      |
-                                                                   parcel_page_fault );
+      parcel_exceptions.any                                 = |parcel_exceptions.exceptions;
   end
 
   /*
@@ -762,8 +760,8 @@ module riscv_if #(
     if      (!rst_ni    ) if_exceptions_o <= {$bits(if_exceptions_o){1'b0}};
     else if (!pd_stall_i)
     begin
-        if_exceptions_o                     <= parcel_exceptions;
-	if_exceptions_o.illegal_instruction <= rvc_illegal;
+        if_exceptions_o                                <= parcel_exceptions;
+	if_exceptions_o.exceptions.illegal_instruction <= rvc_illegal;
     end
 
 

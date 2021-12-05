@@ -65,9 +65,9 @@ module riscv_ex #(
   input  instruction_t            id_insn_i,
   output instruction_t            ex_insn_o,
 
-  input  exceptions_t             id_exceptions_i,
-  output exceptions_t             ex_exceptions_o,
-  input  exceptions_t             mem_exceptions_i,
+  input  interrupts_exceptions_t  id_exceptions_i,
+  output interrupts_exceptions_t  ex_exceptions_o,
+  input  interrupts_exceptions_t  mem_exceptions_i,
                                   wb_exceptions_i,
 
   //from ID
@@ -136,7 +136,7 @@ module riscv_ex #(
 
   //Exceptions
   logic [EXCEPTION_SIZE-1:0] bu_exception;
-  exceptions_t               lsu_exceptions;
+  interrupts_exceptions_t    lsu_exceptions;
 
 
   ////////////////////////////////////////////////////////////////
@@ -181,31 +181,33 @@ module riscv_ex #(
    * Execution Units
    */
   riscv_alu #(
-    .XLEN            ( XLEN            ),
-    .HAS_RVC         ( HAS_RVC         ))
+    .XLEN             ( XLEN             ),
+    .HAS_RVC          ( HAS_RVC          ))
   alu (
-    .rst_ni          ( rst_ni          ),
-    .clk_i           ( clk_i           ),
+    .rst_ni           ( rst_ni           ),
+    .clk_i            ( clk_i            ),
 
-    .ex_stall_i      ( ex_stall_o      ),
+    .ex_stall_i       ( ex_stall_o       ),
 
-    .id_pc_i         ( id_pc_i         ),
-    .id_insn_i       ( id_insn_i       ),
+    .id_pc_i          ( id_pc_i          ),
+    .id_insn_i        ( id_insn_i        ),
 
-    .opA_i           ( opA             ),
-    .opB_i           ( opB             ),
+    .opA_i            ( opA              ),
+    .opB_i            ( opB              ),
 
-    .wb_exceptions_i ( wb_exceptions_i ),
+    .ex_exceptions_i  ( ex_exceptions_o  ),
+    .mem_exceptions_i ( mem_exceptions_i ),
+    .wb_exceptions_i  ( wb_exceptions_i  ),
 
-    .alu_bubble_o    ( alu_bubble      ),
-    .alu_r_o         ( alu_r           ),
+    .alu_bubble_o     ( alu_bubble       ),
+    .alu_r_o          ( alu_r            ),
 
-    .ex_csr_reg_o    ( ex_csr_reg_o    ),
-    .ex_csr_wval_o   ( ex_csr_wval_o   ),
-    .ex_csr_we_o     ( ex_csr_we_o     ),
+    .ex_csr_reg_o     ( ex_csr_reg_o     ),
+    .ex_csr_wval_o    ( ex_csr_wval_o    ),
+    .ex_csr_we_o      ( ex_csr_we_o      ),
 
-    .st_csr_rval_i   ( st_csr_rval_i   ),
-    .st_xlen_i       ( st_xlen_i       ) );
+    .st_csr_rval_i    ( st_csr_rval_i    ),
+    .st_xlen_i        ( st_xlen_i        ) );
 
 
   // Load-Store Unit

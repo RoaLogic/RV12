@@ -110,10 +110,10 @@ module riscv_core #(
   output                                 cacheflush_o,
 
   //Interrupts
-  input                                  ext_nmi_i,
-                                         ext_tint_i,
-                                         ext_sint_i,
-  input           [                 3:0] ext_int_i,
+  input                                  int_nmi_i,
+                                         int_timer_i,
+                                         int_software_i,
+  input           [                 3:0] int_external_i,
 
   //Debug Interface
   input                                  dbg_stall_i,
@@ -183,7 +183,8 @@ module riscv_core #(
                              bu_bp_update;
 
   //Exceptions
-  exceptions_t               if_exceptions,
+  interrupts_t               st_interrupts;
+  interrupts_exceptions_t    if_exceptions,
                              pd_exceptions,
 	                     id_exceptions,
 			     ex_exceptions,
@@ -428,6 +429,8 @@ module riscv_core #(
     .wb_insn_i        ( wb_insn         ),
     .dwb_insn_i       ( dwb_insn        ),
 
+    .st_interrupts_i  ( st_interrupts   ),
+    .int_nmi_i        ( int_nmi_i       ),
     .pd_exceptions_i  ( pd_exceptions   ),
     .id_exceptions_o  ( id_exceptions   ),
     .ex_exceptions_i  ( ex_exceptions   ),
@@ -628,55 +631,54 @@ module riscv_core #(
     .PMP_CNT               ( PMP_CNT               ),
     .HARTID                ( HARTID                ) )
   cpu_state    (
-    .rst_ni          ( rst_ni        ),
-    .clk_i           ( clk_i         ),
+    .rst_ni          ( rst_ni          ),
+    .clk_i           ( clk_i           ),
 
-    .id_pc_i         ( id_pc         ),
-    .id_insn_i       ( id_insn       ),
+    .id_pc_i         ( id_pc           ),
+    .id_insn_i       ( id_insn         ),
 
-    .bu_flush_i      ( bu_flush      ),
-    .bu_nxt_pc_i     ( bu_nxt_pc     ),
-    .st_flush_o      ( st_flush      ),
-    .st_nxt_pc_o     ( st_nxt_pc     ),
+    .bu_flush_i      ( bu_flush        ),
+    .bu_nxt_pc_i     ( bu_nxt_pc       ),
+    .st_flush_o      ( st_flush        ),
+    .st_nxt_pc_o     ( st_nxt_pc       ),
 
-    .wb_pc_i         ( wb_pc         ),
-    .wb_insn_i       ( wb_insn       ),
-    .wb_exceptions_i ( wb_exceptions ),
-    .wb_badaddr_i    ( wb_badaddr    ),
+    .wb_pc_i         ( wb_pc           ),
+    .wb_insn_i       ( wb_insn         ),
+    .wb_exceptions_i ( wb_exceptions   ),
+    .wb_badaddr_i    ( wb_badaddr      ),
 
-    .st_interrupt_o  (               ),
-    .st_prv_o        ( st_prv_o      ),
-    .st_xlen_o       ( st_xlen       ),
-    .st_tvm_o        ( st_tvm        ),
-    .st_tw_o         ( st_tw         ),
-    .st_tsr_o        ( st_tsr        ),
-    .st_mcounteren_o ( st_mcounteren ),
-    .st_scounteren_o ( st_scounteren ),
-    .st_pmpcfg_o     ( st_pmpcfg_o   ),
-    .st_pmpaddr_o    ( st_pmpaddr_o  ),
+    .st_prv_o        ( st_prv_o        ),
+    .st_xlen_o       ( st_xlen         ),
+    .st_tvm_o        ( st_tvm          ),
+    .st_tw_o         ( st_tw           ),
+    .st_tsr_o        ( st_tsr          ),
+    .st_mcounteren_o ( st_mcounteren   ),
+    .st_scounteren_o ( st_scounteren   ),
+    .st_pmpcfg_o     ( st_pmpcfg_o     ),
+    .st_pmpaddr_o    ( st_pmpaddr_o    ),
 
-    .ext_int_i       ( ext_int_i     ),
-    .ext_tint_i      ( ext_tint_i    ),
-    .ext_sint_i      ( ext_sint_i    ),
-    .ext_nmi_i       ( ext_nmi_i     ),
+    .int_external_i  ( int_external_i  ),
+    .int_timer_i     ( int_timer_i     ),
+    .int_software_i  ( int_software_i  ),
+    .st_int_o        ( st_interrupts   ),
 
-    .pd_stall_i      ( pd_stall      ),
-    .id_stall_i      ( id_stall      ),
-    .pd_csr_reg_i    ( pd_csr_reg    ),
-    .ex_csr_reg_i    ( ex_csr_reg    ),
-    .ex_csr_we_i     ( ex_csr_we     ),
-    .ex_csr_wval_i   ( ex_csr_wval   ),
-    .st_csr_rval_o   ( st_csr_rval   ),
+    .pd_stall_i      ( pd_stall        ),
+    .id_stall_i      ( id_stall        ),
+    .pd_csr_reg_i    ( pd_csr_reg      ),
+    .ex_csr_reg_i    ( ex_csr_reg      ),
+    .ex_csr_we_i     ( ex_csr_we       ),
+    .ex_csr_wval_i   ( ex_csr_wval     ),
+    .st_csr_rval_o   ( st_csr_rval     ),
 
-    .du_stall_i      ( du_stall      ),
-    .du_flush_i      ( du_flush      ),
-    .du_re_csr_i     ( du_re_csr     ),
-    .du_we_csr_i     ( du_we_csr     ),
-    .du_csr_rval_o   ( du_csr_rval   ),
-    .du_dato_i       ( du_dato       ),
-    .du_addr_i       ( du_addr       ),
-    .du_ie_i         ( du_ie         ),
-    .du_exceptions_o ( du_exceptions ) );
+    .du_stall_i      ( du_stall        ),
+    .du_flush_i      ( du_flush        ),
+    .du_re_csr_i     ( du_re_csr       ),
+    .du_we_csr_i     ( du_we_csr       ),
+    .du_csr_rval_o   ( du_csr_rval     ),
+    .du_dato_i       ( du_dato         ),
+    .du_addr_i       ( du_addr         ),
+    .du_ie_i         ( du_ie           ),
+    .du_exceptions_o ( du_exceptions   ) );
 
 
   /*

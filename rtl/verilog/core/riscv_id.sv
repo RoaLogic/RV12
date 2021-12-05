@@ -86,9 +86,11 @@ module riscv_id #(
                                     dwb_insn_i,
 
   //Exceptions
-  input  exceptions_t               pd_exceptions_i,
-  output exceptions_t               id_exceptions_o,
-  input  exceptions_t               ex_exceptions_i,
+  input  interrupts_t               st_interrupts_i,
+  input                             int_nmi_i,
+  input  interrupts_exceptions_t    pd_exceptions_i,
+  output interrupts_exceptions_t    id_exceptions_o,
+  input  interrupts_exceptions_t    ex_exceptions_i,
                                     mem_exceptions_i,
                                     wb_exceptions_i,
 
@@ -129,80 +131,80 @@ module riscv_id #(
   //
   // Variables
   //
-  logic             has_rvc;
+  logic                   has_rvc;
 
-  logic             id_bubble_r;
-  logic             multi_cycle_instruction;
-  logic             stalls,
-                    flushes,
-                    exceptions;
+  logic                   id_bubble_r;
+  logic                   multi_cycle_instruction;
+  logic                   stalls,
+                          flushes,
+                          exceptions;
 
-  exceptions_t      my_exceptions;
+  interrupts_exceptions_t my_exceptions;
 
   //Immediates
-  immI_t            immI;
-  immU_t            immU;
-  logic [XLEN -1:0] ext_immI,
-                    ext_immU;
+  immI_t                  immI;
+  immU_t                  immU;
+  logic [XLEN       -1:0] ext_immI,
+                          ext_immU;
 
   //Opcodes
-  opcR_t            pd_opcR;
+  opcR_t                  pd_opcR;
 
-  opcode_t          id_opcode,
-                    ex_opcode,
-                    mem_opcode,
-                    wb_opcode,
-                    dwb_opcode;
+  opcode_t                id_opcode,
+                          ex_opcode,
+                          mem_opcode,
+                          wb_opcode,
+                          dwb_opcode;
 	    
-  logic             is_32bit_instruction;
+  logic                   is_32bit_instruction;
 
-  logic             xlen64,    //Is the CPU state set to RV64?
-                    xlen32,    //Is the CPU state set to RV32?
-                    has_fpu,
-                    has_muldiv,
-                    has_amo,
-                    has_u,
-                    has_s,
-                    has_h;
+  logic                   xlen64,    //Is the CPU state set to RV64?
+                          xlen32,    //Is the CPU state set to RV32?
+                          has_fpu,
+                          has_muldiv,
+                          has_amo,
+                          has_u,
+                          has_s,
+                          has_h;
 
-  rsd_t             pd_rs1,
-                    pd_rs2,
-                    id_rd,
-                    ex_rd,
-                    mem_rd,
-                    wb_rd,
-                    dwb_rd;
+  rsd_t                   pd_rs1,
+                          pd_rs2,
+                          id_rd,
+                          ex_rd,
+                          mem_rd,
+                          wb_rd,
+                          dwb_rd;
 
-  logic             can_bypex,
-                    can_use_exr,
-                    can_use_memr,
-                    can_use_wbr,
-		    can_use_dwbr;
+  logic                   can_bypex,
+                          can_use_exr,
+                          can_use_memr,
+                          can_use_wbr,
+		          can_use_dwbr;
 
-  logic             use_rf_opA,
-                    use_rf_opB,
-                    use_exr_opA,
-                    use_exr_opB,
-                    use_memr_opA,
-                    use_memr_opB,
-		    use_wbr_opA,
-                    use_wbr_opB,
-                    use_dwbr_opA,
-                    use_dwbr_opB;
+  logic                   use_rf_opA,
+                          use_rf_opB,
+                          use_exr_opA,
+                          use_exr_opB,
+                          use_memr_opA,
+                          use_memr_opB,
+		          use_wbr_opA,
+                          use_wbr_opB,
+                          use_dwbr_opA,
+                          use_dwbr_opB;
 
-  logic             stall_ld_id,
-                    stall_ld_ex;
+  logic                   stall_ld_id,
+                          stall_ld_ex;
 
 
-  logic [XLEN -1:0] nxt_opA,
-		    nxt_opB;
+  logic [XLEN       -1:0] nxt_opA,
+		          nxt_opB;
 
-  logic             illegal_instr,
-                    illegal_alu_instr,
-                    illegal_lsu_instr,
-                    illegal_muldiv_instr,
-                    illegal_csr_rd,
-                    illegal_csr_wr;
+  logic                   illegal_instr,
+                          illegal_alu_instr,
+                          illegal_lsu_instr,
+                          illegal_muldiv_instr,
+                          illegal_csr_rd,
+                          illegal_csr_wr;
 
 
   //////////////////////////////////////////////////////////////////
@@ -282,15 +284,19 @@ module riscv_id #(
 
   always_comb
     begin
-        my_exceptions                     =  pd_exceptions_i;
-        my_exceptions.illegal_instruction = ~pd_insn_i.bubble & (illegal_instr | pd_exceptions_i.illegal_instruction);
-        my_exceptions.breakpoint          = ~pd_insn_i.bubble & (pd_insn_i.instr == EBREAK);
-        my_exceptions.umode_ecall         = ~pd_insn_i.bubble & (pd_insn_i.instr == ECALL ) & (st_prv_i == PRV_U) & has_u;
-        my_exceptions.smode_ecall         = ~pd_insn_i.bubble & (pd_insn_i.instr == ECALL ) & (st_prv_i == PRV_S) & has_s;
-        my_exceptions.hmode_ecall         = ~pd_insn_i.bubble & (pd_insn_i.instr == ECALL ) & (st_prv_i == PRV_H) & has_h;
-        my_exceptions.mmode_ecall         = ~pd_insn_i.bubble & (pd_insn_i.instr == ECALL ) & (st_prv_i == PRV_M);
+        my_exceptions                                =  pd_exceptions_i;
 
-	my_exceptions.any                 = |my_exceptions[$bits(my_exceptions)-1 :0];
+	my_exceptions.interrupts                     =  st_interrupts_i;
+	my_exceptions.nmi                            =  int_nmi_i;
+	
+        my_exceptions.exceptions.illegal_instruction = ~pd_insn_i.bubble & (illegal_instr | pd_exceptions_i.exceptions.illegal_instruction);
+        my_exceptions.exceptions.breakpoint          = ~pd_insn_i.bubble & (pd_insn_i.instr == EBREAK);
+        my_exceptions.exceptions.umode_ecall         = ~pd_insn_i.bubble & (pd_insn_i.instr == ECALL ) & (st_prv_i == PRV_U) & has_u;
+        my_exceptions.exceptions.smode_ecall         = ~pd_insn_i.bubble & (pd_insn_i.instr == ECALL ) & (st_prv_i == PRV_S) & has_s;
+        my_exceptions.exceptions.hmode_ecall         = ~pd_insn_i.bubble & (pd_insn_i.instr == ECALL ) & (st_prv_i == PRV_H) & has_h;
+        my_exceptions.exceptions.mmode_ecall         = ~pd_insn_i.bubble & (pd_insn_i.instr == ECALL ) & (st_prv_i == PRV_M);
+
+	my_exceptions.any                            = |my_exceptions.exceptions | |my_exceptions.interrupts | int_nmi_i;
     end
 
   always @(posedge clk_i, negedge rst_ni)

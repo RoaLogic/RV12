@@ -284,10 +284,10 @@ module riscv_top_ahb3lite #(
 
 
     //Interrupts
-    .ext_nmi_i                ( ext_nmi                ),
-    .ext_tint_i               ( ext_tint               ),
-    .ext_sint_i               ( ext_sint               ),
-    .ext_int_i                ( ext_int                ),
+    .int_nmi_i                ( ext_nmi                ),
+    .int_timer_i              ( ext_tint               ),
+    .int_software_i           ( ext_sint               ),
+    .int_external_i           ( ext_int                ),
 
     //Debug Interface
     .dbg_stall_i              ( dbg_stall              ),

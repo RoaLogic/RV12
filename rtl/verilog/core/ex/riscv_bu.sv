@@ -59,11 +59,11 @@ module riscv_bu #(
   //Instruction
   input  instruction_t            id_insn_i,
 
-  input  exceptions_t             id_exceptions_i,
+  input  interrupts_exceptions_t  id_exceptions_i,
                                   ex_exceptions_i,
                                   mem_exceptions_i,
                                   wb_exceptions_i,
-  output exceptions_t             bu_exceptions_o,
+  output interrupts_exceptions_t  bu_exceptions_o,
 
   //from ID
   input      [XLEN          -1:0] opA_i,
@@ -113,9 +113,9 @@ module riscv_bu #(
    */
   always_comb
     casex ( {id_insn_i.bubble,id_insn_i.instr.R.opcode} )
-      {1'b0,OPC_JALR  } : misaligned_instruction = id_exceptions_i.misaligned_instruction | has_rvc ? nxt_pc[0] : |nxt_pc[1:0];
-      {1'b0,OPC_BRANCH} : misaligned_instruction = id_exceptions_i.misaligned_instruction | has_rvc ? nxt_pc[0] : |nxt_pc[1:0];
-      default           : misaligned_instruction = id_exceptions_i.misaligned_instruction;
+      {1'b0,OPC_JALR  } : misaligned_instruction = id_exceptions_i.exceptions.misaligned_instruction | has_rvc ? nxt_pc[0] : |nxt_pc[1:0];
+      {1'b0,OPC_BRANCH} : misaligned_instruction = id_exceptions_i.exceptions.misaligned_instruction | has_rvc ? nxt_pc[0] : |nxt_pc[1:0];
+      default           : misaligned_instruction = id_exceptions_i.exceptions.misaligned_instruction;
     endcase
 
 
@@ -130,9 +130,9 @@ module riscv_bu #(
         end
         else
         begin
-            bu_exceptions_o                        <= id_exceptions_i;
-            bu_exceptions_o.misaligned_instruction <= misaligned_instruction;
-            bu_exceptions_o.any                    <= id_exceptions_i.any | misaligned_instruction;
+            bu_exceptions_o                                   <= id_exceptions_i;
+            bu_exceptions_o.exceptions.misaligned_instruction <= misaligned_instruction;
+            bu_exceptions_o.any                               <= id_exceptions_i.any | misaligned_instruction;
         end
     end
 

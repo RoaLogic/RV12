@@ -290,10 +290,14 @@ package riscv_state_pkg;
 
 
 
-  //Exceptions
+  //Interrupts and Exceptions
   typedef struct packed {
-    logic any;                           //OR of all exception causes
+    logic [3:0] external,
+                timer,
+                software;
+  } interrupts_t;
 
+  typedef struct packed {
     logic store_page_fault,              //15
           res14,                         //14
 	  load_page_fault,               //13
@@ -311,6 +315,14 @@ package riscv_state_pkg;
 	  instruction_access_fault,      //1
 	  misaligned_instruction;        //0
   } exceptions_t;
+
+  typedef struct packed {
+    logic any;                 //OR of all interrupts and exceptions
+    logic nmi;                 //Non-Maskable interrupt
+    interrupts_t interrupts;   //Interrupts
+    exceptions_t exceptions;   //Exceptions
+  } interrupts_exceptions_t;
+
 
   parameter        EXCEPTION_SIZE                 = 16;
 

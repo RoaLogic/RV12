@@ -35,37 +35,39 @@ module riscv_alu #(
   parameter             HAS_RVC = 0
 )
 (
-  input                 rst_ni,
-  input                 clk_i,
+  input                          rst_ni,
+  input                          clk_i,
 
-  input                 ex_stall_i,
+  input                          ex_stall_i,
 
   //Program counter
-  input      [XLEN-1:0] id_pc_i,
+  input      [XLEN         -1:0] id_pc_i,
 
   //Instruction
-  input  instruction_t  id_insn_i,
+  input  instruction_t           id_insn_i,
 
   //Operands
-  input      [XLEN-1:0] opA_i,
-                        opB_i,
+  input      [XLEN         -1:0] opA_i,
+                                 opB_i,
 
   //catch WB-exceptions
-  input  exceptions_t   wb_exceptions_i,
+  input  interrupts_exceptions_t ex_exceptions_i,
+                                 mem_exceptions_i,
+                                 wb_exceptions_i,
 
   //to WB
-  output reg            alu_bubble_o,
-  output reg [XLEN-1:0] alu_r_o,
+  output reg                     alu_bubble_o,
+  output reg [XLEN         -1:0] alu_r_o,
 
 
   //To State
-  output reg [    11:0] ex_csr_reg_o,
-  output reg [XLEN-1:0] ex_csr_wval_o,
-  output reg            ex_csr_we_o,
+  output reg [             11:0] ex_csr_reg_o,
+  output reg [XLEN         -1:0] ex_csr_wval_o,
+  output reg                     ex_csr_we_o,
 
   //From State
-  input      [XLEN-1:0] st_csr_rval_i,
-  input      [     1:0] st_xlen_i
+  input      [XLEN         -1:0] st_csr_rval_i,
+  input      [              1:0] st_xlen_i
 );
 
 
@@ -177,8 +179,10 @@ module riscv_alu #(
 
 
   always @(posedge clk_i, negedge rst_ni)
-    if (!rst_ni) alu_bubble_o <= 1'b1;
-    else if (wb_exceptions_i.any) alu_bubble_o <= 1'b1;
+    if      (!rst_ni                ) alu_bubble_o <= 1'b1;
+    else if ( ex_exceptions_i.any  ||
+              mem_exceptions_i.any ||
+              wb_exceptions_i.any   ) alu_bubble_o <= 1'b1;
     else if (!ex_stall_i)
       casex ( {xlen32,opcR} )
         {1'b?,LUI   }: alu_bubble_o <= id_insn_i.bubble;

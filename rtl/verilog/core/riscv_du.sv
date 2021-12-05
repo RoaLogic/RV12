@@ -84,7 +84,7 @@ module riscv_du #(
                                   pd_insn_i,
                                   mem_insn_i,
 
-  input  exceptions_t             mem_exceptions_i,
+  input  interrupts_exceptions_t  mem_exceptions_i,
   input      [XLEN          -1:0] mem_memadr_i,
   input                           dmem_ack_i,
                                   ex_stall_i,

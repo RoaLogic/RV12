@@ -73,9 +73,9 @@ module riscv_pd #(
   output instruction_t            pd_insn_o,
   input  instruction_t            id_insn_i,
 
-  input  exceptions_t             if_exceptions_i,
-  output exceptions_t             pd_exceptions_o,
-  input  exceptions_t             id_exceptions_i,
+  input  interrupts_exceptions_t  if_exceptions_i,
+  output interrupts_exceptions_t  pd_exceptions_o,
+  input  interrupts_exceptions_t  id_exceptions_i,
                                   ex_exceptions_i,
                                   mem_exceptions_i,
                                   wb_exceptions_i

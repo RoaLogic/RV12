@@ -78,10 +78,9 @@ module riscv_state1_10 #(
 
   input               [XLEN   -1:0] wb_pc_i,
   input  instruction_t              wb_insn_i,
-  input  exceptions_t               wb_exceptions_i,
+  input  interrupts_exceptions_t    wb_exceptions_i,
   input               [XLEN   -1:0] wb_badaddr_i,
 
-  output reg                        st_interrupt_o,
   output reg          [        1:0] st_prv_o,        //Privilege level
   output reg          [        1:0] st_xlen_o,       //Active Architecture
   output                            st_tvm_o,        //trap on satp access or SFENCE.VMA
@@ -94,11 +93,12 @@ module riscv_state1_10 #(
 
 
   //interrupts (3=M-mode, 0=U-mode)
-  input               [        3:0] ext_int_i,       //external interrupt (per privilege mode; determined by PIC)
-  input                             ext_tint_i,      //machine timer interrupt
-                                    ext_sint_i,      //machine software interrupt (for ipi)
-  input                             ext_nmi_i,       //non-maskable interrupt
+  input               [        3:0] int_external_i,  //external interrupt (per privilege mode; determined by PIC)
+  input                             int_timer_i,     //machine timer interrupt
+                                    int_software_i,  //machine software interrupt (for ipi)
+  output interrupts_t               st_int_o,
 
+  
   //CSR interface
   input                             pd_stall_i,
   input                             id_stall_i,
@@ -264,7 +264,6 @@ module riscv_state1_10 #(
 
   logic             take_interrupt;
 
-  logic [     11:0] st_int;
   logic [      3:0] interrupt_cause,
                     trap_cause;
 
@@ -665,7 +664,7 @@ endgenerate
         end
 
         //push privilege stack
-        if (ext_nmi_i)
+        if (wb_exceptions_i.nmi)
         begin
 $display ("NMI");
             //NMI always at Machine-mode
@@ -684,7 +683,7 @@ $display ("take_interrupt");
             st_flush_o  <= 1'b1;
 
             //Check if interrupts are delegated
-            if (has_n && st_prv_o == PRV_U && ( st_int & csr.mideleg & 12'h111) )
+            if (has_n && st_prv_o == PRV_U && ( wb_exceptions_i.interrupts & csr.mideleg & 12'h111) )
             begin
                 st_prv_o    <= PRV_U;
                 st_nxt_pc_o <= csr.utvec & ~'h3 + (csr.utvec[0] ? interrupt_cause << 2 : 0);
@@ -692,7 +691,7 @@ $display ("take_interrupt");
                 csr.mstatus.upie <= csr.mstatus.uie;
                 csr.mstatus.uie  <= 1'b0;
             end
-            else if (has_s && st_prv_o >= PRV_S && (st_int & csr.mideleg & 12'h333) )
+            else if (has_s && st_prv_o >= PRV_S && (wb_exceptions_i.interrupts & csr.mideleg & 12'h333) )
             begin
                 st_prv_o    <= PRV_S;
                 st_nxt_pc_o <= csr.stvec & ~'h3 + (csr.stvec[0] ? interrupt_cause << 2 : 0);
@@ -722,11 +721,11 @@ $display ("take_interrupt");
                 csr.mstatus.mpp  <= st_prv_o;
             end
         end
-        else if ( |(wb_exceptions_i[$bits(wb_exceptions_i)-2:0] & ~du_ie_i[15:0]) )
+        else if ( |(wb_exceptions_i.exceptions & ~du_ie_i[15:0]) )
         begin
             st_flush_o  <= 1'b1;
 
-            if (has_n && st_prv_o == PRV_U && |(wb_exceptions_i[$bits(wb_exceptions_i)-2:0] & csr.medeleg))
+            if (has_n && st_prv_o == PRV_U && |(wb_exceptions_i.exceptions & csr.medeleg))
             begin
                 st_prv_o    <= PRV_U;
                 st_nxt_pc_o <= csr.utvec;
@@ -734,7 +733,7 @@ $display ("take_interrupt");
                 csr.mstatus.upie <= csr.mstatus.uie;
                 csr.mstatus.uie  <= 1'b0;
             end
-            else if (has_s && st_prv_o >= PRV_S && |(wb_exceptions_i[$bits(wb_exceptions_i)-2:0] & csr.medeleg))
+            else if (has_s && st_prv_o >= PRV_S && |(wb_exceptions_i.exceptions & csr.medeleg))
             begin
                 st_prv_o    <= PRV_S;
                 st_nxt_pc_o <= csr.stvec;
@@ -745,7 +744,7 @@ $display ("take_interrupt");
 
             end
 /*
-            else if (has_h && st_prv_o >= PRV_H && |(wb_exception & csr.medeleg))
+            else if (has_h && st_prv_o >= PRV_H && |(wb_exception_i.exceptions & csr.medeleg))
             begin
                 st_prv_o    <= PRV_H;
                 st_nxt_pc_o <= csr.htvec;
@@ -931,10 +930,10 @@ endgenerate
     else
     begin
         //external interrupts
-        csr.mip.meip <=          ext_int_i[PRV_M]; 
-        csr.mip.heip <= has_h &  ext_int_i[PRV_H];
-        csr.mip.seip <= has_s & (ext_int_i[PRV_S] | soft_seip);
-        csr.mip.ueip <= has_n & (ext_int_i[PRV_U] | soft_ueip);
+        csr.mip.meip <=          int_external_i[PRV_M]; 
+        csr.mip.heip <= has_h &  int_external_i[PRV_H];
+        csr.mip.seip <= has_s & (int_external_i[PRV_S] | soft_seip);
+        csr.mip.ueip <= has_n & (int_external_i[PRV_U] | soft_ueip);
 
         //may only be written by M-mode
         if ( (ex_csr_we_i & ex_csr_reg_i == MIP & st_prv_o == PRV_M) ||
@@ -946,7 +945,7 @@ endgenerate
  
 
         //timer interrupts
-        csr.mip.mtip <= ext_tint_i;
+        csr.mip.mtip <= int_timer_i;
 
         //may only be written by M-mode
         if ( (ex_csr_we_i & ex_csr_reg_i == MIP & st_prv_o == PRV_M) ||
@@ -959,7 +958,7 @@ endgenerate
 
 
         //software interrupts
-        csr.mip.msip <= ext_sint_i;
+        csr.mip.msip <= int_software_i;
         //Machine Mode write
         if ( (ex_csr_we_i && ex_csr_reg_i == MIP && st_prv_o == PRV_M) ||
              (du_we_csr_i && du_addr_i    == MIP)                   )
@@ -1079,30 +1078,38 @@ endgenerate
       csr.mscratch <= csr_wval;
 
 
-  assign trap_cause = get_trap_cause( wb_exceptions_i[$bits(wb_exceptions_i)-2:0] & ~du_ie_i[15:0]);
+  assign trap_cause = get_trap_cause( wb_exceptions_i.exceptions & ~du_ie_i[15:0]);
 
 
   //decode interrupts
   //priority external, software, timer
-  assign st_int[CAUSE_MEINT] = ( ((st_prv_o < PRV_M) | (st_prv_o == PRV_M & csr.mstatus.mie)) & (csr.mip.meip & csr.mie.meie) );
-  assign st_int[CAUSE_HEINT] = ( ((st_prv_o < PRV_H) | (st_prv_o == PRV_H & csr.mstatus.hie)) & (csr.mip.heip & csr.mie.heie) );
-  assign st_int[CAUSE_SEINT] = ( ((st_prv_o < PRV_S) | (st_prv_o == PRV_S & csr.mstatus.sie)) & (csr.mip.seip & csr.mie.seie) );
-  assign st_int[CAUSE_UEINT] = (                       (st_prv_o == PRV_U & csr.mstatus.uie)  & (csr.mip.ueip & csr.mie.ueie) );
+  assign st_int_o.external[PRV_M] = ( ((st_prv_o < PRV_M) | (st_prv_o == PRV_M & csr.mstatus.mie)) & (csr.mip.meip & csr.mie.meie) );
+  assign st_int_o.external[PRV_H] = ( ((st_prv_o < PRV_H) | (st_prv_o == PRV_H & csr.mstatus.hie)) & (csr.mip.heip & csr.mie.heie) );
+  assign st_int_o.external[PRV_S] = ( ((st_prv_o < PRV_S) | (st_prv_o == PRV_S & csr.mstatus.sie)) & (csr.mip.seip & csr.mie.seie) );
+  assign st_int_o.external[PRV_U] = (                       (st_prv_o == PRV_U & csr.mstatus.uie)  & (csr.mip.ueip & csr.mie.ueie) );
 
-  assign st_int[CAUSE_MSINT] = ( ((st_prv_o < PRV_M) | (st_prv_o == PRV_M & csr.mstatus.mie)) & (csr.mip.msip & csr.mie.msie) ) & ~st_int[CAUSE_MEINT];
-  assign st_int[CAUSE_HSINT] = ( ((st_prv_o < PRV_H) | (st_prv_o == PRV_H & csr.mstatus.hie)) & (csr.mip.hsip & csr.mie.hsie) ) & ~st_int[CAUSE_HEINT];
-  assign st_int[CAUSE_SSINT] = ( ((st_prv_o < PRV_S) | (st_prv_o == PRV_S & csr.mstatus.sie)) & (csr.mip.ssip & csr.mie.ssie) ) & ~st_int[CAUSE_SEINT];
-  assign st_int[CAUSE_USINT] = (                       (st_prv_o == PRV_U & csr.mstatus.uie)  & (csr.mip.usip & csr.mie.usie) ) & ~st_int[CAUSE_UEINT];
+  assign st_int_o.software[PRV_M] = ( ((st_prv_o < PRV_M) | (st_prv_o == PRV_M & csr.mstatus.mie)) & (csr.mip.msip & csr.mie.msie) ) &
+                                   ~st_int_o.external[PRV_M];
+  assign st_int_o.software[PRV_H] = ( ((st_prv_o < PRV_H) | (st_prv_o == PRV_H & csr.mstatus.hie)) & (csr.mip.hsip & csr.mie.hsie) ) &
+                                   ~st_int_o.external[PRV_H];
+  assign st_int_o.software[PRV_S] = ( ((st_prv_o < PRV_S) | (st_prv_o == PRV_S & csr.mstatus.sie)) & (csr.mip.ssip & csr.mie.ssie) ) &
+                                   ~st_int_o.external[PRV_S];
+  assign st_int_o.software[PRV_U] = (                       (st_prv_o == PRV_U & csr.mstatus.uie)  & (csr.mip.usip & csr.mie.usie) ) &
+                                   ~st_int_o.external[PRV_U];
 
-  assign st_int[CAUSE_MTINT] = ( ((st_prv_o < PRV_M) | (st_prv_o == PRV_M & csr.mstatus.mie)) & (csr.mip.mtip & csr.mie.mtie) ) & ~(st_int[CAUSE_MEINT] | st_int[CAUSE_MSINT]);
-  assign st_int[CAUSE_HTINT] = ( ((st_prv_o < PRV_H) | (st_prv_o == PRV_H & csr.mstatus.hie)) & (csr.mip.htip & csr.mie.htie) ) & ~(st_int[CAUSE_HEINT] | st_int[CAUSE_HSINT]);
-  assign st_int[CAUSE_STINT] = ( ((st_prv_o < PRV_S) | (st_prv_o == PRV_S & csr.mstatus.sie)) & (csr.mip.stip & csr.mie.stie) ) & ~(st_int[CAUSE_SEINT] | st_int[CAUSE_SSINT]);
-  assign st_int[CAUSE_UTINT] = (                       (st_prv_o == PRV_U & csr.mstatus.uie)  & (csr.mip.utip & csr.mie.utie) ) & ~(st_int[CAUSE_UEINT] | st_int[CAUSE_USINT]);
+  assign st_int_o.timer   [PRV_M] = ( ((st_prv_o < PRV_M) | (st_prv_o == PRV_M & csr.mstatus.mie)) & (csr.mip.mtip & csr.mie.mtie) ) &
+                                   ~(st_int_o.external[PRV_M] | st_int_o.software[PRV_M]);
+  assign st_int_o.timer   [PRV_H] = ( ((st_prv_o < PRV_H) | (st_prv_o == PRV_H & csr.mstatus.hie)) & (csr.mip.htip & csr.mie.htie) ) &
+                                   ~(st_int_o.external[PRV_H] | st_int_o.software[PRV_H]);
+  assign st_int_o.timer   [PRV_S] = ( ((st_prv_o < PRV_S) | (st_prv_o == PRV_S & csr.mstatus.sie)) & (csr.mip.stip & csr.mie.stie) ) &
+                                   ~(st_int_o.external[PRV_S] | st_int_o.software[PRV_S]);
+  assign st_int_o.timer   [PRV_U] = (                       (st_prv_o == PRV_U & csr.mstatus.uie)  & (csr.mip.utip & csr.mie.utie) ) &
+                                   ~(st_int_o.external[PRV_U] | st_int_o.software[PRV_U]);
 
 
   //interrupt cause priority
   always_comb
-    casex (st_int & ~du_ie_i[31:16])
+    casex (wb_exceptions_i.interrupts & ~du_ie_i[31:16])
        12'h??1 : interrupt_cause = 0;
        12'h??2 : interrupt_cause = 1;
        12'h??4 : interrupt_cause = 2;
@@ -1118,21 +1125,18 @@ endgenerate
        default : interrupt_cause = 0;
     endcase
 
-  assign take_interrupt = |(st_int & ~du_ie_i[31:16]);
+  assign take_interrupt = |(wb_exceptions_i.interrupts & ~du_ie_i[31:16]);
 
 
   //for Debug Unit
-  assign du_exceptions_o = du_ie_i & { {16-$bits(st_int){1'b0}}, st_int,
-                                       {16-($bits(wb_exceptions_i)-2){1'b0}},
-                                        wb_exceptions_i[$bits(wb_exceptions_i)-2:0] };
+  assign du_exceptions_o = du_ie_i & { {16-$bits(wb_exceptions_i.interrupts){1'b0}}, wb_exceptions_i.interrupts,
+                                       {16-$bits(wb_exceptions_i.exceptions){1'b0}}, wb_exceptions_i.exceptions };
 
 
   //Update mepc and mcause
   always @(posedge clk_i,negedge rst_ni)
     if (!rst_ni)
     begin
-        st_interrupt_o <= 'b0;
-
         csr.mepc     <= 'h0;
 //        csr.hepc     <= 'h0;
         csr.sepc     <= 'h0;
@@ -1205,34 +1209,29 @@ endgenerate
         /*
          * Handle exceptions
          */
-        st_interrupt_o <= 1'b0;
-
         //priority external interrupts, software interrupts, timer interrupts, traps
-        if (ext_nmi_i) //TODO: doesn't this cause a deadlock? Need to hold of NMI once handled
+        if (wb_exceptions_i.nmi) //TODO: doesn't this cause a deadlock? Need to hold of NMI once handled
         begin
             //NMI always at Machine Level
-            st_interrupt_o <= 1'b1;
-            csr.mepc     <= bu_flush_i ? bu_nxt_pc_i : id_pc_i;
+            csr.mepc     <= bu_flush_i ? bu_nxt_pc_i : wb_pc_i;
             csr.mcause   <= (1 << (XLEN-1)) | 'h0; //Implementation dependent. '0' indicates 'unknown cause'
         end
         else if (take_interrupt)
         begin
-            st_interrupt_o <= 1'b1;
-
             //Check if interrupts are delegated
-            if (has_n && st_prv_o == PRV_U && ( st_int & csr.mideleg & 12'h111) )
+            if (has_n && st_prv_o == PRV_U && ( wb_exceptions_i.interrupts & csr.mideleg & 12'h111) )
             begin
                 csr.ucause <= (1 << (XLEN-1)) | interrupt_cause;
 
 		//don't update application return address if state caused a flush (ISR exit)
-		if (!st_flush_o) csr.uepc <= id_pc_i;
+		if (!st_flush_o) csr.uepc <= wb_pc_i;
             end
-            else if (has_s && st_prv_o >= PRV_S && (st_int & csr.mideleg & 12'h333) )
+            else if (has_s && st_prv_o >= PRV_S && (wb_exceptions_i.interrupts & csr.mideleg & 12'h333) )
             begin
                 csr.scause <= (1 << (XLEN-1)) | interrupt_cause;
 		
 		//don't update application return address if state caused a flush (ISR exit)
-                if (!st_flush_o) csr.sepc <= id_pc_i;
+                if (!st_flush_o) csr.sepc <= wb_pc_i;
             end
 /*
             else if (has_h && st_prv_o >= PRV_H && (st_int & csr.mideleg & 12'h777) )
@@ -1246,34 +1245,37 @@ endgenerate
                 csr.mcause <= (1 << (XLEN-1)) | interrupt_cause;;
 
 		//don't update application return address if state caused a flush (ISR exit)
-                if (!st_flush_o) csr.mepc <= id_pc_i;
+                if (!st_flush_o) csr.mepc <= wb_pc_i;
             end
         end
-        else if (|(wb_exceptions_i[$bits(wb_exceptions_i)-2:0] & ~du_ie_i[15:0]))
+        else if (|(wb_exceptions_i.exceptions & ~du_ie_i[15:0]))
         begin
             //Trap
-            if (has_n && st_prv_o == PRV_U && |(wb_exceptions_i[$bits(wb_exceptions_i)-2:0] & csr.medeleg))
+            if (has_n && st_prv_o == PRV_U && |(wb_exceptions_i.exceptions & csr.medeleg))
             begin
                 csr.uepc   <= wb_pc_i;
                 csr.ucause <= trap_cause;
                 csr.utval  <= wb_badaddr_i;
             end
-            else if (has_s && st_prv_o >= PRV_S && |(wb_exceptions_i[$bits(wb_exceptions_i)-2:0] & csr.medeleg))
+            else if (has_s && st_prv_o >= PRV_S && |(wb_exceptions_i.exceptions & csr.medeleg))
             begin
                 csr.sepc   <= wb_pc_i;
                 csr.scause <= trap_cause;
 
-                if (wb_exceptions_i.illegal_instruction)
+                if (wb_exceptions_i.exceptions.illegal_instruction)
                   csr.stval <= wb_insn_i.instr;
-                else if (wb_exceptions_i.misaligned_instruction   ||
-                         wb_exceptions_i.instruction_access_fault ||
-                         wb_exceptions_i.instruction_page_fault   ||
-                         wb_exceptions_i.misaligned_load          ||
-                         wb_exceptions_i.load_access_fault        ||
-                         wb_exceptions_i.load_page_fault          ||
-                         wb_exceptions_i.misaligned_store         ||
-                         wb_exceptions_i.store_access_fault       ||
-                         wb_exceptions_i.store_page_fault         )
+/*	  
+                else if (wb_exceptions_i.exceptions.misaligned_instruction   ||
+                         wb_exceptions_i.exceptions.instruction_access_fault ||
+                         wb_exceptions_i.exceptions.instruction_page_fault   ||
+                         wb_exceptions_i.exceptions.misaligned_load          ||
+                         wb_exceptions_i.exceptions.load_access_fault        ||
+                         wb_exceptions_i.exceptions.load_page_fault          ||
+                         wb_exceptions_i.exceptions.misaligned_store         ||
+                         wb_exceptions_i.exceptions.store_access_fault       ||
+                         wb_exceptions_i.exceptions.store_page_fault         )
+*/
+                else			 
                   csr.stval <= wb_badaddr_i;
             end
 /*
@@ -1295,17 +1297,20 @@ endgenerate
                 csr.mepc   <= wb_pc_i;
                 csr.mcause <= trap_cause;
 
-                if (wb_exceptions_i.illegal_instruction)
+                if (wb_exceptions_i.exceptions.illegal_instruction)
                   csr.mtval <= wb_insn_i.instr;
-                else if (wb_exceptions_i.misaligned_instruction   ||
-                         wb_exceptions_i.instruction_access_fault ||
-                         wb_exceptions_i.instruction_page_fault   ||
-                         wb_exceptions_i.misaligned_load          ||
-                         wb_exceptions_i.load_access_fault        ||
-                         wb_exceptions_i.load_page_fault          ||
-                         wb_exceptions_i.misaligned_store         ||
-                         wb_exceptions_i.store_access_fault       ||
-                         wb_exceptions_i.store_page_fault         )
+/*	  
+                else if (wb_exceptions_i.exceptions.misaligned_instruction   ||
+                         wb_exceptions_i.exceptions.instruction_access_fault ||
+                         wb_exceptions_i.exceptions.instruction_page_fault   ||
+                         wb_exceptions_i.exceptions.misaligned_load          ||
+                         wb_exceptions_i.exceptions.load_access_fault        ||
+                         wb_exceptions_i.exceptions.load_page_fault          ||
+                         wb_exceptions_i.exceptions.misaligned_store         ||
+                         wb_exceptions_i.exceptions.store_access_fault       ||
+                         wb_exceptions_i.exceptions.store_page_fault         )
+*/
+                else
                   csr.mtval <= wb_badaddr_i;
             end
         end

@@ -49,12 +49,12 @@ module riscv_lsu #(
   output reg                      lsu_bubble_o,
   output     [XLEN          -1:0] lsu_r_o,
 
-  input  exceptions_t             id_exceptions_i,
+  input  interrupts_exceptions_t  id_exceptions_i,
                                   ex_exceptions_i,
                                   mem_exceptions_i,
                                   wb_exceptions_i,
 				  
-  output exceptions_t             lsu_exceptions_o,
+  output interrupts_exceptions_t  lsu_exceptions_o,
 
 
   //Operands
