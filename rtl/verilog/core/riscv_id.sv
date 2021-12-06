@@ -235,12 +235,9 @@ module riscv_id #(
   always @(posedge clk_i,negedge rst_ni)
     if      (!rst_ni                  ) id_bubble_r <= 1'b1;
     else if ( bu_flush_i || st_flush_i) id_bubble_r <= 1'b1;
-    else if ( my_exceptions.any       ) id_bubble_r <= 1'b1;
-    else if (!stalls                  )
-      if  (id_stall_o) id_bubble_r <= 1'b1;
-      else             id_bubble_r <= pd_insn_i.bubble;
+    else if (!stalls                  ) id_bubble_r <= pd_insn_i.bubble | id_stall_o | my_exceptions.any;
 
-
+    
   //local stall
   assign stalls           = ex_stall_i;
   assign flushes          = bu_flush_i | st_flush_i;
