@@ -177,7 +177,7 @@ module riscv_pd #(
     else if (!id_stall_i)
       if (local_stall) pd_insn_o.bubble <= 1'b1;
       else             pd_insn_o.bubble <= if_insn_i.bubble;
-      
+
 
   //Exceptions
   always @(posedge clk_i, negedge rst_ni)
