@@ -120,13 +120,13 @@ module riscv_bu #(
 
 
   always @(posedge clk_i, negedge rst_ni)
-    if      (!rst_ni    ) bu_exceptions_o    <= 'h0;
+    if      (!rst_ni    ) bu_exceptions_o <= 'h0;
     else if (!ex_stall_i)
     begin
         if ( bu_flush_o || st_flush_i || 
              ex_exceptions_i.any || mem_exceptions_i.any || wb_exceptions_i.any  )
         begin
-            bu_exceptions_o    <= 'h0;
+            bu_exceptions_o <= 'h0;
         end
         else
         begin
@@ -140,8 +140,8 @@ module riscv_bu #(
   /*
    * Decode Immediates
    */
-  assign immUJ = decode_immUJ(id_insn_i.instr);
-  assign immSB = decode_immSB(id_insn_i.instr);
+  assign immUJ     = decode_immUJ(id_insn_i.instr);
+  assign immSB     = decode_immSB(id_insn_i.instr);
   assign ext_immUJ = { {XLEN-$bits(immUJ){immUJ[$left(immUJ,1)]}}, immUJ};
   assign ext_immSB = { {XLEN-$bits(immSB){immSB[$left(immSB,1)]}}, immSB};
 
