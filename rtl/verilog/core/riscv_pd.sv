@@ -174,8 +174,9 @@ module riscv_pd #(
               ex_exceptions_i.any  ||
               mem_exceptions_i.any ||
               wb_exceptions_i.any ) pd_insn_o.bubble <= 1'b1;
-    else if ( local_stall         ) pd_insn_o.bubble <= 1'b1;
-    else if (!id_stall_i          ) pd_insn_o.bubble <= if_insn_i.bubble;
+    else if (!id_stall            )
+      if (local_stall)              pd_insn_o.bubble <= 1'b1;
+      else                          pd_insn_o.bubble <= if_insn_i.bubble;
 
 
   //Exceptions
