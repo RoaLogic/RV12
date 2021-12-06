@@ -235,6 +235,7 @@ module riscv_id #(
   always @(posedge clk_i,negedge rst_ni)
     if      (!rst_ni                  ) id_bubble_r <= 1'b1;
     else if ( bu_flush_i || st_flush_i) id_bubble_r <= 1'b1;
+    else if ( my_exceptions.any       ) id_bubble_r <= 1'b1;
     else if (!stalls                  )
       if  (id_stall_o) id_bubble_r <= 1'b1;
       else             id_bubble_r <= pd_insn_i.bubble;
@@ -286,8 +287,8 @@ module riscv_id #(
     begin
         my_exceptions                                =  pd_exceptions_i;
 
-	my_exceptions.interrupts                     =  st_interrupts_i;
-	my_exceptions.nmi                            =  int_nmi_i;
+	my_exceptions.interrupts                     =  {$bits(st_interrupts_i){~pd_insn_i.bubble}} & st_interrupts_i;
+	my_exceptions.nmi                            = ~pd_insn_i.bubble & int_nmi_i;
 	
         my_exceptions.exceptions.illegal_instruction = ~pd_insn_i.bubble & (illegal_instr | pd_exceptions_i.exceptions.illegal_instruction);
         my_exceptions.exceptions.breakpoint          = ~pd_insn_i.bubble & (pd_insn_i.instr == EBREAK);
