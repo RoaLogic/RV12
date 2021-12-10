@@ -104,7 +104,7 @@ module riscv_pd #(
   logic [      1:0] branch_predicted;
 
   logic             branch_taken,
-                    dbranch_taken;
+                    stalled_branch;
 
   logic             local_stall;
 
@@ -207,7 +207,7 @@ module riscv_pd #(
       {1'b0, 1'b0,OPC_JAL   } : begin
                                     branch_taken     = 1'b1;
                                     branch_predicted = 2'b10;
-                                   pd_nxt_pc_o      = if_pc_i + ext_immUJ;
+                                    pd_nxt_pc_o      = if_pc_i + ext_immUJ;
                                 end
       {1'b0, 1'b0,OPC_BRANCH} : begin
                                    //if this CPU has a Branch Predict Unit, then use it's prediction
@@ -224,12 +224,12 @@ module riscv_pd #(
     endcase
 
 
-  always @(posedge clk_i)
-    dbranch_taken <= branch_taken;
 
+  always @(posedge clk_i)
+    stalled_branch <= branch_taken & id_stall_i;
 
   //generate latch strobe
-  assign pd_latch_nxt_pc_o = branch_taken & ~dbranch_taken;
+  assign pd_latch_nxt_pc_o = branch_taken & ~stalled_branch;
 
 
   //to Branch Prediction Unit
