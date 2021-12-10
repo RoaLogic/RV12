@@ -32,31 +32,43 @@ import riscv_cache_pkg::*;
 import biu_constants_pkg::*;
 
 module riscv_cache_tag #(
-  parameter XLEN = 32,
-  parameter PLEN = XLEN
+  parameter                   XLEN     = 32,
+  parameter                   PLEN     = XLEN,
+  parameter                   IDX_BITS = 3
 )
 (
-  input  logic             rst_ni,
-  input  logic             clk_i,
+  input  logic                rst_ni,
+  input  logic                clk_i,
 
-  input  logic             stall_i,
+  input  logic                stall_i,
   
-  input  logic             flush_i,
-  input  logic             req_i,
-  input  logic [PLEN -1:0] adr_i,
-  input  biu_size_t        size_i,
-  input                    lock_i,
-  input  biu_prot_t        prot_i,
-  input  logic             is_cacheable_i,
-  input  logic             is_misaligned_i,
+  input  logic                flush_i,
+  input  logic                req_i,
+  input  logic [PLEN    -1:0] adr_i,
+  input  biu_size_t           size_i,
+  input                       lock_i,
+  input  biu_prot_t           prot_i,
+  input  logic                is_cacheable_i,
+  input  logic                is_misaligned_i,
 
-  output logic             req_o,
-  output logic [PLEN -1:0] adr_o,
-  output biu_size_t        size_o,
-  output logic             lock_o,
-  output biu_prot_t        prot_o,
-  output logic             is_cacheable_o,
-  output logic             is_misaligned_o
+  input  logic                writebuffer_we_i,
+  input  logic [IDX_BITS-1:0] writebuffer_idx_i,
+  input  logic [XLEN    -1:0] writebuffer_data_i,
+  input  logic [XLEN/8  -1:0] writebuffer_be_i,
+
+
+  output logic                req_o,
+  output logic [PLEN    -1:0] adr_o,
+  output biu_size_t           size_o,
+  output logic                lock_o,
+  output biu_prot_t           prot_o,
+  output logic                is_cacheable_o,
+  output logic                is_misaligned_o,
+
+  output logic                writebuffer_we_o,
+  output logic [IDX_BITS-1:0] writebuffer_idx_o,
+  output logic [XLEN    -1:0] writebuffer_data_o,
+  output logic [XLEN/8  -1:0] writebuffer_be_o
 );
 
   //////////////////////////////////////////////////////////////////
@@ -83,6 +95,16 @@ module riscv_cache_tag #(
         prot_o          <= prot_i;
         is_cacheable_o  <= is_cacheable_i;
         is_misaligned_o <= is_misaligned_i;
+    end
+
+
+  always @(posedge clk_i)
+    if (!stall_i)
+    begin
+        writebuffer_we_o   = writebuffer_we_o & ~flush_i;
+        writebuffer_idx_o  = writebuffer_idx_i;
+        writebuffer_data_o = writebuffer_data_i;
+        writebuffer_be_o   = writebuffer_be_i;
     end
 
 endmodule

@@ -76,6 +76,8 @@ module riscv_cache_memory #(
   input  logic                  biucmd_ack_i,
 
   output logic                  hit_o,
+  output logic                  dirty_o,
+  output logic                  way_dirty_o,
   output logic [BLK_BITS  -1:0] cache_line_o
 );
 
@@ -87,6 +89,7 @@ module riscv_cache_memory #(
   //TAG-structure
   typedef struct packed {
     logic                valid;
+    logic                dirty;
     logic [TAG_BITS-1:0] tag;
   } tag_struct;
 
@@ -112,6 +115,7 @@ module riscv_cache_memory #(
   logic [TAG_BITS    -1:0]           tag_byp_tag;
   logic                              tag_byp_valid;
   logic [WAYS        -1:0][SETS-1:0] tag_valid;
+  logic [WAYS        -1:0][SETS-1:0] tag_dirty;
   logic [WAYS        -1:0]           way_hit;             //got a hit on a way
 
 
@@ -125,6 +129,21 @@ module riscv_cache_memory #(
   logic [IDX_BITS    -1:0]           dat_byp_idx;
   logic [BLK_BITS    -1:0]           dat_byp_q;
 
+
+  //////////////////////////////////////////////////////////////////
+  //
+  // Functions
+  //
+  function automatic integer onehot2int;
+    input [WAYS-1:0] a;
+
+    integer i;
+
+    onehot2int = 0;
+
+    for (i=0; i<WAYS; i++)
+      if (a[i]) onehot2int = i;
+  endfunction: onehot2int
 
 
   //////////////////////////////////////////////////////////////////
@@ -215,9 +234,29 @@ generate
       assign way_hit[way] = tag_out[way].valid & (rd_core_tag_i == tag_out[way].tag);
 
 
+      /* TAG Dirty
+       * Dirty is stored in DFF
+       */ 
+      always @(posedge clk_i, negedge rst_ni)
+        if      (!rst_ni           ) tag_dirty[way]                      <= 'h0;
+        else if ( tag_we_dirty[way]) tag_dirty[way][tag_dirty_write_idx] <= tag_in[way].dirty;
+
+      assign tag_out[way].dirty = tag_dirty[way][tag_idx_dly];
+
+
+      //extract 'dirty' from tag
+      assign way_dirty[way] = tag_out[way].valid & tag_out[way].dirty;
+
+
       /* TAG Write Enable
        */
       assign tag_we[way] = biumem_we & fill_way_select_dly[way];
+
+/*
+          ARMED  : tag_we_dirty[way] = way_hit[way] & ((mem_vreq_dly & mem_we_dly & mem_preq_i) | (mem_preq_dly & mem_we_dly));
+          default: tag_we_dirty[way] = (filling & fill_way_select_hold[way] & biufsm_ack) |
+                                       (flushing & write_evict_buffer & (get_dirty_way_idx(tag_dirty,flush_idx) == way) );
+*/
 
 
       /* TAG Write Data
@@ -225,7 +264,6 @@ generate
       //clear valid tag during flushing and cache-coherency checks
       assign tag_in[way].valid = ~flushing_i;
       assign tag_in[way].tag   = wr_core_tag_i;
-
   end
 endgenerate
 
@@ -235,6 +273,15 @@ endgenerate
   always @(posedge clk_i)
     if (!stall_i) hit_o <= tag_idx_dly == tag_byp_idx ? tag_byp_valid & (rd_core_tag_i == tag_byp_tag) : |way_hit & ~biumem_we_dly;
 
+
+  /* Generate Dirty
+  */
+  always @(posedge clk_i)
+    if (!stall_i) dirty_o <= |way_dirty; //TODO Bypass
+
+
+  always @(posedge clk_i)
+    if (!stall_i) way_dirty_o <= tag_out[ onehot2int(fill_way_select_dly) ].valid & tag_out[ onehot2int(fill_way_select_dly) ].dirty);
 
 
   //----------------------------------------------------------------

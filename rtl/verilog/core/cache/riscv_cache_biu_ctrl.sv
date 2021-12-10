@@ -32,17 +32,17 @@ import riscv_cache_pkg::*;
 import biu_constants_pkg::*;
 
 module riscv_cache_biu_ctrl #(
-  parameter  XLEN           = 32,
-  parameter  PLEN           = XLEN,
+  parameter                        XLEN           = 32,
+  parameter                        PLEN           = XLEN,
 
-  parameter  SIZE           = 64,
-  parameter  BLOCK_SIZE     = XLEN,
-  parameter  WAYS           = 2,
+  parameter                        SIZE           = 64,
+  parameter                        BLOCK_SIZE     = XLEN,
+  parameter                        WAYS           = 2,
 
-  parameter  INFLIGHT_DEPTH = 2,
+  parameter                        INFLIGHT_DEPTH = 2,
 
-  localparam BLK_BITS      = no_of_block_bits(BLOCK_SIZE),
-  localparam INFLIGHT_BITS = $clog2(INFLIGHT_DEPTH+1)
+  localparam                       BLK_BITS      = no_of_block_bits(BLOCK_SIZE),
+  localparam                       INFLIGHT_BITS = $clog2(INFLIGHT_DEPTH+1)
 )
 (
   input  logic                     rst_ni,
@@ -61,6 +61,7 @@ module riscv_cache_biu_ctrl #(
   input  biu_size_t                size_i,
   input  biu_prot_t                prot_i,
   input  logic                     lock_i,
+  input  logic                     we_i,
 
   output logic                     biu_ack_o,
   output logic                     in_biubuffer_o,

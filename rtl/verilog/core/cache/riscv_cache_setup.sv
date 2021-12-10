@@ -31,15 +31,15 @@ import riscv_cache_pkg::*;
 import biu_constants_pkg::*;
 
 module riscv_cache_setup #(
-  parameter  XLEN          = 32,
-  parameter  SIZE          = 64, 
-  parameter  BLOCK_SIZE    = XLEN,
-  parameter  WAYS          = 2,
+  parameter                   XLEN          = 32,
+  parameter                   SIZE          = 64, 
+  parameter                   BLOCK_SIZE    = XLEN,
+  parameter                   WAYS          = 2,
 
-  localparam SETS          = no_of_sets(SIZE, BLOCK_SIZE, WAYS),
-  localparam BLK_OFFS_BITS = no_of_block_offset_bits(BLOCK_SIZE),
-  localparam IDX_BITS      = no_of_index_bits(SETS),
-  localparam TAG_BITS      = no_of_tag_bits(XLEN, IDX_BITS, BLK_OFFS_BITS)
+  localparam                  SETS          = no_of_sets(SIZE, BLOCK_SIZE, WAYS),
+  localparam                  BLK_OFFS_BITS = no_of_block_offset_bits(BLOCK_SIZE),
+  localparam                  IDX_BITS      = no_of_index_bits(SETS),
+  localparam                  TAG_BITS      = no_of_tag_bits(XLEN, IDX_BITS, BLK_OFFS_BITS)
 )
 (
   input  logic                rst_ni,
@@ -129,9 +129,8 @@ module riscv_cache_setup #(
 
   assign tag_idx_o = stall_i && !flush_dly ? adr_idx_dly : adr_idx;
   assign dat_idx_o = stall_i && !flush_dly ? adr_idx_dly : adr_idx;
-//  assign tag_idx_o = adr_idx;
-//  assign dat_idx_o = adr_idx;
 
+  
   /* Core Tag
    */
   always @(posedge clk_i)
@@ -143,7 +142,7 @@ module riscv_cache_setup #(
   always @(posedge clk_i)
     if (!stall_i)
     begin
-        writebuffer_we_o   = req_i & we_i;
+        writebuffer_we_o   = req_i & we_i & ~flush_i;
         writebuffer_idx_o  = adr_idx;
         writebuffer_data_o = d_i;
         writebuffer_be_o   = be_i;
