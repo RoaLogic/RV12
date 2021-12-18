@@ -274,7 +274,6 @@ endgenerate
     .prot_i             ( mem_prot_i          ),
     .we_i               ( 1'b0                ),
     .d_i                ( {XLEN{1'b0}}        ),
-    .be_i               ( {XLEN/8{1'b0}}      ),
     .is_cacheable_i     ( is_cacheable_i      ),
     .is_misaligned_i    ( misaligned_i        ),
 
@@ -301,30 +300,40 @@ endgenerate
    * Physical address is available here
    */
   riscv_cache_tag #(
-    .XLEN            ( XLEN                ),
-    .PLEN            ( PLEN                ) )
+    .XLEN               ( XLEN                ),
+    .PLEN               ( PLEN                ),
+    .IDX_BITS           ( IDX_BITS            ) )
   cache_tag_inst (
-    .rst_ni          ( rst_ni              ),
-    .clk_i           ( clk_i               ),
+    .rst_ni             ( rst_ni              ),
+    .clk_i              ( clk_i               ),
 
-    .stall_i         ( stall               ),
-    .flush_i         ( mem_flush_i         ),
-    .req_i           ( setup_req           ),
-    .adr_i           ( setup_adr           ),
-    .size_i          ( setup_size          ),
-    .lock_i          ( setup_lock          ),
-    .prot_i          ( setup_prot          ),
-    .is_cacheable_i  ( setup_is_cacheable  ),
-    .is_misaligned_i ( setup_is_misaligned ),
+    .stall_i            ( stall               ),
+    .flush_i            ( mem_flush_i         ),
+    .req_i              ( setup_req           ),
+    .adr_i              ( setup_adr           ),
+    .size_i             ( setup_size          ),
+    .lock_i             ( setup_lock          ),
+    .prot_i             ( setup_prot          ),
+    .is_cacheable_i     ( setup_is_cacheable  ),
+    .is_misaligned_i    ( setup_is_misaligned ),
 
-    .req_o           ( tag_req             ),
-    .adr_o           ( tag_adr             ),
-    .size_o          ( tag_size            ),
-    .lock_o          ( tag_lock            ),
-    .prot_o          ( tag_prot            ),
-    .is_cacheable_o  ( tag_cacheable       ),
-    .is_misaligned_o ( tag_misaligned      ) );
+    .writebuffer_we_i   ( 1'b0                ),
+    .writebuffer_idx_i  ( {IDX_BITS{1'b0}}    ),
+    .writebuffer_data_i ( {XLEN    {1'b0}}    ),
+    .writebuffer_be_i   ( {XLEN/8  {1'b0}}    ),
 
+    .req_o              ( tag_req             ),
+    .adr_o              ( tag_adr             ),
+    .size_o             ( tag_size            ),
+    .lock_o             ( tag_lock            ),
+    .prot_o             ( tag_prot            ),
+    .is_cacheable_o     ( tag_cacheable       ),
+    .is_misaligned_o    ( tag_misaligned      ),
+
+    .writebuffer_we_o   (                     ),
+    .writebuffer_idx_o  (                     ),
+    .writebuffer_data_o (                     ),
+    .writebuffer_be_o   (                     ) );
 
   
   /* Hit stage
@@ -396,37 +405,40 @@ endgenerate
   assign dat_be = {$bits(dat_be){1'b1}};
   
   riscv_cache_memory #(
-    .XLEN               ( XLEN            ),
-    .SIZE               ( SIZE            ),
-    .BLOCK_SIZE         ( BLOCK_SIZE      ),
-    .WAYS               ( WAYS            ),
+    .XLEN               ( XLEN             ),
+    .SIZE               ( SIZE             ),
+    .BLOCK_SIZE         ( BLOCK_SIZE       ),
+    .WAYS               ( WAYS             ),
 
-    .TECHNOLOGY         ( TECHNOLOGY      ) )
+    .TECHNOLOGY         ( TECHNOLOGY       ) )
   cache_memory_inst (
-    .rst_ni             ( rst_ni          ),
-    .clk_i              ( clk_i           ),
+    .rst_ni             ( rst_ni           ),
+    .clk_i              ( clk_i            ),
 
-    .stall_i            ( stall           ),
+    .stall_i            ( stall            ),
 
-    .armed_i            ( armed           ),
-    .flushing_i         ( flushing        ),
-    .filling_i          ( filling         ),
-    .fill_way_select_i  ( fill_way_select ),
+    .armed_i            ( armed            ),
+    .flushing_i         ( flushing         ),
+    .filling_i          ( filling          ),
+    .fill_way_select_i  ( fill_way_select  ),
 
-    .rd_core_tag_i      ( setup_core_tag  ),
-    .wr_core_tag_i      ( hit_core_tag    ),
-    .rd_tag_idx_i       ( setup_tag_idx   ),
-    .wr_tag_idx_i       ( hit_tag_idx     ),
+    .rd_core_tag_i      ( setup_core_tag   ),
+    .wr_core_tag_i      ( hit_core_tag     ),
+    .rd_tag_idx_i       ( setup_tag_idx    ),
+    .wr_tag_idx_i       ( hit_tag_idx      ),
+    .wr_tag_dirty_idx_i ( {IDX_BITS{1'b0}} ),
 
-    .rd_dat_idx_i       ( setup_dat_idx   ),
-    .wr_dat_idx_i       ( hit_dat_idx     ),
-    .dat_be_i           ( dat_be          ),
-    .writebuffer_data_i ( {XLEN{1'b0}}    ),
-    .biu_d_i            ( cachemem_dat    ),
-    .biucmd_ack_i       ( biucmd_ack      ),
+    .rd_dat_idx_i       ( setup_dat_idx    ),
+    .wr_dat_idx_i       ( hit_dat_idx      ),
+    .dat_be_i           ( dat_be           ),
+    .writebuffer_data_i ( {XLEN{1'b0}}     ),
+    .biu_d_i            ( cachemem_dat     ),
+    .biucmd_ack_i       ( biucmd_ack       ),
 
-    .hit_o              ( cache_hit       ),
-    .cache_line_o       ( cache_line      ) );
+    .hit_o              ( cache_hit        ),
+    .dirty_o            (                  ),
+    .way_dirty_o        (                  ),
+    .cache_line_o       ( cache_line       ) );
 
 
 
@@ -457,8 +469,10 @@ endgenerate
     .size_i                    ( tag_size                ),
     .prot_i                    ( tag_prot                ),
     .lock_i                    ( 1'b0                    ),
+    .we_i                      ( 1'b0                    ),
 
-    .biu_ack_o                 ( biu_ack                 ),
+    .evictbuffer_adr_i         ( {XLEN    {1'b0}}        ),
+    .evictbuffer_data_i        ( {BLK_BITS{1'b0}}        ),
     .biubuffer_o               ( biubuffer               ),
     .in_biubuffer_o            ( in_biubuffer            ),
     .cachemem_dat_o            ( cachemem_dat            ),
