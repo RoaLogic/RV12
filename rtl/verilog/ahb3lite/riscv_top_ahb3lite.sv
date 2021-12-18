@@ -303,7 +303,6 @@ module riscv_top_ahb3lite #(
   /*
    * Instantiate bus interfaces and optional caches
    */
-
   riscv_imem_ctrl #(
     .XLEN              ( XLEN              ),
     .PLEN              ( XLEN              ),
@@ -327,13 +326,13 @@ module riscv_top_ahb3lite #(
     .st_prv_i          ( st_prv            ),
 
     //CPU side
-    .imem_req_i        ( imem_req          ),
-    .imem_ack_o        ( imem_ack          ),
-    .imem_flush_i      ( imem_flush        ),
-    .imem_adr_i        ( imem_adr          ),
-    .imem_misaligned_o ( imem_misaligned   ),
-    .imem_page_fault_o ( imem_page_fault   ),
-    .imem_error_o      ( imem_error        ),
+    .mem_req_i         ( imem_req          ),
+    .mem_ack_o         ( imem_ack          ),
+    .mem_flush_i       ( imem_flush        ),
+    .mem_adr_i         ( imem_adr          ),
+    .mem_misaligned_o  ( imem_misaligned   ),
+    .mem_page_fault_o  ( imem_page_fault   ),
+    .mem_error_o       ( imem_error        ),
     .parcel_o          ( imem_parcel       ),
     .parcel_valid_o    ( imem_parcel_valid ),
     .cache_flush_i     ( cacheflush        ),
@@ -356,231 +355,59 @@ module riscv_top_ahb3lite #(
     .biu_err_i         ( ibiu_err          ) );
 
 
-/*  
-  assign imem_parcel_page_fault = 0; //No MMU
-
-generate
-if (ICACHE_SIZE > 0)
-    /* Instruction Cache
-     */
-    /*
-    riscv_icache_core #(
-      .XLEN        ( XLEN              ),
-      .ALEN        ( ALEN              ),
-      .PARCEL_SIZE ( PARCEL_SIZE       ),
-
-      .SIZE        ( ICACHE_SIZE       ),
-      .BLOCK_SIZE  ( ICACHE_BLOCK_SIZE ),
-      .WAYS        ( 2 )) //ICACHE_WAYS       ) )
-    icache_inst (
-      .rst_ni           ( HRESETn           ),
-      .clk_i            ( HCLK              ),
-      .clr_i            (  ),
-
-      .mem_vreq_i       ( ),
-      .mem_preq_i       ( ),
-      .mem_vadr_i       ( ),
-      .mem_padr_i       ( ),
-      .size_i           ( ),
-      .lock_i           ( ),
-      .prot_i           ( ),
-      .mem_q_o          ( ),
-      .mem_ack_o        ( ),
-      .mem_err_o
 
 
-      .nxt_pc_i         ( imem_adr            ),
-      .stall_nxt_pc_o   ( if_stall_nxt_pc      ),
-      .stall_i          ( if_stall             ),
-      .flush_i          ( imem_flush             ),
-      .parcel_pc_o      ( if_parcel_pc         ),
-      .parcel_o         ( imem_parcel            ),
-      .parcel_valid_o   ( imem_parcel_valid      ),
-      .err_o            ( if_parcel_error      ),
+  riscv_dmem_ctrl #(
+    .XLEN              ( XLEN              ),
+    .PLEN              ( XLEN              ),
+    .HAS_RVC           ( HAS_RVC           ),
+    .PMA_CNT           ( PMA_CNT           ),
+    .PMP_CNT           ( PMP_CNT           ),
+    .CACHE_SIZE        ( ICACHE_SIZE       ),
+    .CACHE_BLOCK_SIZE  ( ICACHE_BLOCK_SIZE ),
+    .CACHE_WAYS        ( ICACHE_WAYS       ),
+    .TECHNOLOGY        ( TECHNOLOGY        ) )
+  dmem_ctrl_inst (
+    .rst_ni            ( HRESETn           ),
+    .clk_i             ( HCLK              ),
+ 
+    //Configuration
+    .pma_cfg_i         ( pma_cfg_i         ),
+    .pma_adr_i         ( pma_adr_i         ),
+    .st_pmpcfg_i       ( st_pmpcfg         ),
+    .st_pmpaddr_i      ( st_pmpaddr        ),
+    .st_prv_i          ( st_prv            ),
 
-      .cache_flush_i    ( cacheflush       ),
-      .dcflush_rdy_i    ( dcflush_rdy      ),
+    //CPU side
+    .mem_req_i         ( dmem_req          ),
+    .mem_size_i        ( dmem_size         ),
+    .mem_lock_i        ( dmem_lock         ),
+    .mem_adr_i         ( dmem_adr          ),
+    .mem_we_i          ( dmem_we           ),
+    .mem_d_i           ( dmem_d            ),
+    .mem_q_o           ( dmem_q            ),
+    .mem_ack_o         ( dmem_ack          ),
+    .mem_error_o       ( dmem_error        ),
+    .mem_misaligned_o  ( dmem_misaligned   ),
+    .mem_page_fault_o  ( dmem_page_fault   ),
+    .cache_flush_i     ( cacheflush        ),
+    .dcflush_rdy_o     ( dcflush_rdy       ),
 
-      .st_prv_i         ( st_prv           ),
-
-      .biu_stb_o        ( ibiu_stb         ),
-      .biu_stb_ack_i    ( ibiu_stb_ack     ),
-      .biu_d_ack_i      ( ibiu_d_ack       ),
-      .biu_adri_o       ( ibiu_adri        ),
-      .biu_adro_i       ( ibiu_adro        ),
-      .biu_size_o       ( ibiu_size        ),
-      .biu_type_o       ( ibiu_type        ),
-      .biu_we_o         ( ibiu_we          ),
-      .biu_lock_o       ( ibiu_lock        ),
-      .biu_prot_o       ( ibiu_prot        ),
-      .biu_d_o          ( ibiu_d           ),
-      .biu_q_i          ( ibiu_q           ),
-      .biu_ack_i        ( ibiu_ack         ),
-      .biu_err_i        ( ibiu_err         )
-    );
-    */
-/*
-
-   assign ibiu_stb = 1'b0;
-else
-   /*
-    * No Instruction Cache Core
-    * Control and glue logic only
-    */
-/*   
-   riscv_noicache_core #(
-     .XLEN                   ( XLEN                   ),
-     .ALEN                   ( ALEN                   ),
-     .HAS_RVC                ( HAS_RVC                ),
-     .PARCEL_SIZE            ( PARCEL_SIZE            ) )
-   noicache_core_inst (
-     //common signals
-     .rst_ni                 ( HRESETn                ),
-     .clk_i                  ( HCLK                   ),
-
-     //CPU
-     .if_req_i               ( imem_req               ),
-     .if_ack_o               ( imem_ack               ),
-     .if_flush_i             ( imem_flush             ),
-     .if_nxt_pc_i            ( imem_adr               ),
-     .if_parcel_pc_o         (   ),
-     .if_parcel_o            ( imem_parcel            ),
-     .if_parcel_valid_o      ( imem_parcel_valid      ),
-     .if_parcel_misaligned_o ( imem_parcel_misaligned ),
-     .if_parcel_error_o      ( imem_parcel_error      ),
-     .dcflush_rdy_i          ( dcflush_rdy            ),
-     .st_prv_i               ( st_prv                 ),
-
-     //BIU
-     .biu_stb_o              ( ibiu_stb               ),
-     .biu_stb_ack_i          ( ibiu_stb_ack           ),
-     .biu_d_ack_i            ( ibiu_d_ack             ),
-     .biu_adri_o             ( ibiu_adri              ),
-     .biu_adro_i             ( ibiu_adro              ),
-     .biu_size_o             ( ibiu_size              ),
-     .biu_type_o             ( ibiu_type              ),
-     .biu_we_o               ( ibiu_we                ),
-     .biu_lock_o             ( ibiu_lock              ),
-     .biu_prot_o             ( ibiu_prot              ),
-     .biu_d_o                ( ibiu_d                 ),
-     .biu_q_i                ( ibiu_q                 ),
-     .biu_ack_i              ( ibiu_ack               ),
-     .biu_err_i              ( ibiu_err               ) );
-endgenerate
-*/
-
-
-  riscv_memmisaligned #(
-    .XLEN    ( XLEN    ),
-    .HAS_RVC ( HAS_RVC )
-  )
-  dmisaligned_inst (
-    .instruction_i ( 1'b0               ),
-    .req_i         ( dmem_req           ),
-    .adr_i         ( dmem_adr           ),
-    .size_i        ( dmem_size          ),
-    .misaligned_o  ( dmem_is_misaligned )
-  );
-
-  assign dmem_page_fault = 1'b0; //No MMU
-generate
-if (DCACHE_SIZE > 0)
-    /* Data Cache
-     */
-    /*
-    riscv_icache_core #(
-      .XLEN        ( XLEN              ),
-      .ALEN        ( ALEN              ),
-      .PARCEL_SIZE ( PARCEL_SIZE       ),
-
-      .SIZE        ( ICACHE_SIZE       ),
-      .BLOCK_SIZE  ( ICACHE_BLOCK_SIZE ),
-      .WAYS        ( 2 )) //ICACHE_WAYS       ) )
-    icache_inst (
-      .rst_ni           ( HRESETn           ),
-      .clk_i            ( HCLK              ),
-
-      .nxt_pc_i         ( imem_adr            ),
-      .stall_nxt_pc_o   ( if_stall_nxt_pc      ),
-      .stall_i          ( if_stall             ),
-      .flush_i          ( imem_flush             ),
-      .parcel_pc_o      ( if_parcel_pc         ),
-      .parcel_o         ( imem_parcel            ),
-      .parcel_valid_o   ( imem_parcel_valid      ),
-      .err_o            ( if_parcel_error      ),
-
-      .cache_flush_i    ( cacheflush       ),
-      .dcflush_rdy_i    ( dcflush_rdy      ),
-
-      .st_prv_i         ( st_prv           ),
-
-      .biu_stb_o        ( ibiu_stb         ),
-      .biu_adri_o       ( ibiu_adri        ),
-      .biu_adro_i       (                  ),
-      .biu_size_o       ( ibiu_size        ),
-      .biu_type_o       ( ibiu_type        ),
-      .biu_we_o         ( ibiu_we          ),
-      .biu_lock_o       ( ibiu_lock        ),
-      .biu_prot_o       ( ibiu_prot        ),
-      .biu_d_o          ( ibiu_d           ),
-      .biu_q_i          ( ibiu_q           ),
-      .biu_stb_ack_i    ( ibiu_stb_ack_i   ),
-      .biu_d_ack_i      ( ibiu_d_ack_i     ),
-      .biu_ack_i        ( ibiu_ack         ),
-      .biu_err_i        ( ibiu_err         )
-    );
-    */
-   assign dcflush_rdy = 1'b1;
-else
-begin
-   /*
-    * No Data Cache Core
-    * Control and glue logic only
-    */
-   riscv_nodcache_core #(
-     .XLEN        ( XLEN        ),
-     .ALEN        ( ALEN        )//,
-//     .DEPTH       ( 2           )
-   )
-   nodcache_core_inst (
-     //common signals
-     .rst_ni           ( HRESETn            ),
-     .clk_i            ( HCLK               ),
-
-     //CPU
-     .mem_req_i        ( dmem_req           ),
-     .mem_size_i       ( dmem_size          ),
-     .mem_lock_i       ( dmem_lock          ),
-     .mem_adr_i        ( dmem_adr           ),
-     .mem_we_i         ( dmem_we            ),
-     .mem_d_i          ( dmem_d             ),
-     .mem_q_o          ( dmem_q             ),
-     .mem_ack_o        ( dmem_ack           ),
-     .mem_err_o        ( dmem_err           ),
-     .mem_misaligned_i ( dmem_is_misaligned ),
-     .mem_misaligned_o ( dmem_misaligned    ),
-     .st_prv_i         ( st_prv             ),
-
-     //BIU
-     .biu_stb_o        ( dbiu_stb           ),
-     .biu_stb_ack_i    ( dbiu_stb_ack       ),
-     .biu_d_ack_i      ( dbiu_d_ack         ),
-     .biu_adri_o       ( dbiu_adri          ),
-     .biu_adro_i       ( dbiu_adro          ),
-     .biu_size_o       ( dbiu_size          ),
-     .biu_type_o       ( dbiu_type          ),
-     .biu_we_o         ( dbiu_we            ),
-     .biu_lock_o       ( dbiu_lock          ),
-     .biu_prot_o       ( dbiu_prot          ),
-     .biu_d_o          ( dbiu_d             ),
-     .biu_q_i          ( dbiu_q             ),
-     .biu_ack_i        ( dbiu_ack           ),
-     .biu_err_i        ( dbiu_err           )
-   );
-
-   assign dcflush_rdy = 1'b1; //no data cache to flush. Always ready
-end
-endgenerate
+     //BIU ports
+    .biu_stb_o         ( dbiu_stb          ),
+    .biu_stb_ack_i     ( dbiu_stb_ack      ),
+    .biu_d_ack_i       ( dbiu_d_ack        ),
+    .biu_adri_o        ( dbiu_adri         ),
+    .biu_adro_i        ( dbiu_adro         ),
+    .biu_size_o        ( dbiu_size         ),
+    .biu_type_o        ( dbiu_type         ),
+    .biu_we_o          ( dbiu_we           ),
+    .biu_lock_o        ( dbiu_lock         ),
+    .biu_prot_o        ( dbiu_prot         ),
+    .biu_d_o           ( dbiu_d            ),
+    .biu_q_i           ( dbiu_q            ),
+    .biu_ack_i         ( dbiu_ack          ),
+    .biu_err_i         ( dbiu_err          ) );
 
 
   /* Instantiate BIU
