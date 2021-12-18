@@ -54,7 +54,6 @@ module riscv_cache_setup #(
   input                       lock_i,
   input  biu_prot_t           prot_i,
   input  logic                we_i,
-  input  logic [XLEN/8  -1:0] be_i,
   input  logic [XLEN    -1:0] d_i,
   input  logic                is_cacheable_i,
   input  logic                is_misaligned_i,
@@ -77,6 +76,27 @@ module riscv_cache_setup #(
   output logic [XLEN/8  -1:0] writebuffer_be_o  
 );
 
+  //////////////////////////////////////////////////////////////////
+  //
+  // Functions
+  //   
+  function automatic [XLEN/8-1:0] size2be;
+    input [     2:0] size;
+    input [XLEN-1:0] adr;
+
+    logic [$clog2(XLEN/8)-1:0] adr_lsbs;
+
+    adr_lsbs = adr[$clog2(XLEN/8)-1:0];
+
+    unique case (size)
+      BYTE : size2be = 'h1  << adr_lsbs;
+      HWORD: size2be = 'h3  << adr_lsbs;
+      WORD : size2be = 'hf  << adr_lsbs;
+      DWORD: size2be = 'hff << adr_lsbs;
+    endcase
+  endfunction: size2be
+
+  
   //////////////////////////////////////////////////////////////////
   //
   // Variables
@@ -142,10 +162,10 @@ module riscv_cache_setup #(
   always @(posedge clk_i)
     if (!stall_i)
     begin
-        writebuffer_we_o   = req_i & we_i & ~flush_i;
-        writebuffer_idx_o  = adr_idx;
-        writebuffer_data_o = d_i;
-        writebuffer_be_o   = be_i;
+        writebuffer_we_o   <= req_i & we_i & ~flush_i;
+        writebuffer_idx_o  <= adr_idx;
+        writebuffer_data_o <= d_i;
+        writebuffer_be_o   <= size2be(size_i, adr_i);
     end
 
 endmodule

@@ -63,7 +63,8 @@ module riscv_cache_biu_ctrl #(
   input  logic                     lock_i,
   input  logic                     we_i,
 
-  output logic                     biu_ack_o,
+  input  logic [XLEN         -1:0] evictbuffer_adr_i,
+  input  logic [BLK_BITS     -1:0] evictbuffer_data_i,
   output logic                     in_biubuffer_o,
   output logic [BLK_BITS     -1:0] biubuffer_o,
   output logic [BLK_BITS     -1:0] cachemem_dat_o,       //data to be written in DAT memory
@@ -113,6 +114,7 @@ module riscv_cache_biu_ctrl #(
   enum logic [               1:0] {IDLE, WAIT4BIU, BURST} biufsm_state;
 
   logic      [BURST_SIZE    -1:0] biubuffer_valid;
+  logic                           biubuffer_dirty;
   logic      [DAT_OFFS_BITS -1:0] dat_offset;
 
 
@@ -142,7 +144,7 @@ module riscv_cache_biu_ctrl #(
         unique case (biufsm_state)
           IDLE    : unique case (biucmd_i)
                       BIUCMD_NOP      : ; //do nothing
-                                   //non-cacheable transfers may be initiated
+                                          //non-cacheable transfers may be initiated
 
                       BIUCMD_READWAY : begin
                                            //read a way from main memory
@@ -190,15 +192,29 @@ module riscv_cache_biu_ctrl #(
   always @(posedge clk_i)
     unique case (biufsm_state)
      IDLE   : begin
-                  biubuffer_o     <=  'h0;
+                  if (biucmd_i == BIUCMD_WRITEWAY) biubuffer_o <= evictbuffer_data_i >> XLEN;
                   biubuffer_valid <=  'h0;
+		  biubuffer_dirty <= 1'b0;
               end
 
      BURST  : begin
-                  if (biu_ack_i)   //latch incoming data when transfer-acknowledged
+                  if (!we_i)
                   begin
-                      biubuffer_o    [ biu_adro_i[BLK_OFFS_BITS-1 -: DAT_OFFS_BITS] * XLEN +: XLEN ] <= biu_q_i;
-                      biubuffer_valid[ biu_adro_i[BLK_OFFS_BITS-1 -: DAT_OFFS_BITS] ]                <= 1'b1;
+                      if (biu_ack_i)   //latch incoming data when transfer-acknowledged
+                      begin
+                          biubuffer_o    [ biu_adro_i[BLK_OFFS_BITS-1 -: DAT_OFFS_BITS] * XLEN +: XLEN ] <= biu_q_i;
+                          biubuffer_valid[ biu_adro_i[BLK_OFFS_BITS-1 -: DAT_OFFS_BITS] ]                <= 1'b1;
+                          biubuffer_dirty                                                                <= biubuffer_dirty | we_i; //& biu_adro_eq_cache_adr_dly
+                      end
+                  end
+		  else
+                  begin
+                      if (biu_d_ack_i)
+                      begin
+                          biubuffer_o     <= biubuffer_o >> XLEN;
+                          biubuffer_valid <=  'h0;
+                          biubuffer_dirty <= 1'b0;
+                      end
                   end
               end
       default: ;
@@ -232,12 +248,6 @@ module riscv_cache_biu_ctrl #(
 
   always @(posedge clk_i)
     unique case (biufsm_state)
-/*
-      IDLE  : case (biucmd_i)
-                BIUCMD_READWAY : burst_cnt <= {BURST_BITS{1'b1}};
-                BIUCMD_WRITEWAY: burst_cnt <= {BURST_BITS{1'b1}};
-              endcase
-*/
       IDLE  : burst_cnt <= {BURST_BITS{1'b1}};
       BURST : if (biu_ack_i) burst_cnt <= burst_cnt -1;
     endcase

@@ -161,22 +161,7 @@ module riscv_dcache_core #(
   //
   // Functions
   //   
-  function automatic [XLEN/8-1:0] size2be;
-    input [     2:0] size;
-    input [XLEN-1:0] adr;
-
-    logic [$clog2(XLEN/8)-1:0] adr_lsbs;
-
-    adr_lsbs = adr[$clog2(XLEN/8)-1:0];
-
-    unique case (size)
-      BYTE : size2be = 'h1  << adr_lsbs;
-      HWORD: size2be = 'h3  << adr_lsbs;
-      WORD : size2be = 'hf  << adr_lsbs;
-      DWORD: size2be = 'hff << adr_lsbs;
-    endcase
-  endfunction: size2be
-
+ 
 
   //////////////////////////////////////////////////////////////////
   //
@@ -206,10 +191,10 @@ module riscv_dcache_core #(
   logic                     setup_is_misaligned, tag_is_misaligned;
 
 
-  logic                     setup_writebuffer_we,   tag_writebuffer_we,
-  logic [IDX_BITS     -1:0] setup_writebuffer_idx,  tag_writebuffer_idx,
-  logic [XLEN         -1:0] setup_writebuffer_data, tag_writebuffer_data,
-  logic [XLEN/8       -1:0] setup_writebuffer_be,   tag_writebuffer_be,
+  logic                     setup_writebuffer_we,   tag_writebuffer_we;
+  logic [IDX_BITS     -1:0] setup_writebuffer_idx,  tag_writebuffer_idx;
+  logic [XLEN         -1:0] setup_writebuffer_data, tag_writebuffer_data;
+  logic [XLEN/8       -1:0] setup_writebuffer_be,   tag_writebuffer_be;
 
   logic [TAG_BITS     -1:0] setup_core_tag,
                             hit_core_tag;
@@ -295,7 +280,6 @@ endgenerate
     .prot_i             ( mem_prot_i          ),
     .we_i               ( mem_we_i            ),
     .d_i                ( mem_d_i             ),
-    .be_i               ( size2be(mem_size_i) ),
     .is_cacheable_i     ( is_cacheable_i      ),
     .is_misaligned_i    ( misaligned_i        ),
 
@@ -392,6 +376,9 @@ endgenerate
     .prot_i                    ( tag_prot                ),
     .we_i                      ( tag_we                  ),
     .is_cacheable_i            ( tag_cacheable           ),
+    .q_o                       ( mem_q_o                 ),
+    .ack_o                     ( mem_ack_o               ),
+    .err_o                     ( mem_err_o               ),
 
     .tag_idx_o                 ( hit_tag_idx             ),
     .dat_idx_o                 ( hit_dat_idx             ),
@@ -412,14 +399,7 @@ endgenerate
     .biu_adro_i                ( biu_adro_i              ),
     .biu_q_i                   ( biu_q_i                 ),
     .in_biubuffer_i            ( in_biubuffer            ),
-    .biubuffer_i               ( biubuffer               ),
-
-    .parcel_pc_o               (                         ),
-    .parcel_o                  ( parcel_o                ),
-    .parcel_valid_o            ( parcel_valid_o          ),
-    .parcel_error_o            ( parcel_error_o          ),
-    .parcel_misaligned_o       ( parcel_misaligned_o     ) );
-
+    .biubuffer_i               ( biubuffer               ) );
 
 
   //----------------------------------------------------------------

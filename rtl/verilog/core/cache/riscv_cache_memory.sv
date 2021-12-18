@@ -66,6 +66,7 @@ module riscv_cache_memory #(
                                 wr_core_tag_i,
   input  logic [IDX_BITS  -1:0] rd_tag_idx_i,
                                 wr_tag_idx_i,
+                                wr_tag_dirty_idx_i,
 
   input  logic [IDX_BITS  -1:0] rd_dat_idx_i,
                                 wr_dat_idx_i,
@@ -74,6 +75,9 @@ module riscv_cache_memory #(
   input  logic [XLEN      -1:0] writebuffer_data_i,
   input  logic [BLK_BITS  -1:0] biu_d_i,
   input  logic                  biucmd_ack_i,
+
+  output logic [XLEN      -1:0] evict_buffer_adr_o,
+  output logic [BLK_BITS  -1:0] evict_buffer_q_o,
 
   output logic                  hit_o,
   output logic                  dirty_o,
@@ -110,13 +114,15 @@ module riscv_cache_memory #(
                                      tag_idx_filling;     //tag-index for filling
   tag_struct                         tag_in      [WAYS],  //tag memory input data
                                      tag_out     [WAYS];  //tag memory output data
-  logic [WAYS        -1:0]           tag_we;              //tag memory write enable
+  logic [WAYS        -1:0]           tag_we,              //tag memory write enable
+                                     tag_we_dirty;        //tag-dirty write enable
   logic [IDX_BITS    -1:0]           tag_byp_idx;
   logic [TAG_BITS    -1:0]           tag_byp_tag;
   logic                              tag_byp_valid;
   logic [WAYS        -1:0][SETS-1:0] tag_valid;
   logic [WAYS        -1:0][SETS-1:0] tag_dirty;
-  logic [WAYS        -1:0]           way_hit;             //got a hit on a way
+  logic [WAYS        -1:0]           way_hit,             //got a hit on a way
+                                     way_dirty;           //way is dirty
 
 
   logic [IDX_BITS    -1:0]           dat_idx,
@@ -238,8 +244,8 @@ generate
        * Dirty is stored in DFF
        */ 
       always @(posedge clk_i, negedge rst_ni)
-        if      (!rst_ni           ) tag_dirty[way]                      <= 'h0;
-        else if ( tag_we_dirty[way]) tag_dirty[way][tag_dirty_write_idx] <= tag_in[way].dirty;
+        if      (!rst_ni           ) tag_dirty[way]                     <= 'h0;
+        else if ( tag_we_dirty[way]) tag_dirty[way][wr_tag_dirty_idx_i] <= tag_in[way].dirty;
 
       assign tag_out[way].dirty = tag_dirty[way][tag_idx_dly];
 
@@ -263,6 +269,7 @@ generate
        */
       //clear valid tag during flushing and cache-coherency checks
       assign tag_in[way].valid = ~flushing_i;
+      assign tag_in[way].dirty = 1'b1;
       assign tag_in[way].tag   = wr_core_tag_i;
   end
 endgenerate
@@ -281,7 +288,7 @@ endgenerate
 
 
   always @(posedge clk_i)
-    if (!stall_i) way_dirty_o <= tag_out[ onehot2int(fill_way_select_dly) ].valid & tag_out[ onehot2int(fill_way_select_dly) ].dirty);
+    if (!stall_i) way_dirty_o <= tag_out[ onehot2int(fill_way_select_dly) ].valid & tag_out[ onehot2int(fill_way_select_dly) ].dirty;
 
 
   //----------------------------------------------------------------
