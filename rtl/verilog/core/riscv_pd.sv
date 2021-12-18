@@ -104,7 +104,7 @@ module riscv_pd #(
   logic [      1:0] branch_predicted;
 
   logic             branch_taken,
-                    dbranch_taken;
+                    stalled_branch;
 
   logic             local_stall;
 
@@ -225,11 +225,11 @@ module riscv_pd #(
 
 
   always @(posedge clk_i)
-    dbranch_taken <= branch_taken;
+    stalled_branch <= branch_taken & id_stall_i;
 
 
   //generate latch strobe
-  assign pd_latch_nxt_pc_o = branch_taken & ~dbranch_taken;
+  assign pd_latch_nxt_pc_o = branch_taken & ~stalled_branch;
 
 
   //to Branch Prediction Unit
