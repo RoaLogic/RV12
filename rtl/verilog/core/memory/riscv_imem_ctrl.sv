@@ -134,8 +134,8 @@ module riscv_imem_ctrl #(
   //
 
   assign size             = XLEN == 64 ? DWORD : WORD;   //Transfer size
-  assign prot             = biu_prot_t'( PROT_INSTRUCTION |
-	                                 st_prv_i == PRV_U ? PROT_USER : PROT_PRIVILEGED );
+  assign prot             = biu_prot_t'( PROT_INSTRUCTION                                 |
+	                                (st_prv_i == PRV_U ? PROT_USER : PROT_PRIVILEGED) );
   assign lock             = 1'b0; //no locked instruction accesses
   assign mem_page_fault_o = 1'b0; //no MMU
 
