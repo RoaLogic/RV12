@@ -62,7 +62,12 @@ simw: vlog
 	vsim $(SIM_OPTS) 							\
 	  -l $(LOG) $(TOP)							\
 	  +access +r -wlf $(TOP).wlf						\
-	  -do "set WildcardFilter [lsearch -not -all -inline $$WildcardFilter Memory]; log -r /$(TOP)/*; log /$(TOP)/dut/core/int_rf/rf; run -all; quit"				\
+	  -do "set WildcardFilter [lsearch -not -all -inline $$WildcardFilter Memory];	\
+               log -r /$(TOP)/*;							\
+	       log /$(TOP)/dut/core/int_rf/rf;						\
+	       log /$(TOP)/dut/imem_ctrl_inst/genblk1/icache_inst/cache_memory/tag_out;	\
+	       run -all;								\
+	       quit"				\
 	$(foreach p, $(PARAMS),-g`echo $p | sed -r 's/(\w+)=([^0-9].*)/\1="\2"/'`)
 	
 clean:
