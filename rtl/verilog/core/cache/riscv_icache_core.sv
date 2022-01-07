@@ -132,30 +132,30 @@ module riscv_icache_core #(
   //----------------------------------------------------------------
   // Cache
   //----------------------------------------------------------------
-  localparam PAGE_SIZE       = 4*1024;                             //4KB pages
-  localparam MAX_IDX_BITS    = $clog2(PAGE_SIZE) - $clog2(BLOCK_SIZE); //Maximum IDX_BITS
+  localparam PAGE_SIZE        = 4*1024;                             //4KB pages
+  localparam MAX_IDX_BITS     = $clog2(PAGE_SIZE) - $clog2(BLOCK_SIZE); //Maximum IDX_BITS
   
 
-  localparam SETS            = (SIZE*1024) / BLOCK_SIZE / WAYS;    //Number of sets TODO:SETS=1 doesn't work
-  localparam BLK_OFF_BITS    = $clog2(BLOCK_SIZE);                 //Number of BlockOffset bits
-  localparam IDX_BITS        = $clog2(SETS);                       //Number of Index-bits
-  localparam TAG_BITS        = XLEN - IDX_BITS - BLK_OFF_BITS;     //Number of TAG-bits
-  localparam BLK_BITS        = 8*BLOCK_SIZE;                       //Total number of bits in a Block
-  localparam BURST_SIZE      = BLK_BITS / XLEN;                    //Number of transfers to load 1 Block
-  localparam BURST_BITS      = $clog2(BURST_SIZE);
-  localparam BURST_OFF       = XLEN/8;
-  localparam BURST_LSB       = $clog2(BURST_OFF);
+  localparam SETS             = (SIZE*1024) / BLOCK_SIZE / WAYS;    //Number of sets TODO:SETS=1 doesn't work
+  localparam BLK_OFFS_BITS    = $clog2(BLOCK_SIZE);                 //Number of BlockOffset bits
+  localparam IDX_BITS         = $clog2(SETS);                       //Number of Index-bits
+  localparam TAG_BITS         = XLEN - IDX_BITS - BLK_OFFS_BITS;     //Number of TAG-bits
+  localparam BLK_BITS         = 8*BLOCK_SIZE;                       //Total number of bits in a Block
+  localparam BURST_SIZE       = BLK_BITS / XLEN;                    //Number of transfers to load 1 Block
+  localparam BURST_BITS       = $clog2(BURST_SIZE);
+  localparam BURST_OFFS       = XLEN/8;
+  localparam BURST_LSB        = $clog2(BURST_OFFS);
 
   //BLOCK decoding
-  localparam DAT_OFF_BITS    = $clog2(BLK_BITS / XLEN);            //Offset in block
-  localparam PARCEL_OFF_BITS = $clog2(XLEN / PARCEL_SIZE);
+  localparam DAT_OFFS_BITS    = $clog2(BLK_BITS / XLEN);            //Offset in block
+  localparam PARCEL_OFFS_BITS = $clog2(XLEN / PARCEL_SIZE);
 
 
   //Inflight transfers
-  localparam INFLIGHT_DEPTH  = 2;                                  //Wishbone has 1 transfers in flight
-                                                                   //AHB      has 2 transfers in flight
-                                                                   //AXI can have many transfers in flight
-  localparam INFLIGHT_BITS   = $clog2(INFLIGHT_DEPTH+1);
+  localparam INFLIGHT_DEPTH   = 2;                                  //Wishbone has 1 transfers in flight
+                                                                    //AHB      has 2 transfers in flight
+                                                                    //AXI can have many transfers in flight
+  localparam INFLIGHT_BITS    = $clog2(INFLIGHT_DEPTH+1);
 
 
   //////////////////////////////////////////////////////////////////
@@ -201,7 +201,6 @@ module riscv_icache_core #(
 
 
   logic                     cache_hit;
-  logic [WAYS         -1:0] way_hit;
   logic [BLK_BITS     -1:0] cache_line;
 
 
@@ -290,6 +289,7 @@ endgenerate
 
     .writebuffer_we_o   (                     ),
     .writebuffer_idx_o  (                     ),
+    .writebuffer_offs_o (                     ),
     .writebuffer_data_o (                     ),
     .writebuffer_be_o   (                     ) );
 
@@ -300,40 +300,43 @@ endgenerate
    * Physical address is available here
    */
   riscv_cache_tag #(
-    .XLEN               ( XLEN                ),
-    .PLEN               ( PLEN                ),
-    .IDX_BITS           ( IDX_BITS            ) )
+    .XLEN               ( XLEN                  ),
+    .PLEN               ( PLEN                  ),
+    .IDX_BITS           ( IDX_BITS              ),
+    .BLK_OFFS_BITS      ( BLK_OFFS_BITS         ) )
   cache_tag_inst (
-    .rst_ni             ( rst_ni              ),
-    .clk_i              ( clk_i               ),
+    .rst_ni             ( rst_ni                ),
+    .clk_i              ( clk_i                 ),
 
-    .stall_i            ( stall               ),
-    .flush_i            ( mem_flush_i         ),
-    .req_i              ( setup_req           ),
-    .adr_i              ( setup_adr           ),
-    .size_i             ( setup_size          ),
-    .lock_i             ( setup_lock          ),
-    .prot_i             ( setup_prot          ),
-    .is_cacheable_i     ( setup_is_cacheable  ),
-    .is_misaligned_i    ( setup_is_misaligned ),
+    .stall_i            ( stall                 ),
+    .flush_i            ( mem_flush_i           ),
+    .req_i              ( setup_req             ),
+    .adr_i              ( setup_adr             ),
+    .size_i             ( setup_size            ),
+    .lock_i             ( setup_lock            ),
+    .prot_i             ( setup_prot            ),
+    .is_cacheable_i     ( setup_is_cacheable    ),
+    .is_misaligned_i    ( setup_is_misaligned   ),
 
-    .writebuffer_we_i   ( 1'b0                ),
-    .writebuffer_idx_i  ( {IDX_BITS{1'b0}}    ),
-    .writebuffer_data_i ( {XLEN    {1'b0}}    ),
-    .writebuffer_be_i   ( {XLEN/8  {1'b0}}    ),
+    .writebuffer_we_i   ( 1'b0                  ),
+    .writebuffer_idx_i  ( {IDX_BITS     {1'b0}} ),
+    .writebuffer_offs_i ( {BLK_OFFS_BITS{1'b0}} ),
+    .writebuffer_data_i ( {XLEN         {1'b0}} ),
+    .writebuffer_be_i   ( {XLEN/8       {1'b0}} ),
 
-    .req_o              ( tag_req             ),
-    .adr_o              ( tag_adr             ),
-    .size_o             ( tag_size            ),
-    .lock_o             ( tag_lock            ),
-    .prot_o             ( tag_prot            ),
-    .is_cacheable_o     ( tag_cacheable       ),
-    .is_misaligned_o    ( tag_misaligned      ),
+    .req_o              ( tag_req               ),
+    .adr_o              ( tag_adr               ),
+    .size_o             ( tag_size              ),
+    .lock_o             ( tag_lock              ),
+    .prot_o             ( tag_prot              ),
+    .is_cacheable_o     ( tag_cacheable         ),
+    .is_misaligned_o    ( tag_misaligned        ),
 
-    .writebuffer_we_o   (                     ),
-    .writebuffer_idx_o  (                     ),
-    .writebuffer_data_o (                     ),
-    .writebuffer_be_o   (                     ) );
+    .writebuffer_we_o   (                       ),
+    .writebuffer_idx_o  (                       ),
+    .writebuffer_offs_o (                       ),
+    .writebuffer_data_o (                       ),
+    .writebuffer_be_o   (                       ) );
 
   
   /* Hit stage
@@ -430,8 +433,11 @@ endgenerate
 
     .rd_dat_idx_i       ( setup_dat_idx    ),
     .wr_dat_idx_i       ( hit_dat_idx      ),
-    .dat_be_i           ( dat_be           ),
-    .writebuffer_data_i ( {XLEN{1'b0}}     ),
+    .writebuffer_we_i   ( 1'b0             ),
+    .writebuffer_be_i   ( {XLEN/8{1'b0}}   ),
+    .writebuffer_idx_i  ( {IDX_BITS{1'b0}} ),
+    .writebuffer_offs_i ( {BLK_OFFS_BITS{1'b0}} ),
+    .writebuffer_data_i ( {XLEN  {1'b0}}   ),
     .biu_d_i            ( cachemem_dat     ),
     .biucmd_ack_i       ( biucmd_ack       ),
 
@@ -470,9 +476,10 @@ endgenerate
     .prot_i                    ( tag_prot                ),
     .lock_i                    ( 1'b0                    ),
     .we_i                      ( 1'b0                    ),
+    .d_i                       ( {XLEN    {1'b0}}        ),
 
     .evictbuffer_adr_i         ( {XLEN    {1'b0}}        ),
-    .evictbuffer_data_i        ( {BLK_BITS{1'b0}}        ),
+    .evictbuffer_d_i           ( {BLK_BITS{1'b0}}        ),
     .biubuffer_o               ( biubuffer               ),
     .in_biubuffer_o            ( in_biubuffer            ),
     .cachemem_dat_o            ( cachemem_dat            ),
