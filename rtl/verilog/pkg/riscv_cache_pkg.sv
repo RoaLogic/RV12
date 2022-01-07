@@ -85,10 +85,9 @@ package riscv_cache_pkg;
 
 
 
-  //Statemachine (commands)
+  //BIU Commands
   typedef enum logic [1:0] {BIUCMD_NOP=0, BIUCMD_READWAY=1, BIUCMD_WRITEWAY=2} biucmd_t;
 
-  
 endpackage
 
 
