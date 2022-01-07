@@ -363,9 +363,9 @@ module riscv_top_ahb3lite #(
     .HAS_RVC           ( HAS_RVC           ),
     .PMA_CNT           ( PMA_CNT           ),
     .PMP_CNT           ( PMP_CNT           ),
-    .CACHE_SIZE        ( ICACHE_SIZE       ),
-    .CACHE_BLOCK_SIZE  ( ICACHE_BLOCK_SIZE ),
-    .CACHE_WAYS        ( ICACHE_WAYS       ),
+    .CACHE_SIZE        ( DCACHE_SIZE       ),
+    .CACHE_BLOCK_SIZE  ( DCACHE_BLOCK_SIZE ),
+    .CACHE_WAYS        ( DCACHE_WAYS       ),
     .TECHNOLOGY        ( TECHNOLOGY        ) )
   dmem_ctrl_inst (
     .rst_ni            ( HRESETn           ),
@@ -387,11 +387,11 @@ module riscv_top_ahb3lite #(
     .mem_d_i           ( dmem_d            ),
     .mem_q_o           ( dmem_q            ),
     .mem_ack_o         ( dmem_ack          ),
-    .mem_error_o       ( dmem_error        ),
+    .mem_err_o         ( dmem_err          ),
     .mem_misaligned_o  ( dmem_misaligned   ),
     .mem_page_fault_o  ( dmem_page_fault   ),
     .cache_flush_i     ( cacheflush        ),
-    .dcflush_rdy_o     ( dcflush_rdy       ),
+    .cache_flush_rdy_o ( dcflush_rdy       ),
 
      //BIU ports
     .biu_stb_o         ( dbiu_stb          ),
