@@ -74,9 +74,12 @@ module riscv_dcache_hit #(
   output logic [XLEN            -1:0] q_o,
   output logic                        ack_o,
   output logic                        err_o,
+  output logic                        misaligned_o,
 
   input  logic                        cache_hit_i,      //from cache-memory
   input  logic [BLK_BITS        -1:0] cache_line_i,
+  input  logic                        cache_dirty_i,
+  input  logic                        way_dirty_i,
   output logic [IDX_BITS        -1:0] tag_idx_o,
                                       dat_idx_o,
   output logic [TAG_BITS        -1:0] core_tag_o,
@@ -196,6 +199,8 @@ module riscv_dcache_hit #(
   enum logic [2:0] {ARMED=0,
                     FLUSH,
                     NONCACHEABLE,
+                    EVICT,
+                    FLUSHWAYS,
                     WAIT4BIUCMD0,
                     RECOVER} memfsm_state;
 
@@ -239,7 +244,7 @@ module riscv_dcache_hit #(
 			      memfsm_state <= EVICT;
                               biucmd_o     <= BIUCMD_READWAY; //read new line before evicting old one
                               armed_o      <= 1'b0;
-                              filling_o    <= 1'1b;
+                              filling_o    <= 1'b1;
 			  end
 			  else
                           begin
@@ -255,7 +260,7 @@ module riscv_dcache_hit #(
                           biucmd_o <= BIUCMD_NOP;
                       end
 
-       FLUSH        : if (dirty_i)
+       FLUSH        : if (cache_dirty_i)
                       begin
                           //There are dirty ways in this set
                           //First determine dat_idx; this reads all ways for that index (FLUSH)
@@ -267,20 +272,20 @@ module riscv_dcache_hit #(
                       else
                       begin
                          memfsm_state <= RECOVER; //allow to read new tag_idx
-                         flushing     <= 1'b0;
+                         flushing_o   <= 1'b0;
                       end
 
         FLUSHWAYS   : begin
                           //assert WRITE_WAY here (instead of in FLUSH) to allow time to load evict_buffer
-                          biucmd <= WRITE_WAY;
+                          biucmd_o <= BIUCMD_WRITEWAY;
 
-                          if (biufsm_ack)
+                          if (biucmd_ack_i)
                           begin
                               //Check if there are more dirty ways in this set
-                              if (~|way_dirty)
+                              if (cache_dirty_i)
                               begin
                                   memfsm_state <= FLUSH;
-                                  biucmd       <= NOP;
+                                  biucmd_o     <= BIUCMD_NOP;
                               end
                           end
                       end
@@ -296,7 +301,7 @@ module riscv_dcache_hit #(
         EVICT       : if (biucmd_ack_i || biu_err_i)
                       begin
                           memfsm_state <= RECOVER;
-                          biucmd_o     <= WRITE_WAY; //evict dirty way
+                          biucmd_o     <= BIUCMD_WRITEWAY; //evict dirty way
                           filling_o    <= 1'b0;
                       end
 
@@ -362,6 +367,9 @@ module riscv_dcache_hit #(
     err_o <= biu_err_i;
 
 
+  assign misaligned_o = 1'b0; //TODO
+
+  
   //Shift amount for data
   assign dat_offset = adr_i[BLK_OFFS_BITS-1 -: DAT_OFFS_BITS];
 
@@ -370,15 +378,9 @@ module riscv_dcache_hit #(
 
   always @(posedge clk_i)
     unique case (memfsm_state)
-      WAIT4BIUCMD0: mem_q <= cache_hit_i    ? cache_q : biu_q_i;
-      default     : mem_q <= is_cacheable_i ? cache_q : biu_q_i;
+      WAIT4BIUCMD0: q_o <= cache_hit_i    ? cache_q : biu_q_i;
+      default     : q_o <= is_cacheable_i ? cache_q : biu_q_i;
     endcase
-
-
-  //acknowledge cache hit
-  assign cache_ack         =  req_i & is_cacheable_i & cache_hit_i & ~flush_i;
-  assign biu_cacheable_ack = (req_i & biu_ack_i & biu_adro_eq_cache_adr_dly & ~flush_i) |
-                              cache_ack; //(req_i & is_cacheable_i & cache_hit_i & ~flush_i);
 
 endmodule
 

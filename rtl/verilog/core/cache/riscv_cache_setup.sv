@@ -31,49 +31,50 @@ import riscv_cache_pkg::*;
 import biu_constants_pkg::*;
 
 module riscv_cache_setup #(
-  parameter                   XLEN          = 32,
-  parameter                   SIZE          = 64, 
-  parameter                   BLOCK_SIZE    = XLEN,
-  parameter                   WAYS          = 2,
+  parameter                        XLEN          = 32,
+  parameter                        SIZE          = 64, 
+  parameter                        BLOCK_SIZE    = XLEN,
+  parameter                        WAYS          = 2,
 
-  localparam                  SETS          = no_of_sets(SIZE, BLOCK_SIZE, WAYS),
-  localparam                  BLK_OFFS_BITS = no_of_block_offset_bits(BLOCK_SIZE),
-  localparam                  IDX_BITS      = no_of_index_bits(SETS),
-  localparam                  TAG_BITS      = no_of_tag_bits(XLEN, IDX_BITS, BLK_OFFS_BITS)
+  localparam                       SETS          = no_of_sets(SIZE, BLOCK_SIZE, WAYS),
+  localparam                       BLK_OFFS_BITS = no_of_block_offset_bits(BLOCK_SIZE),
+  localparam                       IDX_BITS      = no_of_index_bits(SETS),
+  localparam                       TAG_BITS      = no_of_tag_bits(XLEN, IDX_BITS, BLK_OFFS_BITS)
 )
 (
-  input  logic                rst_ni,
-  input  logic                clk_i,
+  input  logic                     rst_ni,
+  input  logic                     clk_i,
 
-  input  logic                stall_i,
+  input  logic                     stall_i,
   
-  input  logic                flush_i,
-  input  logic                req_i,
-  input  logic [XLEN    -1:0] adr_i,   //virtualy index, physically tagged
-  input  biu_size_t           size_i,
-  input                       lock_i,
-  input  biu_prot_t           prot_i,
-  input  logic                we_i,
-  input  logic [XLEN    -1:0] d_i,
-  input  logic                is_cacheable_i,
-  input  logic                is_misaligned_i,
+  input  logic                     flush_i,
+  input  logic                     req_i,
+  input  logic [XLEN         -1:0] adr_i,   //virtualy index, physically tagged
+  input  biu_size_t                size_i,
+  input                            lock_i,
+  input  biu_prot_t                prot_i,
+  input  logic                     we_i,
+  input  logic [XLEN         -1:0] d_i,
+  input  logic                     is_cacheable_i,
+  input  logic                     is_misaligned_i,
 
-  output logic                req_o,
-  output logic [XLEN    -1:0] adr_o,
-  output biu_size_t           size_o,
-  output logic                lock_o,
-  output biu_prot_t           prot_o,
-  output logic                is_cacheable_o,
-  output logic                is_misaligned_o,
+  output logic                     req_o,
+  output logic [XLEN         -1:0] adr_o,
+  output biu_size_t                size_o,
+  output logic                     lock_o,
+  output biu_prot_t                prot_o,
+  output logic                     is_cacheable_o,
+  output logic                     is_misaligned_o,
 
-  output logic [IDX_BITS-1:0] tag_idx_o,
-                              dat_idx_o,
-  output logic [TAG_BITS-1:0] core_tag_o,
+  output logic [IDX_BITS     -1:0] tag_idx_o,
+                                   dat_idx_o,
+  output logic [TAG_BITS     -1:0] core_tag_o,
 
-  output logic                writebuffer_we_o,
-  output logic [IDX_BITS-1:0] writebuffer_idx_o,
-  output logic [XLEN    -1:0] writebuffer_data_o,
-  output logic [XLEN/8  -1:0] writebuffer_be_o  
+  output logic                     writebuffer_we_o,
+  output logic [IDX_BITS     -1:0] writebuffer_idx_o,
+  output logic [BLK_OFFS_BITS-1:0] writebuffer_offs_o,
+  output logic [XLEN         -1:0] writebuffer_data_o,
+  output logic [XLEN/8       -1:0] writebuffer_be_o  
 );
 
   //////////////////////////////////////////////////////////////////
@@ -164,6 +165,7 @@ module riscv_cache_setup #(
     begin
         writebuffer_we_o   <= req_i & we_i & ~flush_i;
         writebuffer_idx_o  <= adr_idx;
+	writebuffer_offs_o <= adr_i[0 +: BLK_OFFS_BITS];
         writebuffer_data_o <= d_i;
         writebuffer_be_o   <= size2be(size_i, adr_i);
     end

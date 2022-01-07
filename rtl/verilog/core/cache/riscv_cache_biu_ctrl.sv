@@ -62,11 +62,12 @@ module riscv_cache_biu_ctrl #(
   input  biu_prot_t                prot_i,
   input  logic                     lock_i,
   input  logic                     we_i,
+  input  logic [XLEN         -1:0] d_i,
 
   input  logic [XLEN         -1:0] evictbuffer_adr_i,
-  input  logic [BLK_BITS     -1:0] evictbuffer_data_i,
+  input  logic [BLK_BITS     -1:0] evictbuffer_d_i,
   output logic                     in_biubuffer_o,
-  output logic [BLK_BITS     -1:0] biubuffer_o,
+  output logic [BLK_BITS     -1:0] biubuffer_o,          //data to cache-ctrl
   output logic [BLK_BITS     -1:0] cachemem_dat_o,       //data to be written in DAT memory
 
 
@@ -121,6 +122,7 @@ module riscv_cache_biu_ctrl #(
 
   logic      [PLEN          -1:0] biu_adri_hold;
   logic      [XLEN          -1:0] biu_d_hold;
+  logic                           biu_we_hold;
 
   logic      [BURST_BITS    -1:0] burst_cnt;
 
@@ -192,7 +194,7 @@ module riscv_cache_biu_ctrl #(
   always @(posedge clk_i)
     unique case (biufsm_state)
      IDLE   : begin
-                  if (biucmd_i == BIUCMD_WRITEWAY) biubuffer_o <= evictbuffer_data_i >> XLEN;
+                  if (biucmd_i == BIUCMD_WRITEWAY) biubuffer_o <= evictbuffer_d_i >> XLEN;
                   biubuffer_valid <=  'h0;
 		  biubuffer_dirty <= 1'b0;
               end
@@ -211,7 +213,7 @@ module riscv_cache_biu_ctrl #(
                   begin
                       if (biu_d_ack_i)
                       begin
-                          biubuffer_o     <= biubuffer_o >> XLEN;
+                          biubuffer_o     <= biubuffer_o >> XLEN; //next data to transfer (to BIU)
                           biubuffer_valid <=  'h0;
                           biubuffer_dirty <= 1'b0;
                       end
@@ -278,37 +280,53 @@ module riscv_cache_biu_ctrl #(
 
 
   //output BIU signals asynchronously for speed reasons. BIU will synchronize ...
-  assign biu_d_o  = 'h0;
-  assign biu_we_o = 1'b0;
-
   always_comb
     unique case (biufsm_state)
       IDLE    : unique case (biucmd_i)
                   BIUCMD_NOP      : begin
                                         biu_stb_o  = biucmd_noncacheable_req_i;
-                                        biu_adri_o = adr_i[PLEN-1:0];
+                                        biu_adri_o = adr_i[0 +: PLEN];
+                                        biu_we_o   = we_i;
+                                        biu_d_o    = d_i;
                                     end
 
                   BIUCMD_READWAY  : begin
                                         biu_stb_o  = 1'b1;
                                         biu_adri_o = {adr_i[PLEN-1 : BURST_LSB],{BURST_LSB{1'b0}}};
+                                        biu_we_o   = 1'b0;
+                                        biu_d_o    =  'hx;
                                     end
+
+                  BIUCMD_WRITEWAY : begin
+                                        biu_stb_o  = 1'b1;
+                                        biu_adri_o = adr_i;
+                                        biu_we_o   = 1'b1;
+                                        biu_d_o    = evictbuffer_d_i[0 +: XLEN];
+                                    end
+
                 endcase
 
       WAIT4BIU: begin
                     //stretch biu_*_o signals until BIU acknowledges strobe
                     biu_stb_o  = 1'b1;
                     biu_adri_o = biu_adri_hold;
+                    biu_we_o   = biu_we_hold;
+                    biu_d_o    = biu_d_hold;
                 end
 
       BURST   : begin
-                    biu_stb_o  = 1'b0;
-                    biu_adri_o =  'hx; //don't care
+                    //continue burst operation
+                    biu_stb_o  = 1'b0;                    //don't start new (burst) transaction
+                    biu_adri_o =  'hx;                    //don't care
+                    biu_we_o   = 1'bx;                    //don't care
+                    biu_d_o    = biubuffer_o[0 +: XLEN];  //next data to transfer
                 end
 
       default : begin
-                    biu_stb_o  = 1'b0;
+                    biu_stb_o  = 1'b0; //don't start a transaction
                     biu_adri_o =  'hx; //don't care
+                    biu_we_o   = 1'bx; //don't care
+                    biu_d_o    =  'hx; //don't care
                 end
     endcase
 
@@ -318,6 +336,7 @@ module riscv_cache_biu_ctrl #(
     if (biufsm_state == IDLE)
     begin
         biu_adri_hold <= biu_adri_o;
+        biu_we_hold   <= biu_we_o;
         biu_d_hold    <= biu_d_o;
     end
 

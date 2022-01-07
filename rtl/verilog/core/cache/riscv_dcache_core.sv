@@ -96,9 +96,10 @@ module riscv_dcache_core #(
   input  logic             mem_req_i,
   output logic             mem_ack_o,
   output logic             mem_err_o,
+  output logic             mem_misaligned_o,
   input  logic [XLEN -1:0] mem_adr_i,
   input  biu_size_t        mem_size_i,
-  input                    mem_lock_i,
+  input  logic             mem_lock_i,
   input  biu_prot_t        mem_prot_i,
   input  logic             mem_we_i,
   input  logic [XLEN -1:0] mem_d_i,
@@ -131,23 +132,23 @@ module riscv_dcache_core #(
   //----------------------------------------------------------------
   // Cache
   //----------------------------------------------------------------
-  localparam PAGE_SIZE       = 4*1024;                             //4KB pages
-  localparam MAX_IDX_BITS    = $clog2(PAGE_SIZE) - $clog2(BLOCK_SIZE); //Maximum IDX_BITS
+  localparam PAGE_SIZE        = 4*1024;                            //4KB pages
+  localparam MAX_IDX_BITS     = $clog2(PAGE_SIZE) - $clog2(BLOCK_SIZE); //Maximum IDX_BITS
   
 
-  localparam SETS            = (SIZE*1024) / BLOCK_SIZE / WAYS;    //Number of sets TODO:SETS=1 doesn't work
-  localparam BLK_OFF_BITS    = $clog2(BLOCK_SIZE);                 //Number of BlockOffset bits
-  localparam IDX_BITS        = $clog2(SETS);                       //Number of Index-bits
-  localparam TAG_BITS        = XLEN - IDX_BITS - BLK_OFF_BITS;     //Number of TAG-bits
-  localparam BLK_BITS        = 8*BLOCK_SIZE;                       //Total number of bits in a Block
-  localparam BURST_SIZE      = BLK_BITS / XLEN;                    //Number of transfers to load 1 Block
-  localparam BURST_BITS      = $clog2(BURST_SIZE);
-  localparam BURST_OFF       = XLEN/8;
-  localparam BURST_LSB       = $clog2(BURST_OFF);
+  localparam SETS             = (SIZE*1024) / BLOCK_SIZE / WAYS;   //Number of sets TODO:SETS=1 doesn't work
+  localparam BLK_OFFS_BITS    = $clog2(BLOCK_SIZE);                //Number of BlockOffset bits
+  localparam IDX_BITS         = $clog2(SETS);                      //Number of Index-bits
+  localparam TAG_BITS         = XLEN - IDX_BITS - BLK_OFFS_BITS;   //Number of TAG-bits
+  localparam BLK_BITS         = 8*BLOCK_SIZE;                      //Total number of bits in a Block
+  localparam BURST_SIZE       = BLK_BITS / XLEN;                   //Number of transfers to load 1 Block
+  localparam BURST_BITS       = $clog2(BURST_SIZE);
+  localparam BURST_OFFS       = XLEN/8;
+  localparam BURST_LSB        = $clog2(BURST_OFFS);
 
   //BLOCK decoding
-  localparam DAT_OFF_BITS    = $clog2(BLK_BITS / XLEN);            //Offset in block
-  localparam PARCEL_OFF_BITS = $clog2(XLEN / PARCEL_SIZE);
+  localparam DAT_OFFS_BITS    = $clog2(BLK_BITS / XLEN);           //Offset in block
+  localparam PARCEL_OFFS_BITS = $clog2(XLEN / PARCEL_SIZE);
 
 
   //Inflight transfers
@@ -193,6 +194,7 @@ module riscv_dcache_core #(
 
   logic                     setup_writebuffer_we,   tag_writebuffer_we;
   logic [IDX_BITS     -1:0] setup_writebuffer_idx,  tag_writebuffer_idx;
+  logic [BLK_OFFS_BITS-1:0] setup_writebuffer_offs, tag_writebuffer_offs;
   logic [XLEN         -1:0] setup_writebuffer_data, tag_writebuffer_data;
   logic [XLEN/8       -1:0] setup_writebuffer_be,   tag_writebuffer_be;
 
@@ -262,42 +264,43 @@ endgenerate
    * Drives signals into TAG and DATA memories
    */
   riscv_cache_setup #(
-    .XLEN               ( XLEN                ),
-    .SIZE               ( SIZE                ),
-    .BLOCK_SIZE         ( BLOCK_SIZE          ),
-    .WAYS               ( WAYS                ) )
+    .XLEN               ( XLEN                   ),
+    .SIZE               ( SIZE                   ),
+    .BLOCK_SIZE         ( BLOCK_SIZE             ),
+    .WAYS               ( WAYS                   ) )
   cache_setup_inst (
-    .rst_ni             ( rst_ni              ),
-    .clk_i              ( clk_i               ),
+    .rst_ni             ( rst_ni                 ),
+    .clk_i              ( clk_i                  ),
 
-    .stall_i            ( stall               ),
-    .flush_i            ( mem_flush_i         ),
+    .stall_i            ( stall                  ),
+    .flush_i            ( mem_flush_i            ),
 
-    .req_i              ( mem_req_i           ),
-    .adr_i              ( mem_adr_i           ),
-    .size_i             ( mem_size_i          ),
-    .lock_i             ( mem_lock_i          ),
-    .prot_i             ( mem_prot_i          ),
-    .we_i               ( mem_we_i            ),
-    .d_i                ( mem_d_i             ),
-    .is_cacheable_i     ( is_cacheable_i      ),
-    .is_misaligned_i    ( misaligned_i        ),
+    .req_i              ( mem_req_i              ),
+    .adr_i              ( mem_adr_i              ),
+    .size_i             ( mem_size_i             ),
+    .lock_i             ( mem_lock_i             ),
+    .prot_i             ( mem_prot_i             ),
+    .we_i               ( mem_we_i               ),
+    .d_i                ( mem_d_i                ),
+    .is_cacheable_i     ( is_cacheable_i         ),
+    .is_misaligned_i    ( misaligned_i           ),
 
-    .req_o              ( setup_req           ),
-    .adr_o              ( setup_adr           ),
-    .size_o             ( setup_size          ),
-    .lock_o             ( setup_lock          ),
-    .prot_o             ( setup_prot          ),
-    .is_cacheable_o     ( setup_is_cacheable  ),
-    .is_misaligned_o    ( setup_is_misaligned ),
-    .core_tag_o         ( setup_core_tag      ),
-    .tag_idx_o          ( setup_tag_idx       ),
-    .dat_idx_o          ( setup_dat_idx       ),
+    .req_o              ( setup_req              ),
+    .adr_o              ( setup_adr              ),
+    .size_o             ( setup_size             ),
+    .lock_o             ( setup_lock             ),
+    .prot_o             ( setup_prot             ),
+    .is_cacheable_o     ( setup_is_cacheable     ),
+    .is_misaligned_o    ( setup_is_misaligned    ),
+    .core_tag_o         ( setup_core_tag         ),
+    .tag_idx_o          ( setup_tag_idx          ),
+    .dat_idx_o          ( setup_dat_idx          ),
 
-    .writebuffer_we_o   ( writebuffer_we      ),
-    .writebuffer_idx_o  ( writebuffer_idx     ),
-    .writebuffer_data_o ( writebuffer_data    ),
-    .writebuffer_be_o   ( writebuffer_be      ) );
+    .writebuffer_we_o   ( setup_writebuffer_we   ),
+    .writebuffer_idx_o  ( setup_writebuffer_idx  ),
+    .writebuffer_offs_o ( setup_writebuffer_offs ),
+    .writebuffer_data_o ( setup_writebuffer_data ),
+    .writebuffer_be_o   ( setup_writebuffer_be   ) );
 
 
 
@@ -308,7 +311,8 @@ endgenerate
   riscv_cache_tag #(
     .XLEN               ( XLEN                   ),
     .PLEN               ( PLEN                   ),
-    .IDX_BITS           ( IDX_BITS               ) )
+    .IDX_BITS           ( IDX_BITS               ),
+    .BLK_OFFS_BITS      ( BLK_OFFS_BITS          ) )
   cache_tag_inst (
     .rst_ni             ( rst_ni                 ),
     .clk_i              ( clk_i                  ),
@@ -325,6 +329,7 @@ endgenerate
 
     .writebuffer_we_i   ( setup_writebuffer_we   ),
     .writebuffer_idx_i  ( setup_writebuffer_idx  ),
+    .writebuffer_offs_i ( setup_writebuffer_offs ),
     .writebuffer_data_i ( setup_writebuffer_data ),
     .writebuffer_be_i   ( setup_writebuffer_be   ),
 
@@ -338,6 +343,7 @@ endgenerate
 
     .writebuffer_we_o   ( tag_writebuffer_we     ),
     .writebuffer_idx_o  ( tag_writebuffer_idx    ),
+    .writebuffer_offs_o ( tag_writebuffer_offs   ),
     .writebuffer_data_o ( tag_writebuffer_data   ),
     .writebuffer_be_o   ( tag_writebuffer_be     ) );
 
@@ -379,6 +385,7 @@ endgenerate
     .q_o                       ( mem_q_o                 ),
     .ack_o                     ( mem_ack_o               ),
     .err_o                     ( mem_err_o               ),
+    .misaligned_o              ( mem_misaligned_o        ),
 
     .tag_idx_o                 ( hit_tag_idx             ),
     .dat_idx_o                 ( hit_dat_idx             ),
@@ -392,6 +399,8 @@ endgenerate
 
     .cache_hit_i               ( cache_hit               ),
     .cache_line_i              ( cache_line              ),
+    .cache_dirty_i             ( cache_dirty             ),
+    .way_dirty_i               ( way_dirty               ),
 
     .biu_stb_ack_i             ( biu_stb_ack_i           ),
     .biu_ack_i                 ( biu_ack_i               ),
@@ -406,42 +415,41 @@ endgenerate
   // Memory Blocks
   //----------------------------------------------------------------
 
-  assign dat_be = {$bits(dat_be){1'b1}};
-  
   riscv_cache_memory #(
-    .XLEN               ( XLEN             ),
-    .SIZE               ( SIZE             ),
-    .BLOCK_SIZE         ( BLOCK_SIZE       ),
-    .WAYS               ( WAYS             ),
+    .XLEN               ( XLEN                   ),
+    .SIZE               ( SIZE                   ),
+    .BLOCK_SIZE         ( BLOCK_SIZE             ),
+    .WAYS               ( WAYS                   ),
 
-    .TECHNOLOGY         ( TECHNOLOGY       ) )
+    .TECHNOLOGY         ( TECHNOLOGY             ) )
   cache_memory_inst (
-    .rst_ni             ( rst_ni           ),
-    .clk_i              ( clk_i            ),
+    .rst_ni             ( rst_ni                 ),
+    .clk_i              ( clk_i                  ),
 
-    .stall_i            ( stall            ),
+    .stall_i            ( stall                  ),
 
-    .armed_i            ( armed            ),
-    .flushing_i         ( flushing         ),
-    .filling_i          ( filling          ),
-    .fill_way_select_i  ( fill_way_select  ),
+    .armed_i            ( armed                  ),
+    .flushing_i         ( flushing               ),
+    .filling_i          ( filling                ),
+    .fill_way_select_i  ( fill_way_select        ),
 
-    .rd_core_tag_i      ( setup_core_tag   ),
-    .wr_core_tag_i      ( hit_core_tag     ),
-    .rd_tag_idx_i       ( setup_tag_idx    ),
-    .wr_tag_idx_i       ( hit_tag_idx      ),
+    .rd_core_tag_i      ( setup_core_tag         ),
+    .wr_core_tag_i      ( hit_core_tag           ),
+    .rd_tag_idx_i       ( setup_tag_idx          ),
+    .wr_tag_idx_i       ( hit_tag_idx            ),
  
-    .rd_dat_idx_i       ( setup_dat_idx    ),
-    .wr_dat_idx_i       ( hit_dat_idx      ),
-    .dat_be_i           ( dat_be           ),
-    .writebuffer_data_i ( writebuffer_data ),
-    .biu_d_i            ( cachemem_dat     ),
-    .biucmd_ack_i       ( biucmd_ack       ),
+    .rd_dat_idx_i       ( setup_dat_idx          ),
+    .wr_dat_idx_i       ( hit_dat_idx            ),
+    .writebuffer_we_i   ( setup_writebuffer_we   ), //Wrong, this has to come from 'hit'
+    .writebuffer_be_i   ( setup_writebuffer_be   ),
+    .writebuffer_data_i ( setup_writebuffer_data ),
+    .biu_d_i            ( cachemem_dat           ),
+    .biucmd_ack_i       ( biucmd_ack             ),
 
-    .hit_o              ( cache_hit        ),
-    .dirty_o            ( cache_dirty      ),
-    .way_dirty_o        ( way_dirty        ),
-    .cache_line_o       ( cache_line       ) );
+    .hit_o              ( cache_hit              ),
+    .dirty_o            ( cache_dirty            ),
+    .way_dirty_o        ( way_dirty              ),
+    .cache_line_o       ( cache_line             ) );
 
 
 
@@ -472,9 +480,9 @@ endgenerate
     .size_i                    ( tag_size                ),
     .prot_i                    ( tag_prot                ),
     .lock_i                    ( tag_lock                ),
-    .we_i                      ( tag_we                  ),
+    .we_i                      ( tag_writebuffer_we      ),
+    .d_i                       ( tag_writebuffer_data    ),
 
-    .biu_ack_o                 ( biu_ack                 ),
     .biubuffer_o               ( biubuffer               ),
     .in_biubuffer_o            ( in_biubuffer            ),
     .cachemem_dat_o            ( cachemem_dat            ),

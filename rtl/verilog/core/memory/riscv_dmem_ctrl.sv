@@ -79,7 +79,7 @@ module riscv_dmem_ctrl #(
                                     mem_misaligned_o,
                                     mem_page_fault_o,
   input  logic                      cache_flush_i,
-  output logic                      dcflush_rdy_o,
+  output logic                      cache_flush_rdy_o,
 
   //BIU ports
   output logic                      biu_stb_o,
@@ -110,9 +110,7 @@ module riscv_dmem_ctrl #(
   //
 
   //Transfer parameters
-  biu_size_t       size;
   biu_prot_t       prot;
-  logic            lock;
 
   //Misalignment check
   logic            misaligned;
@@ -135,11 +133,10 @@ module riscv_dmem_ctrl #(
   // Module Body
   //
 
-  assign size              = XLEN == 64 ? DWORD : WORD;   //Transfer size
-  assign prot              = biu_prot_t'( PROT_INSTRUCTION |
-	                                  st_prv_i == PRV_U ? PROT_USER : PROT_PRIVILEGED );
+  assign prot              = biu_prot_t'( PROT_DATA                                        |
+	                                 (st_prv_i == PRV_U ? PROT_USER : PROT_PRIVILEGED) );
   assign lock              = 1'b0; //no locked instruction accesses
-  assign imem_page_fault_o = 1'b0; //no MMU
+  assign mem_page_fault_o = 1'b0; //no MMU
 
   
  
@@ -173,9 +170,9 @@ module riscv_dmem_ctrl #(
     .misaligned_i   ( misaligned      ),
 
     //Memory Access
-    .instruction_i  ( 1'b0           ), //data access
-    .req_i          ( imem_req_i      ),
-    .adr_i          ( imem_adr_i      ),
+    .instruction_i  ( 1'b0            ), //data access
+    .req_i          ( mem_req_i       ),
+    .adr_i          ( mem_adr_i       ),
     .size_i         ( mem_size_i      ),
     .lock_i         ( mem_lock_i      ),
     .we_i           ( mem_we_i        ), //Instruction bus doesn't write
@@ -217,46 +214,50 @@ generate
       /* Instantiate Instruction Cache Core
        */
       riscv_dcache_core #(
-        .XLEN             ( XLEN             ),
-        .PLEN             ( PLEN             ),
-	.HAS_RVC          ( HAS_RVC          ),
-        .SIZE             ( CACHE_SIZE       ),
-        .BLOCK_SIZE       ( CACHE_BLOCK_SIZE ),
-        .WAYS             ( CACHE_WAYS       ),
-        .TECHNOLOGY       ( TECHNOLOGY       ) )
+        .XLEN              ( XLEN              ),
+        .PLEN              ( PLEN              ),
+	.HAS_RVC           ( HAS_RVC           ),
+        .SIZE              ( CACHE_SIZE        ),
+        .BLOCK_SIZE        ( CACHE_BLOCK_SIZE  ),
+        .WAYS              ( CACHE_WAYS        ),
+        .TECHNOLOGY        ( TECHNOLOGY        ) )
       dcache_inst (
         //common signals
-        .rst_ni           ( rst_ni           ),
-        .clk_i            ( clk_i            ),
+        .rst_ni            ( rst_ni            ),
+        .clk_i             ( clk_i             ),
 
         //from PMA
-        .is_cacheable_i   ( is_cacheable     ),
-        .misaligned_i     ( pma_misaligned   ),
-        .mem_req_i        ( pma_req          ),
-	.mem_ack_o        ( imem_ack_o       ),
-        .mem_adr_i        ( imem_adr_i       ),
-        .mem_flush_i      ( imem_flush_i     ),
-        .mem_size_i       ( size             ),
-        .mem_lock_i       ( lock             ),
-        .mem_prot_i       ( prot             ),
-        .cache_flush_i    ( cache_flush_i    ),
-        .dcflush_rdy_o    ( dcflush_rdy_o    ),
+        .is_cacheable_i    ( is_cacheable      ),
+        .misaligned_i      ( pma_misaligned    ),
+        .mem_req_i         ( pma_req           ),
+	.mem_ack_o         ( mem_ack_o         ),
+	.mem_err_o         ( mem_err_o         ),
+        .mem_adr_i         ( mem_adr_i         ),
+        .mem_flush_i       ( 1'b0              ),
+        .mem_size_i        ( mem_size_i        ),
+        .mem_lock_i        ( mem_lock_i        ),
+        .mem_prot_i        ( prot              ),
+	.mem_we_i          ( mem_we_i          ),
+	.mem_d_i           ( mem_d_i           ),
+	.mem_q_o           ( mem_q_o           ),
+        .cache_flush_i     ( cache_flush_i     ),
+        .cache_flush_rdy_o ( cache_flush_rdy_o ),
 
         //To BIU
-        .biu_stb_o        ( biu_stb_o        ),
-        .biu_stb_ack_i    ( biu_stb_ack_i    ),
-        .biu_d_ack_i      ( biu_d_ack_i      ),
-        .biu_adri_o       ( biu_adri_o       ),
-        .biu_adro_i       ( biu_adro_i       ),
-        .biu_size_o       ( biu_size_o       ),
-        .biu_type_o       ( biu_type_o       ),
-	.biu_we_o         ( biu_we_o         ),
-        .biu_lock_o       ( biu_lock_o       ),
-        .biu_prot_o       ( biu_prot_o       ),
-        .biu_d_o          ( biu_d_o          ),
-        .biu_q_i          ( biu_q_i          ),
-        .biu_ack_i        ( biu_ack_i        ),
-        .biu_err_i        ( biu_err_i        ) );
+        .biu_stb_o         ( biu_stb_o         ),
+        .biu_stb_ack_i     ( biu_stb_ack_i     ),
+        .biu_d_ack_i       ( biu_d_ack_i       ),
+        .biu_adri_o        ( biu_adri_o        ),
+        .biu_adro_i        ( biu_adro_i        ),
+        .biu_size_o        ( biu_size_o        ),
+        .biu_type_o        ( biu_type_o        ),
+	.biu_we_o          ( biu_we_o          ),
+        .biu_lock_o        ( biu_lock_o        ),
+        .biu_prot_o        ( biu_prot_o        ),
+        .biu_d_o           ( biu_d_o           ),
+        .biu_q_i           ( biu_q_i           ),
+        .biu_ack_i         ( biu_ack_i         ),
+        .biu_err_i         ( biu_err_i         ) );
   end
   else  //No cache
   begin
@@ -269,40 +270,40 @@ generate
         .ALEN             ( PLEN             ) )
       nodcache_core_inst (
         //common signals
-        .rst_ni           ( HRESETn          ),
-        .clk_i            ( HCLK             ),
+        .rst_ni           ( rst_ni           ),
+        .clk_i            ( clk_i            ),
 
         //CPU
-        .mem_req_i        ( mem_req          ),
-        .mem_size_i       ( mem_size         ),
-        .mem_lock_i       ( mem_lock         ),
-        .mem_adr_i        ( mem_adr          ),
-        .mem_we_i         ( mem_we           ),
-        .mem_d_i          ( mem_d            ),
-        .mem_q_o          ( mem_q            ),
-        .mem_ack_o        ( mem_ack          ),
-        .mem_err_o        ( mem_err          ),
+        .mem_req_i        ( mem_req_i        ),
+        .mem_size_i       ( mem_size_i       ),
+        .mem_lock_i       ( mem_lock_i       ),
+        .mem_adr_i        ( mem_adr_i        ),
+        .mem_we_i         ( mem_we_i         ),
+        .mem_d_i          ( mem_d_i          ),
+        .mem_q_o          ( mem_q_o          ),
+        .mem_ack_o        ( mem_ack_o        ),
+        .mem_err_o        ( mem_err_o        ),
         .mem_misaligned_i ( misaligned       ),
         .mem_misaligned_o ( mem_misaligned_o ),
-        .st_prv_i         ( st_prv           ),
+        .st_prv_i         ( st_prv_i         ),
 
         //BIU
-        .biu_stb_o        ( biu_stb          ),
-        .biu_stb_ack_i    ( biu_stb_ack      ),
-        .biu_d_ack_i      ( biu_d_ack        ),
-        .biu_adri_o       ( biu_adri         ),
-        .biu_adro_i       ( biu_adro         ),
-        .biu_size_o       ( biu_size         ),
-        .biu_type_o       ( biu_type         ),
-        .biu_we_o         ( biu_we           ),
-        .biu_lock_o       ( biu_lock         ),
-        .biu_prot_o       ( biu_prot         ),
-        .biu_d_o          ( biu_d            ),
-        .biu_q_i          ( biu_q            ),
-        .biu_ack_i        ( biu_ack          ),
-        .biu_err_i        ( biu_err          ) );
+        .biu_stb_o        ( biu_stb_o        ),
+        .biu_stb_ack_i    ( biu_stb_ack_i    ),
+        .biu_d_ack_i      ( biu_d_ack_i      ),
+        .biu_adri_o       ( biu_adri_o       ),
+        .biu_adro_i       ( biu_adro_i       ),
+        .biu_size_o       ( biu_size_o       ),
+        .biu_type_o       ( biu_type_o       ),
+        .biu_we_o         ( biu_we_o         ),
+        .biu_lock_o       ( biu_lock_o       ),
+        .biu_prot_o       ( biu_prot_o       ),
+        .biu_d_o          ( biu_d_o          ),
+        .biu_q_i          ( biu_q_i          ),
+        .biu_ack_i        ( biu_ack_i        ),
+        .biu_err_i        ( biu_err_i        ) );
 
-      assign dcflush_rdy = 1'b1; //no data cache to flush. Always ready
+      assign cache_flush_rdy_o = 1'b1; //no data cache to flush. Always ready
   end
 endgenerate
 

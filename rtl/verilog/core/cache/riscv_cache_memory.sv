@@ -52,37 +52,39 @@ module riscv_cache_memory #(
   localparam BLK_BITS      = no_of_block_bits(BLOCK_SIZE)
 )
 (
-  input  logic                  rst_ni,
-  input  logic                  clk_i,
+  input  logic                     rst_ni,
+  input  logic                     clk_i,
 
-  input  logic                  stall_i,
+  input  logic                     stall_i,
 
-  input  logic                  armed_i,
-  input  logic                  flushing_i,
-  input  logic                  filling_i,
-  input  logic [WAYS      -1:0] fill_way_select_i,
+  input  logic                     armed_i,
+  input  logic                     flushing_i,
+  input  logic                     filling_i,
+  input  logic [WAYS         -1:0] fill_way_select_i,
 
-  input  logic [TAG_BITS  -1:0] rd_core_tag_i,
-                                wr_core_tag_i,
-  input  logic [IDX_BITS  -1:0] rd_tag_idx_i,
-                                wr_tag_idx_i,
-                                wr_tag_dirty_idx_i,
+  input  logic [TAG_BITS     -1:0] rd_core_tag_i,
+                                   wr_core_tag_i,
+  input  logic [IDX_BITS     -1:0] rd_tag_idx_i,
+                                   wr_tag_idx_i,
+                                   wr_tag_dirty_idx_i,
 
-  input  logic [IDX_BITS  -1:0] rd_dat_idx_i,
-                                wr_dat_idx_i,
-  input  logic [BLK_BITS/8-1:0] dat_be_i,
+  input  logic [IDX_BITS     -1:0] rd_dat_idx_i,
+                                   wr_dat_idx_i,
+  input  logic                     writebuffer_we_i,
+  input  logic [XLEN/8       -1:0] writebuffer_be_i,
+  input  logic [IDX_BITS     -1:0] writebuffer_idx_i,
+  input  logic [BLK_OFFS_BITS-1:0] writebuffer_offs_i,
+  input  logic [XLEN         -1:0] writebuffer_data_i,
+  input  logic [BLK_BITS     -1:0] biu_d_i,
+  input  logic                     biucmd_ack_i,
 
-  input  logic [XLEN      -1:0] writebuffer_data_i,
-  input  logic [BLK_BITS  -1:0] biu_d_i,
-  input  logic                  biucmd_ack_i,
+  output logic [XLEN         -1:0] evict_buffer_adr_o,
+  output logic [BLK_BITS     -1:0] evict_buffer_q_o,
 
-  output logic [XLEN      -1:0] evict_buffer_adr_o,
-  output logic [BLK_BITS  -1:0] evict_buffer_q_o,
-
-  output logic                  hit_o,
-  output logic                  dirty_o,
-  output logic                  way_dirty_o,
-  output logic [BLK_BITS  -1:0] cache_line_o
+  output logic                     hit_o,             //cache-hit
+  output logic                     dirty_o,           //(at least) one way is dirty
+  output logic                     way_dirty_o,       //the selected way is dirty
+  output logic [BLK_BITS     -1:0] cache_line_o
 );
 
   //////////////////////////////////////////////////////////////////
@@ -130,6 +132,7 @@ module riscv_cache_memory #(
                                      dat_idx_filling;     //dat-idx for filling
   logic [BLK_BITS    -1:0]           dat_in;              //data into memory
   logic [WAYS        -1:0]           dat_we;              //data memory write enable
+  logic [BLK_BITS/8  -1:0]           dat_be;              //data memory write byte enables
   logic [BLK_BITS    -1:0]           dat_out     [WAYS];  //data memory output
   logic [BLK_BITS    -1:0]           way_q_mux   [WAYS];  //data out multiplexor
   logic [IDX_BITS    -1:0]           dat_byp_idx;
@@ -299,6 +302,9 @@ endgenerate
   //generate DAT-memory data input
   assign dat_in = biucmd_ack_i ? biu_d_i : {BLK_BITS/XLEN{writebuffer_data_i}};
 
+  //generate DAT-memory byte enable
+  assign dat_be = writebuffer_we_i ? {writebuffer_be_i << writebuffer_offs_i} : {BLK_BITS/8{1'b1}};
+
 
   //hold dat_idx, to be used when biumem_we=1
   always @(posedge clk_i)
@@ -335,14 +341,14 @@ generate
         .clk_i      ( clk_i         ),
         .addr_i     ( dat_idx       ),
         .we_i       ( dat_we [way]  ),
-        .be_i       ( dat_be_i      ),
+        .be_i       ( dat_be        ),
         .din_i      ( dat_in        ),
         .dout_o     ( dat_out[way]) );
 
 
       /* Data Write Enable
        */
-      assign dat_we[way] = biumem_we & fill_way_select_dly[way];
+      assign dat_we[way] = (writebuffer_we_i | biumem_we) & fill_way_select_dly[way]; //TODO: check for overlaps
       
 
       /* Data Ouput Mux
