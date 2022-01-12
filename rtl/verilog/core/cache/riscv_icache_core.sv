@@ -152,7 +152,7 @@ module riscv_icache_core #(
 
 
   //Inflight transfers
-  localparam INFLIGHT_DEPTH   = 2;                                  //Wishbone has 1 transfers in flight
+  localparam INFLIGHT_DEPTH   = BURST_SIZE;                         //Wishbone has 1 transfers in flight
                                                                     //AHB      has 2 transfers in flight
                                                                     //AXI can have many transfers in flight
   localparam INFLIGHT_BITS    = $clog2(INFLIGHT_DEPTH+1);
