@@ -104,6 +104,29 @@ module riscv_cache_biu_ctrl #(
 
   //////////////////////////////////////////////////////////////////
   //
+  // Constants
+  //
+
+  //convert burst type to counter length (actually length -1)
+  function automatic [3:0] biu_type2cnt;
+    input biu_type_t biu_type;
+
+    case (biu_type)
+      SINGLE : biu_type2cnt =  0;
+      INCR   : biu_type2cnt =  0;
+      WRAP4  : biu_type2cnt =  3;
+      INCR4  : biu_type2cnt =  3;
+      WRAP8  : biu_type2cnt =  7;
+      INCR8  : biu_type2cnt =  7;
+      WRAP16 : biu_type2cnt = 15;
+      INCR16 : biu_type2cnt = 15;
+      default: biu_type2cnt = 4'hx; //OOPS
+    endcase
+  endfunction: biu_type2cnt
+
+
+  //////////////////////////////////////////////////////////////////
+  //
   // Variables
   //
   genvar  way;
@@ -261,7 +284,7 @@ module riscv_cache_biu_ctrl #(
     else
       unique case ({biu_stb_ack_i, biu_ack_i | biu_err_i})
         2'b01  : inflight_cnt_o <= inflight_cnt_o -1;
-        2'b10  : inflight_cnt_o <= inflight_cnt_o +1;
+        2'b10  : inflight_cnt_o <= inflight_cnt_o +1 + biu_type2cnt(biu_type_o);
         default: ; //do nothing
       endcase
 
