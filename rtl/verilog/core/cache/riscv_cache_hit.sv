@@ -303,7 +303,7 @@ module riscv_cache_hit #(
   assign biu_adro_eq_cache_adr_dly = (biu_adro_i[PLEN-1:BURST_LSB] == adr_i[PLEN-1:BURST_LSB]);
 
 
-  //signal downstream that data is ready
+  //Cache core halt signal
   always_comb
     unique case (memfsm_state)
       ARMED       : stall_o =  req_i & (is_cacheable_i ? ~cache_hit_i : ~biu_stb_ack_i);
