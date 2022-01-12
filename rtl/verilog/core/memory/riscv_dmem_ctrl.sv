@@ -109,8 +109,19 @@ module riscv_dmem_ctrl #(
   // Variables
   //
 
+  //Queue
+  logic            queue_req;
+  logic [XLEN-1:0] queue_adr;
+  biu_size_t       queue_size;
+  logic            queue_lock;
+  biu_prot_t       queue_prot;
+  logic            queue_we;
+  logic [XLEN-1:0] queue_d;
+
+
   //Transfer parameters
   biu_prot_t       prot;
+
 
   //Misalignment check
   logic            misaligned;
@@ -127,7 +138,10 @@ module riscv_dmem_ctrl #(
   logic            pmp_exception;
 
 
-  
+  //From dcache-ctrl
+  logic            stall;
+
+
   //////////////////////////////////////////////////////////////////
   //
   // Module Body
@@ -137,6 +151,39 @@ module riscv_dmem_ctrl #(
 	                                 (st_prv_i == PRV_U ? PROT_USER : PROT_PRIVILEGED) );
   assign lock              = 1'b0; //no locked instruction accesses
   assign mem_page_fault_o = 1'b0; //no MMU
+
+
+  /* Hookup buffer
+  */
+  riscv_membuf #(
+    .DEPTH   ( 2          ),
+    .XLEN    ( XLEN       ) )
+  membuffer_inst (
+    .rst_ni  ( rst_ni     ),
+    .clk_i   ( clk_i      ),
+
+    .flush_i ( 1'b0       ),
+    .stall_i ( stall      ),
+
+    .req_i   ( mem_req_i  ),
+    .adr_i   ( mem_adr_i  ),
+    .size_i  ( mem_size_i ),
+    .lock_i  ( mem_lock_i ),
+    .prot_i  ( prot       ),
+    .we_i    ( mem_we_i   ),
+    .d_i     ( mem_d_i    ),
+
+    .req_o   ( queue_req  ),
+    .ack_i   ( mem_ack_o | mem_err_o ),
+    .adr_o   ( queue_adr  ),
+    .size_o  ( queue_size ),
+    .lock_o  ( queue_lock ),
+    .prot_o  ( queue_prot ),
+    .we_o    ( queue_we   ),
+    .q_o     ( queue_d    ),
+
+    .empty_o (            ),
+    .full_o  (            ) );
 
   
  
@@ -148,9 +195,9 @@ module riscv_dmem_ctrl #(
   misaligned_inst (
 //    .clk_i         ( clk_i      ),
     .instruction_i ( 1'b0              ), //data access
-    .req_i         ( mem_req_i         ),
-    .adr_i         ( mem_adr_i         ),
-    .size_i        ( mem_size_i        ),
+    .req_i         ( queue_req         ),
+    .adr_i         ( queue_adr         ),
+    .size_i        ( queue_size        ),
     .misaligned_o  ( misaligned        ) );
 
  
@@ -171,11 +218,11 @@ module riscv_dmem_ctrl #(
 
     //Memory Access
     .instruction_i  ( 1'b0            ), //data access
-    .req_i          ( mem_req_i       ),
-    .adr_i          ( mem_adr_i       ),
-    .size_i         ( mem_size_i      ),
-    .lock_i         ( mem_lock_i      ),
-    .we_i           ( mem_we_i        ), //Instruction bus doesn't write
+    .req_i          ( queue_req       ),
+    .adr_i          ( queue_adr       ),
+    .size_i         ( queue_size      ),
+    .lock_i         ( queue_lock      ),
+    .we_i           ( queue_we        ), //Instruction bus doesn't write
 
     //Output
     .pma_o          (                 ),
@@ -197,10 +244,10 @@ module riscv_dmem_ctrl #(
     .st_prv_i      ( st_prv_i      ),
 
     .instruction_i ( 1'b0          ),  //Data access
-    .req_i         ( mem_req_i     ),  //Memory access request
-    .adr_i         ( mem_adr_i     ),  //Physical Memory address (i.e. after translation)
-    .size_i        ( mem_size_i    ),  //Transfer size
-    .we_i          ( mem_we_i      ),  //Read/Write enable
+    .req_i         ( queue_req     ),  //Memory access request
+    .adr_i         ( queue_adr     ),  //Physical Memory address (i.e. after translation)
+    .size_i        ( queue_size    ),  //Transfer size
+    .we_i          ( queue_we      ),  //Read/Write enable
 
     .exception_o   ( pmp_exception ) );
 
@@ -226,20 +273,22 @@ generate
         .rst_ni            ( rst_ni            ),
         .clk_i             ( clk_i             ),
 
+	.stall_o           ( stall             ),
+
         //from PMA
         .is_cacheable_i    ( is_cacheable      ),
         .misaligned_i      ( pma_misaligned    ),
         .mem_req_i         ( pma_req           ),
-	.mem_ack_o         ( mem_ack_o         ),
-	.mem_err_o         ( mem_err_o         ),
-        .mem_adr_i         ( mem_adr_i         ),
+        .mem_ack_o         ( mem_ack_o         ),
+        .mem_err_o         ( mem_err_o         ),
+        .mem_adr_i         ( queue_adr         ),
         .mem_flush_i       ( 1'b0              ),
-        .mem_size_i        ( mem_size_i        ),
-        .mem_lock_i        ( mem_lock_i        ),
-        .mem_prot_i        ( prot              ),
-	.mem_we_i          ( mem_we_i          ),
-	.mem_d_i           ( mem_d_i           ),
-	.mem_q_o           ( mem_q_o           ),
+        .mem_size_i        ( queue_size        ),
+        .mem_lock_i        ( queue_lock        ),
+        .mem_prot_i        ( queue_prot        ),
+        .mem_we_i          ( queue_we          ),
+        .mem_d_i           ( queue_d           ),
+        .mem_q_o           ( mem_q_o           ),
         .cache_flush_i     ( cache_flush_i     ),
         .cache_flush_rdy_o ( cache_flush_rdy_o ),
 
@@ -251,7 +300,7 @@ generate
         .biu_adro_i        ( biu_adro_i        ),
         .biu_size_o        ( biu_size_o        ),
         .biu_type_o        ( biu_type_o        ),
-	.biu_we_o          ( biu_we_o          ),
+        .biu_we_o          ( biu_we_o          ),
         .biu_lock_o        ( biu_lock_o        ),
         .biu_prot_o        ( biu_prot_o        ),
         .biu_d_o           ( biu_d_o           ),
