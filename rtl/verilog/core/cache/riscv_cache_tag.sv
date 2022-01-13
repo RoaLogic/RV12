@@ -104,7 +104,7 @@ module riscv_cache_tag #(
   always @(posedge clk_i)
     if (!stall_i)
     begin
-        writebuffer_we_o   <= writebuffer_we_o & ~flush_i;
+        writebuffer_we_o   <= writebuffer_we_i & ~flush_i;
         writebuffer_idx_o  <= writebuffer_idx_i;
 	writebuffer_offs_o <= writebuffer_offs_i;
         writebuffer_data_o <= writebuffer_data_i;
