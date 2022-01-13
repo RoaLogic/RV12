@@ -369,7 +369,7 @@ module riscv_cache_biu_ctrl #(
 
 
   //Protection bits
-  assign biu_prot_o = prot_i;
+  assign biu_prot_o = biu_prot_t'(prot_i | (biucmd_noncacheable_req_i ? PROT_NONCACHEABLE : PROT_CACHEABLE));
   assign biu_lock_o = lock_i;
   
 
