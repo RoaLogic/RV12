@@ -160,19 +160,6 @@ module riscv_icache_core #(
 
   //////////////////////////////////////////////////////////////////
   //
-  // Functions
-  //
-   
-
-  //////////////////////////////////////////////////////////////////
-  //
-  // Typedefs
-  //
-
-
-
-  //////////////////////////////////////////////////////////////////
-  //
   // Variables
   //
 
@@ -197,21 +184,18 @@ module riscv_icache_core #(
                             setup_dat_idx,
                             hit_tag_idx,
                             hit_dat_idx;
-  logic [BLK_BITS/8   -1:0] dat_be;
-
 
   logic                     cache_hit;
   logic [BLK_BITS     -1:0] cache_line;
-
 
   logic [INFLIGHT_BITS-1:0] inflight_cnt;
 
   biucmd_t                  biucmd;
   logic                     biucmd_noncacheable_req,
                             biucmd_noncacheable_ack;
-  logic                     in_biubuffer;
   logic [BLK_BITS     -1:0] biubuffer;
-  logic [BLK_BITS     -1:0] cachemem_dat;
+  logic                     in_biubuffer;
+  logic [BLK_BITS     -1:0] biu_line;
 
   logic                     armed,
                             flushing,
@@ -281,18 +265,15 @@ endgenerate
     .size_o             ( setup_size          ),
     .lock_o             ( setup_lock          ),
     .prot_o             ( setup_prot          ),
+    .we_o               (                     ),
+    .q_o                (                     ),
     .is_cacheable_o     ( setup_is_cacheable  ),
     .is_misaligned_o    ( setup_is_misaligned ),
+
+    .req_rd_o           (                     ),
     .core_tag_o         ( setup_core_tag      ),
     .tag_idx_o          ( setup_tag_idx       ),
-    .dat_idx_o          ( setup_dat_idx       ),
-
-    .writebuffer_we_o   (                     ),
-    .writebuffer_idx_o  (                     ),
-    .writebuffer_offs_o (                     ),
-    .writebuffer_data_o (                     ),
-    .writebuffer_be_o   (                     ) );
-
+    .dat_idx_o          ( setup_dat_idx       ) );
 
 
   /* Tag stage
@@ -301,9 +282,7 @@ endgenerate
    */
   riscv_cache_tag #(
     .XLEN               ( XLEN                  ),
-    .PLEN               ( PLEN                  ),
-    .IDX_BITS           ( IDX_BITS              ),
-    .BLK_OFFS_BITS      ( BLK_OFFS_BITS         ) )
+    .PLEN               ( PLEN                  ) )
   cache_tag_inst (
     .rst_ni             ( rst_ni                ),
     .clk_i              ( clk_i                 ),
@@ -315,28 +294,21 @@ endgenerate
     .size_i             ( setup_size            ),
     .lock_i             ( setup_lock            ),
     .prot_i             ( setup_prot            ),
+    .we_i               ( 1'b0                  ),
+    .d_i                ( {XLEN{1'b0}}          ),
     .is_cacheable_i     ( setup_is_cacheable    ),
     .is_misaligned_i    ( setup_is_misaligned   ),
-
-    .writebuffer_we_i   ( 1'b0                  ),
-    .writebuffer_idx_i  ( {IDX_BITS     {1'b0}} ),
-    .writebuffer_offs_i ( {BLK_OFFS_BITS{1'b0}} ),
-    .writebuffer_data_i ( {XLEN         {1'b0}} ),
-    .writebuffer_be_i   ( {XLEN/8       {1'b0}} ),
 
     .req_o              ( tag_req               ),
     .adr_o              ( tag_adr               ),
     .size_o             ( tag_size              ),
     .lock_o             ( tag_lock              ),
     .prot_o             ( tag_prot              ),
+    .we_o               (                       ),
+    .be_o               (                       ),
+    .q_o                (                       ),
     .is_cacheable_o     ( tag_cacheable         ),
-    .is_misaligned_o    ( tag_misaligned        ),
-
-    .writebuffer_we_o   (                       ),
-    .writebuffer_idx_o  (                       ),
-    .writebuffer_offs_o (                       ),
-    .writebuffer_data_o (                       ),
-    .writebuffer_be_o   (                       ) );
+    .is_misaligned_o    ( tag_misaligned        ) );
 
   
   /* Hit stage
@@ -404,9 +376,6 @@ endgenerate
   //----------------------------------------------------------------
   // Memory Blocks
   //----------------------------------------------------------------
-
-  assign dat_be = {$bits(dat_be){1'b1}};
-  
   riscv_cache_memory #(
     .XLEN               ( XLEN             ),
     .SIZE               ( SIZE             ),
@@ -438,7 +407,8 @@ endgenerate
     .writebuffer_idx_i  ( {IDX_BITS{1'b0}} ),
     .writebuffer_offs_i ( {BLK_OFFS_BITS{1'b0}} ),
     .writebuffer_data_i ( {XLEN  {1'b0}}   ),
-    .biu_d_i            ( cachemem_dat     ),
+    .biu_line_i         ( biu_line         ),
+    .biu_line_dirty_i   ( 1'b0             ),
     .biucmd_ack_i       ( biucmd_ack       ),
 
     .hit_o              ( cache_hit        ),
@@ -483,7 +453,8 @@ endgenerate
     .evictbuffer_d_i           ( {BLK_BITS{1'b0}}        ),
     .biubuffer_o               ( biubuffer               ),
     .in_biubuffer_o            ( in_biubuffer            ),
-    .cachemem_dat_o            ( cachemem_dat            ),
+    .biu_line_o                ( biu_line                ),
+    .biu_line_dirty_o          (                         ),
 
      //To BIU
     .biu_stb_o                 ( biu_stb_o               ),
