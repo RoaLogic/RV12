@@ -281,6 +281,7 @@ generate
         .mem_req_i         ( pma_req           ),
         .mem_ack_o         ( mem_ack_o         ),
         .mem_err_o         ( mem_err_o         ),
+	.mem_misaligned_o  ( mem_misaligned_o  ),
         .mem_adr_i         ( queue_adr         ),
         .mem_flush_i       ( 1'b0              ),
         .mem_size_i        ( queue_size        ),
