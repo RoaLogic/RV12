@@ -33,9 +33,7 @@ import biu_constants_pkg::*;
 
 module riscv_cache_tag #(
   parameter                        XLEN          = 32,
-  parameter                        PLEN          = XLEN,
-  parameter                        IDX_BITS      = 3,
-  parameter                        BLK_OFFS_BITS = 3
+  parameter                        PLEN          = XLEN
 )
 (
   input  logic                     rst_ni,
@@ -49,30 +47,42 @@ module riscv_cache_tag #(
   input  biu_size_t                size_i,
   input                            lock_i,
   input  biu_prot_t                prot_i,
+  input  logic                     we_i,
+  input  logic [XLEN         -1:0] d_i,
   input  logic                     is_cacheable_i,
   input  logic                     is_misaligned_i,
-
-  input  logic                     writebuffer_we_i,
-  input  logic [IDX_BITS     -1:0] writebuffer_idx_i,
-  input  logic [BLK_OFFS_BITS-1:0] writebuffer_offs_i,
-  input  logic [XLEN         -1:0] writebuffer_data_i,
-  input  logic [XLEN/8       -1:0] writebuffer_be_i,
-
 
   output logic                     req_o,
   output logic [PLEN         -1:0] adr_o,
   output biu_size_t                size_o,
   output logic                     lock_o,
   output biu_prot_t                prot_o,
+  output logic                     we_o,
+  output logic [XLEN/8       -1:0] be_o,
+  output logic [XLEN         -1:0] q_o,
   output logic                     is_cacheable_o,
-  output logic                     is_misaligned_o,
-
-  output logic                     writebuffer_we_o,
-  output logic [IDX_BITS     -1:0] writebuffer_idx_o,
-  output logic [BLK_OFFS_BITS-1:0] writebuffer_offs_o,
-  output logic [XLEN         -1:0] writebuffer_data_o,
-  output logic [XLEN/8       -1:0] writebuffer_be_o
+  output logic                     is_misaligned_o
 );
+
+  //////////////////////////////////////////////////////////////////
+  //
+  // Functions
+  //   
+  function automatic [XLEN/8-1:0] size2be;
+    input [     2:0] size;
+    input [XLEN-1:0] adr;
+
+    logic [$clog2(XLEN/8)-1:0] adr_lsbs;
+
+    adr_lsbs = adr[$clog2(XLEN/8)-1:0];
+
+    unique case (size)
+      BYTE : size2be = 'h1  << adr_lsbs;
+      HWORD: size2be = 'h3  << adr_lsbs;
+      WORD : size2be = 'hf  << adr_lsbs;
+      DWORD: size2be = 'hff << adr_lsbs;
+    endcase
+  endfunction: size2be
 
   //////////////////////////////////////////////////////////////////
   //
@@ -96,19 +106,11 @@ module riscv_cache_tag #(
         size_o          <= size_i;
         lock_o          <= lock_i;
         prot_o          <= prot_i;
+        we_o            <= we_i;
+        be_o            <= size2be(size_i, adr_i);
+        q_o             <= d_i;
         is_cacheable_o  <= is_cacheable_i;
         is_misaligned_o <= is_misaligned_i;
-    end
-
-
-  always @(posedge clk_i)
-    if (!stall_i)
-    begin
-        writebuffer_we_o   <= writebuffer_we_i & ~flush_i;
-        writebuffer_idx_o  <= writebuffer_idx_i;
-	writebuffer_offs_o <= writebuffer_offs_i;
-        writebuffer_data_o <= writebuffer_data_i;
-        writebuffer_be_o   <= writebuffer_be_i;
     end
 
 endmodule

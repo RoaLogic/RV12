@@ -36,10 +36,10 @@ module riscv_cache_setup #(
   parameter                        BLOCK_SIZE    = XLEN,
   parameter                        WAYS          = 2,
 
-  localparam                       SETS          = no_of_sets(SIZE, BLOCK_SIZE, WAYS),
-  localparam                       BLK_OFFS_BITS = no_of_block_offset_bits(BLOCK_SIZE),
-  localparam                       IDX_BITS      = no_of_index_bits(SETS),
-  localparam                       TAG_BITS      = no_of_tag_bits(XLEN, IDX_BITS, BLK_OFFS_BITS)
+  localparam                       SETS          = no_of_sets             (SIZE, BLOCK_SIZE, WAYS       ),
+  localparam                       BLK_OFFS_BITS = no_of_block_offset_bits(BLOCK_SIZE                   ),
+  localparam                       IDX_BITS      = no_of_index_bits       (SETS                         ),
+  localparam                       TAG_BITS      = no_of_tag_bits         (XLEN, IDX_BITS, BLK_OFFS_BITS)
 )
 (
   input  logic                     rst_ni,
@@ -63,41 +63,17 @@ module riscv_cache_setup #(
   output biu_size_t                size_o,
   output logic                     lock_o,
   output biu_prot_t                prot_o,
+  output logic                     we_o,
+  output logic [XLEN         -1:0] q_o,
   output logic                     is_cacheable_o,
   output logic                     is_misaligned_o,
 
+  output logic                     req_rd_o,
   output logic [IDX_BITS     -1:0] tag_idx_o,
                                    dat_idx_o,
-  output logic [TAG_BITS     -1:0] core_tag_o,
-
-  output logic                     writebuffer_we_o,
-  output logic [IDX_BITS     -1:0] writebuffer_idx_o,
-  output logic [BLK_OFFS_BITS-1:0] writebuffer_offs_o,
-  output logic [XLEN         -1:0] writebuffer_data_o,
-  output logic [XLEN/8       -1:0] writebuffer_be_o  
+  output logic [TAG_BITS     -1:0] core_tag_o
 );
 
-  //////////////////////////////////////////////////////////////////
-  //
-  // Functions
-  //   
-  function automatic [XLEN/8-1:0] size2be;
-    input [     2:0] size;
-    input [XLEN-1:0] adr;
-
-    logic [$clog2(XLEN/8)-1:0] adr_lsbs;
-
-    adr_lsbs = adr[$clog2(XLEN/8)-1:0];
-
-    unique case (size)
-      BYTE : size2be = 'h1  << adr_lsbs;
-      HWORD: size2be = 'h3  << adr_lsbs;
-      WORD : size2be = 'hf  << adr_lsbs;
-      DWORD: size2be = 'hff << adr_lsbs;
-    endcase
-  endfunction: size2be
-
-  
   //////////////////////////////////////////////////////////////////
   //
   // Variables
@@ -135,6 +111,8 @@ module riscv_cache_setup #(
         size_o          <= size_i;
         lock_o          <= lock_i;
         prot_o          <= prot_i;
+        we_o            <= we_i;
+        q_o             <= d_i;
         is_cacheable_o  <= is_cacheable_i;
         is_misaligned_o <= is_misaligned_i;
     end
@@ -152,24 +130,16 @@ module riscv_cache_setup #(
   assign dat_idx_o = stall_i && !flush_dly ? adr_idx_dly : adr_idx;
 
   
-  /* Core Tag
+  /* Read-Request
+   * Used to push writebuffer into Cache-memory
+   */
+  assign req_rd_o = req_i & ~we_i & ~flush_i;
+
+
+  /* Core Tag, actually from MMU
    */
   always @(posedge clk_i)
     if (!stall_i) core_tag_o <= adr_i[XLEN-1 -: TAG_BITS];
-
-
-  /* Write Buffer
-   */
-  always @(posedge clk_i)
-    if (!stall_i)
-    begin
-        writebuffer_we_o   <= req_i & we_i & ~flush_i;
-        writebuffer_idx_o  <= adr_idx;
-	writebuffer_offs_o <= adr_i[0 +: BLK_OFFS_BITS];
-        writebuffer_data_o <= d_i;
-        writebuffer_be_o   <= size2be(size_i, adr_i);
-    end
-
 endmodule
 
 
