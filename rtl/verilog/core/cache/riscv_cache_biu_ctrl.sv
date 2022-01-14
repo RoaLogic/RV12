@@ -69,7 +69,8 @@ module riscv_cache_biu_ctrl #(
   input  logic [BLK_BITS     -1:0] evictbuffer_d_i,
   output logic                     in_biubuffer_o,
   output logic [BLK_BITS     -1:0] biubuffer_o,          //data to cache-ctrl
-  output logic [BLK_BITS     -1:0] cachemem_dat_o,       //data to be written in DAT memory
+  output logic [BLK_BITS     -1:0] biu_line_o,           //data to be written in DAT memory
+  output logic                     biu_line_dirty_o,     //data to be written into DAT memory is dirty
 
 
   //To BIU
@@ -281,9 +282,11 @@ module riscv_cache_biu_ctrl #(
   //Data is in biubuffer, except for last transaction
   always_comb
     begin
-        cachemem_dat_o = biubuffer_o;
-        cachemem_dat_o[ biu_adro_i[BLK_OFFS_BITS-1 -: DAT_OFFS_BITS] * XLEN +: XLEN] = biu_q_i;
+        biu_line_o = biubuffer_o;
+        biu_line_o[ biu_adro_i[BLK_OFFS_BITS-1 -: DAT_OFFS_BITS] * XLEN +: XLEN] = biu_q;
     end
+
+  assign biu_line_dirty_o = biubuffer_dirty | we_i;
 
 
   //Acknowledge burst to memfsm
