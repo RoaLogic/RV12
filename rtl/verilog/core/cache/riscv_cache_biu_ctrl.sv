@@ -62,6 +62,7 @@ module riscv_cache_biu_ctrl #(
   input  biu_prot_t                prot_i,
   input  logic                     lock_i,
   input  logic                     we_i,
+  input  logic [XLEN/8       -1:0] be_i,
   input  logic [XLEN         -1:0] d_i,
 
   input  logic [XLEN         -1:0] evictbuffer_adr_i,
@@ -104,7 +105,7 @@ module riscv_cache_biu_ctrl #(
 
   //////////////////////////////////////////////////////////////////
   //
-  // Constants
+  // Functions
   //
 
   //convert burst type to counter length (actually length -1)
@@ -125,6 +126,18 @@ module riscv_cache_biu_ctrl #(
   endfunction: biu_type2cnt
 
 
+  //Byte-Enable driven MUX
+  function automatic [XLEN-1:0] be_mux;
+    input [XLEN/8-1:0] be;
+    input [XLEN  -1:0] data_old; //old data
+    input [XLEN  -1:0] data_new; //new data
+
+    for (int i=0; i<XLEN/8;i++)
+      be_mux[i*8 +: 8] = be[i] ? data_new[i*8 +: 8] : data_old[i*8 +: 8];
+  endfunction: be_mux
+
+
+
   //////////////////////////////////////////////////////////////////
   //
   // Variables
@@ -141,7 +154,8 @@ module riscv_cache_biu_ctrl #(
   logic                           biubuffer_dirty;
   logic      [DAT_OFFS_BITS -1:0] dat_offset;
 
-
+  logic                           biu_adro_eq_cache_adr;
+  logic      [XLEN          -1:0] biu_q;
 
   logic      [PLEN          -1:0] biu_adri_hold;
   logic      [XLEN          -1:0] biu_d_hold;
@@ -213,6 +227,15 @@ module riscv_cache_biu_ctrl #(
     end
 
 
+
+  //address check, used in a few places
+  assign biu_adro_eq_cache_adr = (biu_adro_i[PLEN-1:BURST_LSB] == adr_i[PLEN-1:BURST_LSB]);
+
+
+  //handle writing bits in read-cache-line
+  assign biu_q = we_i && biu_adro_eq_cache_adr ? be_mux(be_i, biu_q_i, d_i)
+                                               : biu_q_i;
+
   //BIU Buffer
   always @(posedge clk_i)
     unique case (biufsm_state)
@@ -223,11 +246,11 @@ module riscv_cache_biu_ctrl #(
               end
 
      BURST  : begin
-                  if (!we_i)
+                  if (!biu_we_hold)
                   begin
                       if (biu_ack_i)   //latch incoming data when transfer-acknowledged
                       begin
-                          biubuffer_o    [ biu_adro_i[BLK_OFFS_BITS-1 -: DAT_OFFS_BITS] * XLEN +: XLEN ] <= biu_q_i;
+                          biubuffer_o    [ biu_adro_i[BLK_OFFS_BITS-1 -: DAT_OFFS_BITS] * XLEN +: XLEN ] <= biu_q;
                           biubuffer_valid[ biu_adro_i[BLK_OFFS_BITS-1 -: DAT_OFFS_BITS] ]                <= 1'b1;
                           biubuffer_dirty                                                                <= biubuffer_dirty | we_i; //& biu_adro_eq_cache_adr_dly
                       end
