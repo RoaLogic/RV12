@@ -476,6 +476,7 @@ endgenerate
     .prot_i                    ( tag_prot                ),
     .lock_i                    ( 1'b0                    ),
     .we_i                      ( 1'b0                    ),
+    .be_i                      ( {XLEN/8  {1'b0}}        ),
     .d_i                       ( {XLEN    {1'b0}}        ),
 
     .evictbuffer_adr_i         ( {XLEN    {1'b0}}        ),
