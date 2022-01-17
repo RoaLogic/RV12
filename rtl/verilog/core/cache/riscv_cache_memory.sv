@@ -47,9 +47,10 @@ module riscv_cache_memory #(
 
   localparam SETS          = no_of_sets(SIZE, BLOCK_SIZE, WAYS),
   localparam IDX_BITS      = no_of_index_bits(SETS),
+  localparam BLK_BITS      = no_of_block_bits(BLOCK_SIZE),
   localparam BLK_OFFS_BITS = no_of_block_offset_bits(BLOCK_SIZE),
-  localparam TAG_BITS      = no_of_tag_bits(XLEN, IDX_BITS, BLK_OFFS_BITS),
-  localparam BLK_BITS      = no_of_block_bits(BLOCK_SIZE)
+  localparam DAT_OFFS_BITS = no_of_data_offset_bits(XLEN, BLK_BITS),
+  localparam TAG_BITS      = no_of_tag_bits(XLEN, IDX_BITS, BLK_OFFS_BITS)
 )
 (
   input  logic                     rst_ni,
@@ -64,25 +65,28 @@ module riscv_cache_memory #(
 
   input  logic [TAG_BITS     -1:0] rd_core_tag_i,
                                    wr_core_tag_i,
-  input  logic [IDX_BITS     -1:0] rd_tag_idx_i,
-                                   wr_tag_idx_i,
-                                   wr_tag_dirty_idx_i,
+  input  logic [IDX_BITS     -1:0] rd_idx_i,
+                                   wr_idx_i,
 
-  input  logic [IDX_BITS     -1:0] rd_dat_idx_i,
-                                   wr_dat_idx_i,
+  input  logic                     rreq_i,            //Read cache memories?
   input  logic                     writebuffer_we_i,
   input  logic [XLEN/8       -1:0] writebuffer_be_i,
   input  logic [IDX_BITS     -1:0] writebuffer_idx_i,
-  input  logic [BLK_OFFS_BITS-1:0] writebuffer_offs_i,
+  input  logic [DAT_OFFS_BITS-1:0] writebuffer_offs_i,
   input  logic [XLEN         -1:0] writebuffer_data_i,
-  input  logic [BLK_BITS     -1:0] biu_d_i,
+  input  logic [WAYS         -1:0] writebuffer_ways_hit_i,
+
+  input  logic [BLK_BITS     -1:0] biu_line_i,
+  input  logic                     biu_line_dirty_i,
   input  logic                     biucmd_ack_i,
 
   output logic [XLEN         -1:0] evict_buffer_adr_o,
   output logic [BLK_BITS     -1:0] evict_buffer_q_o,
 
   output logic                     hit_o,             //cache-hit
+  output logic [WAYS         -1:0] ways_hit_o,        //list of hit ways
   output logic                     dirty_o,           //(at least) one way is dirty
+  output logic [WAYS         -1:0] ways_dirty_o,      //list of dirty ways
   output logic                     way_dirty_o,       //the selected way is dirty
   output logic [BLK_BITS     -1:0] cache_line_o
 );
@@ -107,18 +111,23 @@ module riscv_cache_memory #(
   genvar  way;
 
   logic                              biumem_we,           //write data from BIU
-                                     biumem_we_dly;
+                                     writebuffer_we,      //write data from WriteBuffer (CPU)
+                                     we_dly;
+
 
   logic [WAYS        -1:0]           fill_way_select_dly;
 
-  logic [IDX_BITS    -1:0]           tag_idx,
-                                     tag_idx_dly,
-                                     tag_idx_filling;     //tag-index for filling
+  logic [IDX_BITS    -1:0]           idx,                 //Memory index
+                                     byp_idx,             //Bypass index (for RAW hazard)
+                                     rd_idx_dly,          //delay idx, same delay as through memory
+                                     idx_filling;         //index for filling
+
+  /* TAG
+   */
   tag_struct                         tag_in      [WAYS],  //tag memory input data
                                      tag_out     [WAYS];  //tag memory output data
   logic [WAYS        -1:0]           tag_we,              //tag memory write enable
                                      tag_we_dirty;        //tag-dirty write enable
-  logic [IDX_BITS    -1:0]           tag_byp_idx;
   logic [TAG_BITS    -1:0]           tag_byp_tag;
   logic                              tag_byp_valid;
   logic [WAYS        -1:0][SETS-1:0] tag_valid;
@@ -127,15 +136,13 @@ module riscv_cache_memory #(
                                      way_dirty;           //way is dirty
 
 
-  logic [IDX_BITS    -1:0]           dat_idx,
-                                     dat_idx_dly,         //dat-idx delayed, same delay as through memory
-                                     dat_idx_filling;     //dat-idx for filling
+  /* DATA
+  */
   logic [BLK_BITS    -1:0]           dat_in;              //data into memory
   logic [WAYS        -1:0]           dat_we;              //data memory write enable
   logic [BLK_BITS/8  -1:0]           dat_be;              //data memory write byte enables
   logic [BLK_BITS    -1:0]           dat_out     [WAYS];  //data memory output
   logic [BLK_BITS    -1:0]           way_q_mux   [WAYS];  //data out multiplexor
-  logic [IDX_BITS    -1:0]           dat_byp_idx;
   logic [BLK_BITS    -1:0]           dat_byp_q;
 
 
@@ -160,23 +167,27 @@ module riscv_cache_memory #(
   // Module Body
   //
 
-
-  //----------------------------------------------------------------
-  // Tag Memory
-  //----------------------------------------------------------------
-
-
   //write data from BIU 
   assign biumem_we = filling_i & biucmd_ack_i;
 
-  
-  always @(posedge clk_i)
-    biumem_we_dly <= biumem_we;
+
+  //WriteBuffer write opportunity
+  assign writebuffer_we = ~rreq_i & writebuffer_we_i;
 
 
-  //hold tag-idx, to be used during biumem_we=1
+  //Delayed write. Masks 'hit'
   always @(posedge clk_i)
-    if (!filling_i) tag_idx_filling <= wr_tag_idx_i;
+    we_dly <= biumem_we | writebuffer_we;
+
+
+  //delay rd_idx_i, same delay as through memory
+  always @(posedge clk_i)
+    rd_idx_dly <= rd_idx_i;
+
+
+  //hold idx, to be used during biumem_we=1
+  always @(posedge clk_i)
+    if (!filling_i) idx_filling <= wr_idx_i;
 
 
   //delay fill-way-select, same delay as through memory
@@ -184,28 +195,33 @@ module riscv_cache_memory #(
     if (!filling_i) fill_way_select_dly <= fill_way_select_i;
 
 
-  //Tag-index
-  assign tag_idx = biumem_we ? tag_idx_filling : rd_tag_idx_i;
+  //Memory Index
+  always_comb
+    unique casex ( {biumem_we, writebuffer_we} )
+      {2'b1?}: idx = idx_filling;
+      {2'b?1}: idx = writebuffer_idx_i;
+      default: idx = rd_idx_i;
+    endcase
 
 
-  //delay tag-idx, same delay as through memory
+  //Index bypass (RAW hazard)
   always @(posedge clk_i)
-    tag_idx_dly <= rd_tag_idx_i;
+    if (biumem_we) byp_idx <= idx_filling;
 
+
+  //----------------------------------------------------------------
+  // Tag Memory
+  //----------------------------------------------------------------
 
   //tag-register for bypass (RAW hazard)
   always @(posedge clk_i)
-    if (filling_i & biucmd_ack_i)
-    begin
-        tag_byp_tag <= wr_core_tag_i;
-        tag_byp_idx <= tag_idx_filling;
-    end
+    if (biumem_we) tag_byp_tag <= wr_core_tag_i;
+
 
   always @(posedge clk_i, negedge rst_ni)
     if      (!rst_ni    ) tag_byp_valid <= 1'b0;
     else if ( flushing_i) tag_byp_valid <= 1'b0;
     else if ( biumem_we ) tag_byp_valid <= 1'b1;
-
 
 
 generate
@@ -220,7 +236,7 @@ generate
       tag_ram (
         .rst_ni     ( rst_ni                 ),
         .clk_i      ( clk_i                  ),
-        .addr_i     ( tag_idx                ),
+        .addr_i     ( idx                    ),
         .we_i       ( tag_we [way]           ),
         .be_i       ( {(TAG_BITS+7)/8{1'b1}} ),
         .din_i      ( tag_in [way].tag       ),
@@ -232,11 +248,11 @@ generate
        * Valid is stored in DFF
        */ 
       always @(posedge clk_i, negedge rst_ni)
-        if      (!rst_ni     ) tag_valid[way]          <= 'h0;
-        else if ( flushing_i ) tag_valid[way]          <= 'h0;
-        else if ( tag_we[way]) tag_valid[way][tag_idx] <= tag_in[way].valid;
+        if      (!rst_ni     ) tag_valid[way]      <= 'h0;
+        else if ( flushing_i ) tag_valid[way]      <= 'h0;
+        else if ( tag_we[way]) tag_valid[way][idx] <= tag_in[way].valid;
 
-      assign tag_out[way].valid = tag_valid[way][tag_idx_dly];
+      assign tag_out[way].valid = tag_valid[way][rd_idx_dly];
 
 
       //compare way-tag to TAG;
@@ -247,10 +263,10 @@ generate
        * Dirty is stored in DFF
        */ 
       always @(posedge clk_i, negedge rst_ni)
-        if      (!rst_ni           ) tag_dirty[way]                     <= 'h0;
-        else if ( tag_we_dirty[way]) tag_dirty[way][wr_tag_dirty_idx_i] <= tag_in[way].dirty;
+        if      (!rst_ni           ) tag_dirty[way]      <= 'h0;
+        else if ( tag_we_dirty[way]) tag_dirty[way][idx] <= tag_in[way].dirty;
 
-      assign tag_out[way].dirty = tag_dirty[way][tag_idx_dly];
+      assign tag_out[way].dirty = tag_dirty[way][rd_idx_dly];
 
 
       //extract 'dirty' from tag
@@ -259,20 +275,15 @@ generate
 
       /* TAG Write Enable
        */
-      assign tag_we[way] = biumem_we & fill_way_select_dly[way];
-
-/*
-          ARMED  : tag_we_dirty[way] = way_hit[way] & ((mem_vreq_dly & mem_we_dly & mem_preq_i) | (mem_preq_dly & mem_we_dly));
-          default: tag_we_dirty[way] = (filling & fill_way_select_hold[way] & biufsm_ack) |
-                                       (flushing & write_evict_buffer & (get_dirty_way_idx(tag_dirty,flush_idx) == way) );
-*/
-
+      assign tag_we      [way] =  biumem_we & fill_way_select_dly[way];
+      assign tag_we_dirty[way] = (biumem_we & fill_way_select_dly[way]) |
+                                 (writebuffer_we & writebuffer_ways_hit_i[way]);
 
       /* TAG Write Data
        */
       //clear valid tag during flushing and cache-coherency checks
       assign tag_in[way].valid = ~flushing_i;
-      assign tag_in[way].dirty = 1'b1;
+      assign tag_in[way].dirty = biumem_we ? biu_line_dirty_i : writebuffer_we_i;
       assign tag_in[way].tag   = wr_core_tag_i;
   end
 endgenerate
@@ -281,8 +292,12 @@ endgenerate
   /* Generate Hit
    */
   always @(posedge clk_i)
-    if (!stall_i) hit_o <= tag_idx_dly == tag_byp_idx ? tag_byp_valid & (rd_core_tag_i == tag_byp_tag) : |way_hit & ~biumem_we_dly;
+    if (!stall_i) hit_o <= rd_idx_dly == byp_idx ? tag_byp_valid & (rd_core_tag_i == tag_byp_tag) : |way_hit & ~we_dly;
 
+
+  always @(posedge clk_i)
+    if (!stall_i) ways_hit_o <= way_hit;
+    
 
   /* Generate Dirty
   */
@@ -291,7 +306,11 @@ endgenerate
 
 
   always @(posedge clk_i)
-    if (!stall_i) way_dirty_o <= tag_out[ onehot2int(fill_way_select_dly) ].valid & tag_out[ onehot2int(fill_way_select_dly) ].dirty;
+    if (!stall_i) ways_dirty_o <= way_dirty;
+
+
+  always @(posedge clk_i)
+    if (!stall_i) way_dirty_o <= way_dirty[ onehot2int(fill_way_select_dly) ];
 
 
   //----------------------------------------------------------------
@@ -300,33 +319,15 @@ endgenerate
 
 
   //generate DAT-memory data input
-  assign dat_in = biucmd_ack_i ? biu_d_i : {BLK_BITS/XLEN{writebuffer_data_i}};
+  assign dat_in = writebuffer_we ? {BLK_BITS/XLEN{writebuffer_data_i}} : biu_line_i;
 
   //generate DAT-memory byte enable
-  assign dat_be = writebuffer_we_i ? {writebuffer_be_i << writebuffer_offs_i} : {BLK_BITS/8{1'b1}};
-
-
-  //hold dat_idx, to be used when biumem_we=1
-  always @(posedge clk_i)
-    if (!filling_i) dat_idx_filling <= wr_dat_idx_i;
-
-
-  //Dat-index
-  assign dat_idx = biumem_we ? dat_idx_filling : rd_dat_idx_i;
+  assign dat_be = writebuffer_we ? {writebuffer_be_i << writebuffer_offs_i} : {BLK_BITS/8{1'b1}};
 
   
-  //delay dat-idx, same delay as through memory
-  always @(posedge clk_i)
-    dat_idx_dly <= rd_dat_idx_i;
-
-
   //dat-register for bypass (RAW hazard)
   always @(posedge clk_i)
-    if (filling_i & biucmd_ack_i)
-    begin
-        dat_byp_q   <= dat_in;
-        dat_byp_idx <= dat_idx_filling;
-    end
+    if (biumem_we) dat_byp_q   <= dat_in;
 
 
 generate
@@ -339,7 +340,7 @@ generate
       data_ram (
         .rst_ni     ( rst_ni        ),
         .clk_i      ( clk_i         ),
-        .addr_i     ( dat_idx       ),
+        .addr_i     ( idx           ),
         .we_i       ( dat_we [way]  ),
         .be_i       ( dat_be        ),
         .din_i      ( dat_in        ),
@@ -348,7 +349,8 @@ generate
 
       /* Data Write Enable
        */
-      assign dat_we[way] = (writebuffer_we_i | biumem_we) & fill_way_select_dly[way]; //TODO: check for overlaps
+      assign dat_we[way] = (biumem_we & fill_way_select_dly[way]        ) |
+                           (writebuffer_we & writebuffer_ways_hit_i[way]); //TODO: check for overlaps
       
 
       /* Data Ouput Mux
@@ -363,7 +365,7 @@ endgenerate
 
 
   always @(posedge clk_i)
-    if (!stall_i) cache_line_o <= dat_idx_dly == dat_byp_idx ? dat_byp_q : way_q_mux[WAYS-1];
+    if (!stall_i) cache_line_o <= rd_idx_dly == byp_idx ? dat_byp_q : way_q_mux[WAYS-1];
 
 endmodule
 
