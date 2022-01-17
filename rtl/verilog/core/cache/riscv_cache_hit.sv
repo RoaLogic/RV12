@@ -73,8 +73,7 @@ module riscv_cache_hit #(
 
   input  logic                        cache_hit_i,      //from cache-memory
   input  logic [BLK_BITS        -1:0] cache_line_i,
-  output logic [IDX_BITS        -1:0] tag_idx_o,
-                                      dat_idx_o,
+  output logic [IDX_BITS        -1:0] idx_o,
   output logic [TAG_BITS        -1:0] core_tag_o,
 
   output biucmd_t                     biucmd_o,
@@ -281,8 +280,7 @@ module riscv_cache_hit #(
 
 
   //Tag/Dat-index (for writing)
-  assign tag_idx_o = adr_i[BLK_OFFS_BITS +: IDX_BITS];
-  assign dat_idx_o = adr_i[BLK_OFFS_BITS +: IDX_BITS];
+  assign idx_o = adr_i[BLK_OFFS_BITS +: IDX_BITS];
 
 
   //core-tag (for writing)
