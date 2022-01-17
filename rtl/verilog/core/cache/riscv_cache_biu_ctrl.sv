@@ -65,7 +65,7 @@ module riscv_cache_biu_ctrl #(
   input  logic [XLEN/8       -1:0] be_i,
   input  logic [XLEN         -1:0] d_i,
 
-  input  logic [XLEN         -1:0] evictbuffer_adr_i,
+  input  logic [PLEN         -1:0] evictbuffer_adr_i,
   input  logic [BLK_BITS     -1:0] evictbuffer_d_i,
   output logic                     in_biubuffer_o,
   output logic [BLK_BITS     -1:0] biubuffer_o,          //data to cache-ctrl
@@ -348,7 +348,7 @@ module riscv_cache_biu_ctrl #(
 
                   BIUCMD_WRITEWAY : begin
                                         biu_stb_o  = 1'b1;
-                                        biu_adri_o = adr_i;
+                                        biu_adri_o = evictbuffer_adr_i;
                                         biu_we_o   = 1'b1;
                                         biu_d_o    = evictbuffer_d_i[0 +: XLEN];
                                     end
