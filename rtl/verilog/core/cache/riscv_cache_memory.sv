@@ -80,6 +80,9 @@ module riscv_cache_memory #(
   input  logic                     biu_line_dirty_i,
   input  logic                     biucmd_ack_i,
 
+  output logic [TAG_BITS     -1:0] evict_tag_o,
+  output logic [BLK_BITS     -1:0] evict_line_o,
+
   output logic                     hit_o,             //cache-hit
   output logic [WAYS         -1:0] ways_hit_o,        //list of hit ways
   output logic                     dirty_o,           //(at least) one way is dirty
@@ -310,6 +313,12 @@ endgenerate
     if (!stall_i) way_dirty_o <= way_dirty[ onehot2int(fill_way_select_dly) ];
 
 
+  /* TAG output
+   * Used for EVICT address generation
+   */
+  always @(posedge clk_i)
+    if (!stall_i) evict_tag_o <= tag_out[ onehot2int(fill_way_select_dly) ].tag;
+
 
   //----------------------------------------------------------------
   // Data Memory
@@ -362,8 +371,16 @@ generate
 endgenerate
 
 
+  /* Cache line output
+   */
   always @(posedge clk_i)
     if (!stall_i) cache_line_o <= rd_idx_dly == byp_idx ? dat_byp_q : way_q_mux[WAYS-1];
+
+
+  /* Evict line output
+   */
+  always @(posedge clk_i)
+    if (!stall_i) evict_line_o <= dat_out[ onehot2int(fill_way_select_dly) ];
 
 endmodule
 
