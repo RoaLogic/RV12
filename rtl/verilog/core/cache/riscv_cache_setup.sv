@@ -59,6 +59,7 @@ module riscv_cache_setup #(
   input  logic                     is_misaligned_i,
 
   output logic                     req_o,
+  output logic                     rreq_o,
   output logic [XLEN         -1:0] adr_o,
   output biu_size_t                size_o,
   output logic                     lock_o,
@@ -68,10 +69,8 @@ module riscv_cache_setup #(
   output logic                     is_cacheable_o,
   output logic                     is_misaligned_o,
 
-  output logic                     req_rd_o,
-  output logic [IDX_BITS     -1:0] tag_idx_o,
-                                   dat_idx_o,
-  output logic [TAG_BITS     -1:0] core_tag_o
+  output logic [IDX_BITS     -1:0] idx_o,
+  output logic [TAG_BITS     -1:0] core_tag_o //TODO CoreTag is extracted from Physical address
 );
 
   //////////////////////////////////////////////////////////////////
@@ -104,6 +103,17 @@ module riscv_cache_setup #(
     else if (!stall_i) req_o <= req_i;
 
 
+  /* Read-Request
+   * Used to push writebuffer into Cache-memory
+   */
+  always @(posedge clk_i, negedge rst_ni)
+    if      (!rst_ni ) rreq_o <= 1'b0;
+    else if ( flush_i) rreq_o <= 1'b0;
+    else if (!stall_i) rreq_o <= req_i & ~we_i;
+
+
+  /* Latch signals
+   */
   always @(posedge clk_i)
     if (!stall_i)
     begin
@@ -126,16 +136,9 @@ module riscv_cache_setup #(
   always @(posedge clk_i)
     if (!stall_i || flush_dly) adr_idx_dly <= adr_idx;
 
-  assign tag_idx_o = stall_i && !flush_dly ? adr_idx_dly : adr_idx;
-  assign dat_idx_o = stall_i && !flush_dly ? adr_idx_dly : adr_idx;
+  assign idx_o = stall_i && !flush_dly ? adr_idx_dly : adr_idx;
 
   
-  /* Read-Request
-   * Used to push writebuffer into Cache-memory
-   */
-  assign req_rd_o = req_i & ~we_i & ~flush_i;
-
-
   /* Core Tag, actually from MMU
    */
   always @(posedge clk_i)
