@@ -404,6 +404,9 @@ endgenerate
     .writebuffer_data_i     ( {XLEN         {1'b0}} ),
     .writebuffer_ways_hit_i ( {WAYS         {1'b0}} ),
 
+    .evict_tag_o            (                       ),
+    .evict_line_o           (                       ),
+
     .biu_line_i             ( biu_line              ),
     .biu_line_dirty_i       ( 1'b0                  ),
     .biucmd_ack_i           ( biucmd_ack            ),
