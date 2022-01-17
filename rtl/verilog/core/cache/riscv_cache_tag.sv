@@ -53,6 +53,7 @@ module riscv_cache_tag #(
   input  logic                     is_misaligned_i,
 
   output logic                     req_o,
+  output logic                     wreq_o,
   output logic [PLEN         -1:0] adr_o,
   output biu_size_t                size_o,
   output logic                     lock_o,
@@ -97,6 +98,12 @@ module riscv_cache_tag #(
     if      (!rst_ni ) req_o <= 1'b0;
     else if ( flush_i) req_o <= 1'b0;
     else if (!stall_i) req_o <= req_i;
+
+
+  always @(posedge clk_i, negedge rst_ni)
+    if      (!rst_ni ) wreq_o <= 1'b0;
+    else if ( flush_i) wreq_o <= 1'b0;
+    else if (!stall_i) wreq_o <= req_i & we_i;
 
 
   always @(posedge clk_i)
