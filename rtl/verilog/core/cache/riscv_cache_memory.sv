@@ -80,15 +80,12 @@ module riscv_cache_memory #(
   input  logic                     biu_line_dirty_i,
   input  logic                     biucmd_ack_i,
 
-  output logic [XLEN         -1:0] evict_buffer_adr_o,
-  output logic [BLK_BITS     -1:0] evict_buffer_q_o,
-
   output logic                     hit_o,             //cache-hit
   output logic [WAYS         -1:0] ways_hit_o,        //list of hit ways
   output logic                     dirty_o,           //(at least) one way is dirty
   output logic [WAYS         -1:0] ways_dirty_o,      //list of dirty ways
   output logic                     way_dirty_o,       //the selected way is dirty
-  output logic [BLK_BITS     -1:0] cache_line_o
+  output logic [BLK_BITS     -1:0] cache_line_o       //Cacheline
 );
 
   //////////////////////////////////////////////////////////////////
@@ -311,6 +308,7 @@ endgenerate
 
   always @(posedge clk_i)
     if (!stall_i) way_dirty_o <= way_dirty[ onehot2int(fill_way_select_dly) ];
+
 
 
   //----------------------------------------------------------------
