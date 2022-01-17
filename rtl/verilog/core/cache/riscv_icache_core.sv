@@ -180,10 +180,8 @@ module riscv_icache_core #(
 
   logic [TAG_BITS     -1:0] setup_core_tag,
                             hit_core_tag;
-  logic [IDX_BITS     -1:0] setup_tag_idx,
-                            setup_dat_idx,
-                            hit_tag_idx,
-                            hit_dat_idx;
+  logic [IDX_BITS     -1:0] setup_idx,
+                            hit_idx;
 
   logic                     cache_hit;
   logic [BLK_BITS     -1:0] cache_line;
@@ -261,6 +259,7 @@ endgenerate
     .is_misaligned_i    ( misaligned_i        ),
 
     .req_o              ( setup_req           ),
+    .rreq_o             (                     ),
     .adr_o              ( setup_adr           ),
     .size_o             ( setup_size          ),
     .lock_o             ( setup_lock          ),
@@ -270,10 +269,8 @@ endgenerate
     .is_cacheable_o     ( setup_is_cacheable  ),
     .is_misaligned_o    ( setup_is_misaligned ),
 
-    .req_rd_o           (                     ),
     .core_tag_o         ( setup_core_tag      ),
-    .tag_idx_o          ( setup_tag_idx       ),
-    .dat_idx_o          ( setup_dat_idx       ) );
+    .idx_o              ( setup_idx           ) );
 
 
   /* Tag stage
@@ -300,6 +297,7 @@ endgenerate
     .is_misaligned_i    ( setup_is_misaligned   ),
 
     .req_o              ( tag_req               ),
+    .wreq_o             (                       ),
     .adr_o              ( tag_adr               ),
     .size_o             ( tag_size              ),
     .lock_o             ( tag_lock              ),
@@ -344,8 +342,7 @@ endgenerate
     .prot_i                    ( tag_prot                ),
     .is_cacheable_i            ( tag_cacheable           ),
 
-    .tag_idx_o                 ( hit_tag_idx             ),
-    .dat_idx_o                 ( hit_dat_idx             ),
+    .idx_o                     ( hit_idx                 ),
     .core_tag_o                ( hit_core_tag            ),
 
     .biucmd_o                  ( biucmd                  ),
@@ -377,44 +374,46 @@ endgenerate
   // Memory Blocks
   //----------------------------------------------------------------
   riscv_cache_memory #(
-    .XLEN               ( XLEN             ),
-    .SIZE               ( SIZE             ),
-    .BLOCK_SIZE         ( BLOCK_SIZE       ),
-    .WAYS               ( WAYS             ),
+    .XLEN                   ( XLEN                  ),
+    .SIZE                   ( SIZE                  ),
+    .BLOCK_SIZE             ( BLOCK_SIZE            ),
+    .WAYS                   ( WAYS                  ),
 
-    .TECHNOLOGY         ( TECHNOLOGY       ) )
+    .TECHNOLOGY             ( TECHNOLOGY            ) )
   cache_memory_inst (
-    .rst_ni             ( rst_ni           ),
-    .clk_i              ( clk_i            ),
+    .rst_ni                 ( rst_ni                ),
+    .clk_i                  ( clk_i                 ),
 
-    .stall_i            ( stall            ),
+    .stall_i                ( stall                 ),
 
-    .armed_i            ( armed            ),
-    .flushing_i         ( flushing         ),
-    .filling_i          ( filling          ),
-    .fill_way_select_i  ( fill_way_select  ),
+    .armed_i                ( armed                 ),
+    .flushing_i             ( flushing              ),
+    .filling_i              ( filling               ),
+    .fill_way_select_i      ( fill_way_select       ),
 
-    .rd_core_tag_i      ( setup_core_tag   ),
-    .wr_core_tag_i      ( hit_core_tag     ),
-    .rd_tag_idx_i       ( setup_tag_idx    ),
-    .wr_tag_idx_i       ( hit_tag_idx      ),
-    .wr_tag_dirty_idx_i ( {IDX_BITS{1'b0}} ),
+    .rd_core_tag_i          ( setup_core_tag        ),
+    .wr_core_tag_i          ( hit_core_tag          ),
+    .rd_idx_i               ( setup_idx             ),
+    .wr_idx_i               ( hit_idx               ),
 
-    .rd_dat_idx_i       ( setup_dat_idx    ),
-    .wr_dat_idx_i       ( hit_dat_idx      ),
-    .writebuffer_we_i   ( 1'b0             ),
-    .writebuffer_be_i   ( {XLEN/8{1'b0}}   ),
-    .writebuffer_idx_i  ( {IDX_BITS{1'b0}} ),
-    .writebuffer_offs_i ( {BLK_OFFS_BITS{1'b0}} ),
-    .writebuffer_data_i ( {XLEN  {1'b0}}   ),
-    .biu_line_i         ( biu_line         ),
-    .biu_line_dirty_i   ( 1'b0             ),
-    .biucmd_ack_i       ( biucmd_ack       ),
+    .rreq_i                 ( 1'b0                  ), //Read cache memories?
+    .writebuffer_we_i       ( 1'b0                  ),
+    .writebuffer_be_i       ( {XLEN/8       {1'b0}} ),
+    .writebuffer_idx_i      ( {IDX_BITS     {1'b0}} ),
+    .writebuffer_offs_i     ( {DAT_OFFS_BITS{1'b0}} ),
+    .writebuffer_data_i     ( {XLEN         {1'b0}} ),
+    .writebuffer_ways_hit_i ( {WAYS         {1'b0}} ),
 
-    .hit_o              ( cache_hit        ),
-    .dirty_o            (                  ),
-    .way_dirty_o        (                  ),
-    .cache_line_o       ( cache_line       ) );
+    .biu_line_i             ( biu_line              ),
+    .biu_line_dirty_i       ( 1'b0                  ),
+    .biucmd_ack_i           ( biucmd_ack            ),
+
+    .hit_o                  ( cache_hit             ),
+    .ways_hit_o             (                       ),
+    .dirty_o                (                       ),
+    .way_dirty_o            (                       ),
+    .ways_dirty_o           (                       ),
+    .cache_line_o           ( cache_line            ) );
 
 
 
