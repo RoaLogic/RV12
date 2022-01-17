@@ -217,6 +217,12 @@ module riscv_dcache_core #(
   logic [BLK_BITS     -1:0] cache_line;
 
 
+  logic [TAG_BITS     -1:0] evict_tag;
+  logic [BLK_BITS     -1:0] evict_line;
+  logic [PLEN         -1:0] evictbuffer_adr;
+  logic [BLK_BITS     -1:0] evictbuffer_line;
+
+
   logic [INFLIGHT_BITS-1:0] inflight_cnt;
 
   biucmd_t                  biucmd;
@@ -399,6 +405,11 @@ endgenerate
     .writebuffer_be_o          ( writebuffer_be          ),
     .writebuffer_ways_hit_o    ( writebuffer_ways_hit    ),
 
+    .evict_tag_i               ( evict_tag               ),
+    .evict_line_i              ( evict_line              ),
+    .evictbuffer_adr_o         ( evictbuffer_adr         ),
+    .evictbuffer_line_o        ( evictbuffer_line        ),
+
     .biucmd_o                  ( biucmd                  ),
     .biucmd_ack_i              ( biucmd_ack              ),
     .biucmd_noncacheable_req_o ( biucmd_noncacheable_req ),
@@ -448,7 +459,10 @@ endgenerate
     .writebuffer_offs_i     ( writebuffer_offs       ),
     .writebuffer_data_i     ( writebuffer_data       ),
     .writebuffer_ways_hit_i ( writebuffer_ways_hit   ),
-    
+
+    .evict_tag_o            ( evict_tag              ),
+    .evict_line_o           ( evict_line             ),
+
     .biu_line_i             ( biu_line               ), //Write data line
     .biu_line_dirty_i       ( biu_line_dirty         ), //Write data dirty
     .biucmd_ack_i           ( biucmd_ack             ), //Write data write-enable
@@ -497,6 +511,9 @@ endgenerate
     .in_biubuffer_o            ( in_biubuffer            ),
     .biu_line_o                ( biu_line                ),
     .biu_line_dirty_o          ( biu_line_dirty          ),
+
+    .evictbuffer_adr_i         ( evictbuffer_adr         ),
+    .evictbuffer_d_i           ( evictbuffer_line        ),
 
      //To BIU
     .biu_stb_o                 ( biu_stb_o               ),
