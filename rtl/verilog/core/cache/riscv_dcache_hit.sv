@@ -90,6 +90,7 @@ module riscv_dcache_hit #(
   output logic [IDX_BITS        -1:0] idx_o,
   output logic [TAG_BITS        -1:0] core_tag_o,
 
+  //WriteBuffer
   output logic                        writebuffer_we_o,
   input  logic                        writebuffer_ack_i,
   output logic [IDX_BITS        -1:0] writebuffer_idx_o,
@@ -98,6 +99,11 @@ module riscv_dcache_hit #(
   output logic [XLEN/8          -1:0] writebuffer_be_o,
   output logic [WAYS            -1:0] writebuffer_ways_hit_o,
 
+  //EvictBuffer
+  input  logic [TAG_BITS        -1:0] evict_tag_i,
+  input  logic [BLK_BITS        -1:0] evict_line_i,
+  output logic [PLEN            -1:0] evictbuffer_adr_o,
+  output logic [BLK_BITS        -1:0] evictbuffer_line_o,
 
   //To/From BIU
   output biucmd_t                     biucmd_o,
@@ -344,7 +350,7 @@ module riscv_dcache_hit #(
 
 
   //core-tag (for writing)
-  assign core_tag_o = adr_i[XLEN-1 -: TAG_BITS];
+  assign core_tag_o = adr_i[PLEN-1 -: TAG_BITS];
 
 
   /* WriteBuffer
@@ -367,6 +373,16 @@ module riscv_dcache_hit #(
     end
 
 
+  /* EvictBuffer
+   */
+  always @(posedge clk_i)
+    if (memfsm_state == ARMED)
+    begin
+        evictbuffer_adr_o  <= { evict_tag_i, idx_o, {BLK_OFFS_BITS{1'b0}} };
+        evictbuffer_line_o <= evict_line_i;
+    end
+
+
   /* BIU control
   */
   //non-cacheable access
@@ -384,7 +400,7 @@ module riscv_dcache_hit #(
   //acknowledge cache hit
   assign cache_ack         =  req_i & is_cacheable_i & cache_hit_i & ~flush_i;
   assign biu_cacheable_ack = (req_i & biu_ack_i & biu_adro_eq_cache_adr & ~flush_i) |
-                              cache_ack; //(req_i & is_cacheable_i & cache_hit_i & ~flush_i);
+                              cache_ack;
 
 
   /* Stall
@@ -404,9 +420,11 @@ module riscv_dcache_hit #(
                                  (req_i & cache_hit_i)
 	                       );
 
-      RECOVER     : stall_o = ~( /*biu_cache_we_unstall |*/
-	                         (req_i & cache_hit_i)
+      EVICT       : stall_o = ~( biu_cacheable_ack |
+                                 (req_i & cache_hit_i)
                                );
+
+      RECOVER     : stall_o = ~(req_i & cache_hit_i);
       default     : stall_o = 1'b0;
     endcase
 
@@ -421,6 +439,7 @@ module riscv_dcache_hit #(
         ARMED        : ack_o <= cache_ack;
         NONCACHEABLE : ack_o <= biucmd_noncacheable_ack_i;
 	WAIT4BIUCMD0 : ack_o <= biu_cacheable_ack;
+	EVICT        : ack_o <= biu_cacheable_ack;
 	RECOVER      : ack_o <= cache_ack;
 	default      : ack_o <= 1'b0;
       endcase
