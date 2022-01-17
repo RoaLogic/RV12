@@ -348,7 +348,7 @@ module riscv_cache_hit #(
   //acknowledge cache hit
   assign cache_ack         =  req_i & is_cacheable_i & cache_hit_i & ~flush_i;
   assign biu_cacheable_ack = (req_i & biu_ack_i & biu_adro_eq_cache_adr_dly & ~flush_i) |
-                              cache_ack; //(req_i & is_cacheable_i & cache_hit_i & ~flush_i);
+                              cache_ack;
 
 
   //Assign parcel_valid
