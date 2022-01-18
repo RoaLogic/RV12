@@ -292,7 +292,8 @@ endgenerate
   /* Generate Hit
    */
   always @(posedge clk_i)
-    if (!stall_i) hit_o <= rd_idx_dly == byp_idx ? tag_byp_valid & (rd_core_tag_i == tag_byp_tag) : |way_hit & ~we_dly;
+    if (!stall_i) hit_o <= rd_idx_dly == byp_idx ? tag_byp_valid & (rd_core_tag_i == tag_byp_tag)
+                                                 : |way_hit & ~we_dly;
 
 
   always @(posedge clk_i)
@@ -302,7 +303,7 @@ endgenerate
   /* Generate Dirty
   */
   always @(posedge clk_i)
-    if (!stall_i) dirty_o <= |way_dirty; //TODO Bypass
+    if (!stall_i) dirty_o <= |way_dirty;
 
 
   always @(posedge clk_i)
@@ -317,7 +318,8 @@ endgenerate
    * Used for EVICT address generation
    */
   always @(posedge clk_i)
-    if (!stall_i) evict_tag_o <= tag_out[ onehot2int(fill_way_select_dly) ].tag;
+    if (!stall_i) evict_tag_o <= rd_idx_dly == byp_idx ? tag_byp_tag
+                                                       : tag_out[ onehot2int(fill_way_select_dly) ].tag;
 
 
   //----------------------------------------------------------------
@@ -326,10 +328,12 @@ endgenerate
 
 
   //generate DAT-memory data input
-  assign dat_in = writebuffer_we ? {BLK_BITS/XLEN{writebuffer_data_i}} : biu_line_i;
+  assign dat_in = writebuffer_we ? {BLK_BITS/XLEN{writebuffer_data_i}}
+                                 : biu_line_i;
 
   //generate DAT-memory byte enable
-  assign dat_be = writebuffer_we ? {writebuffer_be_i << writebuffer_offs_i} : {BLK_BITS/8{1'b1}};
+  assign dat_be = writebuffer_we ? writebuffer_be_i << (writebuffer_offs_i * XLEN/8)
+                                 : {BLK_BITS/8{1'b1}};
 
   
   //dat-register for bypass (RAW hazard)
@@ -374,13 +378,18 @@ endgenerate
   /* Cache line output
    */
   always @(posedge clk_i)
-    if (!stall_i) cache_line_o <= rd_idx_dly == byp_idx ? dat_byp_q : way_q_mux[WAYS-1];
+    if (!stall_i) cache_line_o <= rd_idx_dly == byp_idx ? dat_byp_q
+                                                        : way_q_mux[WAYS-1];
 
 
   /* Evict line output
    */
   always @(posedge clk_i)
-    if (!stall_i) evict_line_o <= dat_out[ onehot2int(fill_way_select_dly) ];
+    if (!stall_i) evict_line_o <= rd_idx_dly == byp_idx ? dat_byp_q
+                                                        : dat_out[ onehot2int(fill_way_select_dly) ];
+
+logic writebuffer_idx_eq_byp_idx;
+assign writebuffer_idx_eq_byp_idx = writebuffer_idx_i == rd_idx_dly;
 
 endmodule
 
