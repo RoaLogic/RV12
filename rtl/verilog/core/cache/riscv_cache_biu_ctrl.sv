@@ -52,6 +52,7 @@ module riscv_cache_biu_ctrl #(
 
   input  biucmd_t                  biucmd_i,
   output logic                     biucmd_ack_o,
+  output logic                     biucmd_busy_o,
   input  logic                     biucmd_noncacheable_req_i,
   output logic                     biucmd_noncacheable_ack_o,
   output logic [INFLIGHT_BITS-1:0] inflight_cnt_o,
@@ -178,6 +179,7 @@ module riscv_cache_biu_ctrl #(
     if (!rst_ni)
     begin
         biufsm_state <= IDLE;
+        biucmd_busy_o <= 1'b0;
     end
     else
     begin
@@ -187,6 +189,8 @@ module riscv_cache_biu_ctrl #(
                                           //non-cacheable transfers may be initiated
 
                       BIUCMD_READWAY : begin
+                                           biucmd_busy_o <= 1'b1;
+
                                            //read a way from main memory
                                            if (biu_stb_ack_i)
                                            begin
@@ -200,6 +204,8 @@ module riscv_cache_biu_ctrl #(
                                        end
 
                       BIUCMD_WRITEWAY: begin
+                                           biucmd_busy_o <= 1'b1;
+
                                            //write way back to main memory
                                            if (biu_stb_ack_i)
                                            begin
@@ -222,7 +228,8 @@ module riscv_cache_biu_ctrl #(
           BURST    : if (biu_err_i || (~|burst_cnt && biu_ack_i))
                      begin
                          //write complete
-                         biufsm_state <= IDLE; //TODO: detect if another BURST request is pending, skip IDLE
+                         biufsm_state  <= IDLE; //TODO: detect if another BURST request is pending, skip IDLE
+                         biucmd_busy_o <= 1'b0;
                      end
         endcase
     end
