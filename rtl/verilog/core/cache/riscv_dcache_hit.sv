@@ -108,6 +108,7 @@ module riscv_dcache_hit #(
   //To/From BIU
   output biucmd_t                     biucmd_o,
   input  logic                        biucmd_ack_i,
+  input  logic                        biucmd_busy_i,
   output logic                        biucmd_noncacheable_req_o,
   input  logic                        biucmd_noncacheable_ack_i,
   input  logic [INFLIGHT_BITS   -1:0] inflight_cnt_i,
@@ -259,7 +260,7 @@ module riscv_dcache_hit #(
                           memfsm_state <= NONCACHEABLE;
                           armed_o      <= 1'b0;
                       end
-                      else if (req_i && is_cacheable_i && !cache_hit_i && !flush_i)
+                      else if (req_i && is_cacheable_i && !cache_hit_i && !flush_i && !biucmd_busy_i)
                       begin
                           if (way_dirty_i)
                           begin
@@ -372,6 +373,9 @@ module riscv_dcache_hit #(
         writebuffer_ways_hit_o <= ways_hit_i;
     end
 
+logic writebuffer_adr_eq_adr;
+assign writebuffer_adr_eq_adr = writebuffer_idx_o == adr_i[BLK_OFFS_BITS +: IDX_BITS];
+
 
   /* EvictBuffer
    */
@@ -407,7 +411,8 @@ module riscv_dcache_hit #(
   */
   always_comb
     unique case (memfsm_state)
-      ARMED       : stall_o =  req_i & (is_cacheable_i ? ~cache_hit_i : ~biu_stb_ack_i);
+      ARMED       : stall_o =  (req_i & ~is_cacheable_i & (~biu_stb_ack_i | biucmd_busy_i)) | //non-cacheable access
+	                       (req_i &  is_cacheable_i & ~cache_hit_i                    );  //cacheable access
 
       //req_i == 0 ? stall=|inflight_cnt
       //else is_cacheable ? stall=!biu_ack_i (wait for noncacheable transfer to finish)

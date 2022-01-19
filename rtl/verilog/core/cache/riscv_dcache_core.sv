@@ -226,7 +226,9 @@ module riscv_dcache_core #(
   logic [INFLIGHT_BITS-1:0] inflight_cnt;
 
   biucmd_t                  biucmd;
-  logic                     biucmd_noncacheable_req,
+  logic                     biucmd_ack,
+                            biucmd_busy,
+                            biucmd_noncacheable_req,
                             biucmd_noncacheable_ack;
   logic [BLK_BITS     -1:0] biubuffer;
   logic                     in_biubuffer;
@@ -412,6 +414,7 @@ endgenerate
 
     .biucmd_o                  ( biucmd                  ),
     .biucmd_ack_i              ( biucmd_ack              ),
+    .biucmd_busy_i             ( biucmd_busy             ),
     .biucmd_noncacheable_req_o ( biucmd_noncacheable_req ),
     .biucmd_noncacheable_ack_i ( biucmd_noncacheable_ack ),
     .inflight_cnt_i            ( inflight_cnt            ),
@@ -494,6 +497,7 @@ endgenerate
 
     .biucmd_i                  ( biucmd                  ),
     .biucmd_ack_o              ( biucmd_ack              ),
+    .biucmd_busy_o             ( biucmd_busy             ),
     .biucmd_noncacheable_req_i ( biucmd_noncacheable_req ),
     .biucmd_noncacheable_ack_o ( biucmd_noncacheable_ack ),
     .inflight_cnt_o            ( inflight_cnt            ),

@@ -438,6 +438,7 @@ endgenerate
 
     .biucmd_i                  ( biucmd                  ),
     .biucmd_ack_o              ( biucmd_ack              ),
+    .biucmd_busy_o             (                         ),
     .biucmd_noncacheable_req_i ( biucmd_noncacheable_req ),
     .biucmd_noncacheable_ack_o ( biucmd_noncacheable_ack ),
     .inflight_cnt_o            ( inflight_cnt            ),
