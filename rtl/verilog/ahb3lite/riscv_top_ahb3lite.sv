@@ -85,7 +85,8 @@ module riscv_top_ahb3lite #(
 
   parameter            HARTID             = 0,
 
-  parameter            PARCEL_SIZE        = 16 //16bits per parcel
+  parameter            PARCEL_SIZE        = 16, //16bits per parcel
+  parameter            BIUTAG_SIZE        = $clog2(XLEN/PARCEL_SIZE)
 )
 (
   //AHB interfaces
@@ -187,6 +188,9 @@ module riscv_top_ahb3lite #(
   logic          [XLEN            -1:0] ibiu_q;
   logic                                 ibiu_ack,
                                         ibiu_err;
+  logic          [BIUTAG_SIZE     -1:0] ibiu_tago,
+                                        ibiu_tagi;
+
   /* Data Memory BIU connections
    */
   logic                                 dbiu_stb;
@@ -203,6 +207,8 @@ module riscv_top_ahb3lite #(
   logic          [XLEN            -1:0] dbiu_q;
   logic                                 dbiu_ack,
                                         dbiu_err;
+  logic          [BIUTAG_SIZE     -1:0] dbiu_tago,
+                                        dbiu_tagi;
 
 
   ////////////////////////////////////////////////////////////////
@@ -352,9 +358,9 @@ module riscv_top_ahb3lite #(
     .biu_d_o           ( ibiu_d            ),
     .biu_q_i           ( ibiu_q            ),
     .biu_ack_i         ( ibiu_ack          ),
-    .biu_err_i         ( ibiu_err          ) );
-
-
+    .biu_err_i         ( ibiu_err          ),
+    .biu_tagi_o        ( ibiu_tagi         ),
+    .biu_tago_i        ( ibiu_tago         ) );
 
 
   riscv_dmem_ctrl #(
@@ -413,9 +419,9 @@ module riscv_top_ahb3lite #(
   /* Instantiate BIU
    */
   biu_ahb3lite #(
-    .DATA_SIZE ( XLEN ),
-    .ADDR_SIZE ( ALEN )
-  )
+    .DATA_SIZE     ( XLEN          ),
+    .ADDR_SIZE     ( ALEN          ),
+    .TAG_SIZE      ( BIUTAG_SIZE   ) )
   ibiu_inst (
     .HRESETn       ( HRESETn       ),
     .HCLK          ( HCLK          ),
@@ -445,13 +451,15 @@ module riscv_top_ahb3lite #(
     .biu_d_i       ( ibiu_d        ),
     .biu_q_o       ( ibiu_q        ),
     .biu_ack_o     ( ibiu_ack      ),
-    .biu_err_o     ( ibiu_err      )
-  );
+    .biu_err_o     ( ibiu_err      ),
+    .biu_tagi_i    ( ibiu_tagi     ),
+    .biu_tago_o    ( ibiu_tago     ) );
+
 
   biu_ahb3lite #(
-    .DATA_SIZE ( XLEN ),
-    .ADDR_SIZE ( ALEN )
-  )
+    .DATA_SIZE     ( XLEN          ),
+    .ADDR_SIZE     ( ALEN          ),
+    .TAG_SIZE      ( BIUTAG_SIZE   ) )
   dbiu_inst (
     .HRESETn       ( HRESETn       ),
     .HCLK          ( HCLK          ),
@@ -481,7 +489,8 @@ module riscv_top_ahb3lite #(
     .biu_d_i       ( dbiu_d        ),
     .biu_q_o       ( dbiu_q        ),
     .biu_ack_o     ( dbiu_ack      ),
-    .biu_err_o     ( dbiu_err      )
-  );
+    .biu_err_o     ( dbiu_err      ),
+    .biu_tagi_i    ( dbiu_tagi     ),
+    .biu_tago_o    ( dbiu_tago     ) );
 
 endmodule
