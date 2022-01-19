@@ -53,7 +53,9 @@ module riscv_imem_ctrl #(
                                    //1: FIFO
                                    //2: LRU
 */
-  parameter TECHNOLOGY       = "GENERIC"
+  parameter TECHNOLOGY       = "GENERIC",
+
+  parameter BIUTAG_SIZE      = $clog2(XLEN/PARCEL_SIZE)
 )
 (
   input  logic                                 rst_ni,
@@ -94,7 +96,9 @@ module riscv_imem_ctrl #(
   output logic          [XLEN            -1:0] biu_d_o,
   input  logic          [XLEN            -1:0] biu_q_i,
   input  logic                                 biu_ack_i,
-                                               biu_err_i
+                                               biu_err_i,
+  output logic          [BIUTAG_SIZE     -1:0] biu_tagi_o,
+  input  logic          [BIUTAG_SIZE     -1:0] biu_tago_i
 );
 
   //////////////////////////////////////////////////////////////////
@@ -272,7 +276,8 @@ generate
      .XLEN                   ( XLEN              ),
      .ALEN                   ( PLEN              ),
      .HAS_RVC                ( HAS_RVC           ),
-     .PARCEL_SIZE            ( PARCEL_SIZE       ) )
+     .PARCEL_SIZE            ( PARCEL_SIZE       ),
+     .BIUTAG_SIZE            ( BIUTAG_SIZE       ) )
    noicache_core_inst (
      //common signals
      .rst_ni                 ( rst_ni            ),
@@ -306,7 +311,9 @@ generate
      .biu_d_o                ( biu_d_o           ),
      .biu_q_i                ( biu_q_i           ),
      .biu_ack_i              ( biu_ack_i         ),
-     .biu_err_i              ( biu_err_i         ) );
+     .biu_err_i              ( biu_err_i         ),
+     .biu_tagi_o             ( biu_tagi_o        ),
+     .biu_tago_i             ( biu_tago_i        ) );
   end
 endgenerate
 
