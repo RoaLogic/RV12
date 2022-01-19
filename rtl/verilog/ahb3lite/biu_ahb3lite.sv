@@ -32,6 +32,9 @@
  * biu_stb_i must be negated once biu_stb_ack_o is asserted.
  * Upon completion of the transfer biu_ack_o is asserted
  * biu_err_o is asserted if there was a transfer error
+ *
+ * A TAG can be provided with biu_stb, the TAG will be returned
+ * aligned with the data phase
  */
 
 
@@ -40,7 +43,8 @@ import biu_constants_pkg::*;
 
 module biu_ahb3lite #(
   parameter DATA_SIZE = 32,
-  parameter ADDR_SIZE = DATA_SIZE
+  parameter ADDR_SIZE = DATA_SIZE,
+  parameter TAG_SIZE  = DATA_SIZE
 )
 (
   input  logic                   HRESETn,
@@ -74,7 +78,9 @@ module biu_ahb3lite #(
   input  logic [DATA_SIZE  -1:0] biu_d_i,
   output logic [DATA_SIZE  -1:0] biu_q_o,
   output logic                   biu_ack_o,      //transfer acknowledge
-  output logic                   biu_err_o       //transfer error
+  output logic                   biu_err_o,      //transfer error
+  input  logic [TAG_SIZE   -1:0] biu_tagi_i,      //TAG input
+  output logic [TAG_SIZE   -1:0] biu_tago_o       //TAG output
 );
 
   //////////////////////////////////////////////////////////////////
@@ -150,19 +156,27 @@ module biu_ahb3lite #(
   function automatic [ADDR_SIZE-1:0] nxt_addr;
     input [ADDR_SIZE-1:0] addr;   //current address
     input [          2:0] hburst; //AHB HBURST
+    input [          2:0] hsize;  //AHB HSIZE
+
+    logic [ADDR_SIZE-1:0] mask;
 
 
     //next linear address
-    if (DATA_SIZE==32) nxt_addr = (addr + 'h4) & ~'h3;
-    else               nxt_addr = (addr + 'h8) & ~'h7;
+    nxt_addr = addr + (1 << hsize);
+
+    //align to boundary
+    nxt_addr = nxt_addr & ({ADDR_SIZE{1'b1}} << hsize);
 
     //wrap?
     case (hburst)
-      HBURST_WRAP4 : nxt_addr = (DATA_SIZE==32) ? {addr[ADDR_SIZE-1: 4],nxt_addr[3:0]} : {addr[ADDR_SIZE-1:5],nxt_addr[4:0]};
-      HBURST_WRAP8 : nxt_addr = (DATA_SIZE==32) ? {addr[ADDR_SIZE-1: 5],nxt_addr[4:0]} : {addr[ADDR_SIZE-1:6],nxt_addr[5:0]};
-      HBURST_WRAP16: nxt_addr = (DATA_SIZE==32) ? {addr[ADDR_SIZE-1: 6],nxt_addr[5:0]} : {addr[ADDR_SIZE-1:7],nxt_addr[6:0]};
-      default      : ;
+      HBURST_WRAP4 : mask = {{ADDR_SIZE-2{1'b1}}, 2'h0} << hsize;
+      HBURST_WRAP8 : mask = {{ADDR_SIZE-3{1'b1}}, 3'h0} << hsize;
+      HBURST_WRAP16: mask = {{ADDR_SIZE-4{1'b1}}, 4'h0} << hsize;
+      default      : mask = {ADDR_SIZE{1'b0}};
     endcase
+
+    //mix linear/wrap address
+    nxt_addr = (addr & mask) | (nxt_addr & ~mask);
   endfunction: nxt_addr
 
 
@@ -178,6 +192,8 @@ module biu_ahb3lite #(
 
   logic                 incr_burst;
 
+  logic [TAG_SIZE -1:0] tag;
+
   //////////////////////////////////////////////////////////////////
   //
   // Module Body
@@ -192,14 +208,15 @@ module biu_ahb3lite #(
     begin
         data_ena    <= 1'b0;
         biu_err_o   <= 1'b0;
-        burst_cnt   <= 'h0;
+        burst_cnt   <=  'h0;
 	incr_burst  <= 1'b0;
+	tag         <=  'hx; //dont care
 
         HSEL        <= 1'b0;
-        HADDR       <= 'h0;
+        HADDR       <=  'h0;
         HWRITE      <= 1'b0;
-        HSIZE       <= 'h0; //dont care
-        HBURST      <= 'h0; //dont care
+        HSIZE       <=  'hx; //dont care
+        HBURST      <=  'hx; //dont care
         HPROT       <= HPROT_DATA | HPROT_PRIVILEGED | HPROT_NON_BUFFERABLE | HPROT_NON_CACHEABLE;
         HTRANS      <= HTRANS_IDLE;
         HMASTLOCK   <= 1'b0;
@@ -219,6 +236,7 @@ module biu_ahb3lite #(
                     data_ena    <= 1'b1;
                     burst_cnt   <= biu_type2cnt(biu_type_i);
                     incr_burst  <= biu_type2hburst(biu_type_i) == INCR;
+                    tag         <= biu_tagi_i;
 
                     HSEL        <= 1'b1;
                     HTRANS      <= HTRANS_NONSEQ; //start of burst
@@ -246,10 +264,12 @@ module biu_ahb3lite #(
                     data_ena   <= biu_stb_i;
                     burst_cnt  <= 'h0; //continuous incrementing burst
                     incr_burst <= biu_stb_i;
+                    tag        <= biu_tagi_i;
 
                     HSEL       <= biu_stb_i;
                     HTRANS     <= biu_stb_i ? HTRANS_SEQ : HTRANS_IDLE;
-                    HADDR      <= biu_stb_i ? nxt_addr(HADDR,HBURST) : HADDR;
+                    HADDR      <= nxt_addr(HADDR,HBURST,HSIZE);
+//for BUSY                    HADDR      <= biu_stb_i ? nxt_addr(HADDR,HBURST,HSIZE) : HADDR;
 		end
                 else
                 begin
@@ -258,7 +278,7 @@ module biu_ahb3lite #(
                     incr_burst <= 1'b0;
 
                     HTRANS     <= HTRANS_SEQ; //continue burst
-                    HADDR      <= nxt_addr(HADDR,HBURST); //next address
+                    HADDR      <= nxt_addr(HADDR,HBURST,HSIZE); //next address
                 end
             end
         end
@@ -289,6 +309,7 @@ module biu_ahb3lite #(
     begin
         HWDATA     <= biu_di_dly;
         biu_adro_o <= HADDR;
+	biu_tago_o <= tag;
     end
 
   always @(posedge HCLK,negedge HRESETn)
