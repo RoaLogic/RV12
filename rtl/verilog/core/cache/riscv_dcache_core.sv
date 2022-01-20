@@ -68,7 +68,6 @@ import biu_constants_pkg::*;
 module riscv_dcache_core #(
   parameter                       XLEN        = 32,
   parameter                       PLEN        = XLEN,
-  parameter                       PARCEL_SIZE = XLEN,
 
   parameter                       SIZE        = 64,     //KBYTES
   parameter                       BLOCK_SIZE  = XLEN,   //BYTES, number of bytes in a block (way)
@@ -83,7 +82,7 @@ module riscv_dcache_core #(
   parameter                       TECHNOLOGY  = "GENERIC",
 
   parameter                       DEPTH       = 2,      //number of transactions in flight
-  parameter                       BIUTAG_SIZE = $clog2(XLEN/PARCEL_SIZE)
+  parameter                       BIUTAG_SIZE = 2
 )
 (
   input  logic                    rst_ni,
@@ -152,7 +151,6 @@ module riscv_dcache_core #(
 
   //BLOCK decoding
   localparam DAT_OFFS_BITS    = $clog2(BLK_BITS / XLEN);           //Offset in block
-  localparam PARCEL_OFFS_BITS = $clog2(XLEN / PARCEL_SIZE);
 
 
   //Inflight transfers
@@ -358,7 +356,6 @@ endgenerate
   riscv_dcache_hit #(
     .XLEN                      ( XLEN                    ),
     .PLEN                      ( PLEN                    ),
-    .PARCEL_SIZE               ( PARCEL_SIZE             ),
     .SIZE                      ( SIZE                    ),
     .BLOCK_SIZE                ( BLOCK_SIZE              ),
     .WAYS                      ( WAYS                    ),
@@ -502,6 +499,7 @@ endgenerate
     .biucmd_busy_o             ( biucmd_busy             ),
     .biucmd_noncacheable_req_i ( biucmd_noncacheable_req ),
     .biucmd_noncacheable_ack_o ( biucmd_noncacheable_ack ),
+    .biucmd_tag_i              ( {BIUTAG_SIZE{1'b0}}     ),
     .inflight_cnt_o            ( inflight_cnt            ),
 
     .req_i                     ( tag_req                 ),

@@ -35,8 +35,6 @@ import biu_constants_pkg::*;
 module riscv_dcache_hit #(
   parameter XLEN           = 32,
   parameter PLEN           = XLEN,
-  parameter PARCEL_SIZE    = XLEN,
-  parameter HAS_RVC        = 0,
 
   parameter SIZE           = 64,
   parameter BLOCK_SIZE     = XLEN,
@@ -147,7 +145,6 @@ module riscv_dcache_hit #(
 
   //BLOCK decoding
   localparam DAT_OFF_BITS    = $clog2(BLK_BITS / XLEN);            //Offset in block
-  localparam PARCEL_OFF_BITS = $clog2(XLEN / PARCEL_SIZE);
 */
 
   localparam BURST_OFF     = XLEN/8;
@@ -374,7 +371,7 @@ module riscv_dcache_hit #(
     end
 
 logic writebuffer_adr_eq_adr;
-assign writebuffer_adr_eq_adr = writebuffer_idx_o == adr_i[BLK_OFFS_BITS +: IDX_BITS];
+assign writebuffer_adr_eq_adr = req_i & ~we_i & (writebuffer_idx_o == adr_i[BLK_OFFS_BITS +: IDX_BITS]);
 
 
   /* EvictBuffer
