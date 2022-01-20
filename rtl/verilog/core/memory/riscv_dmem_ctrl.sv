@@ -309,7 +309,9 @@ generate
         .biu_d_o           ( biu_d_o           ),
         .biu_q_i           ( biu_q_i           ),
         .biu_ack_i         ( biu_ack_i         ),
-        .biu_err_i         ( biu_err_i         ) );
+        .biu_err_i         ( biu_err_i         ),
+        .biu_tagi_o        ( biu_tagi_o        ),
+        .biu_tago_i        ( biu_tago_i        ) );
   end
   else  //No cache
   begin
