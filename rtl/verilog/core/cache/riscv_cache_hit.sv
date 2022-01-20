@@ -305,7 +305,9 @@ module riscv_cache_hit #(
 
 
   //Instruction fetch address
-  assign biucmd_adri_o = ~is_cacheable_i ? adr_i & (XLEN==64 ? ~'h7 : ~'h3) : adr_i;
+  assign biucmd_adri_o = ~is_cacheable_i
+                       ? adr_i & (XLEN==64 ? ~'h7 : ~'h3)
+                       : adr_i;
   assign biucmd_tagi_o = adr_i[1 +: BIUTAG_SIZE];
 
 
