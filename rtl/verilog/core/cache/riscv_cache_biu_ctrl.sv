@@ -40,6 +40,7 @@ module riscv_cache_biu_ctrl #(
   parameter                        WAYS           = 2,
 
   parameter                        INFLIGHT_DEPTH = 2,
+  parameter                        BIUTAG_SIZE    = 2,
 
   localparam                       BLK_BITS      = no_of_block_bits(BLOCK_SIZE),
   localparam                       INFLIGHT_BITS = $clog2(INFLIGHT_DEPTH+1)
@@ -55,6 +56,7 @@ module riscv_cache_biu_ctrl #(
   output logic                     biucmd_busy_o,
   input  logic                     biucmd_noncacheable_req_i,
   output logic                     biucmd_noncacheable_ack_o,
+  input  logic [BIUTAG_SIZE  -1:0] biucmd_tag_i,
   output logic [INFLIGHT_BITS-1:0] inflight_cnt_o,
 
   input  logic                     req_i,
@@ -88,7 +90,9 @@ module riscv_cache_biu_ctrl #(
   output logic [XLEN         -1:0] biu_d_o,              //write data
   input  logic [XLEN         -1:0] biu_q_i,              //read data
   input  logic                     biu_ack_i,            //transfer acknowledge
-  input  logic                     biu_err_i             //transfer error
+  input  logic                     biu_err_i,            //transfer error
+  output logic [BIUTAG_SIZE  -1:0] biu_tagi_o,
+  input  logic [BIUTAG_SIZE  -1:0] biu_tago_i
 );
 
   //////////////////////////////////////////////////////////////////
@@ -397,10 +401,14 @@ module riscv_cache_biu_ctrl #(
     end
 
 
+  //BIU TAG
+  assign biu_tagi_o = biucmd_tag_i;
+
+
   //transfer size
   assign biu_size_o = size_i;
 
-
+ 
   //Protection bits
   assign biu_prot_o = biu_prot_t'(prot_i | (biucmd_noncacheable_req_i ? PROT_NONCACHEABLE : PROT_CACHEABLE));
   assign biu_lock_o = lock_i;
@@ -409,8 +417,7 @@ module riscv_cache_biu_ctrl #(
   //burst length
   always_comb
     if ( (biufsm_state == IDLE) && (biucmd_i == BIUCMD_NOP) )
-      biu_type_o = (XLEN==64 && |adr_i[2:0]) ||
-                   (XLEN==32 && |adr_i[1:0]) ? SINGLE : INCR;
+      biu_type_o = INCR;
     else
     unique case(BURST_SIZE)
        16     : biu_type_o = WRAP16;
