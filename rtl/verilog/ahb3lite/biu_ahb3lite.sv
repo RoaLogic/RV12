@@ -210,7 +210,7 @@ module biu_ahb3lite #(
         biu_err_o   <= 1'b0;
         burst_cnt   <=  'h0;
 	incr_burst  <= 1'b0;
-	tag         <=  'hx; //dont care
+	tag         <=  'h0; //dont care
 
         HSEL        <= 1'b0;
         HADDR       <=  'h0;
