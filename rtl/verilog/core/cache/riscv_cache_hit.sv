@@ -43,7 +43,8 @@ module riscv_cache_hit #(
   parameter WAYS           = 2,
 
   parameter INFLIGHT_DEPTH = 2,
-
+  parameter BIUTAG_SIZE    = $clog2(XLEN/PARCEL_SIZE),
+ 
   localparam BLK_BITS      = no_of_block_bits(BLOCK_SIZE),
   localparam SETS          = no_of_sets(SIZE, BLOCK_SIZE, WAYS),
   localparam BLK_OFFS_BITS = no_of_block_offset_bits(BLOCK_SIZE),
@@ -80,6 +81,8 @@ module riscv_cache_hit #(
   input  logic                        biucmd_ack_i,
   output logic                        biucmd_noncacheable_req_o,
   input  logic                        biucmd_noncacheable_ack_i,
+  output logic [PLEN            -1:0] biucmd_adri_o,
+  output logic [BIUTAG_SIZE     -1:0] biucmd_tagi_o,
   input  logic [INFLIGHT_BITS   -1:0] inflight_cnt_i,
 
 
@@ -88,6 +91,7 @@ module riscv_cache_hit #(
                                       biu_ack_i,
                                       biu_err_i,
   input  logic [PLEN            -1:0] biu_adro_i,
+  input  logic [BIUTAG_SIZE     -1:0] biu_tago_i,
   input  logic                        in_biubuffer_i,
   input  logic [BLK_BITS        -1:0] biubuffer_i,
 
@@ -204,8 +208,10 @@ module riscv_cache_hit #(
                     RECOVER} memfsm_state;
 
 
+  logic [PLEN          -1:0] biu_adro;
   logic                      biu_adro_eq_cache_adr_dly;
   logic [DAT_OFFS_BITS -1:0] dat_offset;
+
 
   //////////////////////////////////////////////////////////////////
   //
@@ -297,8 +303,17 @@ module riscv_cache_hit #(
       default     : biucmd_noncacheable_req_o = req_i & ~is_cacheable_i & ~flush_i;
     endcase
 
+
+  //Instruction fetch address
+  assign biucmd_adri_o = ~is_cacheable_i ? adr_i & (XLEN==64 ? ~'h7 : ~'h3) : adr_i;
+  assign biucmd_tagi_o = adr_i[1 +: BIUTAG_SIZE];
+
+
+  //re-assemble biu_adro
+  assign biu_adro = {biu_adro_i[PLEN-1:BIUTAG_SIZE+1], biu_tago_i, 1'b0};
+
   //address check, used in a few places
-  assign biu_adro_eq_cache_adr_dly = (biu_adro_i[PLEN-1:BURST_LSB] == adr_i[PLEN-1:BURST_LSB]);
+  assign biu_adro_eq_cache_adr_dly = (biu_adro[PLEN-1:BURST_LSB] == adr_i[PLEN-1:BURST_LSB]);
 
 
   //Cache core halt signal
@@ -329,7 +344,8 @@ module riscv_cache_hit #(
 
 
   //Assign parcel_pc
-  assign parcel_pc_o = { {XLEN-PLEN{1'b0}}, biu_adro_i };
+//  assign parcel_pc_o = { {XLEN-PLEN{1'b0}}, biu_adro_i };
+  assign parcel_pc_o = { {XLEN-PLEN{1'b0}}, biu_adro};
 
 
   //Shift amount for data
