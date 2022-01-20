@@ -66,64 +66,66 @@ import riscv_cache_pkg::*;
 import biu_constants_pkg::*;
 
 module riscv_dcache_core #(
-  parameter                XLEN        = 32,
-  parameter                PLEN        = XLEN,
-  parameter                PARCEL_SIZE = XLEN,
-  parameter                HAS_RVC     = 0,
+  parameter                       XLEN        = 32,
+  parameter                       PLEN        = XLEN,
+  parameter                       PARCEL_SIZE = XLEN,
 
-  parameter                SIZE        = 64,     //KBYTES
-  parameter                BLOCK_SIZE  = XLEN,   //BYTES, number of bytes in a block (way)
-                                                 //Must be [XLEN*2,XLEN,XLEN/2]
-  parameter                WAYS        =  2,     // 1           : Direct Mapped
-                                                 //<n>          : n-way set associative
-                                                 //<n>==<blocks>: fully associative
-  parameter                REPLACE_ALG = 0,      //0: Random
-                                                 //1: FIFO
-                                                 //2: LRU
+  parameter                       SIZE        = 64,     //KBYTES
+  parameter                       BLOCK_SIZE  = XLEN,   //BYTES, number of bytes in a block (way)
+                                                        //Must be [XLEN*2,XLEN,XLEN/2]
+  parameter                       WAYS        =  2,     // 1           : Direct Mapped
+                                                        //<n>          : n-way set associative
+                                                        //<n>==<blocks>: fully associative
+  parameter                       REPLACE_ALG = 0,      //0: Random
+                                                        //1: FIFO
+                                                        //2: LRU
 
-  parameter                TECHNOLOGY  = "GENERIC",
+  parameter                       TECHNOLOGY  = "GENERIC",
 
-  parameter                DEPTH       = 2       //number of transactions in flight
+  parameter                       DEPTH       = 2,      //number of transactions in flight
+  parameter                       BIUTAG_SIZE = $clog2(XLEN/PARCEL_SIZE)
 )
 (
-  input  logic             rst_ni,
-  input  logic             clk_i,
+  input  logic                    rst_ni,
+  input  logic                    clk_i,
 
-  output logic             stall_o,
+  output logic                    stall_o,
 
   //CPU side
-  input  logic             is_cacheable_i,       //This needs to move inside this block
-  input  logic             misaligned_i,         //this needs to move inside this block
-  input  logic             mem_flush_i,
-  input  logic             mem_req_i,
-  output logic             mem_ack_o,
-  output logic             mem_err_o,
-  output logic             mem_misaligned_o,
-  input  logic [XLEN -1:0] mem_adr_i,
-  input  biu_size_t        mem_size_i,
-  input  logic             mem_lock_i,
-  input  biu_prot_t        mem_prot_i,
-  input  logic             mem_we_i,
-  input  logic [XLEN -1:0] mem_d_i,
-  output logic [XLEN -1:0] mem_q_o,
-  input  logic             cache_flush_i,        //flush (invalidate) cache
-  output logic             cache_flush_rdy_o,    //data cache ready flushing
+  input  logic                    is_cacheable_i,       //This needs to move inside this block
+  input  logic                    misaligned_i,         //this needs to move inside this block
+  input  logic                    mem_flush_i,
+  input  logic                    mem_req_i,
+  output logic                    mem_ack_o,
+  output logic                    mem_err_o,
+  output logic                    mem_misaligned_o,
+  input  logic [XLEN        -1:0] mem_adr_i,
+  input  biu_size_t               mem_size_i,
+  input  logic                    mem_lock_i,
+  input  biu_prot_t               mem_prot_i,
+  input  logic                    mem_we_i,
+  input  logic [XLEN        -1:0] mem_d_i,
+  output logic [XLEN        -1:0] mem_q_o,
+  input  logic                    cache_flush_i,        //flush (invalidate) cache
+  output logic                    cache_flush_rdy_o,    //data cache ready flushing
 
   //To BIU
-  output logic             biu_stb_o,            //access request
-  input  logic             biu_stb_ack_i,        //access acknowledge
-  input  logic             biu_d_ack_i,          //BIU needs new data (biu_d_o)
-  output logic [PLEN -1:0] biu_adri_o,           //access start address
-  input  logic [PLEN -1:0] biu_adro_i,
-  output biu_size_t        biu_size_o,           //transfer size
-  output biu_type_t        biu_type_o,           //burst type
-  output logic             biu_lock_o,           //locked transfer
-  output biu_prot_t        biu_prot_o,           //protection bits
-  output logic             biu_we_o,             //write enable
-  output logic [XLEN -1:0] biu_d_o,              //write data
-  input  logic [XLEN -1:0] biu_q_i,              //read data
-  input  logic             biu_ack_i,            //transfer acknowledge
-  input  logic             biu_err_i             //transfer error
+  output logic                    biu_stb_o,            //access request
+  input  logic                    biu_stb_ack_i,        //access acknowledge
+  input  logic                    biu_d_ack_i,          //BIU needs new data (biu_d_o)
+  output logic [PLEN        -1:0] biu_adri_o,           //access start address
+  input  logic [PLEN        -1:0] biu_adro_i,
+  output biu_size_t               biu_size_o,           //transfer size
+  output biu_type_t               biu_type_o,           //burst type
+  output logic                    biu_lock_o,           //locked transfer
+  output biu_prot_t               biu_prot_o,           //protection bits
+  output logic                    biu_we_o,             //write enable
+  output logic [XLEN        -1:0] biu_d_o,              //write data
+  input  logic [XLEN        -1:0] biu_q_i,              //read data
+  input  logic                    biu_ack_i,            //transfer acknowledge
+  input  logic                    biu_err_i,            //transfer error
+  output logic [BIUTAG_SIZE -1:0] biu_tagi_o,
+  input  logic [BIUTAG_SIZE -1:0] biu_tago_i
 );
 
   //////////////////////////////////////////////////////////////////
@@ -357,7 +359,6 @@ endgenerate
     .XLEN                      ( XLEN                    ),
     .PLEN                      ( PLEN                    ),
     .PARCEL_SIZE               ( PARCEL_SIZE             ),
-    .HAS_RVC                   ( HAS_RVC                 ),
     .SIZE                      ( SIZE                    ),
     .BLOCK_SIZE                ( BLOCK_SIZE              ),
     .WAYS                      ( WAYS                    ),
@@ -488,7 +489,8 @@ endgenerate
     .SIZE                      ( SIZE                    ),
     .BLOCK_SIZE                ( BLOCK_SIZE              ),
     .WAYS                      ( WAYS                    ),
-    .INFLIGHT_DEPTH            ( INFLIGHT_DEPTH          ) )
+    .INFLIGHT_DEPTH            ( INFLIGHT_DEPTH          ),
+    .BIUTAG_SIZE               ( BIUTAG_SIZE             ) )
   biu_ctrl_inst (
     .rst_ni                    ( rst_ni                  ),
     .clk_i                     ( clk_i                   ),
@@ -533,7 +535,9 @@ endgenerate
     .biu_d_o                   ( biu_d_o                 ),
     .biu_q_i                   ( biu_q_i                 ),
     .biu_ack_i                 ( biu_ack_i               ),
-    .biu_err_i                 ( biu_err_i               ) );
+    .biu_err_i                 ( biu_err_i               ),
+    .biu_tagi_o                ( biu_tagi_o              ),
+    .biu_tago_i                ( biu_tago_i              ) );
 
 endmodule
 
