@@ -372,7 +372,8 @@ module riscv_top_ahb3lite #(
     .CACHE_SIZE        ( DCACHE_SIZE       ),
     .CACHE_BLOCK_SIZE  ( DCACHE_BLOCK_SIZE ),
     .CACHE_WAYS        ( DCACHE_WAYS       ),
-    .TECHNOLOGY        ( TECHNOLOGY        ) )
+    .TECHNOLOGY        ( TECHNOLOGY        ),
+    .BIUTAG_SIZE       ( BIUTAG_SIZE       ) )
   dmem_ctrl_inst (
     .rst_ni            ( HRESETn           ),
     .clk_i             ( HCLK              ),
@@ -413,8 +414,9 @@ module riscv_top_ahb3lite #(
     .biu_d_o           ( dbiu_d            ),
     .biu_q_i           ( dbiu_q            ),
     .biu_ack_i         ( dbiu_ack          ),
-    .biu_err_i         ( dbiu_err          ) );
-
+    .biu_err_i         ( dbiu_err          ),
+    .biu_tagi_o        ( dbiu_tagi         ),
+    .biu_tago_i        ( dbiu_tago         ) );
 
   /* Instantiate BIU
    */
