@@ -83,7 +83,8 @@ module riscv_icache_core #(
 
   parameter TECHNOLOGY  = "GENERIC",
 
-  parameter DEPTH       = 2       //number of transactions in flight
+  parameter DEPTH       = 2,      //number of transactions in flight
+  parameter BIUTAG_SIZE = $clog2(XLEN/PARCEL_SIZE)
 )
 (
   input  logic                        rst_ni,
@@ -121,7 +122,9 @@ module riscv_icache_core #(
   output logic [XLEN            -1:0] biu_d_o,              //write data
   input  logic [XLEN            -1:0] biu_q_i,              //read data
   input  logic                        biu_ack_i,            //transfer acknowledge
-  input  logic                        biu_err_i             //transfer error
+  input  logic                        biu_err_i,            //transfer error
+  output logic [BIUTAG_SIZE     -1:0] biu_tagi_o,
+  input  logic [BIUTAG_SIZE     -1:0] biu_tago_i
 );
 
   //////////////////////////////////////////////////////////////////
@@ -191,6 +194,8 @@ module riscv_icache_core #(
   biucmd_t                  biucmd;
   logic                     biucmd_noncacheable_req,
                             biucmd_noncacheable_ack;
+  logic [PLEN         -1:0] biucmd_adr;
+  logic [BIUTAG_SIZE  -1:0] biucmd_tag;
   logic [BLK_BITS     -1:0] biubuffer;
   logic                     in_biubuffer;
   logic [BLK_BITS     -1:0] biu_line;
@@ -321,7 +326,8 @@ endgenerate
     .SIZE                      ( SIZE                    ),
     .BLOCK_SIZE                ( BLOCK_SIZE              ),
     .WAYS                      ( WAYS                    ),
-    .INFLIGHT_DEPTH            ( INFLIGHT_DEPTH          ) )
+    .INFLIGHT_DEPTH            ( INFLIGHT_DEPTH          ),
+    .BIUTAG_SIZE               ( BIUTAG_SIZE             ) )
   cache_hit_inst (
     .rst_ni                    ( rst_ni                  ),
     .clk_i                     ( clk_i                   ),
@@ -349,6 +355,8 @@ endgenerate
     .biucmd_ack_i              ( biucmd_ack              ),
     .biucmd_noncacheable_req_o ( biucmd_noncacheable_req ),
     .biucmd_noncacheable_ack_i ( biucmd_noncacheable_ack ),
+    .biucmd_adri_o             ( biucmd_adr              ),
+    .biucmd_tagi_o             ( biucmd_tag              ),
     .inflight_cnt_i            ( inflight_cnt            ),
 
     .cache_hit_i               ( cache_hit               ),
@@ -358,6 +366,7 @@ endgenerate
     .biu_ack_i                 ( biu_ack_i               ),
     .biu_err_i                 ( biu_err_i               ),
     .biu_adro_i                ( biu_adro_i              ),
+    .biu_tago_i                ( biu_tago_i              ),
     .biu_q_i                   ( biu_q_i                 ),
     .in_biubuffer_i            ( in_biubuffer            ),
     .biubuffer_i               ( biubuffer               ),
@@ -429,7 +438,8 @@ endgenerate
     .SIZE                      ( SIZE                    ),
     .BLOCK_SIZE                ( BLOCK_SIZE              ),
     .WAYS                      ( WAYS                    ),
-    .INFLIGHT_DEPTH            ( INFLIGHT_DEPTH          ) )
+    .INFLIGHT_DEPTH            ( INFLIGHT_DEPTH          ),
+    .BIUTAG_SIZE               ( BIUTAG_SIZE             ) )
   biu_ctrl_inst (
     .rst_ni                    ( rst_ni                  ),
     .clk_i                     ( clk_i                   ),
@@ -441,10 +451,11 @@ endgenerate
     .biucmd_busy_o             (                         ),
     .biucmd_noncacheable_req_i ( biucmd_noncacheable_req ),
     .biucmd_noncacheable_ack_o ( biucmd_noncacheable_ack ),
+    .biucmd_tag_i              ( biucmd_tag              ),
     .inflight_cnt_o            ( inflight_cnt            ),
 
     .req_i                     ( tag_req                 ),
-    .adr_i                     ( tag_adr                 ),
+    .adr_i                     ( biucmd_adr              ),
     .size_i                    ( tag_size                ),
     .prot_i                    ( tag_prot                ),
     .lock_i                    ( 1'b0                    ),
@@ -473,7 +484,9 @@ endgenerate
     .biu_d_o                   ( biu_d_o                 ),
     .biu_q_i                   ( biu_q_i                 ),
     .biu_ack_i                 ( biu_ack_i               ),
-    .biu_err_i                 ( biu_err_i               ) );
+    .biu_err_i                 ( biu_err_i               ),
+    .biu_tagi_o                ( biu_tagi_o              ),
+    .biu_tago_i                ( biu_tago_i              ) );
 
 endmodule
 
