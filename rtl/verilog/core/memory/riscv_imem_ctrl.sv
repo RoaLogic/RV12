@@ -33,29 +33,29 @@ import riscv_pma_pkg::*;
 import biu_constants_pkg::*;
 
 module riscv_imem_ctrl #(
-  parameter XLEN              = 32,
-  parameter PLEN              = XLEN, // XLEN==32 ? 34 : 56
-  parameter PARCEL_SIZE       = 32,
+  parameter XLEN             = 32,
+  parameter PLEN             = XLEN, // XLEN==32 ? 34 : 56
+  parameter PARCEL_SIZE      = 32,
 
-  parameter HAS_RVC           = 0,
+  parameter HAS_RVC          = 0,
 
-  parameter PMA_CNT           = 3,
-  parameter PMP_CNT           = 16,
+  parameter PMA_CNT          = 3,
+  parameter PMP_CNT          = 16,
 
-  parameter CACHE_SIZE        = 64, //KBYTES
-  parameter CACHE_BLOCK_SIZE  = 32, //BYTES
-  parameter CACHE_WAYS        =  2, // 1           : Direct Mapped
-                                    //<n>          : n-way set associative
-                                    //<n>==<blocks>: fully associative
+  parameter CACHE_SIZE       = 64, //KBYTES
+  parameter CACHE_BLOCK_SIZE = 32, //BYTES
+  parameter CACHE_WAYS       =  2, // 1           : Direct Mapped
+                                   //<n>          : n-way set associative
+                                   //<n>==<blocks>: fully associative
 
 /*
-  parameter REPLACE_ALG      = 1,  //0: Random
-                                   //1: FIFO
-                                   //2: LRU
+  parameter REPLACE_ALG     = 1,  //0: Random
+                                  //1: FIFO
+                                  //2: LRU
 */
-  parameter TECHNOLOGY       = "GENERIC",
+  parameter TECHNOLOGY      = "GENERIC",
 
-  parameter BIUTAG_SIZE      = $clog2(XLEN/PARCEL_SIZE)
+  parameter BIUTAG_SIZE     = $clog2(XLEN/PARCEL_SIZE)
 )
 (
   input  logic                                 rst_ni,
@@ -226,7 +226,8 @@ generate
         .SIZE                ( CACHE_SIZE        ),
         .BLOCK_SIZE          ( CACHE_BLOCK_SIZE  ),
         .WAYS                ( CACHE_WAYS        ),
-        .TECHNOLOGY          ( TECHNOLOGY        ) )
+        .TECHNOLOGY          ( TECHNOLOGY        ),
+        .BIUTAG_SIZE         ( BIUTAG_SIZE       ) )
       icache_inst (
         //common signals
         .rst_ni              ( rst_ni            ),
@@ -264,7 +265,9 @@ generate
         .biu_d_o             ( biu_d_o           ),
         .biu_q_i             ( biu_q_i           ),
         .biu_ack_i           ( biu_ack_i         ),
-        .biu_err_i           ( biu_err_i         ) );
+        .biu_err_i           ( biu_err_i         ),
+        .biu_tagi_o          ( biu_tagi_o        ),
+        .biu_tago_i          ( biu_tago_i        ) );
   end
   else  //No cache
   begin

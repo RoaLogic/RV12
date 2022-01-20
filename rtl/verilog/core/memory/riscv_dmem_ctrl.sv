@@ -52,50 +52,53 @@ module riscv_dmem_ctrl #(
                                    //1: FIFO
                                    //2: LRU
 */
-  parameter TECHNOLOGY       = "GENERIC"
+  parameter TECHNOLOGY       = "GENERIC",
+  parameter BIUTAG_SIZE      = 2
 )
 (
-  input  logic                      rst_ni,
-  input  logic                      clk_i,
+  input  logic                             rst_ni,
+  input  logic                             clk_i,
  
   //Configuration
-  input  pmacfg_t                   pma_cfg_i [PMA_CNT],
-  input                 [XLEN -1:0] pma_adr_i [PMA_CNT],
+  input  pmacfg_t                          pma_cfg_i [PMA_CNT],
+  input                 [XLEN        -1:0] pma_adr_i [PMA_CNT],
 
-  input  pmpcfg_t [15:0]            st_pmpcfg_i,
-  input  logic    [15:0][XLEN -1:0] st_pmpaddr_i,
-  input  logic          [      1:0] st_prv_i,
+  input  pmpcfg_t [15:0]                   st_pmpcfg_i,
+  input  logic    [15:0][XLEN        -1:0] st_pmpaddr_i,
+  input  logic          [             1:0] st_prv_i,
 
   //CPU side
-  input  logic                      mem_req_i,
-  input  biu_size_t                 mem_size_i,
-  input  logic                      mem_lock_i, 
-  input  logic          [XLEN -1:0] mem_adr_i,
-  input  logic                      mem_we_i,
-  input  logic          [XLEN -1:0] mem_d_i,
-  output logic          [XLEN -1:0] mem_q_o,
-  output logic                      mem_ack_o,
-  output logic                      mem_err_o,
-                                    mem_misaligned_o,
-                                    mem_page_fault_o,
-  input  logic                      cache_flush_i,
-  output logic                      cache_flush_rdy_o,
+  input  logic                             mem_req_i,
+  input  biu_size_t                        mem_size_i,
+  input  logic                             mem_lock_i, 
+  input  logic          [XLEN        -1:0] mem_adr_i,
+  input  logic                             mem_we_i,
+  input  logic          [XLEN        -1:0] mem_d_i,
+  output logic          [XLEN        -1:0] mem_q_o,
+  output logic                             mem_ack_o,
+  output logic                             mem_err_o,
+                                           mem_misaligned_o,
+                                           mem_page_fault_o,
+  input  logic                             cache_flush_i,
+  output logic                             cache_flush_rdy_o,
 
   //BIU ports
-  output logic                      biu_stb_o,
-  input  logic                      biu_stb_ack_i,
-  input  logic                      biu_d_ack_i,
-  output logic          [PLEN -1:0] biu_adri_o,
-  input  logic          [PLEN -1:0] biu_adro_i,
-  output biu_size_t                 biu_size_o,
-  output biu_type_t                 biu_type_o,
-  output logic                      biu_we_o,
-  output logic                      biu_lock_o,
-  output biu_prot_t                 biu_prot_o,
-  output logic          [XLEN -1:0] biu_d_o,
-  input  logic          [XLEN -1:0] biu_q_i,
-  input  logic                      biu_ack_i,
-                                    biu_err_i
+  output logic                             biu_stb_o,
+  input  logic                             biu_stb_ack_i,
+  input  logic                             biu_d_ack_i,
+  output logic          [PLEN        -1:0] biu_adri_o,
+  input  logic          [PLEN        -1:0] biu_adro_i,
+  output biu_size_t                        biu_size_o,
+  output biu_type_t                        biu_type_o,
+  output logic                             biu_we_o,
+  output logic                             biu_lock_o,
+  output biu_prot_t                        biu_prot_o,
+  output logic          [XLEN        -1:0] biu_d_o,
+  input  logic          [XLEN        -1:0] biu_q_i,
+  input  logic                             biu_ack_i,
+                                           biu_err_i,
+  output logic          [BIUTAG_SIZE -1:0] biu_tagi_o,
+  input  logic          [BIUTAG_SIZE -1:0] biu_tago_i
 );
 
   //////////////////////////////////////////////////////////////////
@@ -263,7 +266,6 @@ generate
       riscv_dcache_core #(
         .XLEN              ( XLEN              ),
         .PLEN              ( PLEN              ),
-	.HAS_RVC           ( HAS_RVC           ),
         .SIZE              ( CACHE_SIZE        ),
         .BLOCK_SIZE        ( CACHE_BLOCK_SIZE  ),
         .WAYS              ( CACHE_WAYS        ),
