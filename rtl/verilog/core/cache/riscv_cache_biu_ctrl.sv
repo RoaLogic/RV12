@@ -406,7 +406,9 @@ module riscv_cache_biu_ctrl #(
 
 
   //transfer size
-  assign biu_size_o = size_i;
+  assign biu_size_o = biucmd_noncacheable_req_i
+                    ? size_i
+                    : XLEN==64 ? DWORD : WORD;
 
  
   //Protection bits
