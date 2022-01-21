@@ -94,7 +94,7 @@ module riscv_dcache_hit #(
   output logic [IDX_BITS        -1:0] writebuffer_idx_o,
   output logic [DAT_OFFS_BITS   -1:0] writebuffer_offs_o,
   output logic [XLEN            -1:0] writebuffer_data_o,
-  output logic [XLEN/8          -1:0] writebuffer_be_o,
+  output logic [BLK_BITS/8      -1:0] writebuffer_be_o,       //writebuffer_be is already blk_bits aligned
   output logic [WAYS            -1:0] writebuffer_ways_hit_o,
 
   //EvictBuffer
@@ -184,15 +184,16 @@ module riscv_dcache_hit #(
   endfunction: size2be
 
 
-  function automatic [XLEN-1:0] be_mux;
-    input [XLEN/8-1:0] be;
-    input [XLEN  -1:0] o; //old data
-    input [XLEN  -1:0] n; //new data
+  function automatic [BLK_BITS-1:0] be_mux;
+    input                  ena;
+    input [BLK_BITS/8-1:0] be;
+    input [BLK_BITS  -1:0] o; //old data
+    input [BLK_BITS  -1:0] n; //new data
 
     integer i;
 
-    for (i=0; i<XLEN/8;i++)
-      be_mux[i*8 +: 8] = be[i] ? n[i*8 +: 8] : o[i*8 +: 8];
+    for (i=0; i<BLK_BITS/8;i++)
+      be_mux[i*8 +: 8] = ena && be[i] ? n[i*8 +: 8] : o[i*8 +: 8];
   endfunction: be_mux
 
 
@@ -225,6 +226,9 @@ module riscv_dcache_hit #(
 
   logic                      biu_adro_eq_cache_adr;
   logic [DAT_OFFS_BITS -1:0] dat_offset;
+  logic                      bypass_writebuffer_we;
+  logic [BLK_BITS      -1:0] cache_line;
+
 
   //////////////////////////////////////////////////////////////////
   //
@@ -366,12 +370,9 @@ module riscv_dcache_hit #(
         writebuffer_idx_o      <= adr_i[BLK_OFFS_BITS +: IDX_BITS];
         writebuffer_offs_o     <= dat_offset;
         writebuffer_data_o     <= d_i;
-        writebuffer_be_o       <= be_i;
+        writebuffer_be_o       <= be_i << (dat_offset * XLEN/8);
         writebuffer_ways_hit_o <= ways_hit_i;
     end
-
-logic writebuffer_adr_eq_adr;
-assign writebuffer_adr_eq_adr = req_i & ~we_i & (writebuffer_idx_o == adr_i[BLK_OFFS_BITS +: IDX_BITS]);
 
 
   /* EvictBuffer
@@ -455,11 +456,20 @@ assign writebuffer_adr_eq_adr = req_i & ~we_i & (writebuffer_idx_o == adr_i[BLK_
   assign misaligned_o = 1'b0; //TODO
   
 
+  //Bypass on writebuffer_we?
+  assign bypass_writebuffer_we = writebuffer_we_o & (idx_o == writebuffer_idx_o);
+
   //Shift amount for data
   assign dat_offset = adr_i[BLK_OFFS_BITS-1 -: DAT_OFFS_BITS];
 
   //Assign q_o
-  assign cache_q = (in_biubuffer_i ? biubuffer_i : cache_line_i) >> (dat_offset * XLEN);
+  assign cache_line = be_mux(bypass_writebuffer_we,
+                             writebuffer_be_o,
+	                     in_biubuffer_i ? biubuffer_i : cache_line_i,
+			     {BLK_BITS/XLEN{writebuffer_data_o}});
+
+  assign cache_q = cache_line >> (dat_offset * XLEN);
+
 
   always @(posedge clk_i)
     unique case (memfsm_state)
