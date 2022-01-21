@@ -556,7 +556,7 @@ module mmio_if #(
           $display("\n\n");
           $display("-------------------------------------------------------------");
           $display("* RISC-V test bench finished");
-          if (data_reg[0] == 1'b1)
+          if (data_reg[0])
           begin
               if (~|data_reg[HDATA_SIZE-1:1])
                 $display("* PASSED %0d", data_reg);
