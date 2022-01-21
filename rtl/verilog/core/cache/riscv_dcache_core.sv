@@ -199,7 +199,7 @@ module riscv_dcache_core #(
   logic [IDX_BITS     -1:0] writebuffer_idx;
   logic [DAT_OFFS_BITS-1:0] writebuffer_offs;
   logic [XLEN         -1:0] writebuffer_data;
-  logic [XLEN/8       -1:0] writebuffer_be;
+  logic [BLK_BITS/8   -1:0] writebuffer_be;
   logic [WAYS         -1:0] writebuffer_ways_hit;
 
   logic [TAG_BITS     -1:0] setup_core_tag,
