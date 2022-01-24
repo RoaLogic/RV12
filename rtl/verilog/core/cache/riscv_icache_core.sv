@@ -340,6 +340,8 @@ endgenerate
     .armed_o                   ( armed                   ),
     .flushing_o                ( flushing                ),
     .filling_o                 ( filling                 ),
+    .fill_way_i                ( mem_fill_way            ),
+    .fill_way_o                ( hit_fill_way            ),
 
     .req_i                     ( tag_req                 ),
     .adr_i                     ( tag_adr                 ),
@@ -399,6 +401,8 @@ endgenerate
     .flushing_i             ( flushing              ),
     .filling_i              ( filling               ),
     .fill_way_select_i      ( fill_way_select       ),
+    .fill_way_i             ( hit_fill_way          ),
+    .fill_way_o             ( mem_fill_way          ),
 
     .rd_core_tag_i          ( setup_core_tag        ),
     .wr_core_tag_i          ( hit_core_tag          ),
@@ -407,7 +411,7 @@ endgenerate
 
     .rreq_i                 ( 1'b0                  ), //Read cache memories?
     .writebuffer_we_i       ( 1'b0                  ),
-    .writebuffer_be_i       ( {XLEN/8       {1'b0}} ),
+    .writebuffer_be_i       ( {BLK_BITS/8   {1'b0}} ),
     .writebuffer_idx_i      ( {IDX_BITS     {1'b0}} ),
     .writebuffer_offs_i     ( {DAT_OFFS_BITS{1'b0}} ),
     .writebuffer_data_i     ( {XLEN         {1'b0}} ),

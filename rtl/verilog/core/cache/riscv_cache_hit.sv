@@ -64,6 +64,8 @@ module riscv_cache_hit #(
   output logic                        armed_o,
   output logic                        flushing_o,
   output logic                        filling_o,
+  input  logic [WAYS            -1:0] fill_way_i,
+  output logic [WAYS            -1:0] fill_way_o,
 
   input  logic                        req_i,            //from previous-stage
   input  logic [PLEN            -1:0] adr_i,
@@ -226,6 +228,7 @@ module riscv_cache_hit #(
         armed_o      <= 1'b1;
         flushing_o   <= 1'b0;
         filling_o    <= 1'b0;
+        fill_way_o   <=  'hx;
         biucmd_o     <= BIUCMD_NOP;
     end
     else
@@ -248,6 +251,7 @@ module riscv_cache_hit #(
                           biucmd_o     <= BIUCMD_READWAY;
                           armed_o      <= 1'b0;
                           filling_o    <= 1'b1;
+                          fill_way_o   <= fill_way_i;
                       end
                       else
                       begin
