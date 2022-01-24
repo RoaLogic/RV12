@@ -179,7 +179,8 @@ module riscv_dcache_core #(
   //
 
   logic [              6:0] way_random; //Up to 128ways
-  logic [WAYS         -1:0] fill_way_select;
+  logic [WAYS         -1:0] fill_way_select,
+                            mem_fill_way, hit_fill_way;
   logic                     cacheflush;
 
   logic                     setup_req,           tag_req,
@@ -372,6 +373,8 @@ endgenerate
     .armed_o                   ( armed                   ),
     .flushing_o                ( flushing                ),
     .filling_o                 ( filling                 ),
+    .fill_way_i                ( mem_fill_way            ),
+    .fill_way_o                ( hit_fill_way            ),
 
     .req_i                     ( tag_req                 ),
     .wreq_i                    ( tag_wreq                ),
@@ -447,6 +450,8 @@ endgenerate
     .flushing_i             ( flushing               ),
     .filling_i              ( filling                ),
     .fill_way_select_i      ( fill_way_select        ),
+    .fill_way_i             ( hit_fill_way           ),
+    .fill_way_o             ( mem_fill_way           ),
 
     .rd_core_tag_i          ( setup_core_tag         ),
     .wr_core_tag_i          ( hit_core_tag           ),
