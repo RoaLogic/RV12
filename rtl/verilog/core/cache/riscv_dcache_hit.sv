@@ -63,6 +63,8 @@ module riscv_dcache_hit #(
   output logic                        armed_o,
   output logic                        flushing_o,
   output logic                        filling_o,
+  input  logic [WAYS            -1:0] fill_way_i,
+  output logic [WAYS            -1:0] fill_way_o,
 
   input  logic                        req_i,             //from previous-stage
   input  logic                        wreq_i,
@@ -244,6 +246,7 @@ module riscv_dcache_hit #(
         armed_o          <= 1'b1;
         flushing_o       <= 1'b0;
         filling_o        <= 1'b0;
+        fill_way_o       <=  'hx;
 	cacheflush_rdy_o <= 1'b1;
         biucmd_o         <= BIUCMD_NOP;
     end
@@ -256,7 +259,7 @@ module riscv_dcache_hit #(
                           flushing_o       <= 1'b1;
 			  cacheflush_rdy_o <= 1'b0;
                       end
-		      else if (req_i && !is_cacheable_i && !flush_i)
+		      else if (req_i && !is_cacheable_i && !flush_i && !biucmd_busy_i)
                       begin
                           memfsm_state <= NONCACHEABLE;
                           armed_o      <= 1'b0;
@@ -270,6 +273,7 @@ module riscv_dcache_hit #(
                               biucmd_o     <= BIUCMD_READWAY; //read new line before evicting old one
                               armed_o      <= 1'b0;
                               filling_o    <= 1'b1;
+                              fill_way_o   <= fill_way_i;
 			  end
 			  else
                           begin
@@ -278,6 +282,7 @@ module riscv_dcache_hit #(
                               biucmd_o     <= BIUCMD_READWAY;
                               armed_o      <= 1'b0;
                               filling_o    <= 1'b1;
+                              fill_way_o   <= fill_way_i;
                           end
                       end
                       else
@@ -473,6 +478,7 @@ module riscv_dcache_hit #(
 
   always @(posedge clk_i)
     unique case (memfsm_state)
+      EVICT       : q_o <= cache_hit_i    ? cache_q : biu_q_i;
       WAIT4BIUCMD0: q_o <= cache_hit_i    ? cache_q : biu_q_i;
       default     : q_o <= is_cacheable_i ? cache_q : biu_q_i;
     endcase
