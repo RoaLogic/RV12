@@ -241,7 +241,7 @@ module riscv_cache_memory #(
 
 
   //Should bypass when rd_idx_dly == byp_idx
-  assign rd_idx_dly_eq_byp_idx = byp_valid & (rd_idx_dly == byp_idx);
+  assign rd_idx_dly_eq_byp_idx = 1'b0; //byp_valid & (rd_idx_dly == byp_idx);
 
 
   //Bypass on biumem_we?
@@ -249,7 +249,7 @@ module riscv_cache_memory #(
 
 
   //Bypass on writebuffer_we?
-  assign bypass_writebuffer_we = writebuffer_we_i & (rd_idx_dly == writebuffer_idx_i);
+  assign bypass_writebuffer_we = writebuffer_we_i & (rd_idx_dly == writebuffer_idx_i); //and hit
 
 
   //----------------------------------------------------------------
