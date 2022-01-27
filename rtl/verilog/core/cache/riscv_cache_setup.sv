@@ -103,15 +103,6 @@ module riscv_cache_setup #(
     else if (!stall_i) req_o <= req_i;
 
 
-  /* Read-Request
-   * Used to push writebuffer into Cache-memory
-   */
-  always @(posedge clk_i, negedge rst_ni)
-    if      (!rst_ni ) rreq_o <= 1'b0;
-    else if ( flush_i) rreq_o <= 1'b0;
-    else if (!stall_i) rreq_o <= req_i & ~we_i;
-
-
   /* Latch signals
    */
   always @(posedge clk_i)
@@ -126,6 +117,13 @@ module riscv_cache_setup #(
         is_cacheable_o  <= is_cacheable_i;
         is_misaligned_o <= is_misaligned_i;
     end
+
+
+  /* Read-Request
+   * Used to push writebuffer into Cache-memory
+   * Same delay as adr_idx
+   */
+  assign rreq_o = req_i & ~we_i;
 
 
   /* TAG and DATA index
