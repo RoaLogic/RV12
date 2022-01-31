@@ -223,7 +223,9 @@ module riscv_dcache_hit #(
                     EVICT,
                     FLUSHWAYS,
                     WAIT4BIUCMD0,
-                    RECOVER} memfsm_state;
+                    RECOVER} nxt_memfsm_state, memfsm_state;
+  biucmd_t                   nxt_biucmd;
+  logic [WAYS          -1:0] fill_way;
 
 
   logic                      biu_adro_eq_cache_adr;
@@ -238,119 +240,184 @@ module riscv_dcache_hit #(
   //
 
   /* State Machine
-   */ 
+   */
+  always_comb
+  begin
+      nxt_memfsm_state = memfsm_state;
+      nxt_biucmd       = biucmd_o;
+      fill_way         = fill_way_o;
+
+      unique case (memfsm_state)
+         ARMED        : if (cacheflush_req_i && !we_i)
+                        begin
+                            nxt_memfsm_state = FLUSH;
+                            nxt_biucmd       = BIUCMD_NOP;
+                        end
+                        else if (req_i && !is_cacheable_i && !flush_i && !biucmd_busy_i)
+                        begin
+                            nxt_memfsm_state = NONCACHEABLE;
+                            nxt_biucmd       = BIUCMD_NOP;
+                        end
+                        else if (req_i && is_cacheable_i && !cache_hit_i && !flush_i && !biucmd_busy_i)
+                        begin
+                            fill_way = fill_way_i; //write to same way as we read
+
+                            if (way_dirty_i)
+                            begin
+                                //selected way is dirty
+                                nxt_memfsm_state = EVICT;
+                                nxt_biucmd       = BIUCMD_READWAY; //read new line before evicting old one
+                            end
+                            else
+                            begin
+                                //Load way
+                                nxt_memfsm_state = WAIT4BIUCMD0;
+                                nxt_biucmd       = BIUCMD_READWAY;
+                            end
+                        end
+/*                        else
+                        begin
+                            nxt_memfsm_state = memfsm_state;
+                            nxt_biucmd       = BIUCMD_NOP; //biucmd_o;
+                        end
+*/
+         FLUSH        : if (cache_dirty_i)
+                        begin
+                            //There are dirty ways in this set
+                            //First determine dat_idx; this reads all ways for that index (FLUSH)
+                            //then check which ways are dirty (FLUSHWAYS)
+                            //write dirty way
+                            //clear dirty bit
+                           nxt_memfsm_state = FLUSHWAYS;
+                           nxt_biucmd       = BIUCMD_NOP;
+                        end
+                        else
+                        begin
+                           nxt_memfsm_state = RECOVER; //allow to read new tag_idx
+                           nxt_biucmd       = BIUCMD_NOP;
+                        end
+
+          FLUSHWAYS   : begin
+                            //assert WRITE_WAY here (instead of in FLUSH) to allow time to load evict_buffer
+                            nxt_memfsm_state = memfsm_state;
+                            nxt_biucmd       = BIUCMD_WRITEWAY;
+
+                            if (biucmd_ack_i)
+                            begin
+                                //Check if there are more dirty ways in this set
+                                if (cache_dirty_i)
+                                begin
+                                    nxt_memfsm_state = FLUSH;
+                                    nxt_biucmd       = BIUCMD_NOP;
+                                end
+                            end
+                        end
+
+          NONCACHEABLE: if ( flush_i                                   ||  //flushed pipe, no biu_ack's will come
+                            (!req_i && inflight_cnt_i==1 && biu_ack_i) ||  //no new request, wait for BIU to finish transfer
+                            ( req_i && is_cacheable_i    && biu_ack_i) )   //new cacheable request, wait for non-cacheable transfer to finish
+                        begin
+                            nxt_memfsm_state = ARMED;
+                            nxt_biucmd       = BIUCMD_NOP;
+                        end
+
+          EVICT       : if (biucmd_ack_i || biu_err_i)
+                        begin
+                            nxt_memfsm_state = RECOVER;
+                            nxt_biucmd       = BIUCMD_WRITEWAY; //evict dirty way
+                        end
+
+          WAIT4BIUCMD0: if (biucmd_ack_i || biu_err_i)
+                        begin
+                            nxt_memfsm_state = RECOVER;
+                            nxt_biucmd       = BIUCMD_NOP;
+                        end
+
+          RECOVER     : begin
+                            //Read TAG and DATA memory after writing/filling
+                            nxt_memfsm_state = ARMED;
+                            nxt_biucmd       = BIUCMD_NOP;
+                        end
+
+          default     : begin
+                            //something went really wrong, flush cache
+                            nxt_memfsm_state = FLUSH;
+                            nxt_biucmd       = BIUCMD_NOP;
+                        end
+      endcase
+  end
+
+
   always @(posedge clk_i, negedge rst_ni)
     if (!rst_ni)
     begin
         memfsm_state     <= ARMED;
+        biucmd_o         <= BIUCMD_NOP;
         armed_o          <= 1'b1;
         flushing_o       <= 1'b0;
         filling_o        <= 1'b0;
         fill_way_o       <=  'hx;
-	cacheflush_rdy_o <= 1'b1;
-        biucmd_o         <= BIUCMD_NOP;
+        cacheflush_rdy_o <= 1'b1;
     end
     else
-    unique case (memfsm_state)
-       ARMED        : if (cacheflush_req_i && !we_i)
-                      begin
-                          memfsm_state     <= FLUSH;
-                          armed_o          <= 1'b0;
-                          flushing_o       <= 1'b1;
-			  cacheflush_rdy_o <= 1'b0;
-                      end
-		      else if (req_i && !is_cacheable_i && !flush_i && !biucmd_busy_i)
-                      begin
-                          memfsm_state <= NONCACHEABLE;
-                          armed_o      <= 1'b0;
-                      end
-                      else if (req_i && is_cacheable_i && !cache_hit_i && !flush_i && !biucmd_busy_i)
-                      begin
-                          if (way_dirty_i)
-                          begin
-                              //selected way is dirty
-			      memfsm_state <= EVICT;
-                              biucmd_o     <= BIUCMD_READWAY; //read new line before evicting old one
-                              armed_o      <= 1'b0;
-                              filling_o    <= 1'b1;
-                              fill_way_o   <= fill_way_i;
-			  end
-			  else
-                          begin
-                              //Load way
-                              memfsm_state <= WAIT4BIUCMD0;
-                              biucmd_o     <= BIUCMD_READWAY;
-                              armed_o      <= 1'b0;
-                              filling_o    <= 1'b1;
-                              fill_way_o   <= fill_way_i;
-                          end
-                      end
-                      else
-                      begin
-                          biucmd_o <= BIUCMD_NOP;
-                      end
+    begin
+        memfsm_state <= nxt_memfsm_state;
+        biucmd_o     <= nxt_biucmd;
+        fill_way_o   <= fill_way;
 
-       FLUSH        : if (cache_dirty_i)
-                      begin
-                          //There are dirty ways in this set
-                          //First determine dat_idx; this reads all ways for that index (FLUSH)
-                          //then check which ways are dirty (FLUSHWAYS)
-                          //write dirty way
-                          //clear dirty bit
-                         memfsm_state <= FLUSHWAYS;
-                      end
-                      else
-                      begin
-                         memfsm_state     <= RECOVER; //allow to read new tag_idx
-                         flushing_o       <= 1'b0;
-			 cacheflush_rdy_o <= 1'b1;
-                      end
+        unique case (nxt_memfsm_state)
+          ARMED        : begin
+                             armed_o          <= 1'b1;
+                             flushing_o       <= 1'b0;
+                             filling_o        <= 1'b0;
+                             cacheflush_rdy_o <= 1'b1;
+                         end
 
-        FLUSHWAYS   : begin
-                          //assert WRITE_WAY here (instead of in FLUSH) to allow time to load evict_buffer
-                          biucmd_o <= BIUCMD_WRITEWAY;
+          FLUSH        : begin
+                             armed_o          <= 1'b0;
+                             flushing_o       <= 1'b1;
+                             filling_o        <= 1'b0;
+                             cacheflush_rdy_o <= 1'b0;
+                         end
 
-                          if (biucmd_ack_i)
-                          begin
-                              //Check if there are more dirty ways in this set
-                              if (cache_dirty_i)
-                              begin
-                                  memfsm_state <= FLUSH;
-                                  biucmd_o     <= BIUCMD_NOP;
-                              end
-                          end
-                      end
+           FLUSHWAYS   : begin
+                             armed_o          <= 1'b0;
+                             flushing_o       <= 1'b1;
+                             filling_o        <= 1'b0;
+                             cacheflush_rdy_o <= 1'b0;
+                         end
 
-        NONCACHEABLE: if ( flush_i                                   ||  //flushed pipe, no biu_ack's will come
-	                  (!req_i && inflight_cnt_i==1 && biu_ack_i) ||  //no new request, wait for BIU to finish transfer
-                          ( req_i && is_cacheable_i    && biu_ack_i) )   //new cacheable request, wait for non-cacheable transfer to finish
-                      begin
-                          memfsm_state <= ARMED;
-                          armed_o      <= 1'b1;
-                      end
+           NONCACHEABLE: begin
+                             armed_o          <= 1'b0;
+                             flushing_o       <= 1'b0;
+                             filling_o        <= 1'b0;
+                             cacheflush_rdy_o <= 1'b1;
+                         end
 
-        EVICT       : if (biucmd_ack_i || biu_err_i)
-                      begin
-                          memfsm_state <= RECOVER;
-                          biucmd_o     <= BIUCMD_WRITEWAY; //evict dirty way
-                          filling_o    <= 1'b0;
-                      end
+           EVICT       : begin
+                             armed_o          <= 1'b0;
+                             flushing_o       <= 1'b0;
+                             filling_o        <= 1'b1;
+                             cacheflush_rdy_o <= 1'b1;
+                         end
 
-        WAIT4BIUCMD0: if (biucmd_ack_i || biu_err_i)
-                      begin
-                          memfsm_state <= RECOVER;
-                          biucmd_o     <= BIUCMD_NOP;
-                          filling_o    <= 1'b0;
-                      end
+           WAIT4BIUCMD0: begin
+                             armed_o          <= 1'b0;
+                             flushing_o       <= 1'b0;
+                             filling_o        <= 1'b1;
+                             cacheflush_rdy_o <= 1'b1;
+                         end
 
-        RECOVER     : begin
-                          //Read TAG and DATA memory after writing/filling
-                          memfsm_state <= ARMED;
-                          biucmd_o     <= BIUCMD_NOP;
-                          armed_o      <= 1'b1;
-                      end
-    endcase
+           RECOVER     : begin
+                             //Read TAG and DATA memory after writing/filling
+                             armed_o          <= 1'b0;
+                             flushing_o       <= 1'b0;
+                             filling_o        <= 1'b0;
+                             cacheflush_rdy_o <= 1'b1;
+                         end
+        endcase
 
+  end
 
   //Tag/Dat-index (for writing)
   assign idx_o = adr_i[BLK_OFFS_BITS +: IDX_BITS];
@@ -421,7 +488,7 @@ module riscv_dcache_hit #(
       //else is_cacheable ? stall=!biu_ack_i (wait for noncacheable transfer to finish)
       //else                stall=!biu_stb_ack_i
       NONCACHEABLE: stall_o = ~req_i ? |inflight_cnt_i
-	                             : is_cacheable_i ? ~biu_ack_i : ~biu_stb_ack_i;
+	                             : ~biu_ack_i; //is_cacheable_i ? ~biu_ack_i : ~biu_stb_ack_i;
 
       //TODO: Add in_biubuffer
       WAIT4BIUCMD0: stall_o = ~( biu_cacheable_ack |
