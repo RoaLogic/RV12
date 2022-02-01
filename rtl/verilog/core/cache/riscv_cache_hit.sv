@@ -196,11 +196,11 @@ module riscv_cache_hit #(
 
   /* Memory Interface State Machine Section
    */
-  logic [XLEN         -1:0] cache_q;
-  logic                     cache_ack,
-                            biu_cacheable_ack;
+  logic [XLEN          -1:0] cache_q;
+  logic                      cache_ack,
+                             biu_cacheable_ack;
 
-  logic                     biu_cache_we_unstall;
+  logic                      biu_cache_we_unstall;
 
 
   enum logic [2:0] {ARMED=0,
