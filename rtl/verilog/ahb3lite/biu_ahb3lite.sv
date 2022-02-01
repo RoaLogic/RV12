@@ -35,6 +35,11 @@
  *
  * A TAG can be provided with biu_stb, the TAG will be returned
  * aligned with the data phase
+ *
+ * DATA_SIZE : size of data buses
+ * ADDR_SIZE : size of address buses
+ * STRICT_AHB: strictly adhere to the AHB spec.
+ *             - do not allow crossing a 1kB address boundary
  */
 
 
