@@ -488,7 +488,9 @@ module riscv_dcache_hit #(
       //else is_cacheable ? stall=!biu_ack_i (wait for noncacheable transfer to finish)
       //else                stall=!biu_stb_ack_i
       NONCACHEABLE: stall_o = ~req_i ? |inflight_cnt_i
-	                             : ~biu_ack_i; //is_cacheable_i ? ~biu_ack_i : ~biu_stb_ack_i;
+//	                             : ~biu_ack_i; //is_cacheable_i ? ~biu_ack_i : ~biu_stb_ack_i;
+                                     :  is_cacheable_i |
+                                      (~is_cacheable_i & biu_ack_i); //=is_cacheble | biu_ack_i
 
       //TODO: Add in_biubuffer
       WAIT4BIUCMD0: stall_o = ~( biu_cacheable_ack |
