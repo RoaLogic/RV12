@@ -38,6 +38,10 @@
  *
  * DATA_SIZE : size of data buses
  * ADDR_SIZE : size of address buses
+<<<<<<< HEAD
+=======
+ * TAG_SIZE  : size of user tag buses
+>>>>>>> dev
  * STRICT_AHB: strictly adhere to the AHB spec.
  *             - do not allow crossing a 1kB address boundary
  */
@@ -47,9 +51,10 @@ import ahb3lite_pkg::*;
 import biu_constants_pkg::*;
 
 module biu_ahb3lite #(
-  parameter DATA_SIZE = 32,
-  parameter ADDR_SIZE = DATA_SIZE,
-  parameter TAG_SIZE  = DATA_SIZE
+  parameter DATA_SIZE  = 32,
+  parameter ADDR_SIZE  = DATA_SIZE,
+  parameter TAG_SIZE   = DATA_SIZE,
+  parameter STRICT_AHB = 1
 )
 (
   input  logic                   HRESETn,
@@ -84,8 +89,8 @@ module biu_ahb3lite #(
   output logic [DATA_SIZE  -1:0] biu_q_o,
   output logic                   biu_ack_o,      //transfer acknowledge
   output logic                   biu_err_o,      //transfer error
-  input  logic [TAG_SIZE   -1:0] biu_tagi_i,      //TAG input
-  output logic [TAG_SIZE   -1:0] biu_tago_o       //TAG output
+  input  logic [TAG_SIZE   -1:0] biu_tagi_i,     //TAG input
+  output logic [TAG_SIZE   -1:0] biu_tago_o      //TAG output
 );
 
   //////////////////////////////////////////////////////////////////
@@ -98,7 +103,7 @@ module biu_ahb3lite #(
   //
   // Functions
   //
-  function automatic [2:0] biu_size2hsize;
+  function automatic [HSIZE_SIZE-1:0] biu_size2hsize;
     input biu_size_t size;
 
     case (size)
@@ -130,7 +135,7 @@ module biu_ahb3lite #(
 
 
   //convert burst type to counter length (actually length -1)
-  function automatic [2:0] biu_type2hburst;
+  function automatic [HBURST_SIZE-1:0] biu_type2hburst;
     input biu_type_t biu_type;
 
     case (biu_type)
@@ -148,7 +153,7 @@ module biu_ahb3lite #(
 
 
   //convert burst type to counter length (actually length -1)
-  function automatic [3:0] biu_prot2hprot;
+  function automatic [HPROT_SIZE-1:0] biu_prot2hprot;
     input biu_prot_t biu_prot;
 
     biu_prot2hprot  = biu_prot & PROT_DATA       ? HPROT_DATA       : HPROT_OPCODE;
@@ -157,11 +162,11 @@ module biu_ahb3lite #(
   endfunction: biu_prot2hprot
 
 
-  //convert burst type to counter length (actually length -1)
+  //calculate next burst address
   function automatic [ADDR_SIZE-1:0] nxt_addr;
-    input [ADDR_SIZE-1:0] addr;   //current address
-    input [          2:0] hburst; //AHB HBURST
-    input [          2:0] hsize;  //AHB HSIZE
+    input [ADDR_SIZE  -1:0] addr;   //current address
+    input [HBURST_SIZE-1:0] hburst; //AHB HBURST
+    input [HSIZE_SIZE -1:0] hsize;  //AHB HSIZE
 
     logic [ADDR_SIZE-1:0] mask;
 
@@ -183,6 +188,23 @@ module biu_ahb3lite #(
     //mix linear/wrap address
     nxt_addr = (addr & mask) | (nxt_addr & ~mask);
   endfunction: nxt_addr
+
+
+  //check if 1kB boundary is crossed
+  //The checking works for all incremental bursts, but only INCR is
+  //managed here.   //INCR4/8/16 must be managed by the calling module
+  function logic cross1kB;
+    input [ADDR_SIZE -1:0] addr;
+    input [HSIZE_SIZE-1:0] hsize;
+
+    logic [ADDR_SIZE-1:0] nxt_addr;
+
+    //next linear address
+    nxt_addr = addr + (1 << hsize);
+
+    //Now check if 1kB border is crossed
+    cross1kB = STRICT_AHB == 0 ? 1'b0 : addr[9] ^ nxt_addr[9];
+  endfunction: cross1kB
 
 
   //////////////////////////////////////////////////////////////////
@@ -272,7 +294,8 @@ module biu_ahb3lite #(
                     tag        <= biu_tagi_i;
 
                     HSEL       <= biu_stb_i;
-                    HTRANS     <= biu_stb_i ? HTRANS_SEQ : HTRANS_IDLE;
+                    HTRANS     <= biu_stb_i ? cross1kB(HADDR,HSIZE) ? HTRANS_NONSEQ : HTRANS_SEQ
+                                            : HTRANS_IDLE;
                     HADDR      <= nxt_addr(HADDR,HBURST,HSIZE);
 //for BUSY                    HADDR      <= biu_stb_i ? nxt_addr(HADDR,HBURST,HSIZE) : HADDR;
 		end
@@ -282,7 +305,7 @@ module biu_ahb3lite #(
                     burst_cnt  <= burst_cnt -1;
                     incr_burst <= 1'b0;
 
-                    HTRANS     <= HTRANS_SEQ; //continue burst
+                    HTRANS     <= cross1kB(HADDR,HSIZE) ? HTRANS_NONSEQ : HTRANS_SEQ; //continue burst
                     HADDR      <= nxt_addr(HADDR,HBURST,HSIZE); //next address
                 end
             end
