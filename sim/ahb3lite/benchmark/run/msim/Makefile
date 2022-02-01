@@ -65,7 +65,10 @@ simw: vlog
 	  -do "set WildcardFilter [lsearch -not -all -inline $$WildcardFilter Memory];	\
                log -r /$(TOP)/*;							\
 	       log /$(TOP)/dut/core/int_rf/rf;						\
-	       log /$(TOP)/dut/imem_ctrl_inst/genblk1/icache_inst/cache_memory/tag_out;	\
+	       log /$(TOP)/dut/dmem_ctrl_inst/genblk1/dcache_inst/cache_memory_inst/tag_out;	\
+	       log /$(TOP)/dut/dmem_ctrl_inst/genblk1/dcache_inst/cache_memory_inst/tag_in;	\
+	       log /$(TOP)/dut/dmem_ctrl_inst/genblk1/dcache_inst/cache_memory_inst/dat_out;	\
+	       log /$(TOP)/dut/dmem_ctrl_inst/genblk1/dcache_inst/cache_memory_inst/way_q_mux;	\
 	       run -all;								\
 	       quit"				\
 	$(foreach p, $(PARAMS),-g`echo $p | sed -r 's/(\w+)=([^0-9].*)/\1="\2"/'`)
