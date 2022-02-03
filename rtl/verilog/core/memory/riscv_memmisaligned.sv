@@ -30,17 +30,17 @@
 import biu_constants_pkg::*;
 
 module riscv_memmisaligned #(
-  parameter XLEN    = 32,
+  parameter PLEN    = 32,
   parameter HAS_RVC = 0
 )
 (
+  input  logic              rst_ni,
   input  logic              clk_i,
   input  logic              stall_i,
 
   //CPU side
   input  logic              instruction_i,
-  input  logic              req_i,
-  input  logic [XLEN  -1:0] adr_i,
+  input  logic [PLEN  -1:0] adr_i,
   input  biu_size_t         size_i,
 
   //To memory subsystem
