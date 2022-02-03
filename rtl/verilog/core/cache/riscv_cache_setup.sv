@@ -51,7 +51,7 @@ module riscv_cache_setup #(
   input  logic                     req_i,
   input  logic [XLEN         -1:0] adr_i,   //virtualy index, physically tagged
   input  biu_size_t                size_i,
-  input                            lock_i,
+  input  logic                     lock_i,
   input  biu_prot_t                prot_i,
   input  logic                     we_i,
   input  logic [XLEN         -1:0] d_i,
