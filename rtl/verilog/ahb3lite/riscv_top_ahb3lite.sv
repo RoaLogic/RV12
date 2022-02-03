@@ -85,8 +85,10 @@ module riscv_top_ahb3lite #(
 
   parameter            HARTID             = 0,
 
-  parameter            PARCEL_SIZE        = 16, //16bits per parcel
-  parameter            BIUTAG_SIZE        = $clog2(XLEN/PARCEL_SIZE)
+  parameter            STRICT_AHB         = 1,
+
+  localparam           PARCEL_SIZE        = 16, //16bits per parcel
+  localparam           BIUTAG_SIZE        = $clog2(XLEN/PARCEL_SIZE)
 )
 (
   //AHB interfaces
@@ -150,7 +152,7 @@ module riscv_top_ahb3lite #(
   logic          [XLEN            -1:0] imem_parcel;
   logic          [XLEN/PARCEL_SIZE-1:0] imem_parcel_valid;
   logic                                 imem_misaligned;
-  logic                                 imem_page_fault;
+  logic                                 imem_pagefault;
   logic                                 imem_error;
 
   logic                                 dmem_req;
@@ -163,7 +165,7 @@ module riscv_top_ahb3lite #(
                                         dmem_err;
   logic                                 dmem_is_misaligned,
                                         dmem_misaligned;
-  logic                                 dmem_page_fault;
+  logic                                 dmem_pagefault;
 
   pmpcfg_t [15:0]                       st_pmpcfg;
   logic    [15:0][XLEN            -1:0] st_pmpaddr;
@@ -266,7 +268,7 @@ module riscv_top_ahb3lite #(
     .imem_parcel_i            ( imem_parcel            ),
     .imem_parcel_valid_i      ( imem_parcel_valid      ),
     .imem_parcel_misaligned_i ( imem_misaligned        ),
-    .imem_parcel_page_fault_i ( imem_page_fault        ),
+    .imem_parcel_page_fault_i ( imem_pagefault         ),
     .imem_parcel_error_i      ( imem_error             ),
 
     //Data Memory Access bus
@@ -280,7 +282,7 @@ module riscv_top_ahb3lite #(
     .dmem_ack_i               ( dmem_ack               ),
     .dmem_err_i               ( dmem_err               ),
     .dmem_misaligned_i        ( dmem_misaligned        ),
-    .dmem_page_fault_i        ( 1'b0                   ),
+    .dmem_page_fault_i        ( dmem_pagefault         ),
 
     //cpu state
     .st_prv_o                 ( st_prv                 ),
@@ -337,7 +339,7 @@ module riscv_top_ahb3lite #(
     .mem_flush_i       ( imem_flush        ),
     .mem_adr_i         ( imem_adr          ),
     .mem_misaligned_o  ( imem_misaligned   ),
-    .mem_page_fault_o  ( imem_page_fault   ),
+    .mem_pagefault_o   ( imem_pagefault    ),
     .mem_error_o       ( imem_error        ),
     .parcel_o          ( imem_parcel       ),
     .parcel_valid_o    ( imem_parcel_valid ),
@@ -396,7 +398,7 @@ module riscv_top_ahb3lite #(
     .mem_ack_o         ( dmem_ack          ),
     .mem_err_o         ( dmem_err          ),
     .mem_misaligned_o  ( dmem_misaligned   ),
-    .mem_page_fault_o  ( dmem_page_fault   ),
+    .mem_pagefault_o   ( dmem_pagefault    ),
     .cache_flush_i     ( cacheflush        ),
     .cache_flush_rdy_o ( dcflush_rdy       ),
 
@@ -423,7 +425,8 @@ module riscv_top_ahb3lite #(
   biu_ahb3lite #(
     .DATA_SIZE     ( XLEN          ),
     .ADDR_SIZE     ( ALEN          ),
-    .TAG_SIZE      ( BIUTAG_SIZE   ) )
+    .TAG_SIZE      ( BIUTAG_SIZE   ),
+    .STRICT_AHB    ( STRICT_AHB    ) )
   ibiu_inst (
     .HRESETn       ( HRESETn       ),
     .HCLK          ( HCLK          ),
@@ -461,7 +464,8 @@ module riscv_top_ahb3lite #(
   biu_ahb3lite #(
     .DATA_SIZE     ( XLEN          ),
     .ADDR_SIZE     ( ALEN          ),
-    .TAG_SIZE      ( BIUTAG_SIZE   ) )
+    .TAG_SIZE      ( BIUTAG_SIZE   ),
+    .STRICT_AHB    ( STRICT_AHB    ) )
   dbiu_inst (
     .HRESETn       ( HRESETn       ),
     .HCLK          ( HCLK          ),
