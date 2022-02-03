@@ -72,7 +72,10 @@ module riscv_cache_hit #(
   input  biu_size_t                   size_i,
   input  logic                        lock_i,
   input  biu_prot_t                   prot_i,
-  input  logic                        is_cacheable_i,
+  input  logic                        cacheable_i,
+  input  logic                        misaligned_i,
+  input  logic                        pma_exception_i,
+  input  logic                        pmp_exception_i,
 
   input  logic                        cache_hit_i,      //from cache-memory
   input  logic [BLK_BITS        -1:0] cache_line_i,
@@ -108,30 +111,6 @@ module riscv_cache_hit #(
   //
   // Constants
   //
-  
-  //----------------------------------------------------------------
-  // Cache
-  //----------------------------------------------------------------
-/*
-  localparam PAGE_SIZE       = 4*1024;                             //4KB pages
-  localparam MAX_IDX_BITS    = $clog2(PAGE_SIZE) - $clog2(BLOCK_SIZE); //Maximum IDX_BITS
-  
-
-  localparam SETS            = (SIZE*1024) / BLOCK_SIZE / WAYS;    //Number of sets TODO:SETS=1 doesn't work
-  localparam BLK_OFF_BITS    = $clog2(BLOCK_SIZE);                 //Number of BlockOffset bits
-  localparam IDX_BITS        = $clog2(SETS);                       //Number of Index-bits
-  localparam TAG_BITS        = XLEN - IDX_BITS - BLK_OFF_BITS;     //Number of TAG-bits
-  localparam BLK_BITS        = 8*BLOCK_SIZE;                       //Total number of bits in a Block
-  localparam BURST_SIZE      = BLK_BITS / XLEN;                    //Number of transfers to load 1 Block
-  localparam BURST_BITS      = $clog2(BURST_SIZE);
-  localparam BURST_OFF       = XLEN/8;
-  localparam BURST_LSB       = $clog2(BURST_OFF);
-
-  //BLOCK decoding
-  localparam DAT_OFF_BITS    = $clog2(BLK_BITS / XLEN);            //Offset in block
-  localparam PARCEL_OFF_BITS = $clog2(XLEN / PARCEL_SIZE);
-*/
-
   localparam DAT_OFFS_BITS = no_of_data_offset_bits (XLEN, BLK_BITS);   //Offset in block
   localparam BURST_OFF     = XLEN/8;
   localparam BURST_LSB     = $clog2(BURST_OFF);
@@ -239,12 +218,12 @@ module riscv_cache_hit #(
                           armed_o      <= 1'b0;
                           flushing_o   <= 1'b1;
                       end
-		      else if (req_i && !is_cacheable_i && !flush_i)
+		      else if (req_i && !cacheable_i && !flush_i)
                       begin
                           memfsm_state <= NONCACHEABLE;
                           armed_o      <= 1'b0;
                       end
-                      else if (req_i && is_cacheable_i && !cache_hit_i && !flush_i)
+                      else if (req_i && cacheable_i && !cache_hit_i && !flush_i)
                       begin
                           //Load way
                           memfsm_state <= WAIT4BIUCMD0;
@@ -266,7 +245,7 @@ module riscv_cache_hit #(
 
         NONCACHEABLE: if ( flush_i                                   ||  //flushed pipe, no biu_ack's will come
 	                  (!req_i && inflight_cnt_i==1 && biu_ack_i) ||  //no new request, wait for BIU to finish transfer
-                          ( req_i && is_cacheable_i    && biu_ack_i) )   //new cacheable request, wait for non-cacheable transfer to finish
+                          ( req_i && cacheable_i       && biu_ack_i) )   //new cacheable request, wait for non-cacheable transfer to finish
                       begin
                           memfsm_state <= ARMED;
                           armed_o      <= 1'b1;
@@ -304,12 +283,12 @@ module riscv_cache_hit #(
       FLUSH       : biucmd_noncacheable_req_o = 1'b0;
       WAIT4BIUCMD0: biucmd_noncacheable_req_o = 1'b0;
       RECOVER     : biucmd_noncacheable_req_o = 1'b0;
-      default     : biucmd_noncacheable_req_o = req_i & ~is_cacheable_i & ~flush_i;
+      default     : biucmd_noncacheable_req_o = req_i & ~cacheable_i & ~flush_i;
     endcase
 
 
   //Instruction fetch address
-  assign biucmd_adri_o = ~is_cacheable_i
+  assign biucmd_adri_o = ~cacheable_i
                        ? adr_i & (XLEN==64 ? ~'h7 : ~'h3)
                        : adr_i;
   assign biucmd_tagi_o = adr_i[1 +: BIUTAG_SIZE];
@@ -325,13 +304,13 @@ module riscv_cache_hit #(
   //Cache core halt signal
   always_comb
     unique case (memfsm_state)
-      ARMED       : stall_o =  req_i & (is_cacheable_i ? ~cache_hit_i : ~biu_stb_ack_i);
+      ARMED       : stall_o =  req_i & (cacheable_i ? ~cache_hit_i : ~biu_stb_ack_i);
 
       //req_i == 0 ? stall=|inflight_cnt
       //else is_cacheable ? stall=!biu_ack_i (wait for noncacheable transfer to finish)
       //else                stall=!biu_stb_ack_i
       NONCACHEABLE: stall_o = ~req_i ? |inflight_cnt_i
-	                             : is_cacheable_i ? ~biu_ack_i : ~biu_stb_ack_i;
+	                             : cacheable_i ? ~biu_ack_i : ~biu_stb_ack_i;
 
       //TODO: Add in_biubuffer
       WAIT4BIUCMD0: stall_o = ~( (req_i & biu_ack_i & biu_adro_eq_cache_adr_dly & ~biucmd_ack_i) |
@@ -346,11 +325,10 @@ module riscv_cache_hit #(
 
 
   //signal downstream the BIU reported an error
-  assign parcel_error_o = biu_err_i;
+  assign parcel_error_o = biu_err_i | pma_exception_i | pmp_exception_i;
 
 
   //Assign parcel_pc
-//  assign parcel_pc_o = { {XLEN-PLEN{1'b0}}, biu_adro_i };
   assign parcel_pc_o = { {XLEN-PLEN{1'b0}}, biu_adro};
 
 
@@ -362,13 +340,13 @@ module riscv_cache_hit #(
 
   always_comb
     unique case (memfsm_state)
-      WAIT4BIUCMD0: parcel_o = cache_hit_i    ? cache_q : biu_q_i;
-      default     : parcel_o = is_cacheable_i ? cache_q : biu_q_i;
+      WAIT4BIUCMD0: parcel_o = cache_hit_i ? cache_q : biu_q_i;
+      default     : parcel_o = cacheable_i ? cache_q : biu_q_i;
     endcase
 
 
   //acknowledge cache hit
-  assign cache_ack         =  req_i & is_cacheable_i & cache_hit_i & ~flush_i;
+  assign cache_ack         =  req_i & cacheable_i & cache_hit_i & ~flush_i;
   assign biu_cacheable_ack = (req_i & biu_ack_i & biu_adro_eq_cache_adr_dly & ~flush_i) |
                               cache_ack;
 
@@ -376,10 +354,6 @@ module riscv_cache_hit #(
   //Assign parcel_valid
   always_comb
     unique case (memfsm_state)
-/*    
-      ARMED       : parcel_valid_o = is_cacheable_i ? {$bits(parcel_valid_o){cache_ack            }} << adr_i      [1 +: $clog2(XLEN/PARCEL_SIZE)]
-                                                    : {$bits(parcel_valid_o){biu_ack_i}} << parcel_pc_o[1 +: $clog2(XLEN/PARCEL_SIZE)];
-*/
       ARMED       : parcel_valid_o = {$bits(parcel_valid_o){cache_ack                }} << adr_i      [1 +: $clog2(XLEN/PARCEL_SIZE)]; 
       NONCACHEABLE: parcel_valid_o = {$bits(parcel_valid_o){biucmd_noncacheable_ack_i}} << parcel_pc_o[1 +: $clog2(XLEN/PARCEL_SIZE)];
       WAIT4BIUCMD0: parcel_valid_o = {$bits(parcel_valid_o){biu_cacheable_ack        }} << adr_i      [1 +: $clog2(XLEN/PARCEL_SIZE)];
@@ -395,9 +369,9 @@ module riscv_cache_hit #(
 
   always_comb
     unique case (memfsm_state)
-      WAIT4BIUCMD0: parcel_misaligned_o = (HAS_RVC != 0) ? adr_i[0] : |adr_i[1:0];
-      default     : parcel_misaligned_o = is_cacheable_i ? (HAS_RVC != 0) ? adr_i[0]       : |adr_i[1:0]
-	                                                 : (HAS_RVC != 0) ? parcel_pc_o[0] : |parcel_pc_o[1:0]; 
+      WAIT4BIUCMD0: parcel_misaligned_o = misaligned_i;
+      default     : parcel_misaligned_o = cacheable_i ? misaligned_i
+	                                              : (HAS_RVC != 0) ? parcel_pc_o[0] : |parcel_pc_o[1:0]; 
     endcase
 
 
