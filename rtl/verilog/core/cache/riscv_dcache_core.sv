@@ -90,15 +90,25 @@ module riscv_dcache_core #(
 
   output logic                    stall_o,
 
+  //from MMU
+  input  logic [PLEN        -1:0] phys_adr_i,           //physical address
+  input  logic                    pagefault_i,
+
+  //from PMA
+  input  logic                    pma_misaligned_i,
+  input  logic                    pma_cacheable_i,
+  input  logic                    pma_exception_i,
+
+  //from PMP
+  input  logic                    pmp_exception_i,      //aligned with TAG
+
   //CPU side
-  input  logic                    is_cacheable_i,       //This needs to move inside this block
-  input  logic                    misaligned_i,         //this needs to move inside this block
   input  logic                    mem_flush_i,
   input  logic                    mem_req_i,
   output logic                    mem_ack_o,
   output logic                    mem_err_o,
   output logic                    mem_misaligned_o,
-  input  logic [XLEN        -1:0] mem_adr_i,
+  input  logic [XLEN        -1:0] mem_adr_i,            //virtual address
   input  biu_size_t               mem_size_i,
   input  logic                    mem_lock_i,
   input  biu_prot_t               mem_prot_i,
@@ -181,18 +191,17 @@ module riscv_dcache_core #(
   logic [              6:0] way_random; //Up to 128ways
   logic [WAYS         -1:0] fill_way_select,
                             mem_fill_way, hit_fill_way;
-  logic                     cacheflush;
+  logic                     cache_flush;
 
   logic                     setup_req,           tag_req,
                             setup_rreq,          tag_wreq;
-  logic [PLEN         -1:0] setup_adr,           tag_adr; 
+  logic [PLEN         -1:0]                      tag_adr; 
   biu_size_t                setup_size,          tag_size;
   logic                     setup_lock,          tag_lock;
   biu_prot_t                setup_prot,          tag_prot;
   logic                     setup_we,            tag_we;
   logic [XLEN         -1:0] setup_q,             tag_q;
-  logic                     setup_is_cacheable,  tag_is_cacheable;
-  logic                     setup_is_misaligned, tag_is_misaligned;
+  logic                                          tag_pagefault;
   logic [XLEN/8       -1:0]                      tag_be;
 
 
@@ -203,7 +212,7 @@ module riscv_dcache_core #(
   logic [BLK_BITS/8   -1:0] writebuffer_be;
   logic [WAYS         -1:0] writebuffer_ways_hit;
 
-  logic [TAG_BITS     -1:0] setup_core_tag,
+  logic [TAG_BITS     -1:0] tag_core_tag,
                             hit_core_tag;
   logic [IDX_BITS     -1:0] setup_idx,
                             hit_idx;
@@ -267,8 +276,8 @@ endgenerate
 
   //hold flush until ready to be serviced
   always @(posedge clk_i, negedge rst_ni)
-    if (!rst_ni) cacheflush <= 1'b0;
-    else         cacheflush <= cache_flush_i | (cacheflush & ~flushing);
+    if (!rst_ni) cache_flush <= 1'b0;
+    else         cache_flush <= cache_flush_i | (cache_flush & ~flushing);
 
 
 
@@ -276,40 +285,34 @@ endgenerate
    * Drives signals into TAG and DATA memories
    */
   riscv_cache_setup #(
-    .XLEN               ( XLEN                   ),
-    .SIZE               ( SIZE                   ),
-    .BLOCK_SIZE         ( BLOCK_SIZE             ),
-    .WAYS               ( WAYS                   ) )
+    .XLEN                      ( XLEN                    ),
+    .SIZE                      ( SIZE                    ),
+    .BLOCK_SIZE                ( BLOCK_SIZE              ),
+    .WAYS                      ( WAYS                    ) )
   cache_setup_inst (
-    .rst_ni             ( rst_ni                 ),
-    .clk_i              ( clk_i                  ),
+    .rst_ni                    ( rst_ni                  ),
+    .clk_i                     ( clk_i                   ),
 
-    .stall_i            ( stall_o                ),
-    .flush_i            ( mem_flush_i            ),
+    .stall_i                   ( stall_o                 ),
+    .flush_i                   ( mem_flush_i             ),
 
-    .req_i              ( mem_req_i              ),
-    .adr_i              ( mem_adr_i              ),
-    .size_i             ( mem_size_i             ),
-    .lock_i             ( mem_lock_i             ),
-    .prot_i             ( mem_prot_i             ),
-    .we_i               ( mem_we_i               ),
-    .d_i                ( mem_d_i                ),
-    .is_cacheable_i     ( is_cacheable_i         ),
-    .is_misaligned_i    ( misaligned_i           ),
+    .req_i                     ( mem_req_i               ),
+    .adr_i                     ( mem_adr_i               ),
+    .size_i                    ( mem_size_i              ),
+    .lock_i                    ( mem_lock_i              ),
+    .prot_i                    ( mem_prot_i              ),
+    .we_i                      ( mem_we_i                ),
+    .d_i                       ( mem_d_i                 ),
 
-    .req_o              ( setup_req              ),
-    .rreq_o             ( setup_rreq             ),
-    .adr_o              ( setup_adr              ),
-    .size_o             ( setup_size             ),
-    .lock_o             ( setup_lock             ),
-    .prot_o             ( setup_prot             ),
-    .we_o               ( setup_we               ),
-    .q_o                ( setup_q                ),
-    .is_cacheable_o     ( setup_is_cacheable     ),
-    .is_misaligned_o    ( setup_is_misaligned    ),
+    .req_o                     ( setup_req               ),
+    .rreq_o                    ( setup_rreq              ),
+    .size_o                    ( setup_size              ),
+    .lock_o                    ( setup_lock              ),
+    .prot_o                    ( setup_prot              ),
+    .we_o                      ( setup_we                ),
+    .q_o                       ( setup_q                 ),
 
-    .core_tag_o         ( setup_core_tag         ),
-    .idx_o              ( setup_idx              ) );
+    .idx_o                     ( setup_idx               ) );
 
 
   /* Tag stage
@@ -317,37 +320,36 @@ endgenerate
    * Physical address is available here
    */
   riscv_cache_tag #(
-    .XLEN               ( XLEN                   ),
-    .PLEN               ( PLEN                   ) )
+    .XLEN                      ( XLEN                    ),
+    .PLEN                      ( PLEN                    ),
+    .SIZE                      ( SIZE                    ),
+    .BLOCK_SIZE                ( BLOCK_SIZE              ),
+    .WAYS                      ( WAYS                    ) )
   cache_tag_inst (
-    .rst_ni             ( rst_ni                 ),
-    .clk_i              ( clk_i                  ),
+    .rst_ni                    ( rst_ni                  ),
+    .clk_i                     ( clk_i                   ),
 
-    .stall_i            ( stall_o                ),
-    .flush_i            ( mem_flush_i            ),
-    .req_i              ( setup_req              ),
+    .stall_i                   ( stall_o                 ),
+    .flush_i                   ( mem_flush_i             ),
+    .req_i                     ( setup_req               ),
 
-    .adr_i              ( setup_adr              ),
-    .size_i             ( setup_size             ),
-    .lock_i             ( setup_lock             ),
-    .prot_i             ( setup_prot             ),
-    .we_i               ( setup_we               ),
-    .d_i                ( setup_q                ),
-    .is_cacheable_i     ( setup_is_cacheable     ),
-    .is_misaligned_i    ( setup_is_misaligned    ),
+    .phys_adr_i                ( phys_adr_i              ),
+    .size_i                    ( setup_size              ),
+    .lock_i                    ( setup_lock              ),
+    .prot_i                    ( setup_prot              ),
+    .we_i                      ( setup_we                ),
+    .d_i                       ( setup_q                 ),
 
-    .req_o              ( tag_req                ),
-    .wreq_o             ( tag_wreq               ),
-    .adr_o              ( tag_adr                ),
-    .size_o             ( tag_size               ),
-    .lock_o             ( tag_lock               ),
-    .prot_o             ( tag_prot               ),
-    .we_o               ( tag_we                 ),
-    .be_o               ( tag_be                 ),
-    .q_o                ( tag_q                  ),
-    .is_cacheable_o     ( tag_cacheable          ),
-    .is_misaligned_o    ( tag_misaligned         ) );
-
+    .req_o                     ( tag_req                 ),
+    .wreq_o                    ( tag_wreq                ),
+    .adr_o                     ( tag_adr                 ),
+    .size_o                    ( tag_size                ),
+    .lock_o                    ( tag_lock                ),
+    .prot_o                    ( tag_prot                ),
+    .we_o                      ( tag_we                  ),
+    .be_o                      ( tag_be                  ),
+    .q_o                       ( tag_q                   ),
+    .core_tag_o                ( tag_core_tag            ) );
 
   
   /* Hit stage
@@ -368,8 +370,8 @@ endgenerate
     .stall_o                   ( stall_o                 ),
     .flush_i                   ( mem_flush_i             ),
 
-    .cacheflush_req_i          ( cacheflush              ),
-    .cacheflush_rdy_o          ( cacheflush_rdy_o        ),
+    .cacheflush_req_i          ( cache_flush             ),
+    .cacheflush_rdy_o          ( cache_flush_rdy_o       ),
     .armed_o                   ( armed                   ),
     .flushing_o                ( flushing                ),
     .filling_o                 ( filling                 ),
@@ -385,11 +387,14 @@ endgenerate
     .we_i                      ( tag_we                  ),
     .be_i                      ( tag_be                  ),
     .d_i                       ( tag_q                   ),
-    .is_cacheable_i            ( tag_cacheable           ),
     .q_o                       ( mem_q_o                 ),
     .ack_o                     ( mem_ack_o               ),
     .err_o                     ( mem_err_o               ),
     .misaligned_o              ( mem_misaligned_o        ),
+    .cacheable_i               ( pma_cacheable_i         ),
+    .misaligned_i              ( pma_misaligned_i        ),
+    .pma_exception_i           ( pma_exception_i         ),
+    .pmp_exception_i           ( pmp_exception_i         ),
 
     .idx_o                     ( hit_idx                 ),
     .core_tag_o                ( hit_core_tag            ),
@@ -434,51 +439,51 @@ endgenerate
   //----------------------------------------------------------------
 
   riscv_cache_memory #(
-    .XLEN                   ( XLEN                   ),
-    .SIZE                   ( SIZE                   ),
-    .BLOCK_SIZE             ( BLOCK_SIZE             ),
-    .WAYS                   ( WAYS                   ),
+    .XLEN                      ( XLEN                    ),
+    .SIZE                      ( SIZE                    ),
+    .BLOCK_SIZE                ( BLOCK_SIZE              ),
+    .WAYS                      ( WAYS                    ),
 
-    .TECHNOLOGY             ( TECHNOLOGY             ) )
+    .TECHNOLOGY                ( TECHNOLOGY              ) )
   cache_memory_inst (
-    .rst_ni                 ( rst_ni                 ),
-    .clk_i                  ( clk_i                  ),
+    .rst_ni                    ( rst_ni                  ),
+    .clk_i                     ( clk_i                   ),
 
-    .stall_i                ( stall_o                ),
+    .stall_i                   ( stall_o                 ),
 
-    .armed_i                ( armed                  ),
-    .flushing_i             ( flushing               ),
-    .filling_i              ( filling                ),
-    .fill_way_select_i      ( fill_way_select        ),
-    .fill_way_i             ( hit_fill_way           ),
-    .fill_way_o             ( mem_fill_way           ),
+    .armed_i                   ( armed                   ),
+    .flushing_i                ( flushing                ),
+    .filling_i                 ( filling                 ),
+    .fill_way_select_i         ( fill_way_select         ),
+    .fill_way_i                ( hit_fill_way            ),
+    .fill_way_o                ( mem_fill_way            ),
 
-    .rd_core_tag_i          ( setup_core_tag         ),
-    .wr_core_tag_i          ( hit_core_tag           ),
-    .rd_idx_i               ( setup_idx              ),
-    .wr_idx_i               ( hit_idx                ),
+    .rd_core_tag_i             ( tag_core_tag            ),
+    .wr_core_tag_i             ( hit_core_tag            ),
+    .rd_idx_i                  ( setup_idx               ),
+    .wr_idx_i                  ( hit_idx                 ),
 
-    .rreq_i                 ( setup_rreq             ), //Read cache memories?
-    .writebuffer_we_i       ( writebuffer_we         ),
-    .writebuffer_be_i       ( writebuffer_be         ),
-    .writebuffer_idx_i      ( writebuffer_idx        ),
-    .writebuffer_offs_i     ( writebuffer_offs       ),
-    .writebuffer_data_i     ( writebuffer_data       ),
-    .writebuffer_ways_hit_i ( writebuffer_ways_hit   ),
+    .rreq_i                    ( setup_rreq              ), //Read cache memories?
+    .writebuffer_we_i          ( writebuffer_we          ),
+    .writebuffer_be_i          ( writebuffer_be          ),
+    .writebuffer_idx_i         ( writebuffer_idx         ),
+    .writebuffer_offs_i        ( writebuffer_offs        ),
+    .writebuffer_data_i        ( writebuffer_data        ),
+    .writebuffer_ways_hit_i    ( writebuffer_ways_hit    ),
 
-    .evict_tag_o            ( evict_tag              ),
-    .evict_line_o           ( evict_line             ),
+    .evict_tag_o               ( evict_tag               ),
+    .evict_line_o              ( evict_line              ),
 
-    .biu_line_i             ( biu_line               ), //Write data line
-    .biu_line_dirty_i       ( biu_line_dirty         ), //Write data dirty
-    .biucmd_ack_i           ( biucmd_ack             ), //Write data write-enable
+    .biu_line_i                ( biu_line                ), //Write data line
+    .biu_line_dirty_i          ( biu_line_dirty          ), //Write data dirty
+    .biucmd_ack_i              ( biucmd_ack              ), //Write data write-enable
 
-    .hit_o                  ( cache_hit              ),
-    .ways_hit_o             ( ways_hit               ),
-    .dirty_o                ( cache_dirty            ),
-    .way_dirty_o            ( way_dirty              ),
-    .ways_dirty_o           ( ways_dirty             ),
-    .cache_line_o           ( cache_line             ) );
+    .hit_o                     ( cache_hit               ),
+    .ways_hit_o                ( ways_hit                ),
+    .dirty_o                   ( cache_dirty             ),
+    .way_dirty_o               ( way_dirty               ),
+    .ways_dirty_o              ( ways_dirty              ),
+    .cache_line_o              ( cache_line              ) );
 
 
 
