@@ -38,6 +38,7 @@ module riscv_imem_ctrl #(
   parameter PARCEL_SIZE      = 32,
 
   parameter HAS_RVC          = 0,
+  parameter HAS_MMU          = 0,
 
   parameter PMA_CNT          = 3,
   parameter PMP_CNT          = 16,
@@ -78,7 +79,7 @@ module riscv_imem_ctrl #(
   output logic          [XLEN/PARCEL_SIZE-1:0] parcel_valid_o,
   output logic                                 mem_error_o,
                                                mem_misaligned_o,
-                                               mem_page_fault_o,
+                                               mem_pagefault_o,
   input  logic                                 cache_flush_i,
   input  logic                                 dcflush_rdy_i,
 
@@ -112,14 +113,27 @@ module riscv_imem_ctrl #(
   // Variables
   //
 
+  logic            stall;
+
+ 
   //Transfer parameters
   biu_size_t       size;
   biu_prot_t       prot;
   logic            lock;
 
+ 
+  //MMU
+  logic            mmu_req;
+  logic [PLEN-1:0] mmu_adr;
+  biu_size_t       mmu_size;
+  logic            mmu_lock;
+  logic            mmu_we;
+  logic            mmu_pagefault;
+
+
   //Misalignment check
   logic            misaligned;
-  
+ 
 
   //from PMA check
   logic            pma_exception,
@@ -140,82 +154,136 @@ module riscv_imem_ctrl #(
   assign size             = XLEN == 64 ? DWORD : WORD;   //Transfer size
   assign prot             = biu_prot_t'( PROT_INSTRUCTION                                 |
 	                                (st_prv_i == PRV_U ? PROT_USER : PROT_PRIVILEGED) );
-  assign lock             = 1'b0; //no locked instruction accesses
-  assign mem_page_fault_o = 1'b0; //no MMU
+  assign lock            = 1'b0; //no locked instruction accesses
+  assign mem_pagefault_o = 1'b0; //no MMU
 
   
- 
-  /* Hookup misalignment check
-   */
-  riscv_memmisaligned #(
-    .XLEN          ( XLEN            ),
-    .HAS_RVC       ( HAS_RVC         ) )
-  misaligned_inst (
-//    .clk_i         ( clk_i      ),
-    .instruction_i ( 1'b1            ), //instruction access
-    .req_i         ( mem_req_i       ),
-    .adr_i         ( mem_adr_i       ),
-    .size_i        ( size            ),
-    .misaligned_o  ( misaligned      ) );
-
- 
-  /* Hookup Physical Memory Attributes Unit
-   */
-  riscv_pmachk #(
-    .XLEN           ( XLEN           ),
-    .PLEN           ( PLEN           ),
-    .HAS_RVC        ( HAS_RVC        ),
-    .PMA_CNT        ( PMA_CNT        ) )
-  pmachk_inst (
-    //Configuration
-    .pma_cfg_i      ( pma_cfg_i      ),
-    .pma_adr_i      ( pma_adr_i      ),
-
-    //misaligned
-    .misaligned_i   ( misaligned     ),
-
-    //Memory Access
-    .instruction_i  ( 1'b1           ), //Instruction access
-    .req_i          ( mem_req_i      ),
-    .adr_i          ( mem_adr_i      ),
-    .size_i         ( size           ),
-    .lock_i         ( lock           ),
-    .we_i           ( 1'b0           ), //Instruction bus doesn't write
-
-    //Output
-    .pma_o          (                ),
-    .exception_o    ( pma_exception  ),
-    .misaligned_o   ( pma_misaligned ),
-    .is_cacheable_o ( is_cacheable   ),
-    .req_o          ( pma_req        ) );
-
-
-  /* Hookup Physical Memory Protection Unit
-   */
-  riscv_pmpchk #(
-    .XLEN          ( XLEN          ),
-    .PLEN          ( PLEN          ),
-    .PMP_CNT       ( PMP_CNT       ) )
-  pmpchk_inst (
-    .st_pmpcfg_i   ( st_pmpcfg_i   ),
-    .st_pmpaddr_i  ( st_pmpaddr_i  ),
-    .st_prv_i      ( st_prv_i      ),
-
-    .instruction_i ( 1'b1          ),  //Instruction access
-    .req_i         ( mem_req_i     ),  //Memory access request
-    .adr_i         ( mem_adr_i     ),  //Physical Memory address (i.e. after translation)
-    .size_i        ( size          ),  //Transfer size
-    .we_i          ( 1'b0          ),  //Read/Write enable
-
-    .exception_o   ( pmp_exception ) );
-
-
-
   /* Hookup Cache
    */
 generate
   if (CACHE_SIZE > 0)
   begin
+      /* Hookup MMU
+       */
+      if (HAS_MMU != 0)
+      begin : mmu_blk
+      end
+      else
+      begin : nommu_blk
+          riscv_nommu #(
+            .XLEN        ( XLEN          ),
+            .PLEN        ( PLEN          ) )
+          mmu_inst (
+            .rst_ni      ( rst_ni        ),
+            .clk_i       ( clk_i         ),
+            .stall_i     ( stall         ),
+
+            .flush_i     ( mem_flush_i   ),
+            .req_i       ( mem_req       ),
+            .adr_i       ( memu_adr      ), //virtual address
+            .size_i      ( size          ),
+            .lock_i      ( lock          ),
+            .we_i        ( 1'b0          ),
+
+            .req_o       ( mmu_req       ),
+            .adr_o       ( mmu_adr       ), //physical address
+            .size_o      ( mmu_size      ),
+            .lock_o      ( mmu_lock      ),
+            .we_o        (               ),
+
+            .pagefault_o ( mmu_pagefault ) );
+      end
+assign mem_pagefault_o = 1'b0;
+
+
+      /* Hookup misalignment check
+       */
+      riscv_memmisaligned #(
+        .XLEN          ( XLEN       ),
+        .HAS_RVC       ( HAS_RVC    ) )
+      misaligned_inst (
+        .clk_i         ( clk_i      ),
+        .stall_i       ( stall      ),
+        .instruction_i ( 1'b1       ), //instruction access
+        .adr_i         ( mem_adr_i  ),
+        .size_i        ( size       ),
+        .misaligned_o  ( misaligned ) );
+
+
+      /* Hookup Physical Memory Attributes Unit
+       */
+      if (PMA_CNT > 0)
+      begin : pma_blk
+          riscv_pmachk #(
+            .XLEN           ( XLEN           ),
+            .PLEN           ( PLEN           ),
+            .HAS_RVC        ( HAS_RVC        ),
+            .PMA_CNT        ( PMA_CNT        ) )
+          pmachk_inst (
+            .clk_i          ( clk_i          ),
+            .stall_i        ( stall          ),
+
+            //Configuration
+            .pma_cfg_i      ( pma_cfg_i      ),
+            .pma_adr_i      ( pma_adr_i      ),
+
+            //misaligned
+            .misaligned_i   ( misaligned     ),
+
+            //Memory Access
+            .instruction_i  ( 1'b1           ), //Instruction access
+            .adr_i          ( mmu_adr_i      ),
+            .size_i         ( size           ),
+            .lock_i         ( lock           ),
+            .we_i           ( 1'b0           ), //Instruction bus doesn't write
+
+            //Output
+            .exception_o    ( pma_exception  ),
+            .misaligned_o   ( pma_misaligned ),
+            .cacheable_o    ( pma_cacheable  ) );
+      end
+      else
+      begin
+          //no PMA-check. Tie off signals
+          assign pma_cacheable = 1'b1; //Afterall, we do have a cache ...
+          assign pma_exception = 1'b0;
+
+          // pma_misaligned is registered
+          always @(posedge clk_i)
+            if (!stall) pma_misaligned <= misaligned;
+      end
+
+
+      /* Hookup Physical Memory Protection Unit
+       */
+      if (PMP_CNT > 0)
+      begin: pmp_blk
+      riscv_pmpchk #(
+        .XLEN          ( XLEN          ),
+        .PLEN          ( PLEN          ),
+        .PMP_CNT       ( PMP_CNT       ) )
+      pmpchk_inst (
+        .clk_i         ( clk_i         ),
+        .stall_i       ( stall         ),
+
+        .st_pmpcfg_i   ( st_pmpcfg_i   ),
+        .st_pmpaddr_i  ( st_pmpaddr_i  ),
+        .st_prv_i      ( st_prv_i      ),
+
+        .instruction_i ( 1'b1          ),  //Instruction access
+        .adr_i         ( mmu_adr_i     ),  //Physical Memory address (i.e. after translation)
+        .size_i        ( size          ),  //Transfer size
+        .we_i          ( 1'b0          ),  //Read/Write enable
+
+        .exception_o   ( pmp_exception ) );
+      end
+      else
+      begin
+          //No PMP, tie off signals
+          assign pmp_exception = 1'b0;
+      end
+
+
       /* Instantiate Instruction Cache Core
        */
       riscv_icache_core #(
@@ -233,11 +301,21 @@ generate
         .rst_ni              ( rst_ni            ),
         .clk_i               ( clk_i             ),
 
+	//from MMU
+	.phys_adr_i          ( mmu_adr           ),
+        .pagefault_i         ( mmu_pagefault     ),
+
         //from PMA
-        .is_cacheable_i      ( is_cacheable      ),
-        .misaligned_i        ( pma_misaligned    ),
+        .pma_cacheable_i     ( pma_cacheable     ),
+        .pma_misaligned_i    ( pma_misaligned    ),
+        .pma_exception_i     ( pma_exception     ),
+
+	//from PMP
+	.pmp_exception_i     ( pmp_exception     ),
+
+	//from/to CPU
         .mem_req_i           ( pma_req           ),
-	.mem_ack_o           ( mem_ack_o         ),
+	.mem_stall_o         ( stall             ),
         .mem_adr_i           ( mem_adr_i         ),
         .mem_flush_i         ( mem_flush_i       ),
         .mem_size_i          ( size              ),
@@ -268,6 +346,10 @@ generate
         .biu_err_i           ( biu_err_i         ),
         .biu_tagi_o          ( biu_tagi_o        ),
         .biu_tago_i          ( biu_tago_i        ) );
+
+
+      //assign memory fetch acknowledge
+      assign mem_ack_o = ~stall;
   end
   else  //No cache
   begin
@@ -317,6 +399,10 @@ generate
      .biu_err_i              ( biu_err_i         ),
      .biu_tagi_o             ( biu_tagi_o        ),
      .biu_tago_i             ( biu_tago_i        ) );
+
+   //no MMU
+   assign mem_pagefault_o = 1'b0;
+
   end
 endgenerate
 
