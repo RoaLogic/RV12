@@ -33,7 +33,15 @@ import biu_constants_pkg::*;
 
 module riscv_cache_tag #(
   parameter                        XLEN          = 32,
-  parameter                        PLEN          = XLEN
+  parameter                        PLEN          = XLEN,
+  parameter                        SIZE          = 64,
+  parameter                        BLOCK_SIZE    = XLEN,
+  parameter                        WAYS          = 2,
+
+  localparam                       SETS          = no_of_sets             (SIZE, BLOCK_SIZE, WAYS       ),
+  localparam                       BLK_OFFS_BITS = no_of_block_offset_bits(BLOCK_SIZE                   ),
+  localparam                       IDX_BITS      = no_of_index_bits       (SETS                         ),
+  localparam                       TAG_BITS      = no_of_tag_bits         (PLEN, IDX_BITS, BLK_OFFS_BITS)
 )
 (
   input  logic                     rst_ni,
@@ -43,14 +51,13 @@ module riscv_cache_tag #(
   
   input  logic                     flush_i,
   input  logic                     req_i,
-  input  logic [PLEN         -1:0] adr_i,
+  input  logic [PLEN         -1:0] phys_adr_i, //physical address
   input  biu_size_t                size_i,
   input                            lock_i,
   input  biu_prot_t                prot_i,
   input  logic                     we_i,
   input  logic [XLEN         -1:0] d_i,
-  input  logic                     is_cacheable_i,
-  input  logic                     is_misaligned_i,
+  input  logic                     pagefault_i,
 
   output logic                     req_o,
   output logic                     wreq_o,
@@ -61,8 +68,8 @@ module riscv_cache_tag #(
   output logic                     we_o,
   output logic [XLEN/8       -1:0] be_o,
   output logic [XLEN         -1:0] q_o,
-  output logic                     is_cacheable_o,
-  output logic                     is_misaligned_o
+  output logic                     pagefault_o,
+  output logic [TAG_BITS     -1:0] core_tag_o
 );
 
   //////////////////////////////////////////////////////////////////
@@ -109,17 +116,18 @@ module riscv_cache_tag #(
   always @(posedge clk_i)
     if (!stall_i)
     begin
-        adr_o           <= adr_i;
+        adr_o           <= phys_adr_i;
         size_o          <= size_i;
         lock_o          <= lock_i;
         prot_o          <= prot_i;
         we_o            <= we_i;
-        be_o            <= size2be(size_i, adr_i);
+        be_o            <= size2be(size_i, phys_adr_i);
         q_o             <= d_i;
-        is_cacheable_o  <= is_cacheable_i;
-        is_misaligned_o <= is_misaligned_i;
     end
 
+
+  //core-tag
+  assign core_tag_o = phys_adr_i[PLEN-1 -: TAG_BITS];
 endmodule
 
 
