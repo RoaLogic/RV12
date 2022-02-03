@@ -75,11 +75,14 @@ module riscv_dcache_hit #(
   input  logic                        we_i,
   input  logic [XLEN/8          -1:0] be_i,
   input  logic [XLEN            -1:0] d_i,
-  input  logic                        is_cacheable_i,
   output logic [XLEN            -1:0] q_o,
   output logic                        ack_o,
   output logic                        err_o,
   output logic                        misaligned_o,
+  input  logic                        cacheable_i,
+  input  logic                        misaligned_i,
+  input  logic                        pma_exception_i,
+  input  logic                        pmp_exception_i,
 
   //To/From Cache Memories
   input  logic                        cache_hit_i,       //from cache-memory
@@ -126,29 +129,6 @@ module riscv_dcache_hit #(
   //
   // Constants
   //
-  
-  //----------------------------------------------------------------
-  // Cache
-  //----------------------------------------------------------------
-/*
-  localparam PAGE_SIZE       = 4*1024;                             //4KB pages
-  localparam MAX_IDX_BITS    = $clog2(PAGE_SIZE) - $clog2(BLOCK_SIZE); //Maximum IDX_BITS
-  
-
-  localparam SETS            = (SIZE*1024) / BLOCK_SIZE / WAYS;    //Number of sets TODO:SETS=1 doesn't work
-  localparam BLK_OFF_BITS    = $clog2(BLOCK_SIZE);                 //Number of BlockOffset bits
-  localparam IDX_BITS        = $clog2(SETS);                       //Number of Index-bits
-  localparam TAG_BITS        = XLEN - IDX_BITS - BLK_OFF_BITS;     //Number of TAG-bits
-  localparam BLK_BITS        = 8*BLOCK_SIZE;                       //Total number of bits in a Block
-  localparam BURST_SIZE      = BLK_BITS / XLEN;                    //Number of transfers to load 1 Block
-  localparam BURST_BITS      = $clog2(BURST_SIZE);
-  localparam BURST_OFF       = XLEN/8;
-  localparam BURST_LSB       = $clog2(BURST_OFF);
-
-  //BLOCK decoding
-  localparam DAT_OFF_BITS    = $clog2(BLK_BITS / XLEN);            //Offset in block
-*/
-
   localparam BURST_OFF     = XLEN/8;
   localparam BURST_LSB     = $clog2(BURST_OFF);
 
@@ -253,12 +233,12 @@ module riscv_dcache_hit #(
                             nxt_memfsm_state = FLUSH;
                             nxt_biucmd       = BIUCMD_NOP;
                         end
-                        else if (req_i && !is_cacheable_i && !flush_i && !biucmd_busy_i)
+                        else if (req_i && !cacheable_i && !flush_i && !biucmd_busy_i)
                         begin
                             nxt_memfsm_state = NONCACHEABLE;
                             nxt_biucmd       = BIUCMD_NOP;
                         end
-                        else if (req_i && is_cacheable_i && !cache_hit_i && !flush_i && !biucmd_busy_i)
+                        else if (req_i && cacheable_i && !cache_hit_i && !flush_i && !biucmd_busy_i)
                         begin
                             fill_way = fill_way_i; //write to same way as we read
 
@@ -315,7 +295,7 @@ module riscv_dcache_hit #(
 
           NONCACHEABLE: if ( flush_i                                   ||  //flushed pipe, no biu_ack's will come
                             (!req_i && inflight_cnt_i==1 && biu_ack_i) ||  //no new request, wait for BIU to finish transfer
-                            ( req_i && is_cacheable_i    && biu_ack_i) )   //new cacheable request, wait for non-cacheable transfer to finish
+                            ( req_i && cacheable_i       && biu_ack_i) )   //new cacheable request, wait for non-cacheable transfer to finish
                         begin
                             nxt_memfsm_state = ARMED;
                             nxt_biucmd       = BIUCMD_NOP;
@@ -430,14 +410,14 @@ module riscv_dcache_hit #(
   /* WriteBuffer
   */
   always @(posedge clk_i, negedge rst_ni)
-    if      (!rst_ni                                 ) writebuffer_we_o <= 1'b0;
-    else if ( flush_i                                ) writebuffer_we_o <= 1'b0;
-    else if ( wreq_i && is_cacheable_i && cache_hit_i) writebuffer_we_o <= 1'b1;
-    else if ( writebuffer_ack_i                      ) writebuffer_we_o <= 1'b0;
+    if      (!rst_ni                              ) writebuffer_we_o <= 1'b0;
+    else if ( flush_i                             ) writebuffer_we_o <= 1'b0;
+    else if ( wreq_i && cacheable_i && cache_hit_i) writebuffer_we_o <= 1'b1;
+    else if ( writebuffer_ack_i                   ) writebuffer_we_o <= 1'b0;
 
 
   always @(posedge clk_i)
-    if (wreq_i && is_cacheable_i && cache_hit_i)
+    if (wreq_i && cacheable_i && cache_hit_i)
     begin
         writebuffer_idx_o      <= adr_i[BLK_OFFS_BITS +: IDX_BITS];
         writebuffer_offs_o     <= dat_offset;
@@ -462,7 +442,7 @@ module riscv_dcache_hit #(
   //non-cacheable access
   always_comb
     unique case (memfsm_state)
-      ARMED       : biucmd_noncacheable_req_o = req_i & ~is_cacheable_i & ~flush_i;
+      ARMED       : biucmd_noncacheable_req_o = req_i & ~cacheable_i & ~flush_i;
       default     : biucmd_noncacheable_req_o = 1'b0;
     endcase
 
@@ -472,7 +452,7 @@ module riscv_dcache_hit #(
 
 
   //acknowledge cache hit
-  assign cache_ack         =  req_i & is_cacheable_i & cache_hit_i & ~flush_i;
+  assign cache_ack         =  req_i & cacheable_i & cache_hit_i & ~flush_i;
   assign biu_cacheable_ack = (req_i & biu_ack_i & biu_adro_eq_cache_adr & ~flush_i) |
                               cache_ack;
 
@@ -481,16 +461,15 @@ module riscv_dcache_hit #(
   */
   always_comb
     unique case (memfsm_state)
-      ARMED       : stall_o =  (req_i & ~is_cacheable_i & (~biu_stb_ack_i | biucmd_busy_i)) | //non-cacheable access
-	                       (req_i &  is_cacheable_i & ~cache_hit_i                    );  //cacheable access
+      ARMED       : stall_o =  (req_i & ~cacheable_i & (~biu_stb_ack_i | biucmd_busy_i)) | //non-cacheable access
+	                       (req_i &  cacheable_i & ~cache_hit_i                    );  //cacheable access
 
       //req_i == 0 ? stall=|inflight_cnt
-      //else is_cacheable ? stall=!biu_ack_i (wait for noncacheable transfer to finish)
-      //else                stall=!biu_stb_ack_i
+      //else is_cacheable ? stall=1 (wait for transition to ARMED state)
+      //else                stall=!biu_ack_i
       NONCACHEABLE: stall_o = ~req_i ? |inflight_cnt_i
-//	                             : ~biu_ack_i; //is_cacheable_i ? ~biu_ack_i : ~biu_stb_ack_i;
-                                     :  is_cacheable_i |
-                                      (~is_cacheable_i & biu_ack_i); //=is_cacheble | biu_ack_i
+                                     :  cacheable_i |
+                                      (~cacheable_i & biu_ack_i); //=is_cacheble | biu_ack_i
 
       //TODO: Add in_biubuffer
       WAIT4BIUCMD0: stall_o = ~( biu_cacheable_ack |
@@ -522,12 +501,14 @@ module riscv_dcache_hit #(
       endcase
 
 
-  //signal downstream the BIU reported an error
-  always @(posedge clk_i, negedge rst_ni)
-    err_o <= biu_err_i;
+  //generate access error (load/store access exception)
+  always @(posedge clk_i)
+    err_o <= biu_err_i | pma_exception_i | pmp_exception_i;
 
 
-  assign misaligned_o = 1'b0; //TODO
+  //generate misaligned (misaligned load/store exception)
+  always @(posedge clk_i)
+    misaligned_o <= req_i & misaligned_i;
   
 
   //Bypass on writebuffer_we?
@@ -547,9 +528,9 @@ module riscv_dcache_hit #(
 
   always @(posedge clk_i)
     unique case (memfsm_state)
-      EVICT       : q_o <= cache_hit_i    ? cache_q : biu_q_i;
-      WAIT4BIUCMD0: q_o <= cache_hit_i    ? cache_q : biu_q_i;
-      default     : q_o <= is_cacheable_i ? cache_q : biu_q_i;
+      EVICT       : q_o <= cache_hit_i ? cache_q : biu_q_i;
+      WAIT4BIUCMD0: q_o <= cache_hit_i ? cache_q : biu_q_i;
+      default     : q_o <= cacheable_i ? cache_q : biu_q_i;
     endcase
 
 endmodule
