@@ -10,7 +10,7 @@
 //                                                                 //
 /////////////////////////////////////////////////////////////////////
 //                                                                 //
-//             Copyright (C) 2018 ROA Logic BV                     //
+//             Copyright (C) 2018-2022 ROA Logic BV                //
 //             www.roalogic.com                                    //
 //                                                                 //
 //     Unless specifically agreed in writing, this software is     //
@@ -39,6 +39,9 @@ module riscv_pmachk #(
   parameter PMA_CNT = 16
 )
 (
+  input  logic               clk_i,
+  input  logic               stall_i,
+
   //PMA  configuration
   input  pmacfg_t            pma_cfg_i [PMA_CNT],
   input  logic    [XLEN-1:0] pma_adr_i [PMA_CNT],
@@ -55,11 +58,9 @@ module riscv_pmachk #(
 
 
   //Output
-  output pmacfg_t            pma_o,
   output logic               exception_o,
                              misaligned_o,
-                             is_cacheable_o,
-                             req_o
+                             cacheable_o
 );
 
   //////////////////////////////////////////////////////////////////
@@ -201,6 +202,9 @@ module riscv_pmachk #(
   pmacfg_t               pmacfg [PMA_CNT],
                          matched_pma;
 
+  logic                  we;
+
+
 
   //////////////////////////////////////////////////////////////////
   //
@@ -272,18 +276,27 @@ generate
   end
 endgenerate
 
-  assign matched_pma_idx = highest_priority_match(pma_match_all);
+//TODO: Where to insert register
+//for now pick matched_pma_idx
+
+//  assign matched_pma_idx = highest_priority_match(pma_match_all);
+  always @(posedge clk_i)
+    if (!stall_i) matched_pma_idx <= highest_priority_match(pma_match_all);
+
   assign matched_pma     = pmacfg[ matched_pma_idx ];
-  assign pma_o           = matched_pma;
+
+
+  //delay we; align with matched_pma
+  always @(posedge clk_i)
+    if (!stall_i) we <= we_i;
 
 
   /* Access/Misaligned Exception
    */
-  assign exception_o = req_i & (~|pma_match_all                    |  // no memory range matched
-                                 ( instruction_i & ~matched_pma.x) |  // not executable
-                                 ( we_i          & ~matched_pma.w) |  // not writeable
-                                 (~we_i          & ~matched_pma.r)    // not readable
-                                );
+  assign exception_o = (~|pma_match_all                   |  // no memory range matched
+                        ( instruction_i & ~matched_pma.x) |  // not executable
+                        ( we            & ~matched_pma.w) |  // not writeable
+                        (~we            & ~matched_pma.r) ); // not readable
 
 
   assign misaligned_o = misaligned_i & ~matched_pma.m;
@@ -291,7 +304,6 @@ endgenerate
 
   /* Access Types
    */
-  assign is_cacheable_o = matched_pma.c; //implies MEM_TYPE_MAIN
-  assign req_o          = req_i;
+  assign cacheable_o = matched_pma.c; //implies MEM_TYPE_MAIN
 endmodule
 

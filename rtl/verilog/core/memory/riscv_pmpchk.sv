@@ -10,7 +10,7 @@
 //                                                                 //
 /////////////////////////////////////////////////////////////////////
 //                                                                 //
-//             Copyright (C) 2018 ROA Logic BV                     //
+//             Copyright (C) 2018-2022 ROA Logic BV                //
 //             www.roalogic.com                                    //
 //                                                                 //
 //     Unless specifically agreed in writing, this software is     //
@@ -37,20 +37,22 @@ module riscv_pmpchk #(
   parameter PMP_CNT = 16
 )
 (
+  input  logic                     clk_i,
+  input  logic                     stall_i,
+
   //From State
-  input pmpcfg_t [15:0]           st_pmpcfg_i,
-  input          [15:0][XLEN-1:0] st_pmpaddr_i,
-  input                [     1:0] st_prv_i,
+  input  pmpcfg_t [15:0]           st_pmpcfg_i,
+  input  logic    [15:0][XLEN-1:0] st_pmpaddr_i,
+  input  logic          [     1:0] st_prv_i,
 
   //Memory Access
-  input                           instruction_i,   //This is an instruction access
-  input                           req_i,           //Memory access requested
-  input                [PLEN-1:0] adr_i,           //Physical Memory address (i.e. after translation)
-  input  biu_size_t               size_i,          //Transfer size
-  input                           we_i,            //Read/Write enable
+  input  logic                     instruction_i,   //This is an instruction access
+  input  logic          [PLEN-1:0] adr_i,           //Physical Memory address (i.e. after translation)
+  input  biu_size_t                size_i,          //Transfer size
+  input  logic                     we_i,            //Read/Write enable
 
   //Output
-  output reg                      exception_o
+  output logic                     exception_o
 );
 
   //////////////////////////////////////////////////////////////////
@@ -190,6 +192,10 @@ module riscv_pmpchk #(
   pmpcfg_t            matched_pmpcfg;
 
 
+  logic               we;
+
+
+
   //////////////////////////////////////////////////////////////////
   //
   // Module Body
@@ -231,12 +237,25 @@ generate
 
       //match-any
       assign pmp_match    [i] = match_any(access_lb[PLEN-1:2], access_ub[PLEN-1:2], pmp_lb[i], pmp_ub[i]) & (st_pmpcfg_i[i].a != OFF);
-      assign pmp_match_all[i] = match_all(access_lb[PLEN-1:2], access_ub[PLEN-1:2], pmp_lb[i], pmp_ub[i]);
+//     assign pmp_match_all[i] = match_all(access_lb[PLEN-1:2], access_ub[PLEN-1:2], pmp_lb[i], pmp_ub[i]);
+
+      always @(posedge clk_i)
+        if (!stall_i) pmp_match_all[i] <= match_all(access_lb[PLEN-1:2], access_ub[PLEN-1:2], pmp_lb[i], pmp_ub[i]);
   end
 endgenerate
 
-  assign matched_pmp    = highest_priority_match(pmp_match);
+  //TODO: where to insert register stage
+  //for now pick matched_pmp
+//  assign matched_pmp    = highest_priority_match(pmp_match);
+  always @(posedge clk_i)
+    if (!stall_i) matched_pmp <= highest_priority_match(pmp_match);
+
   assign matched_pmpcfg = st_pmpcfg_i[ matched_pmp ];
+
+
+  //delay we; same delay as matched_pmpcfg and pmp_match_all;
+  always @(posedge clk_i)
+    if (!stall_i) we <= we_i;
 
 
   /* Access FAIL when:
@@ -244,14 +263,14 @@ endgenerate
    * 2. pmpcfg.l is set AND privilegel level is S or U AND pmpcfg.rwx tests fail OR
    * 3. privilegel level is S or U AND no PMPs matched AND PMPs are implemented
    */
-  assign exception_o = req_i & (~|pmp_match ? (st_prv_i != PRV_M) & (PMP_CNT > 0)          //Prv.Lvl != M-Mode, no PMP matched, but PMPs implemented -> FAIL
-                                            : ~pmp_match_all[ matched_pmp ]     |
-                                             (
-                                              ((st_prv_i != PRV_M) | matched_pmpcfg.l ) &  //pmpcfg.l set or privilege level != M-mode
-                                              ((~matched_pmpcfg.r & ~we_i           ) |    // read-access while not allowed          -> FAIL
-                                               (~matched_pmpcfg.w &  we_i           ) |    // write-access while not allowed         -> FAIL
-                                               (~matched_pmpcfg.x &  instruction_i  ) )    // instruction read, but not instruction  -> FAIL
-                                             )
-                               );
+  assign exception_o = (~|pmp_match ? (st_prv_i != PRV_M) & (PMP_CNT > 0)          //Prv.Lvl != M-Mode, no PMP matched, but PMPs implemented -> FAIL
+                                    : ~pmp_match_all[ matched_pmp ]     |
+                                     (
+                                      ((st_prv_i != PRV_M) | matched_pmpcfg.l ) &  //pmpcfg.l set or privilege level != M-mode
+                                      ((~matched_pmpcfg.r & ~we             ) |    // read-access while not allowed          -> FAIL
+                                       (~matched_pmpcfg.w &  we             ) |    // write-access while not allowed         -> FAIL
+                                       (~matched_pmpcfg.x &  instruction_i  ) )    // instruction read, but not instruction  -> FAIL
+                                     )
+                       );
 endmodule
 
