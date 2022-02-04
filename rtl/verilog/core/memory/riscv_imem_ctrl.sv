@@ -138,8 +138,7 @@ module riscv_imem_ctrl #(
   //from PMA check
   logic            pma_exception,
                    pma_misaligned;
-  logic            is_cacheable;
-  logic            pma_req;
+  logic            pma_cacheable;
 
 
   //from PMP check
@@ -162,7 +161,7 @@ module riscv_imem_ctrl #(
    */
 generate
   if (CACHE_SIZE > 0)
-  begin
+  begin : cache_blk
       /* Hookup MMU
        */
       if (HAS_MMU != 0)
@@ -179,8 +178,8 @@ generate
             .stall_i     ( stall         ),
 
             .flush_i     ( mem_flush_i   ),
-            .req_i       ( mem_req       ),
-            .adr_i       ( memu_adr      ), //virtual address
+            .req_i       ( mem_req_i     ),
+            .adr_i       ( mem_adr_i     ), //virtual address
             .size_i      ( size          ),
             .lock_i      ( lock          ),
             .we_i        ( 1'b0          ),
@@ -199,7 +198,7 @@ assign mem_pagefault_o = 1'b0;
       /* Hookup misalignment check
        */
       riscv_memmisaligned #(
-        .XLEN          ( XLEN       ),
+        .PLEN          ( PLEN       ),
         .HAS_RVC       ( HAS_RVC    ) )
       misaligned_inst (
         .clk_i         ( clk_i      ),
@@ -232,7 +231,7 @@ assign mem_pagefault_o = 1'b0;
 
             //Memory Access
             .instruction_i  ( 1'b1           ), //Instruction access
-            .adr_i          ( mmu_adr_i      ),
+            .adr_i          ( mmu_adr        ),
             .size_i         ( size           ),
             .lock_i         ( lock           ),
             .we_i           ( 1'b0           ), //Instruction bus doesn't write
@@ -314,7 +313,7 @@ assign mem_pagefault_o = 1'b0;
 	.pmp_exception_i     ( pmp_exception     ),
 
 	//from/to CPU
-        .mem_req_i           ( pma_req           ),
+        .mem_req_i           ( mem_req_i         ),
 	.mem_stall_o         ( stall             ),
         .mem_adr_i           ( mem_adr_i         ),
         .mem_flush_i         ( mem_flush_i       ),
