@@ -48,7 +48,6 @@ module riscv_pmachk #(
 
   //Memory Access
   input  logic               instruction_i, //This is an instruction access
-  input  logic               req_i,         //Memory access requested
   input  logic    [PLEN-1:0] adr_i,         //Physical Memory address (i.e. after translation)
   input  biu_size_t          size_i,        //Transfer size
   input  logic               lock_i,        //AMO : TODO: specify AMO type
