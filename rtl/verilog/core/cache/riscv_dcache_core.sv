@@ -108,6 +108,7 @@ module riscv_dcache_core #(
   output logic                    mem_ack_o,
   output logic                    mem_err_o,
   output logic                    mem_misaligned_o,
+  output logic                    mem_pagefault_o,
   input  logic [XLEN        -1:0] mem_adr_i,            //virtual address
   input  biu_size_t               mem_size_i,
   input  logic                    mem_lock_i,
@@ -398,6 +399,7 @@ endgenerate
     .ack_o                     ( mem_ack_o               ),
     .err_o                     ( mem_err_o               ),
     .misaligned_o              ( mem_misaligned_o        ),
+    .pagefault_o               ( mem_pagefault_o         ),
 
     .idx_o                     ( hit_idx                 ),
     .core_tag_o                ( hit_core_tag            ),

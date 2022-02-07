@@ -154,7 +154,6 @@ module riscv_imem_ctrl #(
   assign prot             = biu_prot_t'( PROT_INSTRUCTION                                 |
 	                                (st_prv_i == PRV_U ? PROT_USER : PROT_PRIVILEGED) );
   assign lock            = 1'b0; //no locked instruction accesses
-  assign mem_pagefault_o = 1'b0; //no MMU
 
   
   /* Hookup Cache
@@ -192,7 +191,6 @@ generate
 
             .pagefault_o ( mmu_pagefault ) );
       end
-assign mem_pagefault_o = 1'b0;
 
 
       /* Hookup misalignment check
@@ -325,6 +323,7 @@ assign mem_pagefault_o = 1'b0;
         .parcel_valid_o      ( parcel_valid_o    ),
 	.parcel_misaligned_o ( mem_misaligned_o  ),
         .parcel_error_o      ( mem_error_o       ),
+	.parcel_pagefault_o  ( mem_pagefault_o   ),
         .cache_flush_i       ( cache_flush_i     ),
         .dcflush_rdy_i       ( dcflush_rdy_i     ),
 

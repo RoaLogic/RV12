@@ -103,8 +103,6 @@ module riscv_icache_core #(
   input  logic                        pmp_exception_i,
 
   //CPU side
-  input  logic                        is_cacheable_i,       //cacheable transfer?
-  input  logic                        misaligned_i,
   input  logic                        mem_flush_i,
   input  logic                        mem_req_i,
   output logic                        mem_stall_o,
@@ -117,6 +115,7 @@ module riscv_icache_core #(
   output logic [XLEN/PARCEL_SIZE-1:0] parcel_valid_o,
   output logic                        parcel_error_o,
   output logic                        parcel_misaligned_o,
+  output logic                        parcel_pagefault_o,
   input  logic                        cache_flush_i,        //flush (invalidate) cache
   input  logic                        dcflush_rdy_i,        //data cache ready flushing
 
@@ -179,7 +178,8 @@ module riscv_icache_core #(
   //
 
   logic [              6:0] way_random; //Up to 128ways
-  logic [WAYS         -1:0] fill_way_select;
+  logic [WAYS         -1:0] fill_way_select,
+                            mem_fill_way, hit_fill_way;
   logic                     cacheflush;
 
   logic                     stall;
@@ -189,6 +189,7 @@ module riscv_icache_core #(
   biu_size_t                setup_size,          tag_size;
   logic                     setup_lock,          tag_lock;
   biu_prot_t                setup_prot,          tag_prot;
+  logic                                          tag_pagefault;
 
 
   logic [TAG_BITS     -1:0] tag_core_tag,
@@ -296,6 +297,7 @@ endgenerate
 
     .stall_i                   ( mem_stall_o             ),
     .flush_i                   ( mem_flush_i             ),
+    .pagefault_i               ( pagefault_i             ),
     .req_i                     ( setup_req               ),
     .phys_adr_i                ( phys_adr_i              ),
     .size_i                    ( setup_size              ),
@@ -313,6 +315,7 @@ endgenerate
     .we_o                      (                         ),
     .be_o                      (                         ),
     .q_o                       (                         ),
+    .pagefault_o               ( tag_pagefault           ),
     .core_tag_o                ( tag_core_tag            ) );
 
   
@@ -354,6 +357,7 @@ endgenerate
     .misaligned_i              ( pma_misaligned_i        ),
     .pma_exception_i           ( pma_exception_i         ),
     .pmp_exception_i           ( pmp_exception_i         ),
+    .pagefault_i               ( tag_pagefault           ),
 
     .idx_o                     ( hit_idx                 ),
     .core_tag_o                ( hit_core_tag            ),
@@ -382,7 +386,8 @@ endgenerate
     .parcel_o                  ( parcel_o                ),
     .parcel_valid_o            ( parcel_valid_o          ),
     .parcel_error_o            ( parcel_error_o          ),
-    .parcel_misaligned_o       ( parcel_misaligned_o     ) );
+    .parcel_misaligned_o       ( parcel_misaligned_o     ),
+    .parcel_pagefault_o        ( parcel_pagefault_o      ) );
 
 
 
