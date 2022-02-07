@@ -76,6 +76,7 @@ module riscv_cache_hit #(
   input  logic                        misaligned_i,
   input  logic                        pma_exception_i,
   input  logic                        pmp_exception_i,
+  input  logic                        pagefault_i,
 
   input  logic                        cache_hit_i,      //from cache-memory
   input  logic [BLK_BITS        -1:0] cache_line_i,
@@ -104,7 +105,8 @@ module riscv_cache_hit #(
   output logic [XLEN            -1:0] parcel_o,
   output logic [XLEN/PARCEL_SIZE-1:0] parcel_valid_o,
   output logic                        parcel_error_o,
-  output logic                        parcel_misaligned_o
+  output logic                        parcel_misaligned_o,
+  output logic                        parcel_pagefault_o
 );
 
   //////////////////////////////////////////////////////////////////
@@ -325,7 +327,7 @@ module riscv_cache_hit #(
 
 
   //signal downstream the BIU reported an error
-  assign parcel_error_o = biu_err_i | pma_exception_i | pmp_exception_i;
+  assign parcel_error_o = biu_err_i | (req_i & (pma_exception_i | pmp_exception_i));
 
 
   //Assign parcel_pc
@@ -367,6 +369,7 @@ module riscv_cache_hit #(
     biu_cache_we_unstall = req_i & biu_adro_eq_cache_adr_dly & biucmd_ack_i & |parcel_valid_o;
 
 
+  //generate misaligned
   always_comb
     unique case (memfsm_state)
       WAIT4BIUCMD0: parcel_misaligned_o = misaligned_i;
@@ -374,6 +377,9 @@ module riscv_cache_hit #(
 	                                              : (HAS_RVC != 0) ? parcel_pc_o[0] : |parcel_pc_o[1:0]; 
     endcase
 
+
+  //generate pagefault
+  assign parcel_pagefault_o = pagefault_i;
 
 endmodule
 
