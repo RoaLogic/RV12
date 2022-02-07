@@ -197,6 +197,10 @@ module riscv_dcache_hit #(
   logic                      cache_ack,
                              biu_cacheable_ack;
 
+  logic                      pma_pmp_exception;
+  logic                      valid_req;
+
+
   enum logic [2:0] {ARMED=0,
                     FLUSH,
                     NONCACHEABLE,
@@ -219,6 +223,10 @@ module riscv_dcache_hit #(
   // Module Body
   //
 
+  assign pma_pmp_exception = pma_exception_i | pmp_exception_i;
+  assign valid_req         = req_i & ~pma_pmp_exception & ~misaligned_i;
+
+
   /* State Machine
    */
   always_comb
@@ -233,12 +241,12 @@ module riscv_dcache_hit #(
                             nxt_memfsm_state = FLUSH;
                             nxt_biucmd       = BIUCMD_NOP;
                         end
-                        else if (req_i && !cacheable_i && !flush_i && !biucmd_busy_i)
+                        else if (valid_req && !cacheable_i && !flush_i && !biucmd_busy_i)
                         begin
                             nxt_memfsm_state = NONCACHEABLE;
                             nxt_biucmd       = BIUCMD_NOP;
                         end
-                        else if (req_i && cacheable_i && !cache_hit_i && !flush_i && !biucmd_busy_i)
+                        else if (valid_req && cacheable_i && !cache_hit_i && !flush_i && !biucmd_busy_i)
                         begin
                             fill_way = fill_way_i; //write to same way as we read
 
@@ -293,9 +301,9 @@ module riscv_dcache_hit #(
                             end
                         end
 
-          NONCACHEABLE: if ( flush_i                                   ||  //flushed pipe, no biu_ack's will come
-                            (!req_i && inflight_cnt_i==1 && biu_ack_i) ||  //no new request, wait for BIU to finish transfer
-                            ( req_i && cacheable_i       && biu_ack_i) )   //new cacheable request, wait for non-cacheable transfer to finish
+          NONCACHEABLE: if ( flush_i                                       ||  //flushed pipe, no biu_ack's will come
+                            (!valid_req && inflight_cnt_i==1 && biu_ack_i) ||  //no new request, wait for BIU to finish transfer
+                            ( valid_req && cacheable_i       && biu_ack_i) )   //new cacheable request, wait for non-cacheable transfer to finish
                         begin
                             nxt_memfsm_state = ARMED;
                             nxt_biucmd       = BIUCMD_NOP;
@@ -410,14 +418,14 @@ module riscv_dcache_hit #(
   /* WriteBuffer
   */
   always @(posedge clk_i, negedge rst_ni)
-    if      (!rst_ni                              ) writebuffer_we_o <= 1'b0;
-    else if ( flush_i                             ) writebuffer_we_o <= 1'b0;
-    else if ( wreq_i && cacheable_i && cache_hit_i) writebuffer_we_o <= 1'b1;
-    else if ( writebuffer_ack_i                   ) writebuffer_we_o <= 1'b0;
+    if      (!rst_ni                                           ) writebuffer_we_o <= 1'b0;
+    else if ( flush_i                                          ) writebuffer_we_o <= 1'b0;
+    else if ( valid_req && wreq_i && cacheable_i && cache_hit_i) writebuffer_we_o <= 1'b1;
+    else if ( writebuffer_ack_i                                ) writebuffer_we_o <= 1'b0;
 
 
   always @(posedge clk_i)
-    if (wreq_i && cacheable_i && cache_hit_i)
+    if (valid_req && wreq_i && cacheable_i && cache_hit_i)
     begin
         writebuffer_idx_o      <= adr_i[BLK_OFFS_BITS +: IDX_BITS];
         writebuffer_offs_o     <= dat_offset;
@@ -442,7 +450,7 @@ module riscv_dcache_hit #(
   //non-cacheable access
   always_comb
     unique case (memfsm_state)
-      ARMED       : biucmd_noncacheable_req_o = req_i & ~cacheable_i & ~flush_i;
+      ARMED       : biucmd_noncacheable_req_o = valid_req & ~cacheable_i & ~flush_i;
       default     : biucmd_noncacheable_req_o = 1'b0;
     endcase
 
@@ -452,8 +460,8 @@ module riscv_dcache_hit #(
 
 
   //acknowledge cache hit
-  assign cache_ack         =  req_i & cacheable_i & cache_hit_i & ~flush_i;
-  assign biu_cacheable_ack = (req_i & biu_ack_i & biu_adro_eq_cache_adr & ~flush_i) |
+  assign cache_ack         =  valid_req & cacheable_i & cache_hit_i & ~flush_i;
+  assign biu_cacheable_ack = (valid_req & biu_ack_i & biu_adro_eq_cache_adr & ~flush_i) |
                               cache_ack;
 
 
@@ -461,26 +469,26 @@ module riscv_dcache_hit #(
   */
   always_comb
     unique case (memfsm_state)
-      ARMED       : stall_o =  (req_i & ~cacheable_i & (~biu_stb_ack_i | biucmd_busy_i)) | //non-cacheable access
-	                       (req_i &  cacheable_i & ~cache_hit_i                    );  //cacheable access
+      ARMED       : stall_o =  (valid_req & ~cacheable_i & (~biu_stb_ack_i | biucmd_busy_i)) | //non-cacheable access
+                               (valid_req &  cacheable_i & ~cache_hit_i                    );  //cacheable access
 
       //req_i == 0 ? stall=|inflight_cnt
       //else is_cacheable ? stall=1 (wait for transition to ARMED state)
       //else                stall=!biu_ack_i
-      NONCACHEABLE: stall_o = ~req_i ? |inflight_cnt_i
-                                     :  cacheable_i |
-                                      (~cacheable_i & biu_ack_i); //=is_cacheble | biu_ack_i
+      NONCACHEABLE: stall_o = ~valid_req ? |inflight_cnt_i
+                                         :  cacheable_i |
+                                          (~cacheable_i & biu_ack_i); //=is_cacheble | biu_ack_i
 
       //TODO: Add in_biubuffer
       WAIT4BIUCMD0: stall_o = ~( biu_cacheable_ack |
-                                 (req_i & cache_hit_i)
+                                 (valid_req & cache_hit_i)
 	                       );
 
       EVICT       : stall_o = ~( biu_cacheable_ack |
-                                 (req_i & cache_hit_i)
+                                 (valid_req & cache_hit_i)
                                );
 
-      RECOVER     : stall_o = ~(req_i & cache_hit_i);
+      RECOVER     : stall_o = ~(valid_req & cache_hit_i);
       default     : stall_o = 1'b0;
     endcase
 
@@ -503,7 +511,7 @@ module riscv_dcache_hit #(
 
   //generate access error (load/store access exception)
   always @(posedge clk_i)
-    err_o <= biu_err_i | pma_exception_i | pmp_exception_i;
+    err_o <= biu_err_i | (req_i & pma_pmp_exception);
 
 
   //generate misaligned (misaligned load/store exception)
