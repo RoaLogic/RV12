@@ -48,6 +48,7 @@ module riscv_pmachk #(
 
   //Memory Access
   input  logic               instruction_i, //This is an instruction access
+  input  logic               req_i,         //Memory access requested
   input  logic    [PLEN-1:0] adr_i,         //Physical Memory address (i.e. after translation)
   input  biu_size_t          size_i,        //Transfer size
   input  logic               lock_i,        //AMO : TODO: specify AMO type
@@ -271,17 +272,14 @@ generate
 
       //match
       assign pma_match    [i] = match_any(access_lb[PLEN-1:2], access_ub[PLEN-1:2], pma_lb[i], pma_ub[i]) & (pmacfg[i].a != OFF);
-      assign pma_match_all[i] = match_all(access_lb[PLEN-1:2], access_ub[PLEN-1:2], pma_lb[i], pma_ub[i]) & (pmacfg[i].a != OFF);
+//      assign pma_match_all[i] = match_all(access_lb[PLEN-1:2], access_ub[PLEN-1:2], pma_lb[i], pma_ub[i]) & (pmacfg[i].a != OFF);
+
+      always @(posedge clk_i)
+        if (!stall_i) pma_match_all[i] <= match_all(access_lb[PLEN-1:2], access_ub[PLEN-1:2], pma_lb[i], pma_ub[i]) & (pmacfg[i].a != OFF);
   end
 endgenerate
 
-//TODO: Where to insert register
-//for now pick matched_pma_idx
-
-//  assign matched_pma_idx = highest_priority_match(pma_match_all);
-  always @(posedge clk_i)
-    if (!stall_i) matched_pma_idx <= highest_priority_match(pma_match_all);
-
+  assign matched_pma_idx = highest_priority_match(pma_match_all);
   assign matched_pma     = pmacfg[ matched_pma_idx ];
 
 
