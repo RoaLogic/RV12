@@ -34,7 +34,6 @@ module riscv_memmisaligned #(
   parameter HAS_RVC = 0
 )
 (
-  input  logic              rst_ni,
   input  logic              clk_i,
   input  logic              stall_i,
 
