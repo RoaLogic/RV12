@@ -332,7 +332,8 @@ generate
         .SIZE              ( CACHE_SIZE        ),
         .BLOCK_SIZE        ( CACHE_BLOCK_SIZE  ),
         .WAYS              ( CACHE_WAYS        ),
-        .TECHNOLOGY        ( TECHNOLOGY        ) )
+        .TECHNOLOGY        ( TECHNOLOGY        ),
+        .BIUTAG_SIZE       ( BIUTAG_SIZE       ) )
       dcache_inst (
         //common signals
         .rst_ni            ( rst_ni            ),
