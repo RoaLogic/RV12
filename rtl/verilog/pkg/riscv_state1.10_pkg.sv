@@ -127,7 +127,7 @@ package riscv_state_pkg;
 
   
   //CSR mapping
-  parameter [11:0] //User
+  localparam[11:0] //User
                    //User Trap Setup
                    USTATUS       = 'h000,
                    UIE           = 'h004,
@@ -248,20 +248,20 @@ package riscv_state_pkg;
                    DSCRATCH      = 'h7B2;
 
   //MXL mapping
-  parameter [ 1:0] RV32I  = 2'b01,
+  localparam[ 1:0] RV32I  = 2'b01,
                    RV32E  = 2'b01,
                    RV64I  = 2'b10,
                    RV128I = 2'b11;
 
 
   //Privilege levels
-  parameter [ 1:0] PRV_M = 2'b11,
+  localparam[ 1:0] PRV_M = 2'b11,
                    PRV_H = 2'b10,
                    PRV_S = 2'b01,
                    PRV_U = 2'b00;
 
   //Virtualisation
-  parameter [ 3:0] VM_MBARE = 4'd0,
+  localparam[ 3:0] VM_MBARE = 4'd0,
                    VM_SV32  = 4'd1,
                    VM_SV39  = 4'd8,
                    VM_SV48  = 4'd9,
@@ -269,7 +269,7 @@ package riscv_state_pkg;
                    VM_SV64  = 4'd11;
 
   //MIE MIP
-  parameter        MEI = 11,
+  localparam       MEI = 11,
                    HEI = 10,
                    SEI = 9,
                    UEI = 8,
@@ -283,7 +283,7 @@ package riscv_state_pkg;
                    USI = 0;
 
   //Performance counters
-  parameter        CY = 0,
+  localparam       CY = 0,
                    TM = 1,
                    IR = 2;
 
@@ -324,9 +324,9 @@ package riscv_state_pkg;
   } interrupts_exceptions_t;
 
 
-  parameter        EXCEPTION_SIZE                 = 16;
+  localparam       EXCEPTION_SIZE                 = 16;
 
-  parameter        CAUSE_MISALIGNED_INSTRUCTION   = 0,
+  localparam       CAUSE_MISALIGNED_INSTRUCTION   = 0,
                    CAUSE_INSTRUCTION_ACCESS_FAULT = 1,
                    CAUSE_ILLEGAL_INSTRUCTION      = 2,
                    CAUSE_BREAKPOINT               = 3,
@@ -342,7 +342,7 @@ package riscv_state_pkg;
                    CAUSE_LOAD_PAGE_FAULT          = 13,
                    CAUSE_STORE_PAGE_FAULT         = 15;
 
-  parameter        CAUSE_USINT                    = 0,
+  localparam       CAUSE_USINT                    = 0,
                    CAUSE_SSINT                    = 1,
                    CAUSE_HSINT                    = 2,
                    CAUSE_MSINT                    = 3,
