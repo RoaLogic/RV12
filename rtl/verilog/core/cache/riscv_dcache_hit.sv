@@ -66,6 +66,11 @@ module riscv_dcache_hit #(
   input  logic [WAYS            -1:0] fill_way_i,
   output logic [WAYS            -1:0] fill_way_o,
 
+  input  logic                        cacheable_i,
+  input  logic                        misaligned_i,
+  input  logic                        pma_exception_i,
+  input  logic                        pmp_exception_i,
+  input  logic                        pagefault_i,
   input  logic                        req_i,             //from previous-stage
   input  logic                        wreq_i,
   input  logic [PLEN            -1:0] adr_i,
@@ -79,11 +84,8 @@ module riscv_dcache_hit #(
   output logic                        ack_o,
   output logic                        err_o,
   output logic                        misaligned_o,
-  input  logic                        cacheable_i,
-  input  logic                        misaligned_i,
-  input  logic                        pma_exception_i,
-  input  logic                        pmp_exception_i,
-
+  output logic                        pagefault_o,
+  
   //To/From Cache Memories
   input  logic                        cache_hit_i,       //from cache-memory
   input  logic [WAYS            -1:0] ways_hit_i,
@@ -224,7 +226,7 @@ module riscv_dcache_hit #(
   //
 
   assign pma_pmp_exception = pma_exception_i | pmp_exception_i;
-  assign valid_req         = req_i & ~pma_pmp_exception & ~misaligned_i;
+  assign valid_req         = req_i & ~pma_pmp_exception & ~misaligned_i & ~pagefault_i;
 
 
   /* State Machine
@@ -510,17 +512,20 @@ module riscv_dcache_hit #(
 
 
   //generate access error (load/store access exception)
-  always @(posedge clk_i)
-    err_o <= biu_err_i | (req_i & pma_pmp_exception);
+  always @(posedge clk_i) err_o <= biu_err_i | (req_i & pma_pmp_exception);
 
 
   //generate misaligned (misaligned load/store exception)
-  always @(posedge clk_i)
-    misaligned_o <= req_i & misaligned_i;
-  
+  always @(posedge clk_i) misaligned_o <= req_i & misaligned_i;
+
+
+  //generate Page Fault
+  always @(posedge clk_i) pagefault_o <= pagefault_i;
+
 
   //Bypass on writebuffer_we?
   assign bypass_writebuffer_we = writebuffer_we_o & (idx_o == writebuffer_idx_o);
+  
 
   //Shift amount for data
   assign dat_offset = adr_i[BLK_OFFS_BITS-1 -: DAT_OFFS_BITS];

@@ -233,7 +233,6 @@ generate
 
             .pagefault_o ( mmu_pagefault  ) );
       end
-assign mem_pagefault_o = 1'b0;
 
 
       /* Hookup misalignment check
@@ -356,8 +355,6 @@ assign mem_pagefault_o = 1'b0;
         //from/to CPU
         .mem_req_i         ( queue_req         ),
         .mem_ack_o         ( mem_ack_o         ),
-        .mem_err_o         ( mem_err_o         ),
-	.mem_misaligned_o  ( mem_misaligned_o  ),
         .mem_adr_i         ( queue_adr         ), //virtual address
         .mem_flush_i       ( 1'b0              ),
         .mem_size_i        ( queue_size        ),
@@ -366,6 +363,9 @@ assign mem_pagefault_o = 1'b0;
         .mem_we_i          ( queue_we          ),
         .mem_d_i           ( queue_d           ),
         .mem_q_o           ( mem_q_o           ),
+        .mem_err_o         ( mem_err_o         ),
+	.mem_misaligned_o  ( mem_misaligned_o  ),
+        .mem_pagefault_o   ( mem_pagefault_o   ),
         .cache_flush_i     ( cache_flush_i     ),
         .cache_flush_rdy_o ( cache_flush_rdy_o ),
 

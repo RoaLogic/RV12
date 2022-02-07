@@ -339,6 +339,7 @@ endgenerate
     .prot_i                    ( setup_prot              ),
     .we_i                      ( setup_we                ),
     .d_i                       ( setup_q                 ),
+    .pagefault_i               ( pagefault_i             ), //aligned with phys_adr_i
 
     .req_o                     ( tag_req                 ),
     .wreq_o                    ( tag_wreq                ),
@@ -349,6 +350,7 @@ endgenerate
     .we_o                      ( tag_we                  ),
     .be_o                      ( tag_be                  ),
     .q_o                       ( tag_q                   ),
+    .pagefault_o               ( tag_pagefault           ),
     .core_tag_o                ( tag_core_tag            ) );
 
   
@@ -378,6 +380,11 @@ endgenerate
     .fill_way_i                ( mem_fill_way            ),
     .fill_way_o                ( hit_fill_way            ),
 
+    .cacheable_i               ( pma_cacheable_i         ),
+    .misaligned_i              ( pma_misaligned_i        ),
+    .pma_exception_i           ( pma_exception_i         ),
+    .pmp_exception_i           ( pmp_exception_i         ),
+    .pagefault_i               ( tag_pagefault           ),
     .req_i                     ( tag_req                 ),
     .wreq_i                    ( tag_wreq                ),
     .adr_i                     ( tag_adr                 ),
@@ -391,10 +398,6 @@ endgenerate
     .ack_o                     ( mem_ack_o               ),
     .err_o                     ( mem_err_o               ),
     .misaligned_o              ( mem_misaligned_o        ),
-    .cacheable_i               ( pma_cacheable_i         ),
-    .misaligned_i              ( pma_misaligned_i        ),
-    .pma_exception_i           ( pma_exception_i         ),
-    .pmp_exception_i           ( pmp_exception_i         ),
 
     .idx_o                     ( hit_idx                 ),
     .core_tag_o                ( hit_core_tag            ),
