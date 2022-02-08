@@ -116,13 +116,14 @@ module riscv_cache_tag #(
   always @(posedge clk_i)
     if (!stall_i)
     begin
-        adr_o           <= phys_adr_i;
-        size_o          <= size_i;
-        lock_o          <= lock_i;
-        prot_o          <= prot_i;
-        we_o            <= we_i;
-        be_o            <= size2be(size_i, phys_adr_i);
-        q_o             <= d_i;
+        adr_o       <= phys_adr_i;
+        size_o      <= size_i;
+        lock_o      <= lock_i;
+        prot_o      <= prot_i;
+        we_o        <= we_i;
+        be_o        <= size2be(size_i, phys_adr_i);
+        q_o         <= d_i;
+        pagefault_o <= pagefault_i;
     end
 
 
