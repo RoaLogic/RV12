@@ -106,7 +106,7 @@ module riscv_pd #(
   logic             branch_taken,
                     stalled_branch;
 
-  logic             local_stall;
+  logic [      1:0] local_stall;
 
 
   ////////////////////////////////////////////////////////////////
@@ -120,22 +120,26 @@ module riscv_pd #(
 
   //Stall when write-CSR
   //This can be more advanced, but who cares ... this is not critical
+  //Two cycle stall to ensure data is written into CSR before it can be read
   always @(posedge clk_i, negedge rst_ni)
-    if      (!rst_ni     ) local_stall <= 1'b0;
-    else if ( local_stall) local_stall <= 1'b0;
+    if      (!rst_ni     ) local_stall <= 2'h0;
+    else if ( local_stall[1]) local_stall <= 2'h0;
     else if (!id_stall_i )
+    begin
       casex ( decode_opcR(if_insn_i.instr) )
-          CSRRW  : local_stall <= ~if_insn_i.bubble;
-          CSRRWI : local_stall <= ~if_insn_i.bubble;
-          CSRRS  : local_stall <= ~if_insn_i.bubble & |decode_rs1 (if_insn_i.instr);
-          CSRRSI : local_stall <= ~if_insn_i.bubble & |decode_immI(if_insn_i.instr);
-          CSRRC  : local_stall <= ~if_insn_i.bubble & |decode_rs1 (if_insn_i.instr);
-          CSRRCI : local_stall <= ~if_insn_i.bubble & |decode_immI(if_insn_i.instr);
-          default: local_stall <= 1'b0;
+          CSRRW  : local_stall[0] <= ~if_insn_i.bubble;
+          CSRRWI : local_stall[0] <= ~if_insn_i.bubble;
+          CSRRS  : local_stall[0] <= ~if_insn_i.bubble & |decode_rs1 (if_insn_i.instr);
+          CSRRSI : local_stall[0] <= ~if_insn_i.bubble & |decode_immI(if_insn_i.instr);
+          CSRRC  : local_stall[0] <= ~if_insn_i.bubble & |decode_rs1 (if_insn_i.instr);
+          CSRRCI : local_stall[0] <= ~if_insn_i.bubble & |decode_immI(if_insn_i.instr);
+          default: local_stall[0] <= 1'b0;
       endcase
 
+      local_stall[1] <= local_stall[0];
+    end
 
-  assign pd_stall_o = id_stall_i | local_stall;
+  assign pd_stall_o = id_stall_i | |local_stall;
 
 
   /*

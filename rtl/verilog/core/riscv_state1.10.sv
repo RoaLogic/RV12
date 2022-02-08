@@ -438,8 +438,7 @@ module riscv_state1_10 #(
 
   //output CSR read value; bypass a write
   always @(posedge clk_i)
-    if (!id_stall_i) st_csr_rval_o <= csr_raddr == ex_csr_reg_i && ex_csr_we_i ? ex_csr_wval_i : csr_rval;
-
+    if (!id_stall_i) st_csr_rval_o <= csr_rval;
 
   always @(posedge clk_i)
     du_csr_rval_o <= csr_rval;
