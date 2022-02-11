@@ -180,17 +180,16 @@ module riscv_icache_core #(
   logic [              6:0] way_random; //Up to 128ways
   logic [WAYS         -1:0] fill_way_select,
                             mem_fill_way, hit_fill_way;
-  logic                     cacheflush;
 
   logic                     stall;
 
-  logic                     setup_req,           tag_req;
-  logic [PLEN         -1:0]                      tag_adr; 
-  biu_size_t                setup_size,          tag_size;
-  logic                     setup_lock,          tag_lock;
-  biu_prot_t                setup_prot,          tag_prot;
-  logic                                          tag_pagefault;
-
+  logic                     setup_req,        tag_req;
+  logic [PLEN         -1:0]                   tag_adr;
+  biu_size_t                setup_size,       tag_size;
+  logic                     setup_lock,       tag_lock;
+  biu_prot_t                setup_prot,       tag_prot;
+  logic                     setup_cacheflush, tag_cacheflush;
+  logic                                       tag_pagefault;
 
   logic [TAG_BITS     -1:0] tag_core_tag,
                             hit_core_tag;
@@ -238,13 +237,6 @@ generate
   if (WAYS == 1) assign fill_way_select = 1;
   else           assign fill_way_select = 1 << way_random[$clog2(WAYS)-1:0];
 endgenerate
-  
-
-  //hold flush until ready to be serviced
-  always @(posedge clk_i, negedge rst_ni)
-    if (!rst_ni) cacheflush <= 1'b0;
-    else         cacheflush <= cache_flush_i | (cacheflush & ~flushing);
-
 
 
   /* Address Setup Stage
@@ -269,6 +261,7 @@ endgenerate
     .prot_i                    ( mem_prot_i              ),
     .we_i                      ( 1'b0                    ),
     .d_i                       ( {XLEN{1'b0}}            ),
+    .cacheflush_i              ( cache_flush_i           ),
 
     .req_o                     ( setup_req               ),
     .rreq_o                    (                         ),
@@ -277,7 +270,8 @@ endgenerate
     .prot_o                    ( setup_prot              ),
     .we_o                      (                         ),
     .q_o                       (                         ),
-
+    .cacheflush_o              ( setup_cacheflush        ),
+ 
     .idx_o                     ( setup_idx               ) );
 
 
@@ -305,6 +299,7 @@ endgenerate
     .prot_i                    ( setup_prot              ),
     .we_i                      ( 1'b0                    ),
     .d_i                       ( {XLEN{1'b0}}            ),
+    .cacheflush_i              ( setup_cacheflush        ),
 
     .req_o                     ( tag_req                 ),
     .wreq_o                    (                         ),
@@ -315,6 +310,7 @@ endgenerate
     .we_o                      (                         ),
     .be_o                      (                         ),
     .q_o                       (                         ),
+    .cacheflush_o              ( tag_cacheflush          ),
     .pagefault_o               ( tag_pagefault           ),
     .core_tag_o                ( tag_core_tag            ) );
 
@@ -340,7 +336,7 @@ endgenerate
     .stall_o                   ( mem_stall_o             ),
     .flush_i                   ( mem_flush_i             ),
 
-    .cacheflush_req_i          ( cacheflush              ),
+    .cacheflush_req_i          ( tag_cacheflush          ),
     .dcflush_rdy_i             ( dcflush_rdy_i           ),
     .armed_o                   ( armed                   ),
     .flushing_o                ( flushing                ),
@@ -436,7 +432,7 @@ endgenerate
 
     .hit_o                     ( cache_hit               ),
     .ways_hit_o                (                         ),
-    .dirty_o                   (                         ),
+    .cache_dirty_o             (                         ),
     .way_dirty_o               (                         ),
     .ways_dirty_o              (                         ),
     .cache_line_o              ( cache_line              ) );
