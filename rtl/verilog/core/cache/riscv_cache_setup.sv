@@ -31,39 +31,41 @@ import riscv_cache_pkg::*;
 import biu_constants_pkg::*;
 
 module riscv_cache_setup #(
-  parameter                        XLEN          = 32,
-  parameter                        SIZE          = 64, 
-  parameter                        BLOCK_SIZE    = XLEN,
-  parameter                        WAYS          = 2,
+  parameter                    XLEN          = 32,
+  parameter                    SIZE          = 64,
+  parameter                    BLOCK_SIZE    = XLEN,
+  parameter                    WAYS          = 2,
 
-  localparam                       SETS          = no_of_sets             (SIZE, BLOCK_SIZE, WAYS       ),
-  localparam                       BLK_OFFS_BITS = no_of_block_offset_bits(BLOCK_SIZE                   ),
-  localparam                       IDX_BITS      = no_of_index_bits       (SETS                         )
+  localparam                   SETS          = no_of_sets             (SIZE, BLOCK_SIZE, WAYS       ),
+  localparam                   BLK_OFFS_BITS = no_of_block_offset_bits(BLOCK_SIZE                   ),
+  localparam                   IDX_BITS      = no_of_index_bits       (SETS                         )
 )
 (
-  input  logic                     rst_ni,
-  input  logic                     clk_i,
+  input  logic                 rst_ni,
+  input  logic                 clk_i,
 
-  input  logic                     stall_i,
+  input  logic                 stall_i,
   
-  input  logic                     flush_i,
-  input  logic                     req_i,
-  input  logic [XLEN         -1:0] adr_i,   //virtualy index, physically tagged
-  input  biu_size_t                size_i,
-  input  logic                     lock_i,
-  input  biu_prot_t                prot_i,
-  input  logic                     we_i,
-  input  logic [XLEN         -1:0] d_i,
+  input  logic                 flush_i,
+  input  logic                 req_i,
+  input  logic [XLEN     -1:0] adr_i,   //virtualy index, physically tagged
+  input  biu_size_t            size_i,
+  input  logic                 lock_i,
+  input  biu_prot_t            prot_i,
+  input  logic                 we_i,
+  input  logic [XLEN     -1:0] d_i,
+  input  logic                 cacheflush_i,
 
-  output logic                     req_o,
-  output logic                     rreq_o,
-  output biu_size_t                size_o,
-  output logic                     lock_o,
-  output biu_prot_t                prot_o,
-  output logic                     we_o,
-  output logic [XLEN         -1:0] q_o,
+  output logic                 req_o,
+  output logic                 rreq_o,
+  output biu_size_t            size_o,
+  output logic                 lock_o,
+  output biu_prot_t            prot_o,
+  output logic                 we_o,
+  output logic [XLEN     -1:0] q_o,
+  output logic                 cacheflush_o,
 
-  output logic [IDX_BITS     -1:0] idx_o
+  output logic [IDX_BITS -1:0] idx_o
 );
 
   //////////////////////////////////////////////////////////////////
@@ -101,11 +103,12 @@ module riscv_cache_setup #(
   always @(posedge clk_i)
     if (!stall_i)
     begin
-        size_o          <= size_i;
-        lock_o          <= lock_i;
-        prot_o          <= prot_i;
-        we_o            <= we_i;
-        q_o             <= d_i;
+        size_o       <= size_i;
+        lock_o       <= lock_i;
+        prot_o       <= prot_i;
+        we_o         <= we_i;
+        q_o          <= d_i;
+	cacheflush_o <= cacheflush_i;
     end
 
 
