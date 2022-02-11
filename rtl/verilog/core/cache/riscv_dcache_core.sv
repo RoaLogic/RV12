@@ -192,19 +192,18 @@ module riscv_dcache_core #(
   logic [              6:0] way_random; //Up to 128ways
   logic [WAYS         -1:0] fill_way_select,
                             mem_fill_way, hit_fill_way;
-  logic                     cache_flush;
 
-  logic                     setup_req,           tag_req,
-                            setup_rreq,          tag_wreq;
-  logic [PLEN         -1:0]                      tag_adr; 
-  biu_size_t                setup_size,          tag_size;
-  logic                     setup_lock,          tag_lock;
-  biu_prot_t                setup_prot,          tag_prot;
-  logic                     setup_we,            tag_we;
-  logic [XLEN         -1:0] setup_q,             tag_q;
-  logic                                          tag_pagefault;
-  logic [XLEN/8       -1:0]                      tag_be;
-
+  logic                     setup_req,        tag_req,
+                            setup_rreq,       tag_wreq;
+  logic [PLEN         -1:0]                   tag_adr;
+  biu_size_t                setup_size,       tag_size;
+  logic                     setup_lock,       tag_lock;
+  biu_prot_t                setup_prot,       tag_prot;
+  logic                     setup_we,         tag_we;
+  logic [XLEN         -1:0] setup_q,          tag_q;
+  logic                     setup_cacheflush, tag_cacheflush;
+  logic                                       tag_pagefault;
+  logic [XLEN/8       -1:0]                   tag_be;
 
   logic                     writebuffer_we;
   logic [IDX_BITS     -1:0] writebuffer_idx;
@@ -273,13 +272,6 @@ generate
   if (WAYS == 1) assign fill_way_select = 1;
   else           assign fill_way_select = 1 << way_random[$clog2(WAYS)-1:0];
 endgenerate
-  
-
-  //hold flush until ready to be serviced
-  always @(posedge clk_i, negedge rst_ni)
-    if (!rst_ni) cache_flush <= 1'b0;
-    else         cache_flush <= cache_flush_i | (cache_flush & ~flushing);
-
 
 
   /* Address Setup Stage
@@ -304,6 +296,7 @@ endgenerate
     .prot_i                    ( mem_prot_i              ),
     .we_i                      ( mem_we_i                ),
     .d_i                       ( mem_d_i                 ),
+    .cacheflush_i              ( cache_flush_i           ),
 
     .req_o                     ( setup_req               ),
     .rreq_o                    ( setup_rreq              ),
@@ -312,6 +305,7 @@ endgenerate
     .prot_o                    ( setup_prot              ),
     .we_o                      ( setup_we                ),
     .q_o                       ( setup_q                 ),
+    .cacheflush_o              ( setup_cacheflush        ),
 
     .idx_o                     ( setup_idx               ) );
 
@@ -340,6 +334,7 @@ endgenerate
     .prot_i                    ( setup_prot              ),
     .we_i                      ( setup_we                ),
     .d_i                       ( setup_q                 ),
+    .cacheflush_i              ( setup_cacheflush        ),
     .pagefault_i               ( pagefault_i             ), //aligned with phys_adr_i
 
     .req_o                     ( tag_req                 ),
@@ -351,6 +346,7 @@ endgenerate
     .we_o                      ( tag_we                  ),
     .be_o                      ( tag_be                  ),
     .q_o                       ( tag_q                   ),
+    .cacheflush_o              ( tag_cacheflush          ),
     .pagefault_o               ( tag_pagefault           ),
     .core_tag_o                ( tag_core_tag            ) );
 
@@ -373,7 +369,7 @@ endgenerate
     .stall_o                   ( stall_o                 ),
     .flush_i                   ( mem_flush_i             ),
 
-    .cacheflush_req_i          ( cache_flush             ),
+    .cacheflush_req_i          ( tag_cacheflush          ),
     .cacheflush_rdy_o          ( cache_flush_rdy_o       ),
     .armed_o                   ( armed                   ),
     .flushing_o                ( flushing                ),
@@ -485,8 +481,8 @@ endgenerate
 
     .hit_o                     ( cache_hit               ),
     .ways_hit_o                ( ways_hit                ),
-    .dirty_o                   ( cache_dirty             ),
-    .way_dirty_o               ( way_dirty               ),
+    .cache_dirty_o             ( cache_dirty             ), //cache has dirty lines
+    .way_dirty_o               ( way_dirty               ), //selected way is dirty (for evict)
     .ways_dirty_o              ( ways_dirty              ),
     .cache_line_o              ( cache_line              ) );
 
