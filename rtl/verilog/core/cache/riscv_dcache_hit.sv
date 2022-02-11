@@ -191,14 +191,11 @@ module riscv_dcache_hit #(
   //
   // Variables
   //
-
-
-  /* Memory Interface State Machine Section
-   */
   logic [XLEN          -1:0] cache_q;
   logic                      cache_ack,
                              biu_cacheable_ack;
 
+  logic                      cacheflush;
   logic                      pma_pmp_exception;
   logic                      valid_req;
 
@@ -229,6 +226,12 @@ module riscv_dcache_hit #(
   assign valid_req         = req_i & ~pma_pmp_exception & ~misaligned_i & ~pagefault_i;
 
 
+  //hold flush until ready to be serviced
+  always @(posedge clk_i, negedge rst_ni)
+    if (!rst_ni) cacheflush <= 1'b0;
+    else         cacheflush <= cacheflush_req_i | (cacheflush & ~flushing_o);
+
+
   /* State Machine
    */
   always_comb
@@ -238,7 +241,7 @@ module riscv_dcache_hit #(
       fill_way         = fill_way_o;
 
       unique case (memfsm_state)
-         ARMED        : if (cacheflush_req_i && !we_i)
+         ARMED        : if (cacheflush && !writebuffer_we_o)
                         begin
                             nxt_memfsm_state = FLUSH;
                             nxt_biucmd       = BIUCMD_NOP;
@@ -471,8 +474,9 @@ module riscv_dcache_hit #(
   */
   always_comb
     unique case (memfsm_state)
-      ARMED       : stall_o =  (valid_req & ~cacheable_i & (~biu_stb_ack_i | biucmd_busy_i)) | //non-cacheable access
-                               (valid_req &  cacheable_i & ~cache_hit_i                    );  //cacheable access
+      ARMED       : stall_o = cacheflush                                                   | //cacheflush pending
+                             (valid_req & ~cacheable_i & (~biu_stb_ack_i | biucmd_busy_i)) | //non-cacheable access
+                             (valid_req &  cacheable_i & ~cache_hit_i                    );  //cacheable access
 
       //req_i == 0 ? stall=|inflight_cnt
       //else is_cacheable ? stall=1 (wait for transition to ARMED state)

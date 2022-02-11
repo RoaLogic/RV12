@@ -173,16 +173,11 @@ module riscv_cache_hit #(
   //
   // Variables
   //
-
-
-  /* Memory Interface State Machine Section
-   */
   logic [XLEN          -1:0] cache_q;
-  logic                      cache_ack,
-                             biu_cacheable_ack;
-
+  logic                      cache_ack;
+  logic                      biu_cacheable_ack;
   logic                      biu_cache_we_unstall;
-
+  logic                      cacheflush;
 
   enum logic [2:0] {ARMED=0,
                     FLUSH,
@@ -201,6 +196,12 @@ module riscv_cache_hit #(
   // Module Body
   //
 
+  //hold flush until ready to be serviced
+  always @(posedge clk_i, negedge rst_ni)
+    if (!rst_ni) cacheflush <= 1'b0;
+    else         cacheflush <= cacheflush_req_i | (cacheflush & ~flushing_o);
+
+
   //State Machine
   always @(posedge clk_i, negedge rst_ni)
     if (!rst_ni)
@@ -214,7 +215,7 @@ module riscv_cache_hit #(
     end
     else
     unique case (memfsm_state)
-       ARMED        : if (cacheflush_req_i)
+       ARMED        : if (cacheflush)
                       begin
                           memfsm_state <= FLUSH;
                           armed_o      <= 1'b0;
