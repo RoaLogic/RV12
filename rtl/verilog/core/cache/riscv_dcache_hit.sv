@@ -105,6 +105,7 @@ module riscv_dcache_hit #(
   output logic [WAYS            -1:0] writebuffer_ways_hit_o,
 
   //EvictBuffer
+  input  logic [IDX_BITS        -1:0] evict_idx_i,
   input  logic [TAG_BITS        -1:0] evict_tag_i,
   input  logic [BLK_BITS        -1:0] evict_line_i,
   output logic [PLEN            -1:0] evictbuffer_adr_o,
@@ -303,6 +304,11 @@ module riscv_dcache_hit #(
                                     nxt_memfsm_state = FLUSH;
                                     nxt_biucmd       = BIUCMD_NOP;
                                 end
+                                else
+                                begin
+                                    nxt_memfsm_state = RECOVER;
+                                    nxt_biucmd       = BIUCMD_NOP;
+                                end
                             end
                         end
 
@@ -443,9 +449,10 @@ module riscv_dcache_hit #(
   /* EvictBuffer
    */
   always @(posedge clk_i)
-    if (memfsm_state == ARMED)
+    if (memfsm_state == ARMED ||
+        memfsm_state == FLUSHWAYS )
     begin
-        evictbuffer_adr_o  <= { evict_tag_i, idx_o, {BLK_OFFS_BITS{1'b0}} };
+        evictbuffer_adr_o  <= { evict_tag_i, evict_idx_i, {BLK_OFFS_BITS{1'b0}} };
         evictbuffer_line_o <= evict_line_i;
     end
 

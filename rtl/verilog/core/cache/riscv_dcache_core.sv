@@ -227,6 +227,7 @@ module riscv_dcache_core #(
   logic [BLK_BITS     -1:0] cache_line;
 
 
+  logic [IDX_BITS     -1:0] evict_idx;
   logic [TAG_BITS     -1:0] evict_tag;
   logic [BLK_BITS     -1:0] evict_line;
   logic [PLEN         -1:0] evictbuffer_adr;
@@ -414,6 +415,7 @@ endgenerate
     .writebuffer_be_o          ( writebuffer_be          ),
     .writebuffer_ways_hit_o    ( writebuffer_ways_hit    ),
 
+    .evict_idx_i               ( evict_idx               ),
     .evict_tag_i               ( evict_tag               ),
     .evict_line_i              ( evict_line              ),
     .evictbuffer_adr_o         ( evictbuffer_adr         ),
@@ -472,6 +474,7 @@ endgenerate
     .writebuffer_data_i        ( writebuffer_data        ),
     .writebuffer_ways_hit_i    ( writebuffer_ways_hit    ),
 
+    .evict_idx_o               ( evict_idx               ),
     .evict_tag_o               ( evict_tag               ),
     .evict_line_o              ( evict_line              ),
 

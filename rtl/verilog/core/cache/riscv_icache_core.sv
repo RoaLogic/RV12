@@ -423,6 +423,7 @@ endgenerate
     .writebuffer_data_i        ( {XLEN         {1'b0}}   ),
     .writebuffer_ways_hit_i    ( {WAYS         {1'b0}}   ),
 
+    .evict_idx_o               (                         ),
     .evict_tag_o               (                         ),
     .evict_line_o              (                         ),
 

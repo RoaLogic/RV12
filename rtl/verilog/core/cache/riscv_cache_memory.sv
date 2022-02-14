@@ -82,12 +82,13 @@ module riscv_cache_memory #(
   input  logic                     biu_line_dirty_i,
   input  logic                     biucmd_ack_i,
 
+  output logic [IDX_BITS     -1:0] evict_idx_o,
   output logic [TAG_BITS     -1:0] evict_tag_o,
   output logic [BLK_BITS     -1:0] evict_line_o,
 
   output logic                     hit_o,             //cache-hit
   output logic [WAYS         -1:0] ways_hit_o,        //list of hit ways
-  output logic                     dirty_o,           //(at least) one way is dirty
+  output logic                     cache_dirty_o,     //(at least) one way is dirty
   output logic [WAYS         -1:0] ways_dirty_o,      //list of dirty ways
   output logic                     way_dirty_o,       //the selected way is dirty
   output logic [BLK_BITS     -1:0] cache_line_o       //Cacheline
@@ -112,7 +113,7 @@ module riscv_cache_memory #(
   //
 
   //Convert OneHot to integer value
-  function automatic integer onehot2int;
+  function automatic int onehot2int;
     input [WAYS-1:0] a;
 
     integer i;
@@ -136,6 +137,15 @@ module riscv_cache_memory #(
   endfunction: be_mux
 
 
+  //Find first one in dirty_ways (LSB first)
+  function automatic int first_dirty_way;
+    input [WAYS-1:0][SETS-1:0] valid, dirty;
+
+    for (int n=0; n < WAYS*SETS; n++)
+      if (valid[n] & dirty[n]) return n;
+  endfunction: first_dirty_way
+
+
   //////////////////////////////////////////////////////////////////
   //
   // Variables
@@ -147,12 +157,16 @@ module riscv_cache_memory #(
                                      we_dly;
 
 
-  logic [WAYS        -1:0]           fill_way_select_dly;
+  logic [WAYS        -1:0]           fill_way_select_dly,
+                                     way_flushing,            //way currently flushing
+                                     way_flushing_dly;        //delayed way currently flushing, same delay as through memory
   logic [$clog2(WAYS)-1:0]           evict_way_select_int;    //integer version of fill_way_select_dly
 
   logic [IDX_BITS    -1:0]           byp_idx,                 //Bypass index (for RAW hazard)
                                      rd_idx_dly,              //delay idx, same delay as through memory
-                                     idx_filling;             //index for filling
+                                     idx_filling,             //index for/currently filling
+                                     idx_flushing,            //index for/currently flushing
+                                     idx_flushing_dly;        //delayed flusing idx, same delay as through memory
   logic [TAG_BITS    -1:0]           rd_core_tag_dly,         //delay core_tag, same delay as through memory
                                      tag_filling;             //TAG for filling
   logic                              byp_valid,               //bypass(es) valid
@@ -220,6 +234,18 @@ module riscv_cache_memory #(
     end
 
 
+  //Index during flushing
+  always @(posedge clk_i)
+  begin
+      idx_flushing <= first_dirty_way(tag_valid, tag_dirty) % SETS; //from vector-int to index
+      way_flushing <= first_dirty_way(tag_valid, tag_dirty) / SETS; //from vector-int to way
+
+      //same delay as through memory
+      idx_flushing_dly <= idx_flushing;
+      way_flushing_dly <= way_flushing;
+  end
+
+  
   //delay fill-way-select, same delay as through memory
   always @(posedge clk_i)
     begin
@@ -258,8 +284,9 @@ module riscv_cache_memory #(
 
   //Memory Index
   always_comb
-    unique casex ( {biumem_we} )
-      {1'b1} : tag_idx = idx_filling;
+    unique casex ( {flushing_i, biumem_we} )
+      {2'b1?}: tag_idx = idx_flushing;
+      {1'b?1}: tag_idx = idx_filling;
       default: tag_idx = rd_idx_i;
     endcase
 
@@ -351,16 +378,19 @@ endgenerate
 
   /* Generate Dirty
   */
+  //cache has dirty lines
   always @(posedge clk_i)
-    if      ( bypass_biumem_we) dirty_o <= biu_line_dirty_i;
-    else if (!stall_i         ) dirty_o <= |way_dirty;
+    if      ( bypass_biumem_we) cache_dirty_o <= biu_line_dirty_i;
+    else if (!stall_i         ) cache_dirty_o <= |(tag_valid & tag_dirty);
 
 
+  //TODO: remove?
   always @(posedge clk_i)
     if      ( bypass_biumem_we ) ways_dirty_o <= {WAYS{biu_line_dirty_i}} & fill_way_i;
     else if (!stall_i          ) ways_dirty_o <= way_dirty;
 
 
+  //selected way is dirty
   always @(posedge clk_i)
     if      ( bypass_biumem_we) way_dirty_o <= biu_line_dirty_i;
     else if (!stall_i         ) way_dirty_o <= way_dirty[evict_way_select_int];
@@ -375,8 +405,14 @@ endgenerate
    */
   always @(posedge clk_i)
     if      ( bypass_biumem_we) evict_tag_o <= tag_filling;
+    else if ( flushing_i      ) evict_tag_o <= tag_out[way_flushing_dly].tag;
     else if (!stall_i         ) evict_tag_o <= rd_idx_dly_eq_byp_idx ? tag_byp_tag
                                                                      : tag_out[evict_way_select_int].tag;
+
+
+  always @(posedge clk_i)
+    if      ( flushing_i) evict_idx_o <= idx_flushing_dly;
+    else if (!stall_i   ) evict_idx_o <= rd_idx_dly;
 
 
   //----------------------------------------------------------------
@@ -385,10 +421,11 @@ endgenerate
 
   //Memory Index
   always_comb
-    unique casex ( {biumem_we, writebuffer_we} )
-      {2'b1?}: dat_idx = idx_filling;
-      {2'b?1}: dat_idx = writebuffer_idx_i;
-      default: dat_idx = rd_idx_i;
+    unique casex ( {flushing_i, biumem_we, writebuffer_we} )
+      {3'b1??}: dat_idx = idx_flushing;
+      {3'b?1?}: dat_idx = idx_filling;
+      {3'b??1}: dat_idx = writebuffer_idx_i;
+      default : dat_idx = rd_idx_i;
     endcase
 
 
@@ -459,6 +496,7 @@ endgenerate
    */
   always @(posedge clk_i)
     if      ( bypass_biumem_we) evict_line_o <= biu_line_i;
+    else if ( flushing_i      ) evict_line_o <= dat_out[way_flushing_dly];
     else if (!stall_i         ) evict_line_o <= be_mux(bypass_writebuffer_we,
                                                        writebuffer_be_i,
                                                        rd_idx_dly_eq_byp_idx ? dat_byp_q : dat_out[evict_way_select_int],
