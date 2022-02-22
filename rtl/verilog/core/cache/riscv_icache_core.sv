@@ -211,7 +211,7 @@ module riscv_icache_core #(
   logic [BLK_BITS     -1:0] biu_line;
 
   logic                     armed,
-                            flushing,
+                            flushing, flush_valid,
 	                    filling;
 
 
@@ -261,7 +261,7 @@ endgenerate
     .prot_i                    ( mem_prot_i              ),
     .we_i                      ( 1'b0                    ),
     .d_i                       ( {XLEN{1'b0}}            ),
-    .cacheflush_i              ( cache_flush_i           ),
+    .cacheflush_i              (                         ),
 
     .req_o                     ( setup_req               ),
     .rreq_o                    (                         ),
@@ -270,7 +270,7 @@ endgenerate
     .prot_o                    ( setup_prot              ),
     .we_o                      (                         ),
     .q_o                       (                         ),
-    .cacheflush_o              ( setup_cacheflush        ),
+    .cacheflush_o              (                         ),
  
     .idx_o                     ( setup_idx               ) );
 
@@ -299,7 +299,7 @@ endgenerate
     .prot_i                    ( setup_prot              ),
     .we_i                      ( 1'b0                    ),
     .d_i                       ( {XLEN{1'b0}}            ),
-    .cacheflush_i              ( setup_cacheflush        ),
+    .cacheflush_i              ( 1'b0                    ),
 
     .req_o                     ( tag_req                 ),
     .wreq_o                    (                         ),
@@ -310,7 +310,7 @@ endgenerate
     .we_o                      (                         ),
     .be_o                      (                         ),
     .q_o                       (                         ),
-    .cacheflush_o              ( tag_cacheflush          ),
+    .cacheflush_o              (                         ),
     .pagefault_o               ( tag_pagefault           ),
     .core_tag_o                ( tag_core_tag            ) );
 
@@ -336,10 +336,12 @@ endgenerate
     .stall_o                   ( mem_stall_o             ),
     .flush_i                   ( mem_flush_i             ),
 
-    .cacheflush_req_i          ( tag_cacheflush          ),
+    //Instructions are pre-fetched. Therefore flush immediately
+    .cacheflush_req_i          ( cache_flush_i           ),
     .dcflush_rdy_i             ( dcflush_rdy_i           ),
     .armed_o                   ( armed                   ),
     .flushing_o                ( flushing                ),
+    .flush_valid_o             ( flush_valid             ), //flush valid bits
     .filling_o                 ( filling                 ),
     .fill_way_i                ( mem_fill_way            ),
     .fill_way_o                ( hit_fill_way            ),
@@ -405,6 +407,8 @@ endgenerate
 
     .armed_i                   ( armed                   ),
     .flushing_i                ( flushing                ),
+    .flush_valid_i             ( flush_valid             ),
+    .flush_dirty_i             ( 1'b0                    ),
     .filling_i                 ( filling                 ),
     .fill_way_select_i         ( fill_way_select         ),
     .fill_way_i                ( hit_fill_way            ),
