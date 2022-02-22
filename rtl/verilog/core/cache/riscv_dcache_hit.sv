@@ -244,7 +244,7 @@ module riscv_dcache_hit #(
       nxt_memfsm_state = memfsm_state;
       nxt_biucmd       = biucmd_o;
       fill_way         = fill_way_o;
-      flush_rdy        = 1'b0;
+      flush_rdy        = 1'b1;
       flush_valid      = 1'b0;
       flush_dirty      = 1'b0;
 
@@ -256,10 +256,7 @@ module riscv_dcache_hit #(
                                 //Cache has dirty ways
                                 nxt_memfsm_state = FLUSH;
                                 nxt_biucmd       = BIUCMD_NOP;
-                            end
-                            else
-                            begin
-                                flush_rdy = 1'b1;
+                                flush_rdy        = 1'b0;
                             end
                         end
                         else if (valid_req && !cacheable_i && !flush_i && !biucmd_busy_i)
@@ -292,6 +289,7 @@ module riscv_dcache_hit #(
 			    //evict_* ready 2 cycles later
                             nxt_memfsm_state = FLUSHWAYS;
                             nxt_biucmd       = BIUCMD_NOP;
+                            flush_rdy        = 1'b0;
                             flush_dirty      = 1'b1;
                         end
 
@@ -299,6 +297,7 @@ module riscv_dcache_hit #(
                             //assert WRITE_WAY here (instead of in FLUSH) to allow time to load evict_buffer
                             nxt_memfsm_state = memfsm_state;
                             nxt_biucmd       = BIUCMD_WRITEWAY;
+                            flush_rdy        = 1'b0;
 
                             if (biucmd_ack_i)
                             begin
