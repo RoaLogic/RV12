@@ -63,6 +63,7 @@ module riscv_cache_hit #(
   input  logic                        dcflush_rdy_i,    //data cache flush ready
   output logic                        armed_o,
   output logic                        flushing_o,
+  output logic                        flush_valid_o,    //flush cache valid bits
   output logic                        filling_o,
   input  logic [WAYS            -1:0] fill_way_i,
   output logic [WAYS            -1:0] fill_way_o,
@@ -206,20 +207,22 @@ module riscv_cache_hit #(
   always @(posedge clk_i, negedge rst_ni)
     if (!rst_ni)
     begin
-        memfsm_state <= ARMED;
-        armed_o      <= 1'b1;
-        flushing_o   <= 1'b0;
-        filling_o    <= 1'b0;
-        fill_way_o   <=  'hx;
-        biucmd_o     <= BIUCMD_NOP;
+        memfsm_state  <= ARMED;
+        armed_o       <= 1'b1;
+        flushing_o    <= 1'b0;
+        flush_valid_o <= 1'b0;
+        filling_o     <= 1'b0;
+        fill_way_o    <=  'hx;
+        biucmd_o      <= BIUCMD_NOP;
     end
     else
     unique case (memfsm_state)
        ARMED        : if (cacheflush)
                       begin
-                          memfsm_state <= FLUSH;
-                          armed_o      <= 1'b0;
-                          flushing_o   <= 1'b1;
+                          memfsm_state  <= FLUSH;
+                          armed_o       <= 1'b0;
+                          flushing_o    <= 1'b1;
+                          flush_valid_o <= 1'b1;
                       end
 		      else if (req_i && !cacheable_i && !flush_i)
                       begin
@@ -242,8 +245,9 @@ module riscv_cache_hit #(
 
        FLUSH        : if (dcflush_rdy_i) //wait for data-cache to complete flushing
                       begin
-                          memfsm_state <= RECOVER; //allow to read new tag_idx
-                          flushing_o   <= 1'b0;
+                          memfsm_state  <= RECOVER; //allow to read new tag_idx
+                          flushing_o    <= 1'b0;
+                          flush_valid_o <= 1'b0;
                       end
 
         NONCACHEABLE: if ( flush_i                                   ||  //flushed pipe, no biu_ack's will come
@@ -253,12 +257,22 @@ module riscv_cache_hit #(
                           memfsm_state <= ARMED;
                           armed_o      <= 1'b1;
                       end
-
+/*
         WAIT4BIUCMD0: if (biucmd_ack_i || biu_err_i)
                       begin
                           memfsm_state <= RECOVER;
                           biucmd_o     <= BIUCMD_NOP;
                           filling_o    <= 1'b0;
+                      end
+*/
+        WAIT4BIUCMD0: begin
+                          biucmd_o <= BIUCMD_NOP;
+
+                          if (biucmd_ack_i || biu_err_i)
+                          begin
+                              memfsm_state <= RECOVER;
+                              filling_o    <= 1'b0;
+                          end
                       end
 
         RECOVER     : begin
@@ -323,6 +337,9 @@ module riscv_cache_hit #(
       RECOVER     : stall_o = ~( biu_cache_we_unstall |
 	                         (req_i & cache_hit_i)
                                );
+
+      FLUSH       : stall_o = 1'b1;
+
       default     : stall_o = 1'b0;
     endcase
 
