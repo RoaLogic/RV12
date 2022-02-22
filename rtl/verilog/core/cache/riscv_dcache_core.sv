@@ -247,7 +247,7 @@ module riscv_dcache_core #(
   logic                     biu_line_dirty;
 
   logic                     armed,
-                            flushing,
+                            flushing, flush_valid, flush_dirty,
 	                    filling;
 
 
@@ -370,10 +370,13 @@ endgenerate
     .stall_o                   ( stall_o                 ),
     .flush_i                   ( mem_flush_i             ),
 
+    //flush in-order with CPU pipeline
     .cacheflush_req_i          ( tag_cacheflush          ),
     .cacheflush_rdy_o          ( cache_flush_rdy_o       ),
     .armed_o                   ( armed                   ),
     .flushing_o                ( flushing                ),
+    .flush_valid_o             ( flush_valid             ),
+    .flush_dirty_o             ( flush_dirty             ),
     .filling_o                 ( filling                 ),
     .fill_way_i                ( mem_fill_way            ),
     .fill_way_o                ( hit_fill_way            ),
@@ -456,6 +459,8 @@ endgenerate
 
     .armed_i                   ( armed                   ),
     .flushing_i                ( flushing                ),
+    .flush_valid_i             ( flush_valid             ),
+    .flush_dirty_i             ( flush_dirty             ),
     .filling_i                 ( filling                 ),
     .fill_way_select_i         ( fill_way_select         ),
     .fill_way_i                ( hit_fill_way            ),

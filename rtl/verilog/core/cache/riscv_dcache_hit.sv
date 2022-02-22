@@ -62,6 +62,8 @@ module riscv_dcache_hit #(
   output logic                        cacheflush_rdy_o,  //data cache flush ready
   output logic                        armed_o,
   output logic                        flushing_o,
+  output logic                        flush_valid_o,
+  output logic                        flush_dirty_o,
   output logic                        filling_o,
   input  logic [WAYS            -1:0] fill_way_i,
   output logic [WAYS            -1:0] fill_way_o,
@@ -210,6 +212,8 @@ module riscv_dcache_hit #(
                     RECOVER} nxt_memfsm_state, memfsm_state;
   biucmd_t                   nxt_biucmd;
   logic [WAYS          -1:0] fill_way;
+  logic                      flush_rdy,
+                             flush_valid, flush_dirty;
 
 
   logic                      biu_adro_eq_cache_adr;
@@ -240,19 +244,30 @@ module riscv_dcache_hit #(
       nxt_memfsm_state = memfsm_state;
       nxt_biucmd       = biucmd_o;
       fill_way         = fill_way_o;
+      flush_rdy        = 1'b0;
+      flush_valid      = 1'b0;
+      flush_dirty      = 1'b0;
 
       unique case (memfsm_state)
          ARMED        : if (cacheflush && !writebuffer_we_o)
                         begin
-                            nxt_memfsm_state = FLUSH;
-                            nxt_biucmd       = BIUCMD_NOP;
+                            if (cache_dirty_i)
+                            begin
+                                //Cache has dirty ways
+                                nxt_memfsm_state = FLUSH;
+                                nxt_biucmd       = BIUCMD_NOP;
+                            end
+                            else
+                            begin
+                                flush_rdy = 1'b1;
+                            end
                         end
                         else if (valid_req && !cacheable_i && !flush_i && !biucmd_busy_i)
                         begin
                             nxt_memfsm_state = NONCACHEABLE;
                             nxt_biucmd       = BIUCMD_NOP;
                         end
-                        else if (valid_req && cacheable_i && !cache_hit_i && !flush_i && !biucmd_busy_i)
+                        else if (valid_req && cacheable_i && !cache_hit_i && !flush_i && !(biucmd_busy_i /*&& !biucmd_ack_i*/))
                         begin
                             fill_way = fill_way_i; //write to same way as we read
 
@@ -269,26 +284,15 @@ module riscv_dcache_hit #(
                                 nxt_biucmd       = BIUCMD_READWAY;
                             end
                         end
-/*                        else
-                        begin
-                            nxt_memfsm_state = memfsm_state;
-                            nxt_biucmd       = BIUCMD_NOP; //biucmd_o;
-                        end
-*/
-         FLUSH        : if (cache_dirty_i)
-                        begin
-                            //There are dirty ways in this set
-                            //First determine dat_idx; this reads all ways for that index (FLUSH)
-                            //then check which ways are dirty (FLUSHWAYS)
-                            //write dirty way
-                            //clear dirty bit
-                           nxt_memfsm_state = FLUSHWAYS;
-                           nxt_biucmd       = BIUCMD_NOP;
-                        end
-                        else
-                        begin
-                           nxt_memfsm_state = RECOVER; //allow to read new tag_idx
-                           nxt_biucmd       = BIUCMD_NOP;
+
+         FLUSH        : begin
+                            //flushing_o goes high here; set flush_idx
+			    //flush_idx registered in memory
+			    //clear way-dirty of flushed way => next flush_idx on next cycle
+			    //evict_* ready 2 cycles later
+                            nxt_memfsm_state = FLUSHWAYS;
+                            nxt_biucmd       = BIUCMD_NOP;
+                            flush_dirty      = 1'b1;
                         end
 
           FLUSHWAYS   : begin
@@ -301,13 +305,15 @@ module riscv_dcache_hit #(
                                 //Check if there are more dirty ways in this set
                                 if (cache_dirty_i)
                                 begin
-                                    nxt_memfsm_state = FLUSH;
-                                    nxt_biucmd       = BIUCMD_NOP;
+                                    nxt_memfsm_state = FLUSHWAYS;
+                                    nxt_biucmd       = BIUCMD_WRITEWAY;
+                                    flush_dirty      = 1'b1;
                                 end
                                 else
                                 begin
                                     nxt_memfsm_state = RECOVER;
                                     nxt_biucmd       = BIUCMD_NOP;
+				    flush_rdy        = 1'b1;
                                 end
                             end
                         end
@@ -325,11 +331,16 @@ module riscv_dcache_hit #(
                             nxt_memfsm_state = RECOVER;
                             nxt_biucmd       = BIUCMD_WRITEWAY; //evict dirty way
                         end
-
-          WAIT4BIUCMD0: if (biucmd_ack_i || biu_err_i)
+                        else
                         begin
-                            nxt_memfsm_state = RECOVER;
-                            nxt_biucmd       = BIUCMD_NOP;
+                            nxt_biucmd = BIUCMD_NOP;
+                        end
+
+          WAIT4BIUCMD0: begin 
+                            nxt_biucmd = BIUCMD_NOP;
+
+                            if (biucmd_ack_i || biu_err_i)
+                              nxt_memfsm_state = RECOVER;
                         end
 
           RECOVER     : begin
@@ -354,57 +365,56 @@ module riscv_dcache_hit #(
         biucmd_o         <= BIUCMD_NOP;
         armed_o          <= 1'b1;
         flushing_o       <= 1'b0;
+        flush_valid_o    <= 1'b0;
+        flush_dirty_o    <= 1'b0;
         filling_o        <= 1'b0;
         fill_way_o       <=  'hx;
         cacheflush_rdy_o <= 1'b1;
     end
     else
     begin
-        memfsm_state <= nxt_memfsm_state;
-        biucmd_o     <= nxt_biucmd;
-        fill_way_o   <= fill_way;
+        memfsm_state     <= nxt_memfsm_state;
+        biucmd_o         <= nxt_biucmd;
+        fill_way_o       <= fill_way;
+	cacheflush_rdy_o <= flush_rdy;
+	flush_valid_o    <= flush_valid;
+	flush_dirty_o    <= flush_dirty;
 
         unique case (nxt_memfsm_state)
           ARMED        : begin
                              armed_o          <= 1'b1;
                              flushing_o       <= 1'b0;
                              filling_o        <= 1'b0;
-                             cacheflush_rdy_o <= 1'b1;
                          end
 
           FLUSH        : begin
                              armed_o          <= 1'b0;
                              flushing_o       <= 1'b1;
                              filling_o        <= 1'b0;
-                             cacheflush_rdy_o <= 1'b0;
                          end
 
            FLUSHWAYS   : begin
                              armed_o          <= 1'b0;
                              flushing_o       <= 1'b1;
                              filling_o        <= 1'b0;
-                             cacheflush_rdy_o <= 1'b0;
                          end
 
            NONCACHEABLE: begin
                              armed_o          <= 1'b0;
                              flushing_o       <= 1'b0;
                              filling_o        <= 1'b0;
-                             cacheflush_rdy_o <= 1'b1;
                          end
 
            EVICT       : begin
                              armed_o          <= 1'b0;
                              flushing_o       <= 1'b0;
                              filling_o        <= 1'b1;
-                             cacheflush_rdy_o <= 1'b1;
                          end
 
            WAIT4BIUCMD0: begin
                              armed_o          <= 1'b0;
                              flushing_o       <= 1'b0;
                              filling_o        <= 1'b1;
-                             cacheflush_rdy_o <= 1'b1;
                          end
 
            RECOVER     : begin
@@ -412,7 +422,6 @@ module riscv_dcache_hit #(
                              armed_o          <= 1'b0;
                              flushing_o       <= 1'b0;
                              filling_o        <= 1'b0;
-                             cacheflush_rdy_o <= 1'b1;
                          end
         endcase
 
@@ -447,6 +456,7 @@ module riscv_dcache_hit #(
 
 
   /* EvictBuffer
+   * Store here, so 'memory' can continue. Allows hit-under-miss
    */
   always @(posedge clk_i)
     if (memfsm_state == ARMED ||

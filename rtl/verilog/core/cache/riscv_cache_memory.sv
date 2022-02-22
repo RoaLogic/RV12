@@ -60,6 +60,8 @@ module riscv_cache_memory #(
 
   input  logic                     armed_i,
   input  logic                     flushing_i,
+  input  logic                     flush_valid_i,
+  input  logic                     flush_dirty_i,
   input  logic                     filling_i,
   input  logic [WAYS         -1:0] fill_way_select_i,
   input  logic [WAYS         -1:0] fill_way_i,
@@ -286,7 +288,7 @@ module riscv_cache_memory #(
   always_comb
     unique casex ( {flushing_i, biumem_we} )
       {2'b1?}: tag_idx = idx_flushing;
-      {1'b?1}: tag_idx = idx_filling;
+      {2'b?1}: tag_idx = idx_filling;
       default: tag_idx = rd_idx_i;
     endcase
 
@@ -320,9 +322,9 @@ generate
        * Valid is stored in DFF
        */ 
       always @(posedge clk_i, negedge rst_ni)
-        if      (!rst_ni     ) tag_valid[way]          <= 'h0;
-        else if ( flushing_i ) tag_valid[way]          <= 'h0;
-        else if ( tag_we[way]) tag_valid[way][tag_idx] <= tag_in[way].valid;
+        if      (!rst_ni        ) tag_valid[way]          <= 'h0;
+        else if ( flush_valid_i ) tag_valid[way][tag_idx] <= 1'b0;
+        else if ( tag_we[way]   ) tag_valid[way][tag_idx] <= tag_in[way].valid;
 
       assign tag_out[way].valid = tag_valid[way][rd_idx_dly];
 
@@ -337,6 +339,7 @@ generate
        */ 
       always @(posedge clk_i, negedge rst_ni)
         if      (!rst_ni           ) tag_dirty[way]          <= 'h0;
+        else if ( flush_dirty_i    ) tag_dirty[way][dat_idx] <= 'h0; //TODO
         else if ( tag_we_dirty[way]) tag_dirty[way][dat_idx] <= tag_in[way].dirty;
 
       assign tag_out[way].dirty = tag_dirty[way][rd_idx_dly];
@@ -356,7 +359,7 @@ generate
       /* TAG Write Data
        */
       //clear valid tag during flushing and cache-coherency checks
-      assign tag_in[way].valid = ~flushing_i;
+      assign tag_in[way].valid = 1'b1;
       assign tag_in[way].dirty = biumem_we ? biu_line_dirty_i : writebuffer_we_i;
       assign tag_in[way].tag   = tag_filling;
   end
