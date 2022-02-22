@@ -189,8 +189,8 @@ module riscv_cache_biu_ctrl #(
     begin
         unique case (biufsm_state)
           IDLE    : unique case (biucmd_i)
-                      BIUCMD_NOP      : ; //do nothing
-                                          //non-cacheable transfers may be initiated
+                      BIUCMD_NOP     : ; //do nothing
+                                         //non-cacheable transfers may be initiated
 
                       BIUCMD_READWAY : begin
                                            biucmd_busy_o <= 1'b1;
@@ -231,9 +231,48 @@ module riscv_cache_biu_ctrl #(
 
           BURST    : if (biu_err_i || (~|burst_cnt && biu_ack_i))
                      begin
-                         //write complete
-                         biufsm_state  <= IDLE; //TODO: detect if another BURST request is pending, skip IDLE
+/*
+                         unique case (biucmd_i)
+                           BIUCMD_NOP     : begin
+                                                biufsm_state  <= IDLE;
+                                                biucmd_busy_o <= 1'b0;
+                                            end
+
+
+                           BIUCMD_READWAY : begin
+                                                biucmd_busy_o <= 1'b1;
+
+                                                //read a way from main memory
+                                                if (biu_stb_ack_i)
+                                                begin
+                                                    biufsm_state <= BURST;
+                                                end
+                                                else
+                                                begin
+                                                    //BIU is not ready to start a new transfer
+                                                    biufsm_state <= WAIT4BIU;
+                                                end
+                                            end
+
+                           BIUCMD_WRITEWAY: begin
+                                                biucmd_busy_o <= 1'b1;
+
+                                                //write way back to main memory
+                                                if (biu_stb_ack_i)
+                                                begin
+                                                    biufsm_state <= BURST;
+                                                end
+                                                else
+                                                begin
+                                                    //BIU is not ready to start a new transfer
+                                                    biufsm_state <= WAIT4BIU;
+                                                end
+                                            end
+                            endcase
+*/
+                         biufsm_state  <= IDLE;
                          biucmd_busy_o <= 1'b0;
+
                      end
         endcase
     end
