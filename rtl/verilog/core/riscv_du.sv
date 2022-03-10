@@ -71,6 +71,7 @@ module riscv_du #(
                                   du_frf_q_i,
                                   st_csr_q_i,
                                   if_nxt_pc_i,
+                                  bu_nxt_pc_i,
                                   if_pc_i,
                                   pd_pc_i,
                                   id_pc_i,
@@ -344,15 +345,18 @@ endgenerate
   //latch PC from different levels of the pipeline
   always @(posedge clk_i)
     if      (|du_exceptions_i) dpc <= wb_pc_i;
+    else if ( bu_flush_i     ) dpc <= bu_nxt_pc_i; //when branch/jal(r) during single step
     else if ( bp_instr_hit   ) dpc <= if_nxt_pc_i;
     else if (|bp_hit         ) dpc <= id_pc_i;
     else if ( bp_branch_hit  ) dpc <= id_pc_i;
     else if ( du_latch_nxt_pc_o & ~|dbg.cause) dpc <= id_pc_i;
 
+
   //DBG IE
   always @(posedge clk_i,negedge rst_ni)
     if      (!rst_ni                               ) dbg.ie <= 'h0;
     else if ( du_we_internal && du_addr_o == DBG_IE) dbg.ie <= du_d_o[31:0];
+
 
   //send to Thread-State
   assign du_ie_o = dbg.ie;
@@ -451,11 +455,11 @@ endgenerate
    * For actual registers see 'Registers' section
    */
   assign bp_instr_hit  = dbg.ctrl.instr_break_ena  & ~if_nxt_insn_i.bubble;
-  assign bp_branch_hit = dbg.ctrl.branch_break_ena & ~if_insn_i.bubble & (if_insn_i.instr[6:2] == OPC_BRANCH);
+  assign bp_branch_hit = dbg.ctrl.branch_break_ena & ~if_insn_i.bubble & (if_insn_i.instr.R.opcode == OPC_BRANCH);
 
   //Memory access
-  assign mem_read  = ~mem_exceptions_i.any & ~mem_insn_i.bubble & (mem_insn_i.instr[6:2] == OPC_LOAD );
-  assign mem_write = ~mem_exceptions_i.any & ~mem_insn_i.bubble & (mem_insn_i.instr[6:2] == OPC_STORE);
+  assign mem_read  = ~mem_exceptions_i.any & ~mem_insn_i.bubble & (mem_insn_i.instr.R.opcode == OPC_LOAD );
+  assign mem_write = ~mem_exceptions_i.any & ~mem_insn_i.bubble & (mem_insn_i.instr.R.opcode == OPC_STORE);
 
 generate
 for (n=0; n<MAX_BREAKPOINTS; n++)
