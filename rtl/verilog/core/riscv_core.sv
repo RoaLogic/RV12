@@ -787,6 +787,7 @@ endgenerate
     .du_frf_q_i        ( {XLEN{1'b0}}    ), //du_dati_frf     ),
     .st_csr_q_i        ( du_csr_rval     ),
     .if_nxt_pc_i       ( if_nxt_pc       ),
+    .bu_nxt_pc_i       ( bu_nxt_pc       ),
     .if_pc_i           ( if_pc           ),
     .pd_pc_i           ( pd_pc           ),
     .id_pc_i           ( id_pc           ),
