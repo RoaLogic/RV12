@@ -1082,6 +1082,8 @@ endgenerate
 
   //decode interrupts
   //priority external, software, timer
+  //st_int_o goes into ID, where the interrupts are synchronized
+  //with the CPU pipeline
   assign st_int_o.external[PRV_M] = ( ((st_prv_o < PRV_M) | (st_prv_o == PRV_M & csr.mstatus.mie)) & (csr.mip.meip & csr.mie.meie) );
   assign st_int_o.external[PRV_H] = ( ((st_prv_o < PRV_H) | (st_prv_o == PRV_H & csr.mstatus.hie)) & (csr.mip.heip & csr.mie.heie) );
   assign st_int_o.external[PRV_S] = ( ((st_prv_o < PRV_S) | (st_prv_o == PRV_S & csr.mstatus.sie)) & (csr.mip.seip & csr.mie.seie) );
