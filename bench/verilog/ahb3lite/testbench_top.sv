@@ -357,6 +357,29 @@ generate
 endgenerate
 
 
+//Hookup Data Memory Access Validator
+dmav #(
+  .XLEN      ( XLEN      ),
+  .INIT_FILE ( INIT_FILE )
+  ,.CHECK_CREATE = 0
+)
+dmav_inst
+(
+  .clk_i,
+  .req_i,
+  .adr_i,
+  .d_i,
+  .q_i,
+  .we_i,
+  .size_i,
+  .lock_i,
+  .ack_i,
+  .err_i,
+  .misaligned_i,
+  .page_fault_i
+);
+
+
 //Generate clock
 always #1 HCLK = ~HCLK;
 
@@ -633,5 +656,112 @@ endmodule
 
 
 
+
+/*
+ * Data Memory Access Validation
+ */
+module dmav #(
+  parameter XLEN         = 32,
+  parameter INIT_FILE    = "inifile",
+  parameter CHECK_CREATE = 1
+)
+(
+  input            clk_i,
+  input            req_i,
+  input [XLEN-1:0] adr_i,
+  input [XLEN-1:0] d_i,
+  input [XLEN-1:0] q_i,
+  input            we_i,
+  input biu_size_t size_i,
+  input            lock_i,
+  input            ack_i,
+                   err_i,
+                   misaligned_i,
+                   page_fault_i
+);
+
+ /////////////////////////////////////////////////////////////////
+ //
+ // Typedef
+ //
+ typedef struct {
+   logic [XLEN-1:0] adr;
+   logic [XLEN-1:0] data;
+   logic            we;
+   biu_size_t       size;
+   logic            lock;
+   logic            ack,
+                    err,
+                    misaligned,
+                    page_fault;
+ } data_t;
+
+
+  /////////////////////////////////////////////////////////////////
+  //
+  // Functions/Tasks
+  //
+
+  function int golden_open (input string filename, input bit rw);
+    return $fopen(filename, rw ? "rb" : "wb");
+  endfunction: golden_open
+
+  task golden_write (int fd, input data_t blob);
+    $fwrite (fd, "%z", blob);
+  endtask: golden_write
+
+
+  /////////////////////////////////////////////////////////////////
+  //
+  // Functions/Tasks
+  //
+  data_t queue[$],
+	 queue_d,
+         queue_q;
+
+
+  /////////////////////////////////////////////////////////////////
+  //
+  // Module body
+  //
+
+  //open file
+  initial fd = golden_open({INIT_FILE, "golden"}, CHECK_CREATE);
+
+
+  //store access request
+  assign queue_d.adr  = adr_i;
+  assign queue_d.we   = we_i;
+  assign queue_d.size = size_i;
+  assign queue_d.lock = lock_i;
+  assign queue_d.d    = d_i; //gets overwritten for a read
+
+
+  //push access request into queue
+  always @(posedge clk_i)
+    if (req_i) queue.pushfront(queue_d);
+
+
+  //wait for acknowledge and write to file
+  always @(posedge clk_i)
+    if (ack_i || err_i || misaligned_i || page_fault_i)
+    begin
+        //pop request from queue
+        queue_q = queue.popback();
+
+        //store response
+        queue_q.ack        = ack_i;
+        queue_q.err        = err_i;
+        queue_q.misaligned = misaligned_i;
+        queue_q.page_fault = page_fault_i;
+
+        if (queue_q.we) queue_q.d = q_i;
+
+        //write to file
+	golden_write(fd, queue_q);
+    end
+
+
+endmodule
 
 
