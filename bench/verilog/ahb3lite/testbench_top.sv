@@ -358,26 +358,25 @@ endgenerate
 
 
 //Hookup Data Memory Access Validator
+`define RV_CORE dut.core
 dmav #(
-  .XLEN      ( XLEN      ),
-  .INIT_FILE ( INIT_FILE )
-  ,.CHECK_CREATE = 0
+  .XLEN          ( XLEN      ),
+  .INIT_FILE     ( INIT_FILE )
+//  ,.CHECK_CREATE ( 0         )
 )
-dmav_inst
-(
-  .clk_i,
-  .req_i,
-  .adr_i,
-  .d_i,
-  .q_i,
-  .we_i,
-  .size_i,
-  .lock_i,
-  .ack_i,
-  .err_i,
-  .misaligned_i,
-  .page_fault_i
-);
+dmav_inst (
+  .clk_i        ( HCLK                       ),
+  .req_i        ( `RV_CORE.dmem_req_o        ),
+  .adr_i        ( `RV_CORE.dmem_adr_o        ),
+  .d_i          ( `RV_CORE.dmem_d_o          ),
+  .q_i          ( `RV_CORE.dmem_q_i          ),
+  .we_i         ( `RV_CORE.dmem_we_o         ),
+  .size_i       ( `RV_CORE.dmem_size_o       ),
+  .lock_i       ( `RV_CORE.dmem_lock_o       ),
+  .ack_i        ( `RV_CORE.dmem_ack_i        ),
+  .err_i        ( `RV_CORE.dmem_err_i        ),
+  .misaligned_i ( `RV_CORE.dmem_misaligned_i ),
+  .page_fault_i ( `RV_CORE.dmem_page_fault_i ) );
 
 
 //Generate clock
@@ -649,6 +648,7 @@ module htif #(
           $display("*****************************************************");
           $display("\n");
 
+	  dmav.golden_finish();
           $finish();
       end
   end
@@ -702,23 +702,101 @@ module dmav #(
   // Functions/Tasks
   //
 
+  //Open golden file, either for reading or writing
   function int golden_open (input string filename, input bit rw);
-    return $fopen(filename, rw ? "rb" : "wb");
+    golden_open = $fopen(filename, rw ? "r" : "w");
+
+    if (!golden_open) $fatal("Failed to open: %s", filename);
+    else              $info ("Opened %s (%0d)", filename, golden_open);
   endfunction: golden_open
 
-  task golden_write (int fd, input data_t blob);
-    $fwrite (fd, "%z", blob);
+  //Close golden file
+  //TODO: fd should be argument
+  //      call when closing simulator (callback?)
+  task golden_close();
+    $fclose(fd);
+  endtask: golden_close
+
+  //Write datablob to golden file
+  //TODO: why doesn't $fwrite work?
+  //      why can't a typedef be written at once with %z?
+  task golden_write (input int fd, input data_t blob);
+//    $display ("fwrite %0t %z", $realtime, blob);
+//    $fdisplay (fd, "%z", blob);
+    $fdisplay (fd, "%h %h %b %h %b %h",
+                   blob.adr,
+                   blob.data,
+                   blob.we,
+                   blob.size,
+                   blob.lock,
+                   {blob.ack, blob.err, blob.misaligned, blob.page_fault} );
   endtask: golden_write
 
+  //Read golden file
+  //TODO: ideally would want to read a type_def with %z
+  function data_t golden_read(input int fd);
+    int err;
+    data_t tmp;
+    err = $fscanf (fd, "%h %h %b %h %b %h",
+                       tmp.adr,
+                       tmp.data,
+                       tmp.we,
+                       tmp.size,
+                       tmp.lock,
+                       {tmp.ack, tmp.err, tmp.misaligned, tmp.page_fault} );
+
+    if (err != 6)
+    begin
+        $error ("golden_read");
+        return data_t'(-1);
+    end
+    else
+    begin
+        return tmp;
+    end
+  endfunction: golden_read
+
+
+  //Compare results
+  //g=golden
+  //r=reference
+  function int golden_compare(input data_t g, r);
+    if (r !== g)
+    begin
+        $display ("ERROR  : golden_compare error @%0t", $realtime);
+        $display ("         golden         reference");
+        $display ("adr      %h             %h",   g.adr,  r.adr);
+        $display ("data     %h             %h",   g.data, r.data);
+        $display ("size     %h             %h",   g.size, r.size);
+        $display ("we/lock  %b%b           %b%b", g.we, g.lock, r.we, r.lock);
+        $display ("aemp     %b%b%b%b       %b%b%b%b", g.ack, g.err, g.misaligned, g.page_fault,
+                                                      r.ack, r.err, r.misaligned, r.page_fault);
+        return -1;
+    end
+    else
+        return 0;
+  endfunction: golden_compare
+
+
+  task golden_finish();
+    //close file
+    golden_close();
+
+    //display notice
+    $info ("dmav errors: %0d", golden_errors);
+  endtask: golden_finish
 
   /////////////////////////////////////////////////////////////////
   //
-  // Functions/Tasks
+  // Variables
   //
+  int fd;
+  
   data_t queue[$],
 	 queue_d,
          queue_q;
 
+  int golden_errors=0;
 
   /////////////////////////////////////////////////////////////////
   //
@@ -726,7 +804,7 @@ module dmav #(
   //
 
   //open file
-  initial fd = golden_open({INIT_FILE, "golden"}, CHECK_CREATE);
+  initial fd = golden_open({INIT_FILE, ".golden"}, CHECK_CREATE);
 
 
   //store access request
@@ -734,20 +812,20 @@ module dmav #(
   assign queue_d.we   = we_i;
   assign queue_d.size = size_i;
   assign queue_d.lock = lock_i;
-  assign queue_d.d    = d_i; //gets overwritten for a read
+  assign queue_d.data = d_i; //gets overwritten for a read
 
 
   //push access request into queue
   always @(posedge clk_i)
-    if (req_i) queue.pushfront(queue_d);
+    if (req_i) queue.push_front(queue_d);
 
 
   //wait for acknowledge and write to file
   always @(posedge clk_i)
-    if (ack_i || err_i || misaligned_i || page_fault_i)
+    if (ack_i || err_i || page_fault_i)
     begin
         //pop request from queue
-        queue_q = queue.popback();
+        queue_q = queue.pop_back();
 
         //store response
         queue_q.ack        = ack_i;
@@ -755,10 +833,19 @@ module dmav #(
         queue_q.misaligned = misaligned_i;
         queue_q.page_fault = page_fault_i;
 
-        if (queue_q.we) queue_q.d = q_i;
+        if (queue_q.we) queue_q.data = q_i;
 
-        //write to file
-	golden_write(fd, queue_q);
+        if (CHECK_CREATE)
+        begin
+            //read from file and compare
+            if (golden_compare(golden_read(fd), queue_q) )
+              golden_errors++;
+        end
+        else
+        begin
+            //write to file
+            golden_write(fd, queue_q);
+        end
     end
 
 
