@@ -590,6 +590,7 @@ module mmio_if #(
             $display("-------------------------------------------------------------");
           $display("\n");
 
+	  $root.testbench_top.dmav_inst.golden_finish();
           $finish();
       end
   end
@@ -648,7 +649,7 @@ module htif #(
           $display("*****************************************************");
           $display("\n");
 
-	  dmav.golden_finish();
+	  $root.testbench_top.dmav_inst.golden_finish();
           $finish();
       end
   end
@@ -694,6 +695,7 @@ module dmav #(
                     err,
                     misaligned,
                     page_fault;
+   string           comment;
  } data_t;
 
 
@@ -723,13 +725,14 @@ module dmav #(
   task golden_write (input int fd, input data_t blob);
 //    $display ("fwrite %0t %z", $realtime, blob);
 //    $fdisplay (fd, "%z", blob);
-    $fdisplay (fd, "%h %h %b %h %b %h",
+    $fdisplay (fd, "%h %h %b %h %b %h %s",
                    blob.adr,
                    blob.data,
                    blob.we,
                    blob.size,
                    blob.lock,
-                   {blob.ack, blob.err, blob.misaligned, blob.page_fault} );
+                   {blob.ack, blob.err, blob.misaligned, blob.page_fault},
+                   "-" );
   endtask: golden_write
 
   //Read golden file
@@ -737,15 +740,16 @@ module dmav #(
   function data_t golden_read(input int fd);
     int err;
     data_t tmp;
-    err = $fscanf (fd, "%h %h %b %h %b %h",
+    err = $fscanf (fd, "%h %h %b %h %b %h %s",
                        tmp.adr,
                        tmp.data,
                        tmp.we,
                        tmp.size,
                        tmp.lock,
-                       {tmp.ack, tmp.err, tmp.misaligned, tmp.page_fault} );
+                       {tmp.ack, tmp.err, tmp.misaligned, tmp.page_fault},
+                       tmp.comment );
 
-    if (err != 6)
+    if (err != 7)
     begin
         $error ("golden_read");
         return data_t'(-1);
@@ -761,16 +765,17 @@ module dmav #(
   //g=golden
   //r=reference
   function int golden_compare(input data_t g, r);
-    if (r !== g)
+    r.comment = "-";
+    if (r !== g && g.comment[0] !== "+")
     begin
-        $display ("ERROR  : golden_compare error @%0t", $realtime);
-        $display ("         golden         reference");
-        $display ("adr      %h             %h",   g.adr,  r.adr);
-        $display ("data     %h             %h",   g.data, r.data);
-        $display ("size     %h             %h",   g.size, r.size);
-        $display ("we/lock  %b%b           %b%b", g.we, g.lock, r.we, r.lock);
-        $display ("aemp     %b%b%b%b       %b%b%b%b", g.ack, g.err, g.misaligned, g.page_fault,
-                                                      r.ack, r.err, r.misaligned, r.page_fault);
+        $display ("ERROR  : golden_compare error @%0t %s", $realtime, g.comment);
+        $display ("        | golden %s| reference", {XLEN/4-6{" "}} );
+        $display ("adr     | %h | %h",   g.adr,  r.adr);
+        $display ("data    | %h | %h",   g.data, r.data);
+        $display ("size    | %h  %s| %h",   g.size, {XLEN/4-2{" "}}, r.size);
+        $display ("we/lock | %b%b %s| %b%b", g.we, g.lock, {XLEN/4-2{" "}}, r.we, r.lock);
+        $display ("aemp    | %b%b%b%b %s| %b%b%b%b", g.ack, g.err, g.misaligned, g.page_fault, {XLEN/4-4{" "}},
+                                                   r.ack, r.err, r.misaligned, r.page_fault);
         return -1;
     end
     else
@@ -833,7 +838,7 @@ module dmav #(
         queue_q.misaligned = misaligned_i;
         queue_q.page_fault = page_fault_i;
 
-        if (queue_q.we) queue_q.data = q_i;
+        if (!queue_q.we) queue_q.data = q_i;
 
         if (CHECK_CREATE)
         begin
