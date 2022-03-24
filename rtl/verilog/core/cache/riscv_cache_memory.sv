@@ -158,7 +158,6 @@ module riscv_cache_memory #(
                                      writebuffer_we,          //write data from WriteBuffer (CPU)
                                      we_dly;
 
-
   logic [WAYS        -1:0]           fill_way_select_dly,
                                      way_flushing,            //way currently flushing
                                      way_flushing_dly;        //delayed way currently flushing, same delay as through memory
@@ -174,6 +173,7 @@ module riscv_cache_memory #(
   logic                              byp_valid,               //bypass(es) valid
                                      rd_idx_dly_eq_byp_idx,   //rd_idx_dly == byp_idx
                                      bypass_biumem_we,        //bypass outputs on biumem_we
+                                     bypass_biumem_we_evict,  //bypass evict_* outputs on biumem_we
                                      bypass_writebuffer_we;   //bypass outputs on writebuffer_we
 
   /* TAG
@@ -247,7 +247,7 @@ module riscv_cache_memory #(
       way_flushing_dly <= way_flushing;
   end
 
-  
+
   //delay fill-way-select, same delay as through memory
   always @(posedge clk_i)
     begin
@@ -273,7 +273,8 @@ module riscv_cache_memory #(
 
 
   //Bypass on biumem_we?
-  assign bypass_biumem_we = biumem_we & (rd_idx_dly == idx_filling) & (rd_core_tag_dly == tag_filling);
+  assign bypass_biumem_we       = biumem_we & (rd_idx_dly == idx_filling) & (rd_core_tag_dly == tag_filling);
+  assign bypass_biumem_we_evict = biumem_we & (rd_idx_dly == idx_filling);
 
 
   //Bypass on writebuffer_we?
@@ -330,8 +331,8 @@ generate
 
 
       //compare way-tag to TAG;
-      assign way_hit[way] = tag_out[way].valid & (rd_core_tag_i == tag_out[way].tag);
-
+      assign way_hit[way] = tag_out[way].valid & (rd_core_tag_i == tag_out[way].tag) &
+                           ~(filling_i & fill_way_i[way] & ~rreq_i); //actually wreq_i
 
       /* TAG Dirty
        * Dirty is stored in DFF
@@ -407,7 +408,7 @@ endgenerate
    * Used for EVICT address generation
    */
   always @(posedge clk_i)
-    if      ( bypass_biumem_we) evict_tag_o <= tag_filling;
+    if      ( bypass_biumem_we_evict) evict_tag_o <= tag_filling;
     else if ( flushing_i      ) evict_tag_o <= tag_out[way_flushing_dly].tag;
     else if (!stall_i         ) evict_tag_o <= rd_idx_dly_eq_byp_idx ? tag_byp_tag
                                                                      : tag_out[evict_way_select_int].tag;
@@ -498,12 +499,12 @@ endgenerate
   /* Evict line output
    */
   always @(posedge clk_i)
-    if      ( bypass_biumem_we) evict_line_o <= biu_line_i;
-    else if ( flushing_i      ) evict_line_o <= dat_out[way_flushing_dly];
-    else if (!stall_i         ) evict_line_o <= be_mux(bypass_writebuffer_we,
-                                                       writebuffer_be_i,
-                                                       rd_idx_dly_eq_byp_idx ? dat_byp_q : dat_out[evict_way_select_int],
-                                                       {BLK_BITS/XLEN{writebuffer_data_i}});
+    if      ( bypass_biumem_we_evict) evict_line_o <= biu_line_i;
+    else if ( flushing_i            ) evict_line_o <= dat_out[way_flushing_dly];
+    else if (!stall_i               ) evict_line_o <= be_mux(bypass_writebuffer_we,
+                                                             writebuffer_be_i,
+                                                             rd_idx_dly_eq_byp_idx ? dat_byp_q : dat_out[evict_way_select_int],
+                                                             {BLK_BITS/XLEN{writebuffer_data_i}});
 endmodule
 
 
