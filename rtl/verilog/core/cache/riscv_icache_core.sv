@@ -435,6 +435,7 @@ endgenerate
     .biu_line_dirty_i          ( 1'b0                    ),
     .biucmd_ack_i              ( biucmd_ack              ),
 
+    .latchmem_i                (~mem_stall_o             ),
     .hit_o                     ( cache_hit               ),
     .ways_hit_o                (                         ),
     .cache_dirty_o             (                         ),
