@@ -88,6 +88,8 @@ module riscv_cache_memory #(
   output logic [TAG_BITS     -1:0] evict_tag_o,
   output logic [BLK_BITS     -1:0] evict_line_o,
 
+  input  logic                     latchmem_i,        //latch output from memories
+  output logic                     recover_o,         //add recovery cycles
   output logic                     hit_o,             //cache-hit
   output logic [WAYS         -1:0] ways_hit_o,        //list of hit ways
   output logic                     cache_dirty_o,     //(at least) one way is dirty
@@ -275,7 +277,7 @@ module riscv_cache_memory #(
   //Bypass on biumem_we?
   assign bypass_biumem_we       = biumem_we & (rd_idx_dly == idx_filling) & (rd_core_tag_dly == tag_filling);
   assign bypass_biumem_we_evict = biumem_we & (rd_idx_dly == idx_filling);
-
+  assign recover_o              = ~bypass_biumem_we;
 
   //Bypass on writebuffer_we?
   assign bypass_writebuffer_we = writebuffer_we_i & (rd_idx_dly == writebuffer_idx_i); //and hit
@@ -371,13 +373,13 @@ endgenerate
    */
   always @(posedge clk_i)
     if      ( bypass_biumem_we) hit_o <= 1'b1;
-    else if (!stall_i         ) hit_o <= rd_idx_dly_eq_byp_idx ? byp_valid & (rd_core_tag_i == tag_byp_tag)
+    else if ( latchmem_i      ) hit_o <= rd_idx_dly_eq_byp_idx ? byp_valid & (rd_core_tag_i == tag_byp_tag)
                                                                : |way_hit & ~we_dly;
 
 
   always @(posedge clk_i)
     if      ( bypass_biumem_we) ways_hit_o <= fill_way_i;
-    else if (!stall_i         ) ways_hit_o <= way_hit;
+    else if ( latchmem_i      ) ways_hit_o <= way_hit;
     
 
   /* Generate Dirty
@@ -385,38 +387,38 @@ endgenerate
   //cache has dirty lines
   always @(posedge clk_i)
     if      ( bypass_biumem_we) cache_dirty_o <= biu_line_dirty_i;
-    else if (!stall_i         ) cache_dirty_o <= |(tag_valid & tag_dirty);
+    else if ( latchmem_i      ) cache_dirty_o <= |(tag_valid & tag_dirty);
 
 
   //TODO: remove?
   always @(posedge clk_i)
     if      ( bypass_biumem_we ) ways_dirty_o <= {WAYS{biu_line_dirty_i}} & fill_way_i;
-    else if (!stall_i          ) ways_dirty_o <= way_dirty;
+    else if (latchmem_i        ) ways_dirty_o <= way_dirty;
 
 
   //selected way is dirty
   always @(posedge clk_i)
     if      ( bypass_biumem_we) way_dirty_o <= biu_line_dirty_i;
-    else if (!stall_i         ) way_dirty_o <= way_dirty[evict_way_select_int];
+    else if (latchmem_i       ) way_dirty_o <= way_dirty[evict_way_select_int];
 
 
   always @(posedge clk_i)
-    if (!stall_i) fill_way_o <= fill_way_select_dly;
+    if (latchmem_i) fill_way_o <= fill_way_select_dly;
 
 
   /* TAG output
    * Used for EVICT address generation
    */
   always @(posedge clk_i)
-    if      ( bypass_biumem_we_evict) evict_tag_o <= tag_filling;
-    else if ( flushing_i      ) evict_tag_o <= tag_out[way_flushing_dly].tag;
-    else if (!stall_i         ) evict_tag_o <= rd_idx_dly_eq_byp_idx ? tag_byp_tag
+/*    if      ( bypass_biumem_we_evict) evict_tag_o <= tag_filling;
+    else*/ if ( flushing_i      ) evict_tag_o <= tag_out[way_flushing_dly].tag;
+    else if ( latchmem_i      ) evict_tag_o <= rd_idx_dly_eq_byp_idx ? tag_byp_tag
                                                                      : tag_out[evict_way_select_int].tag;
 
 
   always @(posedge clk_i)
     if      ( flushing_i) evict_idx_o <= idx_flushing_dly;
-    else if (!stall_i   ) evict_idx_o <= rd_idx_dly;
+    else if ( latchmem_i) evict_idx_o <= rd_idx_dly;
 
 
   //----------------------------------------------------------------
@@ -490,7 +492,7 @@ endgenerate
    */
   always @(posedge clk_i)
     if      ( bypass_biumem_we ) cache_line_o <= biu_line_i;
-    else if (!stall_i          ) cache_line_o <= be_mux(bypass_writebuffer_we,
+    else if ( latchmem_i       ) cache_line_o <= be_mux(bypass_writebuffer_we,
                                                         writebuffer_be_i,
                                                         rd_idx_dly_eq_byp_idx ? dat_byp_q : way_q_mux[WAYS-1],
                                                         {BLK_BITS/XLEN{writebuffer_data_i}});
@@ -499,9 +501,9 @@ endgenerate
   /* Evict line output
    */
   always @(posedge clk_i)
-    if      ( bypass_biumem_we_evict) evict_line_o <= biu_line_i;
-    else if ( flushing_i            ) evict_line_o <= dat_out[way_flushing_dly];
-    else if (!stall_i               ) evict_line_o <= be_mux(bypass_writebuffer_we,
+/*    if      ( bypass_biumem_we_evict) evict_line_o <= biu_line_i;
+    else*/ if ( flushing_i            ) evict_line_o <= dat_out[way_flushing_dly];
+    else if ( latchmem_i            ) evict_line_o <= be_mux(bypass_writebuffer_we,
                                                              writebuffer_be_i,
                                                              rd_idx_dly_eq_byp_idx ? dat_byp_q : dat_out[evict_way_select_int],
                                                              {BLK_BITS/XLEN{writebuffer_data_i}});

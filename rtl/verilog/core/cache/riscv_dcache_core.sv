@@ -246,6 +246,8 @@ module riscv_dcache_core #(
   logic [BLK_BITS     -1:0] biu_line;
   logic                     biu_line_dirty;
 
+  logic                     hit_latchmem,
+                            mem_recover;
   logic                     armed,
                             flushing, flush_valid, flush_dirty,
 	                    filling;
@@ -401,6 +403,8 @@ endgenerate
     .misaligned_o              ( mem_misaligned_o        ),
     .pagefault_o               ( mem_pagefault_o         ),
 
+    .latchmem_o                ( hit_latchmem            ),
+    .recover_i                 ( mem_recover             ),
     .idx_o                     ( hit_idx                 ),
     .core_tag_o                ( hit_core_tag            ),
 
@@ -487,6 +491,8 @@ endgenerate
     .biu_line_dirty_i          ( biu_line_dirty          ), //Write data dirty
     .biucmd_ack_i              ( biucmd_ack              ), //Write data write-enable
 
+    .latchmem_i                ( hit_latchmem            ), //latch TAG/DATA memory output
+    .recover_o                 ( mem_recover             ), //add recovery cycles
     .hit_o                     ( cache_hit               ),
     .ways_hit_o                ( ways_hit                ),
     .cache_dirty_o             ( cache_dirty             ), //cache has dirty lines
