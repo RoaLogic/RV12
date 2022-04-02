@@ -335,7 +335,7 @@ module riscv_dcache_hit #(
 
           EVICT       : if (biucmd_ack_i || biu_err_i)
                         begin
-                            nxt_memfsm_state = RECOVER0;
+                            nxt_memfsm_state = RECOVER0; //recover_i ? RECOVER0 : ARMED;
                             nxt_biucmd       = BIUCMD_WRITEWAY; //evict dirty way
                         end
                         else
@@ -494,6 +494,7 @@ module riscv_dcache_hit #(
   always_comb
     unique case (memfsm_state)
       ARMED       : biucmd_noncacheable_req_o = valid_req & ~cacheable_i & ~flush_i;
+      NONCACHEABLE: biucmd_noncacheable_req_o = valid_req & ~cacheable_i & ~flush_i & biu_ack_i;
       default     : biucmd_noncacheable_req_o = 1'b0;
     endcase
 
@@ -526,7 +527,7 @@ module riscv_dcache_hit #(
       NONCACHEABLE: begin
                         stall_o    = ~valid_req ? |inflight_cnt_i
                                                 :  cacheable_i |
-                                                 (~cacheable_i & biu_ack_i); //=is_cacheble | biu_ack_i
+                                                 (~cacheable_i & ~biu_ack_i); //=is_cacheble | biu_ack_i
 
                         latchmem_o = ~stall_o;
                      end
