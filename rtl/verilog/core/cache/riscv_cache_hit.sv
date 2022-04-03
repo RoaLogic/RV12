@@ -223,7 +223,7 @@ module riscv_cache_hit #(
                           flushing_o    <= 1'b1;
                           flush_valid_o <= 1'b1;
                       end
-		      else if (req_i && !cacheable_i && misaligned_i && !flush_i)
+		      else if (req_i && !cacheable_i && !misaligned_i && !flush_i)
                       begin
                           memfsm_state <= NONCACHEABLE;
                           armed_o      <= 1'b0;
