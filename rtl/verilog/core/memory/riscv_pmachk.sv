@@ -128,7 +128,6 @@ module riscv_pmachk #(
     napot_lb = pmaddr;
     napot_lb <<= 2;
     napot_lb &= mask;
-//$display("napot_lb: %b %h %d %h %h", na4, pmaddr, n, mask, napot_lb);
   endfunction: napot_lb
 
 
@@ -152,7 +151,6 @@ module riscv_pmachk #(
     napot_ub <<= 2;
     napot_ub &= mask;
     napot_ub += range;
-//$display("napot_ub: %b %h %d %h %h %h", na4, pmaddr, n, mask, range, napot_ub);
   endfunction: napot_ub
 
 
@@ -257,11 +255,6 @@ generate
       //lower bounds
       always_comb
         unique case (pmacfg[i].a)
-          /* TOR after NAPOT ...
-           * email discussion suggested TOR after NAPOT is not a real-life configuration
-           * RoaLogic opts to implement this anyways for full flexibility
-           * RoaLogic's implementation uses pma[i-1]'s upper bound address
-           */
           TOR    : pma_lb[i] = (i==0) ? {PLEN{1'b0}} : pma_ub[i-1];
           NA4    : pma_lb[i] = napot_lb(1'b1, pma_adr_i[i]);
           NAPOT  : pma_lb[i] = napot_lb(1'b0, pma_adr_i[i]);
