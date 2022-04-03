@@ -31,7 +31,7 @@ import biu_constants_pkg::*;
 
 module riscv_nommu #(
   parameter XLEN    = 32,
-  parameter PLEN    = XLEN
+  parameter PLEN    = XLEN == 32 ? 34 : 56
 )
 (
   input  logic            rst_ni,
@@ -83,7 +83,7 @@ module riscv_nommu #(
   always @(posedge clk_i)
     if (!stall_i)
     begin
-        adr_o  <= adr_i;
+        adr_o  <= XLEN == 32 ? {2'h0,adr_i} : adr_i[PLEN-1:0];
         size_o <= size_i;
         lock_o <= lock_i;
         we_o   <= we_i;

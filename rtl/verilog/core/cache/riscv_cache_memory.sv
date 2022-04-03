@@ -39,6 +39,7 @@ import riscv_cache_pkg::*;
 
 module riscv_cache_memory #(
   parameter XLEN          = 32,
+  parameter PLEN          = XLEN == 32 ? 34 : 56,
   parameter SIZE          = 4,
   parameter BLOCK_SIZE    = XLEN,
   parameter WAYS          = 2,
@@ -50,7 +51,7 @@ module riscv_cache_memory #(
   localparam BLK_BITS      = no_of_block_bits(BLOCK_SIZE),
   localparam BLK_OFFS_BITS = no_of_block_offset_bits(BLOCK_SIZE),
   localparam DAT_OFFS_BITS = no_of_data_offset_bits(XLEN, BLK_BITS),
-  localparam TAG_BITS      = no_of_tag_bits(XLEN, IDX_BITS, BLK_OFFS_BITS)
+  localparam TAG_BITS      = no_of_tag_bits(PLEN, IDX_BITS, BLK_OFFS_BITS)
 )
 (
   input  logic                     rst_ni,

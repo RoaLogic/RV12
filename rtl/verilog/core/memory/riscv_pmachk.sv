@@ -86,71 +86,79 @@ module riscv_pmachk #(
 
 
   //Lower and Upper bounds for NA4/NAPOT
-  function automatic [PLEN-1:2] napot_lb;
-    input            na4; //special case na4
-    input [PLEN-1:2] pmaddr;
+  function int napot_boundary;
+    input na4; //special case na4
+    input [XLEN-1:0] pmaddr;
 
-    int n, i;
+    int n;
     bit true;
-    logic [PLEN-1:2] mask;
 
     //find 'n' boundary = 2^(n+2) bytes
-    n = 0;
+    n = 2;
     if (!na4)
     begin
 //        while ((n < $bits(pmaddr)) && (pmaddr[n+2])) n++; //Quartus doesn't like this
 		  
         true = 1'b1;
-        for (i=0; (i < $bits(pmaddr)) && true; i++)
-          if (pmaddr[i+2]) n++;
-          else             true = 1'b0;
+        for (int i=0; (i < $bits(pmaddr)) && true; i++)
+          if (pmaddr[i]) n++;
+          else           true = 1'b0;
 	 
         n++;
     end
+
+    return n;
+  endfunction: napot_boundary
+
+
+  function automatic [PLEN-1:0] napot_lb;
+    input            na4; //special case na4
+    input [XLEN-1:0] pmaddr;
+
+    int n;
+    logic [PLEN-1:0] mask;
+
+    //find 'n' boundary = 2^(n+2) bytes
+    n = napot_boundary(na4, pmaddr);
 
     //create mask
     mask = {$bits(mask){1'b1}} << n;
 
     //lower bound address
-    napot_lb = pmaddr & mask;
+    napot_lb = pmaddr;
+    napot_lb <<= 2;
+    napot_lb &= mask;
+//$display("napot_lb: %b %h %d %h %h", na4, pmaddr, n, mask, napot_lb);
   endfunction: napot_lb
 
 
-  function automatic [PLEN-1:2] napot_ub;
+  function automatic [PLEN-1:0] napot_ub;
     input            na4; //special case na4
-    input [PLEN-1:2] pmaddr;
+    input [XLEN-1:0] pmaddr;
 
-    int n, i;
-    bit true;
-    logic [PLEN-1:2] mask,
-                     incr;
+    int n;
+    logic [PLEN-1:0] mask,
+                     range;
 
     //find 'n' boundary = 2^(n+2) bytes
-    n = 0;
-    if (!na4)
-    begin
-//        while ((n < $bits(pmaddr)) && pmaddr[n+2]) n++; //Quartus doesn't like this
-
-        true = 1;
-        for (i=0; (i < $bits(pmaddr)) && true; i++)
-          if (pmaddr[i+2]) n++;
-          else             true = 1'b0;
-
-        n++;
-    end
+    n = napot_boundary(na4, pmaddr);
 
     //create mask and increment
     mask = {$bits(mask){1'b1}} << n;
-    incr = 1'h1 << n;
+    range = 1 << n;
 
     //upper bound address
-    napot_ub = (pmaddr + incr) & mask;
+    napot_ub = pmaddr;
+    napot_ub <<= 2;
+    napot_ub &= mask;
+    napot_ub += range;
+//$display("napot_ub: %b %h %d %h %h %h", na4, pmaddr, n, mask, range, napot_ub);
   endfunction: napot_ub
 
 
   //Is ANY byte of 'access' in pma range?
   function automatic match_any;
-    input [PLEN-1:2] access_lb, access_ub,
+    input [PLEN-1:0] access_lb, access_ub,
                      pma_lb   , pma_ub;
 
     /* Check if ANY byte of the access lies within the PMA range
@@ -159,16 +167,16 @@ module riscv_pmachk #(
      *   match_none = (access_lb >= pma_ub) OR (access_ub < pma_lb)  (1)
      *   match_any  = !match_none                                    (2)
      */
-     match_any = (access_lb >= pma_ub) || (access_ub <  pma_lb) ? 1'b0 : 1'b1;
+     match_any = (access_lb[PLEN-1:2] >= pma_ub[PLEN-1:2]) || (access_ub[PLEN-1:2] <  pma_lb[PLEN-1:2]) ? 1'b0 : 1'b1;
   endfunction: match_any
 
 
   //Are ALL bytes of 'access' in PMA range?
   function automatic match_all;
-    input [PLEN-1:2] access_lb, access_ub,
+    input [PLEN-1:0] access_lb, access_ub,
                      pma_lb   , pma_ub;
 
-    match_all = (access_lb >= pma_lb) && (access_ub < pma_ub) ? 1'b1 : 1'b0;
+    match_all = (access_lb[PLEN-1:2] >= pma_lb[PLEN-1:2]) && (access_ub[PLEN-1:2] < pma_ub[PLEN-1:2]) ? 1'b1 : 1'b0;
   endfunction: match_all
 
 
@@ -193,7 +201,7 @@ module riscv_pmachk #(
 
   logic    [PLEN   -1:0] access_ub,
                          access_lb;
-  logic    [PLEN   -1:2] pma_ub [PMA_CNT],
+  logic    [PLEN   -1:0] pma_ub [PMA_CNT],
                          pma_lb [PMA_CNT];
   logic    [PMA_CNT-1:0] pma_match,
                          pma_match_all;
@@ -228,9 +236,9 @@ generate
       assign pmacfg[i].c        = pma_cfg_i[i].mem_type == MEM_TYPE_MAIN  ? pma_cfg_i[i].c
                                                                           : 1'b0;
       assign pmacfg[i].cc       = pma_cfg_i[i].cc & pmacfg[i].c;
-      assign pmacfg[i].ri       = pma_cfg_i[i].mem_type == MEM_TYPE_IO    ? pma_cfg_i[i].ri
+      assign pmacfg[i].ri       = pma_cfg_i[i].mem_type == MEM_TYPE_IO    ? pma_cfg_i[i].ri //idempotent read
                                                                           : 1'b1;
-      assign pmacfg[i].wi       = pma_cfg_i[i].mem_type == MEM_TYPE_IO    ? pma_cfg_i[i].wi
+      assign pmacfg[i].wi       = pma_cfg_i[i].mem_type == MEM_TYPE_IO    ? pma_cfg_i[i].wi //idempotent write
                                                                           : 1'b1;
       assign pmacfg[i].m        = pma_cfg_i[i].m;
       assign pmacfg[i].a        = pma_cfg_i[i].a;
@@ -254,7 +262,7 @@ generate
            * RoaLogic opts to implement this anyways for full flexibility
            * RoaLogic's implementation uses pma[i-1]'s upper bound address
            */
-          TOR    : pma_lb[i] = (i==0) ? {PLEN-2{1'b0}} : pmacfg[i-1].a != TOR ? pma_ub[i-1] : pma_adr_i[i-1][PLEN-2 -1:0];
+          TOR    : pma_lb[i] = (i==0) ? {PLEN{1'b0}} : pma_ub[i-1];
           NA4    : pma_lb[i] = napot_lb(1'b1, pma_adr_i[i]);
           NAPOT  : pma_lb[i] = napot_lb(1'b0, pma_adr_i[i]);
           default: pma_lb[i] = {$bits(pma_lb[i]){1'bx}};
@@ -263,18 +271,18 @@ generate
       //upper bounds
       always_comb
         unique case (pmacfg[i].a)
-          TOR    : pma_ub[i] = pma_adr_i[i][PLEN-2 -1:0];
+          TOR    : pma_ub[i] = pma_adr_i[i];
           NA4    : pma_ub[i] = napot_ub(1'b1, pma_adr_i[i]);
           NAPOT  : pma_ub[i] = napot_ub(1'b0, pma_adr_i[i]);
           default: pma_ub[i] = {$bits(pma_ub[i]){1'bx}};
         endcase
 
       //match
-      assign pma_match    [i] = match_any(access_lb[PLEN-1:2], access_ub[PLEN-1:2], pma_lb[i], pma_ub[i]) & (pmacfg[i].a != OFF);
-//      assign pma_match_all[i] = match_all(access_lb[PLEN-1:2], access_ub[PLEN-1:2], pma_lb[i], pma_ub[i]) & (pmacfg[i].a != OFF);
+      assign pma_match    [i] = match_any(access_lb, access_ub, pma_lb[i], pma_ub[i]) & (pmacfg[i].a != OFF);
+//      assign pma_match_all[i] = match_all(access_lb, access_ub, pma_lb[i], pma_ub[i]) & (pmacfg[i].a != OFF);
 
       always @(posedge clk_i)
-        if (!stall_i) pma_match_all[i] <= match_all(access_lb[PLEN-1:2], access_ub[PLEN-1:2], pma_lb[i], pma_ub[i]) & (pmacfg[i].a != OFF);
+        if (!stall_i) pma_match_all[i] <= match_all(access_lb, access_ub, pma_lb[i], pma_ub[i]) & (pmacfg[i].a != OFF);
   end
 endgenerate
 

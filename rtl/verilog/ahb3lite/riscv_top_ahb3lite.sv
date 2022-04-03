@@ -140,6 +140,16 @@ module riscv_top_ahb3lite #(
   output                              dbg_ack,
   output                              dbg_bp
 );
+  ////////////////////////////////////////////////////////////////
+  //
+  // Constants
+  //
+  localparam PLEN     = XLEN == 32  ? 34   : 56;
+
+  initial
+    if (ALEN > PLEN)
+        $fatal("ALEN cannot be larger than %0d", PLEN);
+
 
   ////////////////////////////////////////////////////////////////
   //
@@ -179,8 +189,8 @@ module riscv_top_ahb3lite #(
   logic                                 ibiu_stb;
   logic                                 ibiu_stb_ack;
   logic                                 ibiu_d_ack;
-  logic          [ALEN            -1:0] ibiu_adri,
-                                        ibiu_adro;
+  logic          [PLEN            -1:0] ibiu_adri;
+  logic          [ALEN            -1:0] ibiu_adro;
   biu_size_t                            ibiu_size;
   biu_type_t                            ibiu_type;
   logic                                 ibiu_we;
@@ -198,8 +208,8 @@ module riscv_top_ahb3lite #(
   logic                                 dbiu_stb;
   logic                                 dbiu_stb_ack;
   logic                                 dbiu_d_ack;
-  logic          [ALEN            -1:0] dbiu_adri,
-                                        dbiu_adro;
+  logic          [PLEN            -1:0] dbiu_adri;
+  logic          [ALEN            -1:0] dbiu_adro;
   biu_size_t                            dbiu_size;
   biu_type_t                            dbiu_type;
   logic                                 dbiu_we;
@@ -313,7 +323,7 @@ module riscv_top_ahb3lite #(
    */
   riscv_imem_ctrl #(
     .XLEN              ( XLEN              ),
-    .PLEN              ( XLEN              ),
+    .PLEN              ( PLEN              ),
     .PARCEL_SIZE       ( PARCEL_SIZE       ),
     .HAS_RVC           ( HAS_RVC           ),
     .PMA_CNT           ( PMA_CNT           ),
@@ -351,7 +361,7 @@ module riscv_top_ahb3lite #(
     .biu_stb_ack_i     ( ibiu_stb_ack      ),
     .biu_d_ack_i       ( ibiu_d_ack        ),
     .biu_adri_o        ( ibiu_adri         ),
-    .biu_adro_i        ( ibiu_adro         ),
+    .biu_adro_i        ( { {PLEN-ALEN{1'b0}}, ibiu_adro } ),
     .biu_size_o        ( ibiu_size         ),
     .biu_type_o        ( ibiu_type         ),
     .biu_we_o          ( ibiu_we           ),
@@ -367,7 +377,7 @@ module riscv_top_ahb3lite #(
 
   riscv_dmem_ctrl #(
     .XLEN              ( XLEN              ),
-    .PLEN              ( XLEN              ),
+    .PLEN              ( PLEN              ),
     .HAS_RVC           ( HAS_RVC           ),
     .PMA_CNT           ( PMA_CNT           ),
     .PMP_CNT           ( PMP_CNT           ),
@@ -407,7 +417,7 @@ module riscv_top_ahb3lite #(
     .biu_stb_ack_i     ( dbiu_stb_ack      ),
     .biu_d_ack_i       ( dbiu_d_ack        ),
     .biu_adri_o        ( dbiu_adri         ),
-    .biu_adro_i        ( dbiu_adro         ),
+    .biu_adro_i        ( { {PLEN-ALEN{1'b0}}, dbiu_adro } ),
     .biu_size_o        ( dbiu_size         ),
     .biu_type_o        ( dbiu_type         ),
     .biu_we_o          ( dbiu_we           ),
@@ -446,7 +456,7 @@ module riscv_top_ahb3lite #(
     .biu_stb_i     ( ibiu_stb      ),
     .biu_stb_ack_o ( ibiu_stb_ack  ),
     .biu_d_ack_o   ( ibiu_d_ack    ),
-    .biu_adri_i    ( ibiu_adri     ),
+    .biu_adri_i    ( ibiu_adri[ALEN-1:0] ),
     .biu_adro_o    ( ibiu_adro     ),
     .biu_size_i    ( ibiu_size     ),
     .biu_type_i    ( ibiu_type     ),
@@ -485,7 +495,7 @@ module riscv_top_ahb3lite #(
     .biu_stb_i     ( dbiu_stb      ),
     .biu_stb_ack_o ( dbiu_stb_ack  ),
     .biu_d_ack_o   ( dbiu_d_ack    ),
-    .biu_adri_i    ( dbiu_adri     ),
+    .biu_adri_i    ( dbiu_adri[ALEN-1:0] ),
     .biu_adro_o    ( dbiu_adro     ),
     .biu_size_i    ( dbiu_size     ),
     .biu_type_i    ( dbiu_type     ),

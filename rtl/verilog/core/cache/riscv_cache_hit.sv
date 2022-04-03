@@ -34,7 +34,7 @@ import biu_constants_pkg::*;
 
 module riscv_cache_hit #(
   parameter XLEN           = 32,
-  parameter PLEN           = XLEN,
+  parameter PLEN           = XLEN == 32 ? 34 : 56,
   parameter PARCEL_SIZE    = XLEN,
   parameter HAS_RVC        = 0,
 
@@ -49,7 +49,7 @@ module riscv_cache_hit #(
   localparam SETS          = no_of_sets(SIZE, BLOCK_SIZE, WAYS),
   localparam BLK_OFFS_BITS = no_of_block_offset_bits(BLOCK_SIZE),
   localparam IDX_BITS      = no_of_index_bits(SETS),
-  localparam TAG_BITS      = no_of_tag_bits(XLEN, IDX_BITS, BLK_OFFS_BITS),
+  localparam TAG_BITS      = no_of_tag_bits(PLEN, IDX_BITS, BLK_OFFS_BITS),
   localparam INFLIGHT_BITS = $clog2(INFLIGHT_DEPTH+1)
 )
 (
@@ -102,7 +102,6 @@ module riscv_cache_hit #(
   input  logic                        in_biubuffer_i,
   input  logic [BLK_BITS        -1:0] biubuffer_i,
 
-  output logic [XLEN            -1:0] parcel_pc_o,
   output logic [XLEN            -1:0] parcel_o,
   output logic [XLEN/PARCEL_SIZE-1:0] parcel_valid_o,
   output logic                        parcel_error_o,
@@ -224,7 +223,7 @@ module riscv_cache_hit #(
                           flushing_o    <= 1'b1;
                           flush_valid_o <= 1'b1;
                       end
-		      else if (req_i && !cacheable_i && !flush_i)
+		      else if (req_i && !cacheable_i && misaligned_i && !flush_i)
                       begin
                           memfsm_state <= NONCACHEABLE;
                           armed_o      <= 1'b0;
@@ -300,7 +299,7 @@ module riscv_cache_hit #(
       FLUSH       : biucmd_noncacheable_req_o = 1'b0;
       WAIT4BIUCMD0: biucmd_noncacheable_req_o = 1'b0;
       RECOVER     : biucmd_noncacheable_req_o = 1'b0;
-      default     : biucmd_noncacheable_req_o = req_i & ~cacheable_i & ~flush_i;
+      default     : biucmd_noncacheable_req_o = req_i & ~cacheable_i & ~misaligned_i & ~flush_i;
     endcase
 
 
@@ -348,10 +347,6 @@ module riscv_cache_hit #(
   assign parcel_error_o = biu_err_i | (req_i & (pma_exception_i | pmp_exception_i));
 
 
-  //Assign parcel_pc
-  assign parcel_pc_o = { {XLEN-PLEN{1'b0}}, biu_adro};
-
-
   //Shift amount for data
   assign dat_offset = adr_i[BLK_OFFS_BITS-1 -: DAT_OFFS_BITS];
 
@@ -374,10 +369,10 @@ module riscv_cache_hit #(
   //Assign parcel_valid
   always_comb
     unique case (memfsm_state)
-      ARMED       : parcel_valid_o = {$bits(parcel_valid_o){cache_ack                }} << adr_i      [1 +: $clog2(XLEN/PARCEL_SIZE)]; 
-      NONCACHEABLE: parcel_valid_o = {$bits(parcel_valid_o){biucmd_noncacheable_ack_i}} << parcel_pc_o[1 +: $clog2(XLEN/PARCEL_SIZE)];
-      WAIT4BIUCMD0: parcel_valid_o = {$bits(parcel_valid_o){biu_cacheable_ack        }} << adr_i      [1 +: $clog2(XLEN/PARCEL_SIZE)];
-      RECOVER     : parcel_valid_o = {$bits(parcel_valid_o){cache_ack                }} << adr_i      [1 +: $clog2(XLEN/PARCEL_SIZE)];
+      ARMED       : parcel_valid_o = {$bits(parcel_valid_o){cache_ack                }} << adr_i   [1 +: $clog2(XLEN/PARCEL_SIZE)]; 
+      NONCACHEABLE: parcel_valid_o = {$bits(parcel_valid_o){biucmd_noncacheable_ack_i}} << biu_adro[1 +: $clog2(XLEN/PARCEL_SIZE)];
+      WAIT4BIUCMD0: parcel_valid_o = {$bits(parcel_valid_o){biu_cacheable_ack        }} << adr_i   [1 +: $clog2(XLEN/PARCEL_SIZE)];
+      RECOVER     : parcel_valid_o = {$bits(parcel_valid_o){cache_ack                }} << adr_i   [1 +: $clog2(XLEN/PARCEL_SIZE)];
       default     : parcel_valid_o = {$bits(parcel_valid_o){1'b0}};
     endcase    
 
@@ -388,13 +383,15 @@ module riscv_cache_hit #(
 
 
   //generate misaligned
+  assign parcel_misaligned_o = req_i & misaligned_i;
+/*
   always_comb
     unique case (memfsm_state)
       WAIT4BIUCMD0: parcel_misaligned_o = misaligned_i;
       default     : parcel_misaligned_o = cacheable_i ? misaligned_i
-	                                              : (HAS_RVC != 0) ? parcel_pc_o[0] : |parcel_pc_o[1:0]; 
+	                                              : (HAS_RVC != 0) ? biu_adro[0] : |biu_adro[1:0]; 
     endcase
-
+*/
 
   //generate pagefault
   assign parcel_pagefault_o = pagefault_i;

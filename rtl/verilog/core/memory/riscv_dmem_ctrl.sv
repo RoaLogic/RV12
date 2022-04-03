@@ -34,7 +34,7 @@ import biu_constants_pkg::*;
 
 module riscv_dmem_ctrl #(
   parameter XLEN              = 32,
-  parameter PLEN              = XLEN, // XLEN==32 ? 34 : 56
+  parameter PLEN              = XLEN==32 ? 34 : 56,
 
   parameter HAS_RVC           = 0,
   parameter HAS_MMU           = 0,

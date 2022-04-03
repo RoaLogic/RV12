@@ -34,7 +34,7 @@ import biu_constants_pkg::*;
 
 module riscv_imem_ctrl #(
   parameter XLEN             = 32,
-  parameter PLEN             = XLEN, // XLEN==32 ? 34 : 56
+  parameter PLEN             = XLEN==32 ? 34 : 56,
   parameter PARCEL_SIZE      = 32,
 
   parameter HAS_RVC          = 0,
@@ -202,8 +202,8 @@ generate
         .clk_i         ( clk_i      ),
         .stall_i       ( stall      ),
         .instruction_i ( 1'b1       ), //instruction access
-        .adr_i         ( mem_adr_i  ),
-        .size_i        ( size       ),
+        .adr_i         ( mmu_adr    ),
+        .size_i        ( mmu_size   ),
         .misaligned_o  ( misaligned ) );
 
 
@@ -318,7 +318,6 @@ generate
         .mem_size_i          ( size              ),
         .mem_lock_i          ( lock              ),
         .mem_prot_i          ( prot              ),
-	.parcel_pc_o         (                   ),
         .parcel_o            ( parcel_o          ),
         .parcel_valid_o      ( parcel_valid_o    ),
 	.parcel_misaligned_o ( mem_misaligned_o  ),

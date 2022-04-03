@@ -266,7 +266,7 @@ module riscv_dcache_hit #(
                                    flush_rdy        = 1'b0;
                                end
                            end
-                           else if (valid_req && !cacheable_i && !flush_i && !biucmd_busy_i)
+                           else if (valid_req && !cacheable_i && !misaligned_i && !flush_i && !biucmd_busy_i)
                            begin
                                nxt_memfsm_state = NONCACHEABLE;
                                nxt_biucmd       = BIUCMD_NOP;
@@ -493,8 +493,8 @@ module riscv_dcache_hit #(
   //non-cacheable access
   always_comb
     unique case (memfsm_state)
-      ARMED       : biucmd_noncacheable_req_o = valid_req & ~cacheable_i & ~flush_i;
-      NONCACHEABLE: biucmd_noncacheable_req_o = valid_req & ~cacheable_i & ~flush_i & biu_ack_i;
+      ARMED       : biucmd_noncacheable_req_o = valid_req & ~cacheable_i & ~misaligned_i & ~flush_i;
+      NONCACHEABLE: biucmd_noncacheable_req_o = valid_req & ~cacheable_i & ~misaligned_i & ~flush_i & biu_ack_i;
       default     : biucmd_noncacheable_req_o = 1'b0;
     endcase
 

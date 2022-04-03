@@ -153,7 +153,7 @@ module riscv_dcache_core #(
   localparam SETS             = (SIZE*1024) / BLOCK_SIZE / WAYS;   //Number of sets TODO:SETS=1 doesn't work
   localparam BLK_OFFS_BITS    = $clog2(BLOCK_SIZE);                //Number of BlockOffset bits
   localparam IDX_BITS         = $clog2(SETS);                      //Number of Index-bits
-  localparam TAG_BITS         = XLEN - IDX_BITS - BLK_OFFS_BITS;   //Number of TAG-bits
+  localparam TAG_BITS         = PLEN - IDX_BITS - BLK_OFFS_BITS;   //Number of TAG-bits
   localparam BLK_BITS         = 8*BLOCK_SIZE;                      //Total number of bits in a Block
   localparam BURST_SIZE       = BLK_BITS / XLEN;                   //Number of transfers to load 1 Block
   localparam BURST_BITS       = $clog2(BURST_SIZE);
@@ -450,6 +450,7 @@ endgenerate
 
   riscv_cache_memory #(
     .XLEN                      ( XLEN                    ),
+    .PLEN                      ( PLEN                    ),
     .SIZE                      ( SIZE                    ),
     .BLOCK_SIZE                ( BLOCK_SIZE              ),
     .WAYS                      ( WAYS                    ),

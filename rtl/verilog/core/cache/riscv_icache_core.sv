@@ -110,7 +110,6 @@ module riscv_icache_core #(
   input  biu_size_t                   mem_size_i,
   input                               mem_lock_i,
   input  biu_prot_t                   mem_prot_i,
-  output logic [XLEN            -1:0] parcel_pc_o,
   output logic [XLEN            -1:0] parcel_o,
   output logic [XLEN/PARCEL_SIZE-1:0] parcel_valid_o,
   output logic                        parcel_error_o,
@@ -153,7 +152,7 @@ module riscv_icache_core #(
   localparam SETS             = (SIZE*1024) / BLOCK_SIZE / WAYS;    //Number of sets TODO:SETS=1 doesn't work
   localparam BLK_OFFS_BITS    = $clog2(BLOCK_SIZE);                 //Number of BlockOffset bits
   localparam IDX_BITS         = $clog2(SETS);                       //Number of Index-bits
-  localparam TAG_BITS         = XLEN - IDX_BITS - BLK_OFFS_BITS;     //Number of TAG-bits
+  localparam TAG_BITS         = PLEN - IDX_BITS - BLK_OFFS_BITS;     //Number of TAG-bits
   localparam BLK_BITS         = 8*BLOCK_SIZE;                       //Total number of bits in a Block
   localparam BURST_SIZE       = BLK_BITS / XLEN;                    //Number of transfers to load 1 Block
   localparam BURST_BITS       = $clog2(BURST_SIZE);
@@ -180,8 +179,6 @@ module riscv_icache_core #(
   logic [              6:0] way_random; //Up to 128ways
   logic [WAYS         -1:0] fill_way_select,
                             mem_fill_way, hit_fill_way;
-
-  logic                     stall;
 
   logic                     setup_req,        tag_req;
   logic [PLEN         -1:0]                   tag_adr;
@@ -380,7 +377,6 @@ endgenerate
     .in_biubuffer_i            ( in_biubuffer            ),
     .biubuffer_i               ( biubuffer               ),
 
-    .parcel_pc_o               (                         ),
     .parcel_o                  ( parcel_o                ),
     .parcel_valid_o            ( parcel_valid_o          ),
     .parcel_error_o            ( parcel_error_o          ),
@@ -394,6 +390,7 @@ endgenerate
   //----------------------------------------------------------------
   riscv_cache_memory #(
     .XLEN                      ( XLEN                    ),
+    .PLEN                      ( PLEN                    ),
     .SIZE                      ( SIZE                    ),
     .BLOCK_SIZE                ( BLOCK_SIZE              ),
     .WAYS                      ( WAYS                    ),
@@ -479,7 +476,7 @@ endgenerate
     .be_i                      ( {XLEN/8  {1'b0}}        ),
     .d_i                       ( {XLEN    {1'b0}}        ),
 
-    .evictbuffer_adr_i         ( {XLEN    {1'b0}}        ),
+    .evictbuffer_adr_i         ( {PLEN    {1'b0}}        ),
     .evictbuffer_d_i           ( {BLK_BITS{1'b0}}        ),
     .biubuffer_o               ( biubuffer               ),
     .in_biubuffer_o            ( in_biubuffer            ),
