@@ -761,7 +761,7 @@ module riscv_if #(
     else if (!pd_stall_i)
     begin
         if_exceptions_o                                <= parcel_exceptions;
-	if_exceptions_o.exceptions.illegal_instruction <= rvc_illegal;
+	if_exceptions_o.exceptions.illegal_instruction <= rvc_illegal & ~parcel_queue_empty;
     end
 
 
