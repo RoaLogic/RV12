@@ -279,6 +279,7 @@ endgenerate
 
   /* Address Setup Stage
    * Drives signals into TAG and DATA memories
+   * Virtual Memory
    */
   riscv_cache_setup #(
     .XLEN                      ( XLEN                    ),
