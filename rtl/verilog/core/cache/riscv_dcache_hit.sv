@@ -47,7 +47,7 @@ module riscv_dcache_hit #(
   localparam BLK_OFFS_BITS = no_of_block_offset_bits(BLOCK_SIZE),
   localparam DAT_OFFS_BITS = no_of_data_offset_bits (XLEN, BLK_BITS),   //Offset in block
   localparam IDX_BITS      = no_of_index_bits(SETS),
-  localparam TAG_BITS      = no_of_tag_bits(XLEN, IDX_BITS, BLK_OFFS_BITS),
+  localparam TAG_BITS      = no_of_tag_bits(PLEN, IDX_BITS, BLK_OFFS_BITS),
 
   localparam INFLIGHT_BITS = $clog2(INFLIGHT_DEPTH+1)
 )
