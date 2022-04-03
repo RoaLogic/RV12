@@ -256,14 +256,7 @@ module riscv_cache_hit #(
                           memfsm_state <= ARMED;
                           armed_o      <= 1'b1;
                       end
-/*
-        WAIT4BIUCMD0: if (biucmd_ack_i || biu_err_i)
-                      begin
-                          memfsm_state <= RECOVER;
-                          biucmd_o     <= BIUCMD_NOP;
-                          filling_o    <= 1'b0;
-                      end
-*/
+
         WAIT4BIUCMD0: begin
                           biucmd_o <= BIUCMD_NOP;
 
@@ -289,7 +282,7 @@ module riscv_cache_hit #(
 
 
   //core-tag (for writing)
-  assign core_tag_o = adr_i[XLEN-1 -: TAG_BITS];
+  assign core_tag_o = adr_i[PLEN-1 -: TAG_BITS];
 
 
 
