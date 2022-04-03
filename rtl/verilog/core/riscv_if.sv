@@ -758,6 +758,7 @@ module riscv_if #(
   //exceptions
   always @(posedge clk_i, negedge rst_ni)
     if      (!rst_ni    ) if_exceptions_o <= {$bits(if_exceptions_o){1'b0}};
+    else if ( pd_flush_i) if_exceptions_o <= {$bits(if_exceptions_o){1'b0}};
     else if (!pd_stall_i)
     begin
         if_exceptions_o                                <= parcel_exceptions;
