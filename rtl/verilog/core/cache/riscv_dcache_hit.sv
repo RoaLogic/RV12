@@ -400,7 +400,7 @@ module riscv_dcache_hit #(
                              filling_o  <= 1'b0;
 
                              if (cacheflush && !writebuffer_we_o)
-                               if (cache_dirty_i) flushing_o <= 1'b1;
+                               if (~cache_dirty_i) flushing_o <= 1'b1;
                          end
 
           FLUSH        : begin
