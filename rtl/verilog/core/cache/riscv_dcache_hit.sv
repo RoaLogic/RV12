@@ -265,8 +265,6 @@ module riscv_dcache_hit #(
                                    nxt_biucmd       = BIUCMD_NOP;
                                    flush_rdy        = 1'b0;
                                end
-			       else
-                                   flush_rdy        = 1'b1;
                            end
                            else if (valid_req && !cacheable_i && !misaligned_i && !flush_i && !biucmd_busy_i)
                            begin
@@ -400,6 +398,9 @@ module riscv_dcache_hit #(
                              armed_o    <= 1'b1;
                              flushing_o <= 1'b0;
                              filling_o  <= 1'b0;
+
+                             if (cacheflush && !writebuffer_we_o)
+                               if (cache_dirty_i) flushing_o <= 1'b1;
                          end
 
           FLUSH        : begin
