@@ -144,11 +144,7 @@ module riscv_top_ahb3lite #(
   //
   // Constants
   //
-  localparam PLEN     = XLEN == 32  ? 34   : 56;
-
-  initial
-    if (ALEN > PLEN)
-        $fatal("ALEN cannot be larger than %0d", PLEN);
+  localparam PLEN = XLEN == 32 ? 34 : 56;
 
 
   ////////////////////////////////////////////////////////////////
@@ -190,7 +186,9 @@ module riscv_top_ahb3lite #(
   logic                                 ibiu_stb_ack;
   logic                                 ibiu_d_ack;
   logic          [PLEN            -1:0] ibiu_adri;
+  logic          [ALEN            -1:0] ibiu_adri_tmp;
   logic          [ALEN            -1:0] ibiu_adro;
+  logic          [PLEN            -1:0] ibiu_adro_tmp;
   biu_size_t                            ibiu_size;
   biu_type_t                            ibiu_type;
   logic                                 ibiu_we;
@@ -209,7 +207,9 @@ module riscv_top_ahb3lite #(
   logic                                 dbiu_stb_ack;
   logic                                 dbiu_d_ack;
   logic          [PLEN            -1:0] dbiu_adri;
+  logic          [ALEN            -1:0] dbiu_adri_tmp;
   logic          [ALEN            -1:0] dbiu_adro;
+  logic          [PLEN            -1:0] dbiu_adro_tmp;
   biu_size_t                            dbiu_size;
   biu_type_t                            dbiu_type;
   logic                                 dbiu_we;
@@ -361,7 +361,7 @@ module riscv_top_ahb3lite #(
     .biu_stb_ack_i     ( ibiu_stb_ack      ),
     .biu_d_ack_i       ( ibiu_d_ack        ),
     .biu_adri_o        ( ibiu_adri         ),
-    .biu_adro_i        ( { {PLEN-ALEN{1'b0}}, ibiu_adro } ),
+    .biu_adro_i        ( ibiu_adro_tmp     ),
     .biu_size_o        ( ibiu_size         ),
     .biu_type_o        ( ibiu_type         ),
     .biu_we_o          ( ibiu_we           ),
@@ -373,6 +373,11 @@ module riscv_top_ahb3lite #(
     .biu_err_i         ( ibiu_err          ),
     .biu_tagi_o        ( ibiu_tagi         ),
     .biu_tago_i        ( ibiu_tago         ) );
+
+generate
+  if (ALEN >= PLEN) assign ibiu_adro_tmp = ibiu_adro[PLEN-1:0];
+  else              assign ibiu_adro_tmp = { {PLEN-ALEN{1'b0}}, ibiu_adro};
+endgenerate
 
 
   riscv_dmem_ctrl #(
@@ -417,7 +422,7 @@ module riscv_top_ahb3lite #(
     .biu_stb_ack_i     ( dbiu_stb_ack      ),
     .biu_d_ack_i       ( dbiu_d_ack        ),
     .biu_adri_o        ( dbiu_adri         ),
-    .biu_adro_i        ( { {PLEN-ALEN{1'b0}}, dbiu_adro } ),
+    .biu_adro_i        ( dbiu_adro_tmp     ),
     .biu_size_o        ( dbiu_size         ),
     .biu_type_o        ( dbiu_type         ),
     .biu_we_o          ( dbiu_we           ),
@@ -429,6 +434,12 @@ module riscv_top_ahb3lite #(
     .biu_err_i         ( dbiu_err          ),
     .biu_tagi_o        ( dbiu_tagi         ),
     .biu_tago_i        ( dbiu_tago         ) );
+
+generate
+  if (ALEN >= PLEN) assign dbiu_adro_tmp = dbiu_adro[PLEN-1:0];
+  else              assign dbiu_adro_tmp = { {PLEN-ALEN{1'b0}}, dbiu_adro};
+endgenerate
+
 
   /* Instantiate BIU
    */
@@ -456,7 +467,7 @@ module riscv_top_ahb3lite #(
     .biu_stb_i     ( ibiu_stb      ),
     .biu_stb_ack_o ( ibiu_stb_ack  ),
     .biu_d_ack_o   ( ibiu_d_ack    ),
-    .biu_adri_i    ( ibiu_adri[ALEN-1:0] ),
+    .biu_adri_i    ( ibiu_adri_tmp ),
     .biu_adro_o    ( ibiu_adro     ),
     .biu_size_i    ( ibiu_size     ),
     .biu_type_i    ( ibiu_type     ),
@@ -469,6 +480,11 @@ module riscv_top_ahb3lite #(
     .biu_err_o     ( ibiu_err      ),
     .biu_tagi_i    ( ibiu_tagi     ),
     .biu_tago_o    ( ibiu_tago     ) );
+
+generate
+  if (ALEN <= PLEN) assign ibiu_adri_tmp = ibiu_adri[ALEN-1:0];
+  else              assign ibiu_adri_tmp = { {ALEN-PLEN{1'b0}}, ibiu_adri};
+endgenerate
 
 
   biu_ahb3lite #(
@@ -495,7 +511,7 @@ module riscv_top_ahb3lite #(
     .biu_stb_i     ( dbiu_stb      ),
     .biu_stb_ack_o ( dbiu_stb_ack  ),
     .biu_d_ack_o   ( dbiu_d_ack    ),
-    .biu_adri_i    ( dbiu_adri[ALEN-1:0] ),
+    .biu_adri_i    ( dbiu_adri_tmp ),
     .biu_adro_o    ( dbiu_adro     ),
     .biu_size_i    ( dbiu_size     ),
     .biu_type_i    ( dbiu_type     ),
@@ -508,5 +524,10 @@ module riscv_top_ahb3lite #(
     .biu_err_o     ( dbiu_err      ),
     .biu_tagi_i    ( dbiu_tagi     ),
     .biu_tago_o    ( dbiu_tago     ) );
+
+generate
+  if (ALEN <= PLEN) assign dbiu_adri_tmp = dbiu_adri[ALEN-1:0];
+  else              assign dbiu_adri_tmp = { {ALEN-PLEN{1'b0}}, dbiu_adri};
+endgenerate
 
 endmodule
