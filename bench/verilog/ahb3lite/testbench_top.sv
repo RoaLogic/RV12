@@ -179,7 +179,7 @@ assign pma_cfg[0].amo_type = AMO_TYPE_NONE;
 assign pma_cfg[0].a        = TOR;
 
 //TOHOST region
-assign pma_adr[1]          = ((TOHOST >> 2) & ~'hf) | 'h7;
+assign pma_adr[1]          = (TOHOST | ('h7 >>1)) >> 2;
 assign pma_cfg[1].mem_type = MEM_TYPE_IO;
 assign pma_cfg[1].r        = 1'b0;
 assign pma_cfg[1].w        = 1'b1;
@@ -207,18 +207,18 @@ assign pma_cfg[2].amo_type = AMO_TYPE_NONE;
 assign pma_cfg[2].a        = NA4;
 
 //RAM region
-assign pma_adr[3]          = 1 << 31;
+assign pma_adr[3]          = (1 << 31 | ({32{1'b1}} >> 1)) >> 2;
 assign pma_cfg[3].mem_type = MEM_TYPE_MAIN;
 assign pma_cfg[3].r        = 1'b1;
 assign pma_cfg[3].w        = 1'b1;
 assign pma_cfg[3].x        = 1'b1;
-assign pma_cfg[3].c        = 1'b1;
+assign pma_cfg[3].c        = 1'b1; //1'b1;
 assign pma_cfg[3].cc       = 1'b0;
 assign pma_cfg[3].ri       = 1'b0;
 assign pma_cfg[3].wi       = 1'b0;
 assign pma_cfg[3].m        = 1'b0;
 assign pma_cfg[3].amo_type = AMO_TYPE_NONE;
-assign pma_cfg[3].a        = TOR;
+assign pma_cfg[3].a        = NAPOT;
 
 
 //Hookup Device Under Test
@@ -377,7 +377,6 @@ dmav_inst (
   .err_i        ( `RV_CORE.dmem_err_i        ),
   .misaligned_i ( `RV_CORE.dmem_misaligned_i ),
   .page_fault_i ( `RV_CORE.dmem_page_fault_i ) );
-
 
 //Generate clock
 always #1 HCLK = ~HCLK;
@@ -843,8 +842,7 @@ module dmav #(
         if (CHECK_CREATE)
         begin
             //read from file and compare
-            if (golden_compare(golden_read(fd), queue_q) )
-              golden_errors++;
+            if (golden_compare(golden_read(fd), queue_q) ) golden_errors++;
         end
         else
         begin
