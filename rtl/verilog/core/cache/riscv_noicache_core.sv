@@ -133,7 +133,10 @@ module riscv_noicache_core #(
    * External Interface
    */
   assign biu_stb_o   = dcflush_rdy_i & ~if_flush_i & if_req_i;
-  assign biu_adri_o  = if_nxt_pc_i[PLEN -1:0] & (XLEN==64 ? ~'h7 : ~'h3); //Always start at aligned address
+generate  
+  if (PLEN <= XLEN) assign biu_adri_o = if_nxt_pc_i[PLEN -1:0]           & (XLEN==64 ? ~'h7 : ~'h3); //Always start at aligned address
+  else              assign biu_adri_o = {{PLEN-XLEN{1'b0}}, if_nxt_pc_i} & (XLEN==64 ? ~'h7 : ~'h3);
+endgenerate
   assign biu_tagi_o  = if_nxt_pc_i[1 +: BIUTAG_SIZE];                     //Use TAG to remember offset (actual address LSBs)
   assign biu_size_o  = XLEN==64 ? DWORD : WORD;
   assign biu_lock_o  = 1'b0;
