@@ -32,7 +32,7 @@ import riscv_state_pkg::*;
 
 module riscv_noicache_core #(
   parameter XLEN        = 32,
-  parameter ALEN        = XLEN,
+  parameter PLEN        = XLEN,
   parameter PARCEL_SIZE = 16,
   parameter HAS_RVC     = 0,
   parameter DEPTH       = 2,        //number of transactions in flight
@@ -60,8 +60,8 @@ module riscv_noicache_core #(
   output                            biu_stb_o,
   input                             biu_stb_ack_i,
   input                             biu_d_ack_i,
-  output     [ALEN            -1:0] biu_adri_o,
-  input      [ALEN            -1:0] biu_adro_i,
+  output     [PLEN            -1:0] biu_adri_o,
+  input      [PLEN            -1:0] biu_adro_i,
   output biu_size_t                 biu_size_o,     //transfer size
   output biu_type_t                 biu_type_o,     //burst type -AHB style
   output                            biu_lock_o,
@@ -125,7 +125,7 @@ module riscv_noicache_core #(
   assign if_parcel_valid_o      = dcflush_rdy_i & ~(if_flush_i | if_flush_dly) & biu_ack_i & ~|discard
                                 ? {XLEN/PARCEL_SIZE{1'b1}} << biu_tago_i
                                 : {XLEN/PARCEL_SIZE{1'b0}};
-  assign if_parcel_pc_o         = { {XLEN-ALEN{1'b0}},biu_adro_i[ALEN -1 : BIUTAG_SIZE+1], biu_tago_i, 1'b0};
+  assign if_parcel_pc_o         = { {PLEN - (BIUTAG_SIZE+1) - $bits(biu_tago_i) -1{1'b0}},biu_adro_i[PLEN -1 : BIUTAG_SIZE+1], biu_tago_i, 1'b0};
   assign if_parcel_o            = biu_q_i;
 
 
@@ -133,7 +133,7 @@ module riscv_noicache_core #(
    * External Interface
    */
   assign biu_stb_o   = dcflush_rdy_i & ~if_flush_i & if_req_i;
-  assign biu_adri_o  = if_nxt_pc_i[ALEN -1:0] & (XLEN==64 ? ~'h7 : ~'h3); //Always start at aligned address
+  assign biu_adri_o  = if_nxt_pc_i[PLEN -1:0] & (XLEN==64 ? ~'h7 : ~'h3); //Always start at aligned address
   assign biu_tagi_o  = if_nxt_pc_i[1 +: BIUTAG_SIZE];                     //Use TAG to remember offset (actual address LSBs)
   assign biu_size_o  = XLEN==64 ? DWORD : WORD;
   assign biu_lock_o  = 1'b0;

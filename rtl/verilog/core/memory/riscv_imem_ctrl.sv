@@ -356,7 +356,7 @@ generate
     */
    riscv_noicache_core #(
      .XLEN                   ( XLEN              ),
-     .ALEN                   ( PLEN              ),
+     .PLEN                   ( PLEN              ),
      .HAS_RVC                ( HAS_RVC           ),
      .PARCEL_SIZE            ( PARCEL_SIZE       ),
      .BIUTAG_SIZE            ( BIUTAG_SIZE       ) )
