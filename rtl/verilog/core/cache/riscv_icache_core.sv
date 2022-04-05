@@ -259,7 +259,7 @@ endgenerate
     .prot_i                    ( mem_prot_i              ),
     .we_i                      ( 1'b0                    ),
     .d_i                       ( {XLEN{1'b0}}            ),
-    .cacheflush_i              (                         ),
+    .cacheflush_i              ( cache_flush_i           ),
 
     .req_o                     ( setup_req               ),
     .rreq_o                    (                         ),
@@ -268,7 +268,7 @@ endgenerate
     .prot_o                    ( setup_prot              ),
     .we_o                      (                         ),
     .q_o                       (                         ),
-    .cacheflush_o              (                         ),
+    .cacheflush_o              ( setup_cacheflush        ),
  
     .idx_o                     ( setup_idx               ) );
 
@@ -297,7 +297,7 @@ endgenerate
     .prot_i                    ( setup_prot              ),
     .we_i                      ( 1'b0                    ),
     .d_i                       ( {XLEN{1'b0}}            ),
-    .cacheflush_i              ( 1'b0                    ),
+    .cacheflush_i              ( setup_cacheflush        ),
 
     .req_o                     ( tag_req                 ),
     .wreq_o                    (                         ),
@@ -308,7 +308,7 @@ endgenerate
     .we_o                      (                         ),
     .be_o                      (                         ),
     .q_o                       (                         ),
-    .cacheflush_o              (                         ),
+    .cacheflush_o              ( tag_cacheflush          ),
     .pagefault_o               ( tag_pagefault           ),
     .core_tag_o                ( tag_core_tag            ) );
 
@@ -335,7 +335,7 @@ endgenerate
     .flush_i                   ( mem_flush_i             ),
 
     //Instructions are pre-fetched. Therefore flush immediately
-    .cacheflush_req_i          ( cache_flush_i           ),
+    .cacheflush_req_i          ( tag_cacheflush          ),
     .dcflush_rdy_i             ( dcflush_rdy_i           ),
     .armed_o                   ( armed                   ),
     .flushing_o                ( flushing                ),
