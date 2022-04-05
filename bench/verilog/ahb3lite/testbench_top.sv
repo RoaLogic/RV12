@@ -236,9 +236,9 @@ riscv_top_ahb3lite #(
 
   .PMA_CNT          ( PMA_CNT          ),
   .ICACHE_SIZE      ( ICACHE_SIZE      ),
-  .ICACHE_WAYS      ( 1                ),
+  .ICACHE_WAYS      ( 2                ),
   .DCACHE_SIZE      ( DCACHE_SIZE      ),
-  .DTCM_SIZE        ( 0                ),
+  .DCACHE_WAYS      ( 2                ),
   .WRITEBUFFER_SIZE ( WRITEBUFFER_SIZE ),
 
   .MTVEC_DEFAULT    ( 32'h80000004     )
