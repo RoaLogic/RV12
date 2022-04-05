@@ -63,13 +63,11 @@ module riscv_top_ahb3lite #(
   parameter            ICACHE_BLOCK_SIZE  = 32, //in Bytes
   parameter            ICACHE_WAYS        = 2,  //'n'-way set associative
   parameter            ICACHE_REPLACE_ALG = 0,
-  parameter            ITCM_SIZE          = 0,
 
   parameter            DCACHE_SIZE        = 0,  //in KBytes
   parameter            DCACHE_BLOCK_SIZE  = 32, //in Bytes
   parameter            DCACHE_WAYS        = 2,  //'n'-way set associative
   parameter            DCACHE_REPLACE_ALG = 0,
-  parameter            DTCM_SIZE          = 0,
   parameter            WRITEBUFFER_SIZE   = 8,
 
   parameter            TECHNOLOGY         = "GENERIC",
