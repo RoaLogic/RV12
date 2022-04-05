@@ -303,11 +303,11 @@ module riscv_if #(
     casex ( {xlen128, xlen64, xlen32, decode_rvc_opcA(rvc_parcel)} )
 
       {3'b???,C_LWSP}    : rvc_illegal = rvc_parcel.CI.rd == 0
-                                       ? 1'b1                     //reserved ILLEGAL
+                                       ? 1'b1                                          //reserved ILLEGAL
                                        : 1'b0;
 
       {3'b??0,C_LDSP}    : rvc_illegal = rvc_parcel.CI.rd == 0
-                                       ? 1'b1                    //reserved ILLEGAL
+                                       ? 1'b1                                          //reserved ILLEGAL
                                        : 1'b0;
 
     //{3'b1??,C_LQSP}
@@ -370,7 +370,7 @@ module riscv_if #(
                                        ? 1'b1
                                        : 1'b0;
 
-      {3'b???,C_ADDI4SPN}: rvc_illegal = (rvc_parcel == 16'h0)                            //All zeros is defined illegal
+      {3'b???,C_ADDI4SPN}: rvc_illegal = (rvc_parcel == 16'h0)                         //All zeros is defined illegal
                                        ? 1'b1
                                        : 1'b0;
 
