@@ -433,7 +433,6 @@ module riscv_dcache_hit #(
                              filling_o  <= 1'b1;
                          end
 
-//TODO: Doesn't I$ require RECOVER0 and RECOVER1??
            RECOVER0    : begin
                              //setup IDX for TAG and DATA memory after filling
                              armed_o    <= 1'b0;
