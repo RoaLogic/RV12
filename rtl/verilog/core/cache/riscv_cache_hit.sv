@@ -182,8 +182,9 @@ module riscv_cache_hit #(
   enum logic [2:0] {ARMED=0,
                     FLUSH,
                     NONCACHEABLE,
-                    WAIT4BIUCMD0,
-                    RECOVER} memfsm_state;
+                    READ,
+                    RECOVER0,
+                    RECOVER1 } memfsm_state;
 
 
   logic [PLEN          -1:0] biu_adro;
@@ -231,7 +232,7 @@ module riscv_cache_hit #(
                       else if (req_i && cacheable_i && !cache_hit_i && !flush_i)
                       begin
                           //Load way
-                          memfsm_state <= WAIT4BIUCMD0;
+                          memfsm_state <= READ;
                           biucmd_o     <= BIUCMD_READWAY;
                           armed_o      <= 1'b0;
                           filling_o    <= 1'b1;
@@ -244,7 +245,7 @@ module riscv_cache_hit #(
 
        FLUSH        : if (dcflush_rdy_i) //wait for data-cache to complete flushing
                       begin
-                          memfsm_state  <= RECOVER; //allow to read new tag_idx
+                          memfsm_state  <= RECOVER0; //allow to read new tag_idx
                           flushing_o    <= 1'b0;
                           flush_valid_o <= 1'b0;
                       end
@@ -257,22 +258,29 @@ module riscv_cache_hit #(
                           armed_o      <= 1'b1;
                       end
 
-        WAIT4BIUCMD0: begin
+        READ        : begin
                           biucmd_o <= BIUCMD_NOP;
 
                           if (biucmd_ack_i || biu_err_i)
                           begin
-                              memfsm_state <= RECOVER;
+                              memfsm_state <= RECOVER0;
                               filling_o    <= 1'b0;
                           end
                       end
 
-        RECOVER     : begin
+        RECOVER0    : begin
+                          //Setup TAG and DATA IDX after writing/filling
+			  memfsm_state <= RECOVER1;
+			  biucmd_o     <= BIUCMD_NOP;
+                      end
+
+        RECOVER1    : begin
                           //Read TAG and DATA memory after writing/filling
                           memfsm_state <= ARMED;
                           biucmd_o     <= BIUCMD_NOP;
                           armed_o      <= 1'b1;
                       end
+
     endcase
 
 
@@ -289,10 +297,11 @@ module riscv_cache_hit #(
   //non-cacheable access
   always_comb
     unique case (memfsm_state)
-      FLUSH       : biucmd_noncacheable_req_o = 1'b0;
-      WAIT4BIUCMD0: biucmd_noncacheable_req_o = 1'b0;
-      RECOVER     : biucmd_noncacheable_req_o = 1'b0;
-      default     : biucmd_noncacheable_req_o = req_i & ~cacheable_i & ~misaligned_i & ~flush_i;
+      FLUSH   : biucmd_noncacheable_req_o = 1'b0;
+      READ    : biucmd_noncacheable_req_o = 1'b0;
+      RECOVER0: biucmd_noncacheable_req_o = 1'b0;
+      RECOVER1: biucmd_noncacheable_req_o = 1'b0;
+      default : biucmd_noncacheable_req_o = req_i & ~cacheable_i & ~misaligned_i & ~flush_i;
     endcase
 
 
@@ -322,13 +331,13 @@ module riscv_cache_hit #(
 	                             : cacheable_i ? ~biu_ack_i : ~biu_stb_ack_i;
 
       //TODO: Add in_biubuffer
-      WAIT4BIUCMD0: stall_o = ~( (req_i & biu_ack_i & biu_adro_eq_cache_adr_dly & ~biucmd_ack_i) |
+      READ        : stall_o = ~( (req_i & biu_ack_i & biu_adro_eq_cache_adr_dly) |
                                  (req_i & cache_hit_i)
-	                       );
-
-      RECOVER     : stall_o = ~( biu_cache_we_unstall |
-	                         (req_i & cache_hit_i)
                                );
+
+      RECOVER0    : stall_o = 1'b1;
+
+      RECOVER1    : stall_o = 1'b1;
 
       FLUSH       : stall_o = 1'b1;
 
@@ -348,8 +357,8 @@ module riscv_cache_hit #(
 
   always_comb
     unique case (memfsm_state)
-      WAIT4BIUCMD0: parcel_o = cache_hit_i ? cache_q : biu_q_i;
-      default     : parcel_o = cacheable_i ? cache_q : biu_q_i;
+      READ   : parcel_o = cache_hit_i ? cache_q : biu_q_i;
+      default: parcel_o = cacheable_i ? cache_q : biu_q_i;
     endcase
 
 
@@ -364,8 +373,8 @@ module riscv_cache_hit #(
     unique case (memfsm_state)
       ARMED       : parcel_valid_o = {$bits(parcel_valid_o){cache_ack                }} << adr_i   [1 +: $clog2(XLEN/PARCEL_SIZE)]; 
       NONCACHEABLE: parcel_valid_o = {$bits(parcel_valid_o){biucmd_noncacheable_ack_i}} << biu_adro[1 +: $clog2(XLEN/PARCEL_SIZE)];
-      WAIT4BIUCMD0: parcel_valid_o = {$bits(parcel_valid_o){biu_cacheable_ack        }} << adr_i   [1 +: $clog2(XLEN/PARCEL_SIZE)];
-      RECOVER     : parcel_valid_o = {$bits(parcel_valid_o){cache_ack                }} << adr_i   [1 +: $clog2(XLEN/PARCEL_SIZE)];
+      READ        : parcel_valid_o = {$bits(parcel_valid_o){biu_cacheable_ack        }} << adr_i   [1 +: $clog2(XLEN/PARCEL_SIZE)];
+//      RECOVER0    : parcel_valid_o = {$bits(parcel_valid_o){cache_ack                }} << adr_i   [1 +: $clog2(XLEN/PARCEL_SIZE)];
       default     : parcel_valid_o = {$bits(parcel_valid_o){1'b0}};
     endcase    
 
@@ -377,14 +386,7 @@ module riscv_cache_hit #(
 
   //generate misaligned
   assign parcel_misaligned_o = req_i & misaligned_i;
-/*
-  always_comb
-    unique case (memfsm_state)
-      WAIT4BIUCMD0: parcel_misaligned_o = misaligned_i;
-      default     : parcel_misaligned_o = cacheable_i ? misaligned_i
-	                                              : (HAS_RVC != 0) ? biu_adro[0] : |biu_adro[1:0]; 
-    endcase
-*/
+
 
   //generate pagefault
   assign parcel_pagefault_o = pagefault_i;
