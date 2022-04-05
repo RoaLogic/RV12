@@ -146,8 +146,14 @@ module riscv_cache_memory #(
   function automatic int first_dirty_way;
     input [WAYS-1:0][SETS-1:0] valid, dirty;
 
+    logic [WAYS*SETS -1:0] valid_vect, dirty_vect;
+
+    //from packed array to vector
+    valid_vect = valid;
+    dirty_vect = dirty;
+
     for (int n=0; n < WAYS*SETS; n++)
-      if (valid[n] & dirty[n]) return n;
+      if (valid_vect[n] && dirty_vect[n]) return n;
   endfunction: first_dirty_way
 
 
