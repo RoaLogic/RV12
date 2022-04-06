@@ -370,7 +370,7 @@ module riscv_cache_hit #(
 
 
   //acknowledge cache hit
-  assign cache_ack         =  valid_req & cacheable_i & cache_hit_i & ~flush_i & ~cacheflush_req_i;
+  assign cache_ack         =  valid_req & cacheable_i & cache_hit_i & ~flush_i & ~cacheflush;
   assign biu_cacheable_ack = (valid_req & biu_ack_i & biu_adro_eq_cache_adr_dly & ~flush_i) |
                               cache_ack;
 
