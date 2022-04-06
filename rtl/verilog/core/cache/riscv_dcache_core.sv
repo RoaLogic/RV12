@@ -465,7 +465,8 @@ endgenerate
 
     .armed_i                   ( armed                   ),
     .flushing_i                ( flushing                ),
-    .flush_valid_i             ( flush_valid             ),
+    .flush_valid_i             ( 1'b0                    ),
+    .flush_valid_all_i         ( 1'b0                    ),
     .flush_dirty_i             ( flush_dirty             ),
     .filling_i                 ( filling                 ),
     .fill_way_select_i         ( fill_way_select         ),

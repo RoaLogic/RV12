@@ -339,7 +339,7 @@ endgenerate
     .dcflush_rdy_i             ( dcflush_rdy_i           ),
     .armed_o                   ( armed                   ),
     .flushing_o                ( flushing                ),
-    .flush_valid_o             ( flush_valid             ), //flush valid bits
+    .flush_valid_all_o         ( flush_valid_all         ), //flush all valid bits
     .filling_o                 ( filling                 ),
     .fill_way_i                ( mem_fill_way            ),
     .fill_way_o                ( hit_fill_way            ),
@@ -405,7 +405,8 @@ endgenerate
 
     .armed_i                   ( armed                   ),
     .flushing_i                ( flushing                ),
-    .flush_valid_i             ( flush_valid             ),
+    .flush_valid_i             ( 1'b0                    ),
+    .flush_valid_all_i         ( flush_valid_all         ),
     .flush_dirty_i             ( 1'b0                    ),
     .filling_i                 ( filling                 ),
     .fill_way_select_i         ( fill_way_select         ),

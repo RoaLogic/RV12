@@ -57,18 +57,18 @@ module riscv_cache_hit #(
   input  logic                        clk_i,
 
   output logic                        stall_o,
-  input  logic                        flush_i,          //flush pipe
+  input  logic                        flush_i,           //flush pipe
 
-  input  logic                        cacheflush_req_i, //flush cache
-  input  logic                        dcflush_rdy_i,    //data cache flush ready
+  input  logic                        cacheflush_req_i,  //flush cache
+  input  logic                        dcflush_rdy_i,     //data cache flush ready
   output logic                        armed_o,
   output logic                        flushing_o,
-  output logic                        flush_valid_o,    //flush cache valid bits
+  output logic                        flush_valid_all_o, //flush all cache valid bits
   output logic                        filling_o,
   input  logic [WAYS            -1:0] fill_way_i,
   output logic [WAYS            -1:0] fill_way_o,
 
-  input  logic                        req_i,            //from previous-stage
+  input  logic                        req_i,             //from previous-stage
   input  logic [PLEN            -1:0] adr_i,
   input  biu_size_t                   size_i,
   input  logic                        lock_i,
@@ -79,7 +79,7 @@ module riscv_cache_hit #(
   input  logic                        pmp_exception_i,
   input  logic                        pagefault_i,
 
-  input  logic                        cache_hit_i,      //from cache-memory
+  input  logic                        cache_hit_i,       //from cache-memory
   input  logic [BLK_BITS        -1:0] cache_line_i,
   output logic [IDX_BITS        -1:0] idx_o,
   output logic [TAG_BITS        -1:0] core_tag_o,
@@ -213,22 +213,22 @@ module riscv_cache_hit #(
   always @(posedge clk_i, negedge rst_ni)
     if (!rst_ni)
     begin
-        memfsm_state  <= ARMED;
-        armed_o       <= 1'b1;
-        flushing_o    <= 1'b0;
-        flush_valid_o <= 1'b0;
-        filling_o     <= 1'b0;
-        fill_way_o    <=  'hx;
-        biucmd_o      <= BIUCMD_NOP;
+        memfsm_state      <= ARMED;
+        armed_o           <= 1'b1;
+        flushing_o        <= 1'b0;
+        flush_valid_all_o <= 1'b0;
+        filling_o         <= 1'b0;
+        fill_way_o        <=  'hx;
+        biucmd_o          <= BIUCMD_NOP;
     end
     else
     unique case (memfsm_state)
        ARMED        : if (cacheflush)
                       begin
-                          memfsm_state  <= FLUSH;
-                          armed_o       <= 1'b0;
-                          flushing_o    <= 1'b1;
-                          flush_valid_o <= 1'b1;
+                          memfsm_state      <= FLUSH;
+                          armed_o           <= 1'b0;
+                          flushing_o        <= 1'b1;
+                          flush_valid_all_o <= 1'b1;
                       end
 		      else if (valid_req && !cacheable_i && !misaligned_i && !flush_i)
                       begin
@@ -251,9 +251,9 @@ module riscv_cache_hit #(
 
        FLUSH        : if (dcflush_rdy_i) //wait for data-cache to complete flushing
                       begin
-                          memfsm_state  <= RECOVER0; //allow to read new tag_idx
-                          flushing_o    <= 1'b0;
-                          flush_valid_o <= 1'b0;
+                          memfsm_state      <= RECOVER0; //allow to read new tag_idx
+                          flushing_o        <= 1'b0;
+                          flush_valid_all_o <= 1'b0;
                       end
 
         NONCACHEABLE: if ( flush_i                                       ||  //flush pipe, no biu_ack's will come

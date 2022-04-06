@@ -62,6 +62,7 @@ module riscv_cache_memory #(
   input  logic                     armed_i,
   input  logic                     flushing_i,
   input  logic                     flush_valid_i,
+  input  logic                     flush_valid_all_i,
   input  logic                     flush_dirty_i,
   input  logic                     filling_i,
   input  logic [WAYS         -1:0] fill_way_select_i,
@@ -332,9 +333,10 @@ generate
        * Valid is stored in DFF
        */ 
       always @(posedge clk_i, negedge rst_ni)
-        if      (!rst_ni        ) tag_valid[way]          <= 'h0;
-        else if ( flush_valid_i ) tag_valid[way][tag_idx] <= 1'b0;
-        else if ( tag_we[way]   ) tag_valid[way][tag_idx] <= tag_in[way].valid;
+        if      (!rst_ni           ) tag_valid[way]          <= 'h0;
+	else if ( flush_valid_all_i) tag_valid[way]          <= 'h0;
+        else if ( flush_valid_i    ) tag_valid[way][tag_idx] <= 1'b0;
+        else if ( tag_we[way]      ) tag_valid[way][tag_idx] <= tag_in[way].valid;
 
       assign tag_out[way].valid = tag_valid[way][rd_idx_dly];
 
