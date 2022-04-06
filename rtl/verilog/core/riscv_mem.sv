@@ -40,26 +40,28 @@ module riscv_mem #(
   input                          rst_ni,
   input                          clk_i,
 
-  input                          wb_stall_i,
+  input                          mem_stall_i,
   output                         mem_stall_o,
 
   //Program counter
-  input      [XLEN         -1:0] ex_pc_i,
+  input      [XLEN         -1:0] mem_pc_i,
   output reg [XLEN         -1:0] mem_pc_o,
 
   //Instruction
-  input  instruction_t           ex_insn_i,
+  input  instruction_t           mem_insn_i,
   output instruction_t           mem_insn_o,
 
-  input  interrupts_exceptions_t ex_exceptions_i,
-  output interrupts_exceptions_t mem_exceptions_o,
-  input  interrupts_exceptions_t wb_exceptions_i,
- 
-  //From EX
-  input      [XLEN         -1:0] ex_r_i,
-                                 dmem_adr_i,
+  input  interrupts_exceptions_t mem_exceptions_dn_i,
+  output interrupts_exceptions_t mem_exceptions_dn_o,
+  input  interrupts_exceptions_t mem_exceptions_up_i,
+  output interrupts_exceptions_t mem_exceptions_up_o,
 
-  //To WB
+ 
+  //From upstream (EX)
+  input      [XLEN         -1:0] mem_r_i,
+                                 mem_memadr_i,
+
+  //To downstream (WB)
   output reg [XLEN         -1:0] mem_r_o,
   output reg [XLEN         -1:0] mem_memadr_o
 );
@@ -72,26 +74,26 @@ module riscv_mem #(
    * Program Counter
    */
   always @(posedge clk_i,negedge rst_ni)
-    if      (!rst_ni    ) mem_pc_o <= PC_INIT;
-    else if (!wb_stall_i) mem_pc_o <= ex_pc_i;
+    if      (!rst_ni     ) mem_pc_o <= PC_INIT;
+    else if (!mem_stall_i) mem_pc_o <= mem_pc_i;
 
   /*
    * Stall
    */
-  assign mem_stall_o = wb_stall_i;
+  assign mem_stall_o = mem_stall_i;
 
   
   /*
    * Instruction
    */
   always @(posedge clk_i)
-    if (!wb_stall_i) mem_insn_o.instr <= ex_insn_i.instr;
+    if (!mem_stall_i) mem_insn_o.instr <= mem_insn_i.instr;
 
 
   always @(posedge clk_i,negedge rst_ni)
-    if      (!rst_ni             ) mem_insn_o.bubble <= 1'b1;
-    else if ( wb_exceptions_i.any) mem_insn_o.bubble <= 1'b1;
-    else if (!wb_stall_i         ) mem_insn_o.bubble <= ex_insn_i.bubble;
+    if      (!rst_ni                 ) mem_insn_o.bubble <= 1'b1;
+    else if ( mem_exceptions_up_i.any) mem_insn_o.bubble <= 1'b1;
+    else if (!mem_stall_i            ) mem_insn_o.bubble <= mem_insn_i.bubble;
 
 
 
@@ -99,20 +101,21 @@ module riscv_mem #(
    * Data
    */
   always @(posedge clk_i)
-    if (!wb_stall_i) mem_r_o <= ex_r_i;
+    if (!mem_stall_i) mem_r_o <= mem_r_i;
 
   always @(posedge clk_i)
-    if (!wb_stall_i) mem_memadr_o <= dmem_adr_i;
+    if (!mem_stall_i) mem_memadr_o <= mem_memadr_i;
 
 
   /*
    * Exception
    */
+  assign mem_exceptions_up_o = mem_exceptions_dn_o | mem_exceptions_up_i;
+
   always @(posedge clk_i, negedge rst_ni)
-    if      (!rst_ni             ) mem_exceptions_o <= 'h0;
-    else if ( mem_exceptions_o.any ||
-              wb_exceptions_i.any) mem_exceptions_o <= 'h0;
-    else if (!wb_stall_i         ) mem_exceptions_o <= ex_exceptions_i;
+    if      (!rst_ni                 ) mem_exceptions_dn_o <= 'h0;
+    else if ( mem_exceptions_up_o.any) mem_exceptions_dn_o <= 'h0;
+    else if (!mem_stall_i            ) mem_exceptions_dn_o <= mem_exceptions_dn_i;
 
 endmodule : riscv_mem
 
