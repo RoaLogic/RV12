@@ -178,6 +178,8 @@ module riscv_cache_hit #(
   logic                      biu_cacheable_ack;
   logic                      biu_cache_we_unstall;
   logic                      cacheflush;
+  logic                      pma_pmp_exception;
+  logic                      valid_req;
 
   enum logic [2:0] {ARMED=0,
                     FLUSH,
@@ -196,6 +198,10 @@ module riscv_cache_hit #(
   //
   // Module Body
   //
+
+  assign pma_pmp_exception = pma_exception_i | pmp_exception_i;
+  assign valid_req         = req_i & ~pma_pmp_exception & ~misaligned_i & ~pagefault_i;
+
 
   //hold flush until ready to be serviced
   always @(posedge clk_i, negedge rst_ni)
@@ -224,12 +230,12 @@ module riscv_cache_hit #(
                           flushing_o    <= 1'b1;
                           flush_valid_o <= 1'b1;
                       end
-		      else if (req_i && !cacheable_i && !misaligned_i && !flush_i)
+		      else if (valid_req && !cacheable_i && !misaligned_i && !flush_i)
                       begin
                           memfsm_state <= NONCACHEABLE;
                           armed_o      <= 1'b0;
                       end
-                      else if (req_i && cacheable_i && !cache_hit_i && !flush_i)
+                      else if (valid_req && cacheable_i && !cache_hit_i && !flush_i)
                       begin
                           //Load way
                           memfsm_state <= READ;
@@ -250,9 +256,9 @@ module riscv_cache_hit #(
                           flush_valid_o <= 1'b0;
                       end
 
-        NONCACHEABLE: if ( flush_i                                   ||  //flushed pipe, no biu_ack's will come
-	                  (!req_i && inflight_cnt_i==1 && biu_ack_i) ||  //no new request, wait for BIU to finish transfer
-                          ( req_i && cacheable_i       && biu_ack_i) )   //new cacheable request, wait for non-cacheable transfer to finish
+        NONCACHEABLE: if ( flush_i                                       ||  //flush pipe, no biu_ack's will come
+	                  (!valid_req && inflight_cnt_i==1 && biu_ack_i) ||  //no new request, wait for BIU to finish transfer
+                          ( valid_req && cacheable_i       && biu_ack_i) )   //new cacheable request, wait for non-cacheable transfer to finish
                       begin
                           memfsm_state <= ARMED;
                           armed_o      <= 1'b1;
@@ -301,7 +307,7 @@ module riscv_cache_hit #(
       READ    : biucmd_noncacheable_req_o = 1'b0;
       RECOVER0: biucmd_noncacheable_req_o = 1'b0;
       RECOVER1: biucmd_noncacheable_req_o = 1'b0;
-      default : biucmd_noncacheable_req_o = req_i & ~cacheable_i & ~misaligned_i & ~flush_i;
+      default : biucmd_noncacheable_req_o = valid_req & ~cacheable_i & ~misaligned_i & ~flush_i;
     endcase
 
 
@@ -322,17 +328,18 @@ module riscv_cache_hit #(
   //Cache core halt signal
   always_comb
     unique case (memfsm_state)
-      ARMED       : stall_o =  req_i & (cacheable_i ? ~cache_hit_i : ~biu_stb_ack_i);
+      ARMED       : stall_o =  cacheflush |
+                              (valid_req & (cacheable_i ? ~cache_hit_i : ~biu_stb_ack_i));
 
       //req_i == 0 ? stall=|inflight_cnt
       //else is_cacheable ? stall=!biu_ack_i (wait for noncacheable transfer to finish)
       //else                stall=!biu_stb_ack_i
-      NONCACHEABLE: stall_o = ~req_i ? |inflight_cnt_i
-	                             : cacheable_i ? ~biu_ack_i : ~biu_stb_ack_i;
+      NONCACHEABLE: stall_o = ~valid_req ? |inflight_cnt_i
+	                                 : cacheable_i ? ~biu_ack_i : ~biu_stb_ack_i;
 
       //TODO: Add in_biubuffer
-      READ        : stall_o = ~( (req_i & biu_ack_i & biu_adro_eq_cache_adr_dly) |
-                                 (req_i & cache_hit_i)
+      READ        : stall_o = ~( (valid_req & biu_ack_i & biu_adro_eq_cache_adr_dly) |
+                                 (valid_req & cache_hit_i)
                                );
 
       RECOVER0    : stall_o = 1'b1;
@@ -346,7 +353,7 @@ module riscv_cache_hit #(
 
 
   //signal downstream the BIU reported an error
-  assign parcel_error_o = biu_err_i | (req_i & (pma_exception_i | pmp_exception_i));
+  assign parcel_error_o = biu_err_i | (valid_req & (pma_exception_i | pmp_exception_i));
 
 
   //Shift amount for data
@@ -363,8 +370,8 @@ module riscv_cache_hit #(
 
 
   //acknowledge cache hit
-  assign cache_ack         =  req_i & cacheable_i & cache_hit_i & ~flush_i;
-  assign biu_cacheable_ack = (req_i & biu_ack_i & biu_adro_eq_cache_adr_dly & ~flush_i) |
+  assign cache_ack         =  valid_req & cacheable_i & cache_hit_i & ~flush_i & ~cacheflush_req_i;
+  assign biu_cacheable_ack = (valid_req & biu_ack_i & biu_adro_eq_cache_adr_dly & ~flush_i) |
                               cache_ack;
 
 
@@ -381,11 +388,11 @@ module riscv_cache_hit #(
 
   //unstall when parcel was valid during Cache Memory write
   always @(posedge clk_i)
-    biu_cache_we_unstall = req_i & biu_adro_eq_cache_adr_dly & biucmd_ack_i & |parcel_valid_o;
+    biu_cache_we_unstall = valid_req & biu_adro_eq_cache_adr_dly & biucmd_ack_i & |parcel_valid_o;
 
 
   //generate misaligned
-  assign parcel_misaligned_o = req_i & misaligned_i;
+  assign parcel_misaligned_o = valid_req & misaligned_i;
 
 
   //generate pagefault
