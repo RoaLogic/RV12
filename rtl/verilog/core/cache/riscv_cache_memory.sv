@@ -381,8 +381,9 @@ endgenerate
   /* Generate Hit
    */
   always @(posedge clk_i)
-    if      ( bypass_biumem_we) hit_o <= 1'b1;
-    else if ( latchmem_i      ) hit_o <= rd_idx_dly_eq_byp_idx ? byp_valid & (rd_core_tag_i == tag_byp_tag)
+    if      ( flush_valid_all_i) hit_o <= 1'b0;
+    else if ( bypass_biumem_we ) hit_o <= 1'b1;
+    else if ( latchmem_i       ) hit_o <= rd_idx_dly_eq_byp_idx ? byp_valid & (rd_core_tag_i == tag_byp_tag)
                                                                : |way_hit & ~we_dly;
 
 
