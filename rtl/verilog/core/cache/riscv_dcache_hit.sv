@@ -205,15 +205,16 @@ module riscv_dcache_hit #(
   logic                      valid_req;
 
 
-  enum logic [2:0] {ARMED=0,
-                    FLUSH,
-                    NONCACHEABLE,
-                    EVICT,
-                    FLUSHWAYS,
-                    READ,
-                    RECOVER0,
-                    RECOVER1
-                   } nxt_memfsm_state, memfsm_state;
+  enum logic [          3:0] {ARMED=0,
+                              FLUSH0,
+                              FLUSH1,
+                              NONCACHEABLE,
+                              EVICT,
+                              FLUSHWAYS,
+                              READ,
+                              RECOVER0,
+                              RECOVER1
+                           } nxt_memfsm_state, memfsm_state;
   biucmd_t                   nxt_biucmd;
   logic [WAYS          -1:0] fill_way;
   logic                      flush_rdy,
@@ -261,7 +262,7 @@ module riscv_dcache_hit #(
                                if (cache_dirty_i)
                                begin
                                    //Cache has dirty ways
-                                   nxt_memfsm_state = FLUSH;
+                                   nxt_memfsm_state = FLUSH0;
                                    nxt_biucmd       = BIUCMD_NOP;
                                    flush_rdy        = 1'b0;
                                end
@@ -290,16 +291,25 @@ module riscv_dcache_hit #(
                            end
                         end
 
-         FLUSH        : begin
+         FLUSH0       : begin
                             //flushing_o goes high here; set flush_idx
 			    //flush_idx registered in memory
-			    //clear way-dirty of flushed way => next flush_idx on next cycle
 			    //evict_* ready 2 cycles later
+                            nxt_memfsm_state = FLUSH1;
+                            nxt_biucmd       = BIUCMD_NOP;
+                            flush_rdy        = 1'b0;
+                        end
+
+
+          FLUSH1      : begin
+                            //Latch evict data/address in evictbuffer_*
+			    //clear way-dirty of flushed way => next flush_idx on next cycle
                             nxt_memfsm_state = FLUSHWAYS;
                             nxt_biucmd       = BIUCMD_NOP;
                             flush_rdy        = 1'b0;
                             flush_dirty      = 1'b1;
                         end
+
 
           FLUSHWAYS   : begin
                             //assert WRITE_WAY here (instead of in FLUSH) to allow time to load evict_buffer
@@ -364,7 +374,7 @@ module riscv_dcache_hit #(
 
           default     : begin
                             //something went really wrong, flush cache
-                            nxt_memfsm_state = FLUSH;
+                            nxt_memfsm_state = FLUSH0;
                             nxt_biucmd       = BIUCMD_NOP;
                         end
       endcase
@@ -394,58 +404,65 @@ module riscv_dcache_hit #(
 	flush_dirty_o    <= flush_dirty;
 
         unique case (nxt_memfsm_state)
-          ARMED        : begin
-                             armed_o    <= 1'b1;
-                             flushing_o <= 1'b0;
-                             filling_o  <= 1'b0;
+          ARMED       : begin
+                            armed_o    <= 1'b1;
+                            flushing_o <= 1'b0;
+                            filling_o  <= 1'b0;
 
-                             if (cacheflush && !writebuffer_we_o)
-                               if (~cache_dirty_i) flushing_o <= 1'b1;
-                         end
+                            if (cacheflush && !writebuffer_we_o)
+                              if (~cache_dirty_i) flushing_o <= 1'b1;
+                        end
 
-          FLUSH        : begin
-                             armed_o    <= 1'b0;
-                             flushing_o <= 1'b1;
-                             filling_o  <= 1'b0;
-                         end
+          FLUSH0      : begin
+                            armed_o    <= 1'b0;
+                            flushing_o <= 1'b1;
+                            filling_o  <= 1'b0;
+                        end
 
-           FLUSHWAYS   : begin
-                             armed_o    <= 1'b0;
-                             flushing_o <= 1'b1;
-                             filling_o  <= 1'b0;
-                         end
+          FLUSH1      : begin
+                            armed_o    <= 1'b0;
+                            flushing_o <= 1'b1;
+                            filling_o  <= 1'b0;
+                        end
 
-           NONCACHEABLE: begin
-                             armed_o    <= 1'b0;
-                             flushing_o <= 1'b0;
-                             filling_o  <= 1'b0;
-                         end
 
-           EVICT       : begin
-                             armed_o    <= 1'b0;
-                             flushing_o <= 1'b0;
-                             filling_o  <= 1'b1;
-                         end
+          FLUSHWAYS   : begin
+                            armed_o    <= 1'b0;
+                            flushing_o <= 1'b1;
+                            filling_o  <= 1'b0;
+                        end
 
-           READ        : begin
-                             armed_o    <= 1'b0;
-                             flushing_o <= 1'b0;
-                             filling_o  <= 1'b1;
-                         end
+          NONCACHEABLE: begin
+                            armed_o    <= 1'b0;
+                            flushing_o <= 1'b0;
+                            filling_o  <= 1'b0;
+                        end
 
-           RECOVER0    : begin
-                             //setup IDX for TAG and DATA memory after filling
-                             armed_o    <= 1'b0;
-                             flushing_o <= 1'b0;
-                             filling_o  <= 1'b0;
-                         end
+          EVICT       : begin
+                            armed_o    <= 1'b0;
+                            flushing_o <= 1'b0;
+                            filling_o  <= 1'b1;
+                        end
 
-           RECOVER1    : begin
-                             //Read TAG and DATA memory after writing/filling
-                             armed_o    <= 1'b0;
-                             flushing_o <= 1'b0;
-                             filling_o  <= 1'b0;
-                         end
+          READ        : begin
+                            armed_o    <= 1'b0;
+                            flushing_o <= 1'b0;
+                            filling_o  <= 1'b1;
+                        end
+
+          RECOVER0    : begin
+                            //setup IDX for TAG and DATA memory after filling
+                            armed_o    <= 1'b0;
+                            flushing_o <= 1'b0;
+                            filling_o  <= 1'b0;
+                        end
+
+          RECOVER1    : begin
+                            //Read TAG and DATA memory after writing/filling
+                            armed_o    <= 1'b0;
+                            flushing_o <= 1'b0;
+                            filling_o  <= 1'b0;
+                        end
         endcase
 
   end
@@ -479,7 +496,7 @@ module riscv_dcache_hit #(
 
 
   /* EvictBuffer
-   * Store here, so 'memory' can continue. Allows hit-under-miss
+   * Store here, because READWAY before WRITEWAY
    */
   always @(posedge clk_i)
     if (memfsm_state == ARMED ||
