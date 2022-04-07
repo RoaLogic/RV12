@@ -27,10 +27,6 @@
 //                                                                 //
 /////////////////////////////////////////////////////////////////////
 
-/*
-  Changelog: 2017-12-15: Added MEM stage to improve memory access performance
-*/
-
 import riscv_du_pkg::*;
 import riscv_state_pkg::*;
 import riscv_opcodes_pkg::*;
@@ -73,7 +69,8 @@ module riscv_core #(
   parameter            HARTID                = 0,
 
   parameter            PARCEL_SIZE           = 16,
-  parameter            MEM_STAGES            = 1
+  parameter            MEM_STAGES            = 1    //Minimal 1, causes wb_stall
+                                                    //no data cache: max 2: optimal, no wb_stall
 )
 (
   input                                  rst_ni,   //Reset
