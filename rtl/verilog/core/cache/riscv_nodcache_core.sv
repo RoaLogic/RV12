@@ -77,7 +77,7 @@ module riscv_nodcache_core #(
   //
   genvar                  n;
 
-  logic                   misaligned[DEPTH];
+  logic [DEPTH      -1:0] misaligned;
 
   logic                   hold_mem_req;
   logic [XLEN       -1:0] hold_mem_adr;
@@ -101,11 +101,11 @@ module riscv_nodcache_core #(
    */
   always_comb
     unique case (mem_size_i)
-      BYTE   : misaligned[0] = 1'b0;
-      HWORD  : misaligned[0] =  mem_adr_i[  0];
-      WORD   : misaligned[0] = |mem_adr_i[1:0];
-      DWORD  : misaligned[0] = |mem_adr_i[2:0];
-      default: misaligned[0] = 1'b1;
+      BYTE   : misaligned[0] = mem_req_i & 1'b0;
+      HWORD  : misaligned[0] = mem_req_i &  mem_adr_i[  0];
+      WORD   : misaligned[0] = mem_req_i & |mem_adr_i[1:0];
+      DWORD  : misaligned[0] = mem_req_i & |mem_adr_i[2:0];
+      default: misaligned[0] = mem_req_i & 1'b1;
     endcase
 
 generate
