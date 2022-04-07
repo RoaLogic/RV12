@@ -75,7 +75,9 @@ module riscv_nodcache_core #(
   //
   // Variables
   //
-  logic                   misaligned;
+  genvar                  n;
+
+  logic                   misaligned[DEPTH];
 
   logic                   hold_mem_req;
   logic [XLEN       -1:0] hold_mem_adr;
@@ -99,16 +101,21 @@ module riscv_nodcache_core #(
    */
   always_comb
     unique case (mem_size_i)
-      BYTE   : misaligned = 1'b0;
-      HWORD  : misaligned =  mem_adr_i[  0];
-      WORD   : misaligned = |mem_adr_i[1:0];
-      DWORD  : misaligned = |mem_adr_i[2:0];
-      default: misaligned = 1'b1;
+      BYTE   : misaligned[0] = 1'b0;
+      HWORD  : misaligned[0] =  mem_adr_i[  0];
+      WORD   : misaligned[0] = |mem_adr_i[1:0];
+      DWORD  : misaligned[0] = |mem_adr_i[2:0];
+      default: misaligned[0] = 1'b1;
     endcase
 
+generate
+  for (n=1; n < DEPTH; n++)
+    always @(posedge clk_i, negedge rst_ni)
+      misaligned[n] <= misaligned[n-1];
+endgenerate
 
   always @(posedge clk_i)
-    mem_misaligned_o <= misaligned;
+    mem_misaligned_o <= misaligned[DEPTH-1];
 
 
   /* Statemachine
@@ -125,9 +132,9 @@ module riscv_nodcache_core #(
 
 
   always @(posedge clk_i)
-    if      (!rst_ni                 ) hold_mem_req <= 1'b0;
-    else if ( misaligned || mem_err_o) hold_mem_req <= 1'b0;
-    else                               hold_mem_req <= (mem_req_i | hold_mem_req) & ~biu_stb_ack_i;
+    if      (!rst_ni                    ) hold_mem_req <= 1'b0;
+    else if ( misaligned[0] || mem_err_o) hold_mem_req <= 1'b0;
+    else                                  hold_mem_req <= (mem_req_i | hold_mem_req) & ~biu_stb_ack_i;
 
 
   always @(posedge clk_i, negedge rst_ni)
@@ -142,7 +149,7 @@ module riscv_nodcache_core #(
 
   always @(posedge clk_i, negedge rst_ni)
     if (!rst_ni) discard <= 'h0;
-    else if (misaligned || mem_err_o)
+    else if (misaligned[0] || mem_err_o)
     begin
         if (|inflight && (biu_ack_i | biu_err_i)) discard <= inflight -1;
         else                                      discard <= inflight;
@@ -152,7 +159,7 @@ module riscv_nodcache_core #(
 
   /* External Interface
    */
-  assign biu_stb_o     = (mem_req_i | hold_mem_req) & ~misaligned;
+  assign biu_stb_o     = (mem_req_i | hold_mem_req) & ~misaligned[0];
   assign biu_adri_o    = hold_mem_req ? hold_mem_adr  : mem_adr_i;
   assign biu_size_o    = hold_mem_req ? hold_mem_size : mem_size_i;
   assign biu_lock_o    = hold_mem_req ? hold_mem_lock : mem_lock_i;
@@ -166,10 +173,10 @@ module riscv_nodcache_core #(
 //  assign mem_adr_o     = biu_adro_i;
   assign mem_q_o       = biu_q_i;
   assign mem_ack_o     = |discard ? 1'b0
-                                  : |inflight ? biu_ack_i & ~misaligned
+                                  : |inflight ? biu_ack_i //& ~misaligned[0]
                                               : biu_ack_i &  biu_stb_o;
   assign mem_err_o     = |discard ? 1'b0
-                                  : |inflight ? biu_err_i & ~misaligned
+                                  : |inflight ? biu_err_i //& ~misaligned[0]
                                               : biu_err_i & biu_stb_o;
 
 endmodule
