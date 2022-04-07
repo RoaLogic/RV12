@@ -176,15 +176,6 @@ module riscv_id #(
 
      //lastly EX (highest priority)
      if (use_exr) nxt_operand = ex_r;
-/*
-  always_comb
-    casex( {use_wbr_opA, use_memr_opA[n], use_exr_opA} )
-      3'b??1: nxt_opA = ex_r_i;
-      3'b?10: nxt_opA = mem_opcode[n] == OPC_LOAD ? wb_memq_i : mem_r_i[n]; //only last
-      3'b100: nxt_opA = wb_r_i;
-      3'b000: nxt_opA = dwb_r_i;
-    endcase
-*/
   endfunction: nxt_operand
 
 
