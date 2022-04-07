@@ -162,12 +162,17 @@ module riscv_id #(
      //Write Back stage
      if (use_wbr) nxt_operand = wb_r;
 
-     //last MEM_STAGE
-     if (use_memr[MEM_STAGES-1]) nxt_operand = mem_opcode[MEM_STAGES-1] == OPC_LOAD ? wb_memq : mem_r[MEM_STAGES-1];
-
      //upper MEM_STAGES
      for (int n=MEM_STAGES-1; n >= 0; n--)
-       if (use_memr[n]) nxt_operand = mem_r[n];
+       if (n == MEM_STAGES-1)
+       begin
+           //last MEM_STAGE; latch results from memory upon LOAD
+           if (use_memr[MEM_STAGES-1]) nxt_operand = mem_opcode[MEM_STAGES-1] == OPC_LOAD ? wb_memq : mem_r[MEM_STAGES-1];
+       end
+       else
+       begin
+           if (use_memr[n]) nxt_operand = mem_r[n];
+       end
 
      //lastly EX (highest priority)
      if (use_exr) nxt_operand = ex_r;
