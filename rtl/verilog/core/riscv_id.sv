@@ -136,7 +136,7 @@ module riscv_id #(
    * 'x0' is used as a black hole. It should always be zero, but may contain
    *  other values in the pipeline; therefore we check if rd is non-zero
    */
-  function use_result;
+  function logic use_result;
     input rsd_t rs, rd;
     input logic valid;
 
@@ -166,7 +166,7 @@ module riscv_id #(
      if (use_memr[MEM_STAGES-1]) nxt_operand = mem_opcode[MEM_STAGES-1] == OPC_LOAD ? wb_memq : mem_r[MEM_STAGES-1];
 
      //upper MEM_STAGES
-     for (int n=MEM_STAGES-1; n > 0; n--)
+     for (int n=MEM_STAGES-1; n >= 0; n--)
        if (use_memr[n]) nxt_operand = mem_r[n];
 
      //lastly EX (highest priority)
