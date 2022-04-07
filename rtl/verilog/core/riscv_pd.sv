@@ -35,7 +35,8 @@ module riscv_pd #(
   parameter  [XLEN          -1:0] PC_INIT        = 'h200,
   parameter                       HAS_RVC        = 0,
   parameter                       HAS_BPU        = 0,
-  parameter                       BP_GLOBAL_BITS = 2
+  parameter                       BP_GLOBAL_BITS = 2,
+  parameter                       RSB_DEPTH      = 0
 )
 (
   input                           rst_ni,          //Reset
@@ -95,11 +96,25 @@ module riscv_pd #(
   // Variables
   //
 
+  //RSB
+  logic             is_16bit_instruction;
+  logic             has_rbs;
+  logic [XLEN -1:0] rbs_nxt_pc,
+                    rbs_predict_pc;
+  logic             rbs_push,
+                    rbs_pop,
+                    rbs_empty;
+
+  rsd_t             rs1,
+                    rd;
+
+
   //Immediates for branches and jumps
   immUJ_t           immUJ;
   immSB_t           immSB;
   logic [XLEN -1:0] ext_immUJ,
                     ext_immSB;
+
 
   logic [      1:0] branch_predicted;
 
@@ -114,6 +129,14 @@ module riscv_pd #(
   // Module Body
   //
 
+  //for RSB
+  assign is_16bit_instruction = ~&id_insn_i.instr[1:0];
+  assign rbs_nxt_pc           = if_pc_i + (is_16bit_instruction ? 'h2 : 'h4);
+  assign has_rbs              = RSB_DEPTH > 0;
+  assign rs1                  = decode_rs1(if_insn_i.instr);
+  assign rd                   = decode_rd (if_insn_i.instr);
+  
+  
   //All flush signals
   assign pd_flush_o = bu_flush_i | st_flush_i;
 
@@ -199,6 +222,30 @@ module riscv_pd #(
   /*
    * Branches & Jump
    */
+
+  //Instantiate RSB
+generate
+  if (RSB_DEPTH > 0)
+  begin: gen_rsb
+
+      risc_rsb #(
+        .XLEN  ( XLEN      ),
+        .DEPTH ( RSB_DEPTH ) )
+      rsb_inst (
+        .rst_nit ( rst_ni         ),
+        .clk_i   ( clk_i          ),
+	.ena_i   (!pd_stall_o     ),
+        .d_i     ( rbs_nxt_pc     ),
+        .q_o     ( rbs_predict_pc ),
+        .we_i    ( rbs_push       ), //push stack, JAL(R) rd !=x0
+        .re_i    ( rbs_pop        ), //pop stack, RET
+        .empty_o ( rbs_empty      ) );
+
+  end
+endgenerate
+
+
+  //Immediates
   assign immUJ = decode_immUJ(if_insn_i.instr);
   assign immSB = decode_immSB(if_insn_i.instr);
   assign ext_immUJ = { {XLEN-$bits(immUJ){immUJ[$left(immUJ,1)]}}, immUJ};
@@ -208,23 +255,39 @@ module riscv_pd #(
   // Branch and Jump prediction
   always_comb
     casex ( {du_mode_i, if_insn_i.bubble, decode_opcode(if_insn_i.instr)} )
-      {1'b0, 1'b0,OPC_JAL   } : begin
-                                    branch_taken     = 1'b1;
-                                    branch_predicted = 2'b10;
-                                    pd_nxt_pc_o      = if_pc_i + ext_immUJ;
-                                end
-      {1'b0, 1'b0,OPC_BRANCH} : begin
+      {1'b0,1'b0,OPC_JAL   } : begin
+                                   branch_taken     = 1'b1;
+                                   branch_predicted = 2'b10;
+                                   rbs_push         = 1'b0;
+                                   rbs_pop          = 1'b0;
+                                   pd_nxt_pc_o      = if_pc_i + ext_immUJ;
+                               end
+
+      {1'b0,1'b0,OPC_JALR  } : begin
+                                   branch_taken     = 1'b0;
+                                   branch_predicted = 2'b10;
+                                   rbs_push         = 1'b0;
+                                   rbs_pop          = 1'b0;
+                                   pd_nxt_pc_o      = rbs_predict_pc;
+                               end
+
+      {1'b0,1'b0,OPC_BRANCH} : begin
                                    //if this CPU has a Branch Predict Unit, then use it's prediction
                                    //otherwise assume backwards jumps taken, forward jumps not taken
                                    branch_taken     = (HAS_BPU != 0) ? bp_bp_predict_i[1] : ext_immSB[31];
                                    branch_predicted = (HAS_BPU != 0) ? bp_bp_predict_i    : {ext_immSB[31], 1'b0};
+                                   rbs_push         = 1'b0;
+                                   rbs_pop          = 1'b0;
                                    pd_nxt_pc_o      = if_pc_i + ext_immSB;
-                                end
-      default                 : begin
-                                    branch_taken     = 1'b0;
-                                    branch_predicted = 2'b00;
-                                    pd_nxt_pc_o      = 'hx;
-                                end
+                               end
+
+      default                : begin
+                                   branch_taken     = 1'b0;
+                                   branch_predicted = 2'b00;
+                                   rbs_push         = 1'b0;
+                                   rbs_pop          = 1'b0;
+                                   pd_nxt_pc_o      = 'hx;
+                               end
     endcase
 
 
