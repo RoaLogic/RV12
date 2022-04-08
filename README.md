@@ -31,20 +31,24 @@ Added RVC to reduce program memory footprint. This increases IF stage logic, but
 Use DHRYSTONE v2.2 as reference/benchmark
 
 - RVL (rv64imc), no caches, no pipeline optimizations, no predictions, AHB bus, no latency external memory
-  - Dhyrstones: 1135 (0.65DMIPS)
+  - Dhyrstones: 1135 (0.65DMIPS/MHz)
 
 - Added PD-pipeline stage to reduce critical path. This results in 1 additional cycle branch/jump penalty.
-  - Dhrystones: 1048 (0.60DMIPS) -7.7%
+  - Dhrystones: 1048 (0.60DMIPS/MHz) -7.7%
 
 - Added Correlating Branch Predictor. Correct prediction reduces branch/jump penalty from 3 to 1 cycles (excluding external bus latency)
-  - Dhrystones: 1184 (0.67DMIPS) + 13%
+  - Dhrystones: 1184 (0.67DMIPS/MHz) + 13%
 
 - General small updates
-  - No BP: 1201 (0.68DMIPS) +1.5%
-  - BP   : 1245 (0.71DMIPS) +3.6%
+  - No BP: 1201 (0.68DMIPS/MHz) +1.5%
+  - BP   : 1245 (0.71DMIPS/MHz) +3.6%
 
 - Extend pipeline (additional MEM stages)
-  - No DCACHE, 2 MEM stages: 1335 (0.76DMIPS) +7.2% vs 1245
+  - No DCACHE, 2 MEM stages: 1335 (0.76DMIPS/MHz) +7.2% vs 1245
+
+- Return Stack Buffer
+  - No caches, 4-Deep RSB, 1 MEM stage : 1322 (0.76DMIPS/MHz) +6% vs 1245
+  - No caches, 4-Deep RSB, 2 MEM stages: 1416 (0.80DMIPS/MHz) 
 
 - Initial release of instruction cache. This requires a longer instruction fetch pipeline
   - Dhrystones: 1244 (0.71DMIPS)
