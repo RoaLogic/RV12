@@ -52,7 +52,9 @@ module riscv_ex #(
   output reg [XLEN          -1:0] ex_pc_o,
                                   bu_nxt_pc_o,
   output                          bu_flush_o,
-                                  bu_cacheflush_o,
+                                  cm_ic_invalidate_o,
+                                  cm_dc_invalidate_o,
+                                  cm_dc_clean_o,
   input      [               1:0] id_bp_predict_i,
   output     [               1:0] bu_bp_predict_o,
   input      [BP_GLOBAL_BITS-1:0] id_bp_history_i,
@@ -251,39 +253,41 @@ module riscv_ex #(
 
   // Branch Unit
   riscv_bu #(
-    .XLEN             ( XLEN             ),
-    .HAS_RVC          ( HAS_RVC          ),
-    .PC_INIT          ( PC_INIT          ),
-    .BP_GLOBAL_BITS   ( BP_GLOBAL_BITS   ) )
+    .XLEN                   ( XLEN                   ),
+    .HAS_RVC                ( HAS_RVC                ),
+    .PC_INIT                ( PC_INIT                ),
+    .BP_GLOBAL_BITS         ( BP_GLOBAL_BITS         ) )
   bu (
-    .rst_ni           ( rst_ni           ),
-    .clk_i            ( clk_i            ),
+    .rst_ni                 ( rst_ni                 ),
+    .clk_i                  ( clk_i                  ),
 
-    .ex_stall_i       ( ex_stall_o       ),
-    .st_flush_i       ( st_flush_i       ),
+    .ex_stall_i             ( ex_stall_o             ),
+    .st_flush_i             ( st_flush_i             ),
 
-    .id_pc_i          ( id_pc_i          ),
-    .id_insn_i        ( id_insn_i        ),
-    .bu_nxt_pc_o      ( bu_nxt_pc_o      ),
-    .bu_flush_o       ( bu_flush_o       ),
-    .bu_cacheflush_o  ( bu_cacheflush_o  ),
+    .id_pc_i                ( id_pc_i                ),
+    .id_insn_i              ( id_insn_i              ),
+    .bu_nxt_pc_o            ( bu_nxt_pc_o            ),
+    .bu_flush_o             ( bu_flush_o             ),
+    .cm_ic_invalidate_o     ( cm_ic_invalidate_o     ),
+    .cm_dc_invalidate_o     ( cm_dc_invalidate_o     ),
+    .cm_dc_clean_o          ( cm_dc_clean_o          ),
 
-    .id_bp_predict_i  ( id_bp_predict_i  ),
-    .bu_bp_predict_o  ( bu_bp_predict_o  ),
-    .id_bp_history_i  ( id_bp_history_i  ),
+    .id_bp_predict_i        ( id_bp_predict_i        ),
+    .bu_bp_predict_o        ( bu_bp_predict_o        ),
+    .id_bp_history_i        ( id_bp_history_i        ),
     .bu_bp_history_update_o ( bu_bp_history_update_o ),
-    .bu_bp_history_o  ( bu_bp_history_o  ),
-    .bu_bp_btaken_o   ( bu_bp_btaken_o   ),
-    .bu_bp_update_o   ( bu_bp_update_o   ),
+    .bu_bp_history_o        ( bu_bp_history_o        ),
+    .bu_bp_btaken_o         ( bu_bp_btaken_o         ),
+    .bu_bp_update_o         ( bu_bp_update_o         ),
 
-    .id_exceptions_i  ( id_exceptions_i  ),
-    .ex_exceptions_i  ( ex_exceptions_o  ),
-    .mem_exceptions_i ( mem_exceptions_i ),
-    .wb_exceptions_i  ( wb_exceptions_i  ),
-    .bu_exceptions_o  ( ex_exceptions_o  ),
+    .id_exceptions_i        ( id_exceptions_i        ),
+    .ex_exceptions_i        ( ex_exceptions_o        ),
+    .mem_exceptions_i       ( mem_exceptions_i       ),
+    .wb_exceptions_i        ( wb_exceptions_i        ),
+    .bu_exceptions_o        ( ex_exceptions_o        ),
 
-    .opA_i            ( opA              ),
-    .opB_i            ( opB              ) );
+    .opA_i                  ( opA                    ),
+    .opB_i                  ( opB                    ) );
 
 
 generate

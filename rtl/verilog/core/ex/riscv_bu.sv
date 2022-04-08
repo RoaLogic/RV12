@@ -47,7 +47,9 @@ module riscv_bu #(
   input      [XLEN          -1:0] id_pc_i,
   output reg [XLEN          -1:0] bu_nxt_pc_o,
   output reg                      bu_flush_o,
-                                  bu_cacheflush_o,
+                                  cm_ic_invalidate_o,
+                                  cm_dc_invalidate_o,
+                                  cm_dc_clean_o,
   input      [               1:0] id_bp_predict_i,
   output reg [               1:0] bu_bp_predict_o,
   input      [BP_GLOBAL_BITS-1:0] id_bp_history_i,
@@ -88,6 +90,9 @@ module riscv_bu #(
 
   //Branch controls
   logic                    pipeflush,
+                           ic_invalidate,
+                           dc_invalidate,
+                           dc_clean,
                            cacheflush,
                            btaken,
                            bp_update;
@@ -155,75 +160,105 @@ module riscv_bu #(
   always_comb 
     casex ( {id_insn_i.bubble,opcR} )
       {1'b0,JAL    }: begin //This is really only for the debug unit, such that NPC points to the correct address
-                          btaken     = 'b1;
-                          bp_update  = 'b0;
-                          pipeflush  = ~id_bp_predict_i[1]; //Only flush here if no jump/branch prediction
-                          cacheflush = 'b0;
-                          nxt_pc     = id_pc_i + ext_immUJ;
+                          btaken        = 'b1;
+                          bp_update     = 'b0;
+                          pipeflush     = ~id_bp_predict_i[1]; //Only flush here if no jump/branch prediction
+                          cacheflush    = 'b0;
+                          ic_invalidate = 'b0;
+                          dc_invalidate = 'b0;
+                          dc_clean      = 'b0;
+                          nxt_pc        = id_pc_i + ext_immUJ;
                       end
       {1'b0,JALR   }: begin
-                          btaken     = 'b1;
-                          bp_update  = 'b0;
-                          pipeflush  = 'b1;
-                          cacheflush = 'b0;
-                          nxt_pc     = (opA_i + opB_i) & { {XLEN-1{1'b1}},1'b0 };
+                          btaken        = 'b1;
+                          bp_update     = 'b0;
+                          pipeflush     = 'b1;
+                          cacheflush    = 'b0;
+                          ic_invalidate = 'b0;
+                          dc_invalidate = 'b0;
+                          dc_clean      = 'b0;
+                          nxt_pc        = (opA_i + opB_i) & { {XLEN-1{1'b1}},1'b0 };
                       end
       {1'b0,BEQ    }: begin
-                          btaken     = (opA_i == opB_i);
-                          bp_update  = 'b1;
-                          pipeflush  = btaken ^ id_bp_predict_i[1];
-                          cacheflush = 'b0;
-                          nxt_pc     = btaken ? id_pc_i + ext_immSB : id_pc_i +(is_16bit_instruction ? 'h2 : 'h4);
+                          btaken        = (opA_i == opB_i);
+                          bp_update     = 'b1;
+                          pipeflush     = btaken ^ id_bp_predict_i[1];
+                          cacheflush    = 'b0;
+                          ic_invalidate = 'b0;
+                          dc_invalidate = 'b0;
+                          dc_clean      = 'b0;
+                          nxt_pc        = btaken ? id_pc_i + ext_immSB : id_pc_i +(is_16bit_instruction ? 'h2 : 'h4);
                       end
       {1'b0,BNE    }: begin
-                          btaken     = (opA_i != opB_i);
-                          bp_update  = 'b1;
-                          pipeflush  = btaken ^ id_bp_predict_i[1];
-                          cacheflush = 'b0;
-                          nxt_pc     = btaken ? id_pc_i + ext_immSB : id_pc_i + (is_16bit_instruction ? 'h2 : 'h4);
+                          btaken        = (opA_i != opB_i);
+                          bp_update     = 'b1;
+                          pipeflush     = btaken ^ id_bp_predict_i[1];
+                          cacheflush    = 'b0;
+                          ic_invalidate = 'b0;
+                          dc_invalidate = 'b0;
+                          dc_clean      = 'b0;
+                          nxt_pc        = btaken ? id_pc_i + ext_immSB : id_pc_i + (is_16bit_instruction ? 'h2 : 'h4);
                        end
-      {1'b0,BLTU    }: begin
-                           btaken     = (opA_i < opB_i);
-                           bp_update  = 'b1;
-                           pipeflush  = btaken ^ id_bp_predict_i[1];
-                           cacheflush = 'b0;
-                           nxt_pc     = btaken ? id_pc_i + ext_immSB : id_pc_i + 'h4;
+      {1'b0,BLTU   }: begin
+                          btaken        = (opA_i < opB_i);
+                          bp_update     = 'b1;
+                          pipeflush     = btaken ^ id_bp_predict_i[1];
+                          cacheflush    = 'b0;
+                          ic_invalidate = 'b0;
+                          dc_invalidate = 'b0;
+                          dc_clean      = 'b0;
+                          nxt_pc        = btaken ? id_pc_i + ext_immSB : id_pc_i + 'h4;
                       end
       {1'b0,BGEU   }: begin
-                          btaken     = (opA_i >= opB_i);
-                          bp_update  = 'b1;
-                          pipeflush  = btaken ^ id_bp_predict_i[1];
-                          cacheflush = 'b0;
-                          nxt_pc     = btaken ? id_pc_i + ext_immSB : id_pc_i +'h4;
-                     end
-      {1'b0,BLT   }: begin
-                         btaken     = $signed(opA_i) <  $signed(opB_i); 
-                         bp_update  = 'b1;
-                         pipeflush  = btaken ^ id_bp_predict_i[1];
-                         cacheflush = 'b0;
-                         nxt_pc     = btaken ? id_pc_i + ext_immSB : id_pc_i + 'h4;
+                          btaken        = (opA_i >= opB_i);
+                          bp_update     = 'b1;
+                          pipeflush     = btaken ^ id_bp_predict_i[1];
+                          cacheflush    = 'b0;
+                          ic_invalidate = 'b0;
+                          dc_invalidate = 'b0;
+                          dc_clean      = 'b0;
+                          nxt_pc        = btaken ? id_pc_i + ext_immSB : id_pc_i +'h4;
+                      end
+      {1'b0,BLT    }: begin
+                          btaken        = $signed(opA_i) <  $signed(opB_i); 
+                          bp_update     = 'b1;
+                          pipeflush     = btaken ^ id_bp_predict_i[1];
+                          cacheflush    = 'b0;
+                          ic_invalidate = 'b0;
+                          dc_invalidate = 'b0;
+                          dc_clean      = 'b0;
+                          nxt_pc        = btaken ? id_pc_i + ext_immSB : id_pc_i + 'h4;
                       end
       {1'b0,BGE    }: begin
-                          btaken     = $signed(opA_i) >= $signed(opB_i);
-                          bp_update  = 'b1;
-                          pipeflush  = btaken ^ id_bp_predict_i[1];
-                          cacheflush = 'b0;
-                          nxt_pc     = btaken ? id_pc_i + ext_immSB : id_pc_i + 'h4;
+                          btaken        = $signed(opA_i) >= $signed(opB_i);
+                          bp_update     = 'b1;
+                          pipeflush     = btaken ^ id_bp_predict_i[1];
+                          cacheflush    = 'b0;
+                          ic_invalidate = 'b0;
+                          dc_invalidate = 'b0;
+                          dc_clean      = 'b0;
+                          nxt_pc        = btaken ? id_pc_i + ext_immSB : id_pc_i + 'h4;
                       end
       {1'b0,MISCMEM}: case (id_insn_i.instr)
                          FENCE_I: begin
-                                      btaken     = 'b0;
-                                      bp_update  = 'b0;
-                                      pipeflush  = 'b1;
-                                      cacheflush = 'b1;
-                                      nxt_pc     = id_pc_i +'h4;
+                                      btaken        = 'b0;
+                                      bp_update     = 'b0;
+                                      pipeflush     = 'b1;
+                                      cacheflush    = 'b1;
+                                      ic_invalidate = 'b1;
+                                      dc_invalidate = 'b0;
+                                      dc_clean      = 'b1;
+                                      nxt_pc        = id_pc_i +'h4;
                                   end
                          default: begin
-                                      btaken     = 'b0;
-                                      bp_update  = 'b0;
-                                      pipeflush  = 'b0;
-                                      cacheflush = 'b0;
-                                      nxt_pc     = id_pc_i + 'h4;
+                                      btaken        = 'b0;
+                                      bp_update     = 'b0;
+                                      pipeflush     = 'b0;
+                                      cacheflush    = 'b0;
+                                      ic_invalidate = 'b0;
+                                      dc_invalidate = 'b0;
+                                      dc_clean      = 'b0;
+                                      nxt_pc        = id_pc_i + 'h4;
                                    end
                       endcase
       default       : begin
@@ -231,6 +266,9 @@ module riscv_bu #(
                           bp_update  = 'b0;
                           pipeflush  = 'b0;
                           cacheflush = 'b0;
+                          ic_invalidate = 'b0;
+                          dc_invalidate = 'b0;
+                          dc_clean      = 'b0;
                           nxt_pc     = id_pc_i + (is_16bit_instruction ? 'h2 : 'h4);
                       end
     endcase
@@ -243,24 +281,28 @@ module riscv_bu #(
   always @(posedge clk_i, negedge rst_ni)
     if (!rst_ni)
     begin
-        bu_flush_o      <= 'b1;
-        bu_cacheflush_o <= 'b0;
+        bu_flush_o             <= 1'b1;
+	cm_ic_invalidate_o     <= 1'b0;
+	cm_dc_invalidate_o     <= 1'b0;
+	cm_dc_clean_o          <= 1'b0;
 
-        bu_bp_predict_o <= 'b00;
-        bu_bp_btaken_o  <= 'b0;
-        bu_bp_update_o  <= 'b0;
+        bu_bp_predict_o        <= 2'b00;
+        bu_bp_btaken_o         <= 1'b0;
+        bu_bp_update_o         <= 1'b0;
 	bu_bp_history_update_o <= 'h0;
         bp_history             <= 'h0;
     end
     else
     begin
-        bu_flush_o      <= pipeflush;
-        bu_cacheflush_o <= cacheflush;
+        bu_flush_o                <= pipeflush;
+        cm_ic_invalidate_o        <= ic_invalidate;
+        cm_dc_invalidate_o        <= dc_invalidate;
+        cm_dc_clean_o             <= dc_clean;
 
-        bu_bp_predict_o <= id_bp_predict_i;
-        bu_bp_btaken_o  <= btaken;
-        bu_bp_update_o  <= bp_update;
-	bu_bp_history_update_o <= id_bp_history_i;
+        bu_bp_predict_o           <= id_bp_predict_i;
+        bu_bp_btaken_o            <= btaken;
+        bu_bp_update_o            <= bp_update;
+	bu_bp_history_update_o    <= id_bp_history_i;
 
 	//Branch History is a simple shift register
         if (bp_update) bp_history <= {bp_history[BP_GLOBAL_BITS-1:0],btaken};
