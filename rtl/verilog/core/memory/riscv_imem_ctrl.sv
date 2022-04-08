@@ -33,30 +33,30 @@ import riscv_pma_pkg::*;
 import biu_constants_pkg::*;
 
 module riscv_imem_ctrl #(
-  parameter XLEN             = 32,
-  parameter PLEN             = XLEN==32 ? 34 : 56,
-  parameter PARCEL_SIZE      = 32,
+  parameter int    XLEN             = 32,
+  parameter int    PLEN             = XLEN==32 ? 34 : 56,
+  parameter int    PARCEL_SIZE      = 32,
 
-  parameter HAS_RVC          = 0,
-  parameter HAS_MMU          = 0,
+  parameter int    HAS_RVC          = 0,
+  parameter int    HAS_MMU          = 0,
 
-  parameter PMA_CNT          = 3,
-  parameter PMP_CNT          = 16,
+  parameter int    PMA_CNT          = 3,
+  parameter int    PMP_CNT          = 16,
 
-  parameter CACHE_SIZE       = 64, //KBYTES
-  parameter CACHE_BLOCK_SIZE = 32, //BYTES
-  parameter CACHE_WAYS       =  2, // 1           : Direct Mapped
-                                   //<n>          : n-way set associative
-                                   //<n>==<blocks>: fully associative
+  parameter int    CACHE_SIZE       = 64, //KBYTES
+  parameter int    CACHE_BLOCK_SIZE = 32, //BYTES
+  parameter int    CACHE_WAYS       =  2, // 1           : Direct Mapped
+                                          //<n>          : n-way set associative
+                                          //<n>==<blocks>: fully associative
 
 /*
   parameter REPLACE_ALG     = 1,  //0: Random
                                   //1: FIFO
                                   //2: LRU
 */
-  parameter TECHNOLOGY      = "GENERIC",
+  parameter string TECHNOLOGY      = "GENERIC",
 
-  parameter BIUTAG_SIZE     = $clog2(XLEN/PARCEL_SIZE)
+  parameter int    BIUTAG_SIZE     = $clog2(XLEN/PARCEL_SIZE)
 )
 (
   input  logic                                 rst_ni,
@@ -80,8 +80,11 @@ module riscv_imem_ctrl #(
   output logic                                 mem_error_o,
                                                mem_misaligned_o,
                                                mem_pagefault_o,
-  input  logic                                 cache_flush_i,
-  input  logic                                 dcflush_rdy_i,
+
+  //Cache Block Management, per CMO spec
+  //Flush = Invalidate + Clean
+  input  logic                                 cm_invalidate_i,
+  input  logic                                 cm_dc_clean_rdy_i,
 
   //BIU ports
   output logic                                 biu_stb_o,
@@ -284,65 +287,67 @@ generate
       /* Instantiate Instruction Cache Core
        */
       riscv_icache_core #(
-        .XLEN                ( XLEN              ),
-        .PLEN                ( PLEN              ),
-	.HAS_RVC             ( HAS_RVC           ),
-        .PARCEL_SIZE         ( PARCEL_SIZE       ),
-        .SIZE                ( CACHE_SIZE        ),
-        .BLOCK_SIZE          ( CACHE_BLOCK_SIZE  ),
-        .WAYS                ( CACHE_WAYS        ),
-        .TECHNOLOGY          ( TECHNOLOGY        ),
-        .BIUTAG_SIZE         ( BIUTAG_SIZE       ) )
+        .XLEN                ( XLEN               ),
+        .PLEN                ( PLEN               ),
+	.HAS_RVC             ( HAS_RVC            ),
+        .PARCEL_SIZE         ( PARCEL_SIZE        ),
+        .SIZE                ( CACHE_SIZE         ),
+        .BLOCK_SIZE          ( CACHE_BLOCK_SIZE   ),
+        .WAYS                ( CACHE_WAYS         ),
+        .TECHNOLOGY          ( TECHNOLOGY         ),
+        .BIUTAG_SIZE         ( BIUTAG_SIZE        ) )
       icache_inst (
         //common signals
-        .rst_ni              ( rst_ni            ),
-        .clk_i               ( clk_i             ),
+        .rst_ni              ( rst_ni             ),
+        .clk_i               ( clk_i              ),
 
 	//from MMU
-	.phys_adr_i          ( mmu_adr           ),
-        .pagefault_i         ( mmu_pagefault     ),
+	.phys_adr_i          ( mmu_adr            ),
+        .pagefault_i         ( mmu_pagefault      ),
 
         //from PMA
-        .pma_cacheable_i     ( pma_cacheable     ),
-        .pma_misaligned_i    ( pma_misaligned    ),
-        .pma_exception_i     ( pma_exception     ),
+        .pma_cacheable_i     ( pma_cacheable      ),
+        .pma_misaligned_i    ( pma_misaligned     ),
+        .pma_exception_i     ( pma_exception      ),
 
 	//from PMP
-	.pmp_exception_i     ( pmp_exception     ),
+	.pmp_exception_i     ( pmp_exception      ),
 
 	//from/to CPU
-        .mem_req_i           ( mem_req_i         ),
-	.mem_stall_o         ( stall             ),
-        .mem_adr_i           ( mem_adr_i         ),
-        .mem_flush_i         ( mem_flush_i       ),
-        .mem_size_i          ( size              ),
-        .mem_lock_i          ( lock              ),
-        .mem_prot_i          ( prot              ),
-        .parcel_o            ( parcel_o          ),
-        .parcel_valid_o      ( parcel_valid_o    ),
-	.parcel_misaligned_o ( mem_misaligned_o  ),
-        .parcel_error_o      ( mem_error_o       ),
-	.parcel_pagefault_o  ( mem_pagefault_o   ),
-        .cache_flush_i       ( cache_flush_i     ),
-        .dcflush_rdy_i       ( dcflush_rdy_i     ),
+        .mem_req_i           ( mem_req_i          ),
+	.mem_stall_o         ( stall              ),
+        .mem_adr_i           ( mem_adr_i          ),
+        .mem_flush_i         ( mem_flush_i        ),
+        .mem_size_i          ( size               ),
+        .mem_lock_i          ( lock               ),
+        .mem_prot_i          ( prot               ),
+        .parcel_o            ( parcel_o           ),
+        .parcel_valid_o      ( parcel_valid_o     ),
+	.parcel_misaligned_o ( mem_misaligned_o   ),
+        .parcel_error_o      ( mem_error_o        ),
+	.parcel_pagefault_o  ( mem_pagefault_o    ),
+
+	//Cache management
+        .invalidate_i        ( cm_invalidate_i    ),
+        .dc_clean_rdy_i      ( cm_dc_clean_rdy_i  ),
 
         //To BIU
-        .biu_stb_o           ( biu_stb_o         ),
-        .biu_stb_ack_i       ( biu_stb_ack_i     ),
-        .biu_d_ack_i         ( biu_d_ack_i       ),
-        .biu_adri_o          ( biu_adri_o        ),
-        .biu_adro_i          ( biu_adro_i        ),
-        .biu_size_o          ( biu_size_o        ),
-        .biu_type_o          ( biu_type_o        ),
-	.biu_we_o            ( biu_we_o          ),
-        .biu_lock_o          ( biu_lock_o        ),
-        .biu_prot_o          ( biu_prot_o        ),
-        .biu_d_o             ( biu_d_o           ),
-        .biu_q_i             ( biu_q_i           ),
-        .biu_ack_i           ( biu_ack_i         ),
-        .biu_err_i           ( biu_err_i         ),
-        .biu_tagi_o          ( biu_tagi_o        ),
-        .biu_tago_i          ( biu_tago_i        ) );
+        .biu_stb_o           ( biu_stb_o          ),
+        .biu_stb_ack_i       ( biu_stb_ack_i      ),
+        .biu_d_ack_i         ( biu_d_ack_i        ),
+        .biu_adri_o          ( biu_adri_o         ),
+        .biu_adro_i          ( biu_adro_i         ),
+        .biu_size_o          ( biu_size_o         ),
+        .biu_type_o          ( biu_type_o         ),
+	.biu_we_o            ( biu_we_o           ),
+        .biu_lock_o          ( biu_lock_o         ),
+        .biu_prot_o          ( biu_prot_o         ),
+        .biu_d_o             ( biu_d_o            ),
+        .biu_q_i             ( biu_q_i            ),
+        .biu_ack_i           ( biu_ack_i          ),
+        .biu_err_i           ( biu_err_i          ),
+        .biu_tagi_o          ( biu_tagi_o         ),
+        .biu_tago_i          ( biu_tago_i         ) );
 
 
       //assign memory fetch acknowledge

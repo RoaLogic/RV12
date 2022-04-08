@@ -80,8 +80,12 @@ module riscv_dmem_ctrl #(
   output logic                             mem_err_o,
                                            mem_misaligned_o,
                                            mem_pagefault_o,
-  input  logic                             cache_flush_i,
-  output logic                             cache_flush_rdy_o,
+
+  //Cache Block Management, per CMO spec
+  //Flush = Invalidate + Clean
+  input  logic                             cm_invalidate_i,
+                                           cm_clean_i,
+  output logic                             cm_clean_rdy_o,
 
   //BIU ports
   output logic                             biu_stb_o,
@@ -367,8 +371,11 @@ generate
         .mem_err_o         ( mem_err_o         ),
 	.mem_misaligned_o  ( mem_misaligned_o  ),
         .mem_pagefault_o   ( mem_pagefault_o   ),
-        .cache_flush_i     ( cache_flush_i     ),
-        .cache_flush_rdy_o ( cache_flush_rdy_o ),
+
+	//Cache Block Management
+	.invalidate_i      ( cm_invalidate_i   ),
+        .clean_i           ( cm_clean_i        ),
+        .clean_rdy_o       ( cm_clean_rdy_o    ),
 
         //To BIU
         .biu_stb_o         ( biu_stb_o         ),
