@@ -54,6 +54,7 @@ module riscv_core #(
 
   parameter int        BP_GLOBAL_BITS        = 2,
   parameter int        BP_LOCAL_BITS         = 10,
+  parameter int        RSB_DEPTH             = 0,
 
   parameter string     TECHNOLOGY            = "GENERIC",
 
@@ -138,7 +139,9 @@ module riscv_core #(
                              if_nxt_pc,
 			     if_pc,
                              pd_pc,
+                             pd_rsb_pc,
                              id_pc,
+                             id_rsb_pc,
                              ex_pc,
                              mem_pc [MEM_STAGES],
                              wb_pc;
@@ -346,7 +349,8 @@ module riscv_core #(
     .PC_INIT           ( PC_INIT              ),
     .HAS_RVC           ( HAS_RVC              ),
     .HAS_BPU           ( HAS_BPU              ),
-    .BP_GLOBAL_BITS    ( BP_GLOBAL_BITS       ) )
+    .BP_GLOBAL_BITS    ( BP_GLOBAL_BITS       ),
+    .RSB_DEPTH         ( RSB_DEPTH            ) )
   pd_unit (
     .rst_ni            ( rst_ni               ),
     .clk_i             ( clk_i                ),
@@ -373,6 +377,7 @@ module riscv_core #(
     .bu_nxt_pc_i       ( bu_nxt_pc            ),
     .st_nxt_pc_i       ( st_nxt_pc            ),
     .pd_nxt_pc_o       ( pd_nxt_pc            ),
+    .pd_rsb_pc_o       ( pd_rsb_pc            ),
 
     .if_pc_i           ( if_pc                ),
     .if_insn_i         ( if_insn              ),
@@ -406,6 +411,7 @@ module riscv_core #(
     .MULT_LATENCY     ( MULT_LATENCY         ),
     .RF_REGOUT        ( RF_REGOUT            ),
     .BP_GLOBAL_BITS   ( BP_GLOBAL_BITS       ),
+    .RSB_DEPTH        ( RSB_DEPTH            ),
     .MEM_STAGES       ( MEM_STAGES           ) )
   id_unit (
     .rst_ni           ( rst_ni               ),
@@ -426,6 +432,8 @@ module riscv_core #(
 
     .pd_pc_i          ( pd_pc                ),
     .id_pc_o          ( id_pc                ),
+    .pd_rsb_pc_i      ( pd_rsb_pc            ),
+    .id_rsb_pc_o      ( id_rsb_pc            ),
 
     .pd_bp_history_i  ( pd_bp_history        ),
     .id_bp_history_o  ( id_bp_history        ),
@@ -483,7 +491,8 @@ module riscv_core #(
     .HAS_RVA                ( HAS_RVA              ),
     .HAS_RVM                ( HAS_RVM              ),
     .MULT_LATENCY           ( MULT_LATENCY         ),
-    .BP_GLOBAL_BITS         ( BP_GLOBAL_BITS       ) )
+    .BP_GLOBAL_BITS         ( BP_GLOBAL_BITS       ),
+    .RSB_DEPTH              ( RSB_DEPTH            ) )
   ex_units (
     .rst_ni                 ( rst_ni               ),
     .clk_i                  ( clk_i                ),
@@ -495,6 +504,7 @@ module riscv_core #(
     .ex_pc_o                ( ex_pc                ),
     .bu_nxt_pc_o            ( bu_nxt_pc            ),
     .bu_flush_o             ( bu_flush             ),
+    .id_rsb_pc_i            ( id_rsb_pc            ),
 
     //cache management
     .cm_ic_invalidate_o     ( cm_ic_invalidate     ),

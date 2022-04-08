@@ -31,10 +31,11 @@ import riscv_opcodes_pkg::*;
 import riscv_state_pkg::*;
 
 module riscv_bu #(
-  parameter            XLEN           = 32,
+  parameter int        XLEN           = 32,
   parameter [XLEN-1:0] PC_INIT        = 'h200,
-  parameter            BP_GLOBAL_BITS = 2,
-  parameter            HAS_RVC        = 0
+  parameter int        BP_GLOBAL_BITS = 2,
+  parameter int        RSB_DEPTH      = 0,
+  parameter int        HAS_RVC        = 0
 )
 (
   input                           rst_ni,
@@ -45,6 +46,7 @@ module riscv_bu #(
 
   //Program counter
   input      [XLEN          -1:0] id_pc_i,
+                                  id_rsb_pc_i,
   output reg [XLEN          -1:0] bu_nxt_pc_o,
   output reg                      bu_flush_o,
                                   cm_ic_invalidate_o,
@@ -77,9 +79,12 @@ module riscv_bu #(
   //
   localparam SBITS=$clog2(XLEN);
 
-  opcR_t                   opcR;
   logic                    has_rvc;
+  logic                    has_rsb;
   logic                    is_16bit_instruction;
+  opcR_t                   opcR;
+  rsd_t                    rs;
+  logic                    is_ret;
   logic                    misaligned_instruction;
 
   //Immediates
@@ -108,10 +113,12 @@ module riscv_bu #(
   /*
    * Instruction
    */
-  assign opcR    = decode_opcR(id_insn_i.instr);
   assign has_rvc = (HAS_RVC !=  0);
+  assign has_rsb = (RSB_DEPTH > 0);
   assign is_16bit_instruction = ~&id_insn_i.instr[1:0];
-
+  assign opcR    = decode_opcR(id_insn_i.instr);
+  assign rs1     = decode_rs1 (id_insn_i.instr);
+  assign is_ret  = (rs1 == 1) | (rs1 == 5);
 
   /*
    * Exceptions
@@ -156,7 +163,6 @@ module riscv_bu #(
    * - Branches/JALR (JAL/JALR results handled by ALU)
    * - Exceptions
    */
-
   always_comb 
     casex ( {id_insn_i.bubble,opcR} )
       {1'b0,JAL    }: begin //This is really only for the debug unit, such that NPC points to the correct address
@@ -169,7 +175,20 @@ module riscv_bu #(
                           dc_clean      = 'b0;
                           nxt_pc        = id_pc_i + ext_immUJ;
                       end
-      {1'b0,JALR   }: begin
+      {1'b0,JALR   }: if (has_rsb)
+                      begin
+                          btaken        = 'b1;
+                          bp_update     = 'b0;
+                          cacheflush    = 'b0;
+                          ic_invalidate = 'b0;
+                          dc_invalidate = 'b0;
+                          dc_clean      = 'b0;
+
+                          nxt_pc        = (opA_i + opB_i) & { {XLEN-1{1'b1}},1'b0 };
+                          pipeflush     = is_ret ?  (nxt_pc[XLEN-1:1] != id_rsb_pc_i[XLEN-1:1]) : 1'b1;
+                      end
+                      else
+                      begin
                           btaken        = 'b1;
                           bp_update     = 'b0;
                           pipeflush     = 'b1;
@@ -272,7 +291,6 @@ module riscv_bu #(
                           nxt_pc     = id_pc_i + (is_16bit_instruction ? 'h2 : 'h4);
                       end
     endcase
-
 
 
   /*

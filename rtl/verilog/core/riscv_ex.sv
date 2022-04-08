@@ -32,13 +32,14 @@ import riscv_state_pkg::*;
 import biu_constants_pkg::*;
 
 module riscv_ex #(
-  parameter            XLEN           = 32,
+  parameter int        XLEN           = 32,
   parameter [XLEN-1:0] PC_INIT        = 'h200,
-  parameter            BP_GLOBAL_BITS = 2,
-  parameter            HAS_RVC        = 0,
-  parameter            HAS_RVA        = 0,
-  parameter            HAS_RVM        = 0,
-  parameter            MULT_LATENCY   = 0
+  parameter int        BP_GLOBAL_BITS = 2,
+  parameter int        HAS_RVC        = 0,
+  parameter int        HAS_RVA        = 0,
+  parameter int        HAS_RVM        = 0,
+  parameter int        MULT_LATENCY   = 0,
+  parameter int        RSB_DEPTH      = 0
 )
 (
   input                           rst_ni,
@@ -49,6 +50,7 @@ module riscv_ex #(
 
   //Program counter
   input      [XLEN          -1:0] id_pc_i,
+                                  id_rsb_pc_i,
   output reg [XLEN          -1:0] ex_pc_o,
                                   bu_nxt_pc_o,
   output                          bu_flush_o,
@@ -256,7 +258,8 @@ module riscv_ex #(
     .XLEN                   ( XLEN                   ),
     .HAS_RVC                ( HAS_RVC                ),
     .PC_INIT                ( PC_INIT                ),
-    .BP_GLOBAL_BITS         ( BP_GLOBAL_BITS         ) )
+    .BP_GLOBAL_BITS         ( BP_GLOBAL_BITS         ),
+    .RSB_DEPTH              ( RSB_DEPTH              ) )
   bu (
     .rst_ni                 ( rst_ni                 ),
     .clk_i                  ( clk_i                  ),
@@ -266,6 +269,7 @@ module riscv_ex #(
 
     .id_pc_i                ( id_pc_i                ),
     .id_insn_i              ( id_insn_i              ),
+    .id_rsb_pc_i            ( id_rsb_pc_i            ),
     .bu_nxt_pc_o            ( bu_nxt_pc_o            ),
     .bu_flush_o             ( bu_flush_o             ),
     .cm_ic_invalidate_o     ( cm_ic_invalidate_o     ),

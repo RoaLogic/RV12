@@ -36,7 +36,7 @@ module riscv_pd #(
   parameter                       HAS_RVC        = 0,
   parameter                       HAS_BPU        = 0,
   parameter                       BP_GLOBAL_BITS = 2,
-  parameter                       RSB_DEPTH      = 0
+  parameter                       RSB_DEPTH      = 4
 )
 (
   input                           rst_ni,          //Reset
@@ -69,6 +69,7 @@ module riscv_pd #(
 
   input      [XLEN          -1:0] if_pc_i,
   output reg [XLEN          -1:0] pd_pc_o,
+                                  pd_rsb_pc_o,
 
   input  instruction_t            if_insn_i,
   output instruction_t            pd_insn_o,
@@ -98,15 +99,19 @@ module riscv_pd #(
 
   //RSB
   logic             is_16bit_instruction;
-  logic             has_rbs;
-  logic [XLEN -1:0] rbs_nxt_pc,
-                    rbs_predict_pc;
-  logic             rbs_push,
-                    rbs_pop,
-                    rbs_empty;
+  logic             has_rsb;
+  logic [XLEN -1:0] rsb_nxt_pc,
+                    rsb_predict_pc;
+  logic             rsb_push,
+                    rsb_pop,
+                    rsb_empty;
 
   rsd_t             rs1,
                     rd;
+  logic             link_rs1,
+                    link_rd,
+                    decode_rsb_push,
+                    decode_rsb_pop;
 
 
   //Immediates for branches and jumps
@@ -130,12 +135,14 @@ module riscv_pd #(
   //
 
   //for RSB
-  assign is_16bit_instruction = ~&id_insn_i.instr[1:0];
-  assign rbs_nxt_pc           = if_pc_i + (is_16bit_instruction ? 'h2 : 'h4);
-  assign has_rbs              = RSB_DEPTH > 0;
+  assign is_16bit_instruction = ~&if_insn_i.instr[1:0];
+  assign rsb_nxt_pc           = if_pc_i + (is_16bit_instruction ? 'h2 : 'h4);
+  assign has_rsb              = RSB_DEPTH > 0;
   assign rs1                  = decode_rs1(if_insn_i.instr);
   assign rd                   = decode_rd (if_insn_i.instr);
-  
+  assign link_rs1             = (rs1 == 1) | (rs1 == 5); //x1/ra or x5/t0/ra2
+  assign link_rd              = (rd  == 1) | (rd  == 5);
+
   
   //All flush signals
   assign pd_flush_o = bu_flush_i | st_flush_i;
@@ -228,21 +235,31 @@ generate
   if (RSB_DEPTH > 0)
   begin: gen_rsb
 
-      risc_rsb #(
-        .XLEN  ( XLEN      ),
-        .DEPTH ( RSB_DEPTH ) )
+      riscv_rsb #(
+        .XLEN    ( XLEN           ),
+        .DEPTH   ( RSB_DEPTH      ) )
       rsb_inst (
-        .rst_nit ( rst_ni         ),
+        .rst_ni  ( rst_ni         ),
         .clk_i   ( clk_i          ),
 	.ena_i   (!pd_stall_o     ),
-        .d_i     ( rbs_nxt_pc     ),
-        .q_o     ( rbs_predict_pc ),
-        .we_i    ( rbs_push       ), //push stack, JAL(R) rd !=x0
-        .re_i    ( rbs_pop        ), //pop stack, RET
-        .empty_o ( rbs_empty      ) );
-
+        .d_i     ( rsb_nxt_pc     ),
+        .q_o     ( rsb_predict_pc ),
+        .push_i  ( rsb_push       ), //push stack, JAL(R) rd !=x0
+        .pop_i   ( rsb_pop        ), //pop stack, RET
+        .empty_o ( rsb_empty      ) );
   end
 endgenerate
+
+
+  //decode rbs_push/pop
+  always_comb
+    unique casex ({link_rd, link_rs1, rs1==rd})
+      3'b00? :{decode_rsb_push, decode_rsb_pop} = 2'b00;
+      3'b01? :{decode_rsb_push, decode_rsb_pop} = 2'b01;
+      3'b10? :{decode_rsb_push, decode_rsb_pop} = 2'b10;
+      3'b110 :{decode_rsb_push, decode_rsb_pop} = 2'b11;
+      3'b111 :{decode_rsb_push, decode_rsb_pop} = 2'b10;
+    endcase
 
 
   //Immediates
@@ -258,17 +275,17 @@ endgenerate
       {1'b0,1'b0,OPC_JAL   } : begin
                                    branch_taken     = 1'b1;
                                    branch_predicted = 2'b10;
-                                   rbs_push         = 1'b0;
-                                   rbs_pop          = 1'b0;
+                                   rsb_push         = decode_rsb_push;
+                                   rsb_pop          = decode_rsb_pop;
                                    pd_nxt_pc_o      = if_pc_i + ext_immUJ;
                                end
 
       {1'b0,1'b0,OPC_JALR  } : begin
-                                   branch_taken     = 1'b0;
-                                   branch_predicted = 2'b10;
-                                   rbs_push         = 1'b0;
-                                   rbs_pop          = 1'b0;
-                                   pd_nxt_pc_o      = rbs_predict_pc;
+                                   branch_taken     = has_rsb ? decode_rsb_pop : 1'b0;
+                                   branch_predicted = 2'b00;
+                                   rsb_push         = decode_rsb_push;
+                                   rsb_pop          = decode_rsb_pop;
+                                   pd_nxt_pc_o      = rsb_predict_pc;
                                end
 
       {1'b0,1'b0,OPC_BRANCH} : begin
@@ -276,23 +293,29 @@ endgenerate
                                    //otherwise assume backwards jumps taken, forward jumps not taken
                                    branch_taken     = (HAS_BPU != 0) ? bp_bp_predict_i[1] : ext_immSB[31];
                                    branch_predicted = (HAS_BPU != 0) ? bp_bp_predict_i    : {ext_immSB[31], 1'b0};
-                                   rbs_push         = 1'b0;
-                                   rbs_pop          = 1'b0;
+                                   rsb_push         = 1'b0;
+                                   rsb_pop          = 1'b0;
                                    pd_nxt_pc_o      = if_pc_i + ext_immSB;
                                end
 
       default                : begin
                                    branch_taken     = 1'b0;
                                    branch_predicted = 2'b00;
-                                   rbs_push         = 1'b0;
-                                   rbs_pop          = 1'b0;
+                                   rsb_push         = 1'b0;
+                                   rsb_pop          = 1'b0;
                                    pd_nxt_pc_o      = 'hx;
                                end
     endcase
 
 
   always @(posedge clk_i)
+    if (!pd_stall_o)
+      pd_rsb_pc_o <= has_rsb ? rsb_predict_pc : {$bits(pd_rsb_pc_o){1'b0}};
+
+
+  always @(posedge clk_i)
     stalled_branch <= branch_taken & id_stall_i;
+
 
   //generate latch strobe
   assign pd_latch_nxt_pc_o = branch_taken & ~stalled_branch;

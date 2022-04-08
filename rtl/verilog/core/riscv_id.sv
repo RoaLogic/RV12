@@ -37,19 +37,20 @@ import riscv_opcodes_pkg::*;
 import riscv_state_pkg::*;
 
 module riscv_id #(
-  parameter                         XLEN           = 32,
+  parameter    int                  XLEN           = 32,
   parameter    [XLEN          -1:0] PC_INIT        = 'h200,
-  parameter                         HAS_HYPER      = 0,
-  parameter                         HAS_SUPER      = 0,
-  parameter                         HAS_USER       = 0,
-  parameter                         HAS_FPU        = 0,
-  parameter                         HAS_RVA        = 0,
-  parameter                         HAS_RVM        = 0,
-  parameter                         HAS_RVC        = 0,
-  parameter                         MULT_LATENCY   = 0,
-  parameter                         RF_REGOUT      = 1,
-  parameter                         BP_GLOBAL_BITS = 2,
-  parameter                         MEM_STAGES     = 1
+  parameter    int                  HAS_HYPER      = 0,
+  parameter    int                  HAS_SUPER      = 0,
+  parameter    int                  HAS_USER       = 0,
+  parameter    int                  HAS_FPU        = 0,
+  parameter    int                  HAS_RVA        = 0,
+  parameter    int                  HAS_RVM        = 0,
+  parameter    int                  HAS_RVC        = 0,
+  parameter    int                  MULT_LATENCY   = 0,
+  parameter    int                  RF_REGOUT      = 1,
+  parameter    int                  BP_GLOBAL_BITS = 2,
+  parameter    int                  RSB_DEPTH      = 0,
+  parameter    int                  MEM_STAGES     = 1
 )
 (
   input                             rst_ni,
@@ -69,8 +70,10 @@ module riscv_id #(
 
   //Program counter
   input        [XLEN          -1:0] pd_pc_i,
+                                    pd_rsb_pc_i,
   input        [XLEN          -1:0] if_nxt_pc_i,
   output logic [XLEN          -1:0] id_pc_o,
+                                    id_rsb_pc_o,
 
   input        [BP_GLOBAL_BITS-1:0] pd_bp_history_i,
   output logic [BP_GLOBAL_BITS-1:0] id_bp_history_o,
@@ -185,7 +188,8 @@ module riscv_id #(
   //
   genvar                  n;
 
-  logic                   has_rvc;
+  logic                   has_rvc,
+                          has_rsb;
 
   logic                   id_bubble_r;
   logic                   multi_cycle_instruction;
@@ -267,6 +271,8 @@ module riscv_id #(
   // Module Body
   //
   assign has_rvc = HAS_RVC != 0;
+  assign has_rsb = RSB_DEPTH > 0;
+  
 
   /*
    * Program Counter
@@ -277,6 +283,11 @@ module riscv_id #(
     else if ( bu_flush_i 	       ) id_pc_o <= bu_nxt_pc_i; //Is this required?! 
     else if ( du_flush_i 	       ) id_pc_o <= if_nxt_pc_i;
     else if (!stalls   && !id_stall_o  ) id_pc_o <= pd_pc_i;
+
+
+  always @(posedge clk_i)
+    if (!stalls && !id_stall_o) id_rsb_pc_o <= has_rsb ? pd_rsb_pc_i : {$bits(id_rsb_pc_o){1'b0}};
+
 
   /*
    * Instruction
