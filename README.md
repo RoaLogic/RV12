@@ -42,6 +42,9 @@ Use DHRYSTONE v2.2 as reference/benchmark
 - General small updates
   - No BP: 1201 (0.68DMIPS/MHz) +1.5%
   - BP   : 1245 (0.71DMIPS/MHz) +3.6%
+ 
+- Initial release of instruction cache. This requires a longer instruction fetch pipeline
+  - Dhrystones: 1244 (0.71DMIPS)
 
 - Extend pipeline (additional MEM stages)
   - No DCACHE, 2 MEM stages: 1335 (0.76DMIPS/MHz) +7.2% vs 1245
@@ -50,6 +53,5 @@ Use DHRYSTONE v2.2 as reference/benchmark
   - No caches, 4-Deep RSB, 1 MEM stage : 1322 (0.76DMIPS/MHz) +6% vs 1245
   - No caches, 4-Deep RSB, 2 MEM stages: 1416 (0.80DMIPS/MHz) 
 
-- Initial release of instruction cache. This requires a longer instruction fetch pipeline
-  - Dhrystones: 1244 (0.71DMIPS)
+
 
