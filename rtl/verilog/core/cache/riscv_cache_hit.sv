@@ -63,7 +63,6 @@ module riscv_cache_hit #(
   input  logic                        dc_clean_rdy_i,          //data cache flush ready
 
   output logic                        armed_o,
-  output logic                        flushing_o,
   output logic                        invalidate_all_blocks_o, //invalidate all cache valid bits
   output logic                        filling_o,
   input  logic [WAYS            -1:0] fill_way_i,
@@ -188,6 +187,8 @@ module riscv_cache_hit #(
                     RECOVER0,
                     RECOVER1 } memfsm_state;
 
+  logic                      invalidating;
+
 
   logic [PLEN          -1:0] biu_adro;
   logic                      biu_adro_eq_cache_adr_dly;
@@ -206,7 +207,7 @@ module riscv_cache_hit #(
   //hold flush until ready to be serviced
   always @(posedge clk_i, negedge rst_ni)
     if (!rst_ni) invalidate <= 1'b0;
-    else         invalidate <= invalidate_i | (invalidate & ~flushing_o);
+    else         invalidate <= invalidate_i | (invalidate & ~invalidating);
 
 
   //State Machine
@@ -215,7 +216,7 @@ module riscv_cache_hit #(
     begin
         memfsm_state            <= ARMED;
         armed_o                 <= 1'b1;
-        flushing_o              <= 1'b0;
+        invalidating            <= 1'b0;
         invalidate_all_blocks_o <= 1'b0;
         filling_o               <= 1'b0;
         fill_way_o              <=  'hx;
@@ -227,7 +228,7 @@ module riscv_cache_hit #(
                       begin
                           memfsm_state            <= INVALIDATE;
                           armed_o                 <= 1'b0;
-                          flushing_o              <= 1'b1;
+                          invalidating            <= 1'b1;
                           invalidate_all_blocks_o <= 1'b1;
                       end
 		      else if (valid_req && !cacheable_i && !misaligned_i && !flush_i)
@@ -249,10 +250,10 @@ module riscv_cache_hit #(
                           biucmd_o <= BIUCMD_NOP;
                       end
 
-       INVALIDATE   : if (dc_clean_rdy_i) //wait for data-cache to complete flushing
+       INVALIDATE   : if (dc_clean_rdy_i) //wait for data-cache to complete cleaning
                       begin
                           memfsm_state            <= RECOVER0; //allow to read new tag_idx
-                          flushing_o              <= 1'b0;
+                          invalidating            <= 1'b0;
                           invalidate_all_blocks_o <= 1'b0;
                       end
 
