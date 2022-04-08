@@ -53,7 +53,7 @@ module riscv_noicache_core #(
   output     [XLEN/PARCEL_SIZE-1:0] if_parcel_valid_o,
   output                            if_parcel_misaligned_o,
   output                            if_parcel_error_o,
-  input                             dcflush_rdy_i,
+  input                             cm_dc_clean_rdy_i,
   input      [                 1:0] st_prv_i,
 
   //To BIU
@@ -119,10 +119,10 @@ module riscv_noicache_core #(
   /*
    * To CPU
    */
-  assign if_ack_o               = dcflush_rdy_i & biu_stb_ack_i;  //get next parcel address
+  assign if_ack_o               = cm_dc_clean_rdy_i & biu_stb_ack_i;  //get next parcel address
   assign if_parcel_misaligned_o = (HAS_RVC != 0) ? if_parcel_pc_o[0] : |if_parcel_pc_o[1:0];
   assign if_parcel_error_o      = biu_err_i;
-  assign if_parcel_valid_o      = dcflush_rdy_i & ~(if_flush_i | if_flush_dly) & biu_ack_i & ~|discard
+  assign if_parcel_valid_o      = cm_dc_clean_rdy_i & ~(if_flush_i | if_flush_dly) & biu_ack_i & ~|discard
                                 ? {XLEN/PARCEL_SIZE{1'b1}} << biu_tago_i
                                 : {XLEN/PARCEL_SIZE{1'b0}};
   assign if_parcel_pc_o         = { {PLEN - (BIUTAG_SIZE+1) - $bits(biu_tago_i) -1{1'b0}},biu_adro_i[PLEN -1 : BIUTAG_SIZE+1], biu_tago_i, 1'b0};
@@ -132,7 +132,7 @@ module riscv_noicache_core #(
   /*
    * External Interface
    */
-  assign biu_stb_o   = dcflush_rdy_i & ~if_flush_i & if_req_i;
+  assign biu_stb_o   = cm_dc_clean_rdy_i & ~if_flush_i & if_req_i;
 generate  
   if (PLEN <= XLEN) assign biu_adri_o = if_nxt_pc_i[PLEN -1:0]           & (XLEN==64 ? ~'h7 : ~'h3); //Always start at aligned address
   else              assign biu_adri_o = {{PLEN-XLEN{1'b0}}, if_nxt_pc_i} & (XLEN==64 ? ~'h7 : ~'h3);
