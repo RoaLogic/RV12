@@ -57,8 +57,9 @@ module riscv_du #(
   output                          du_stall_o,
                                   du_stall_if_o,
 
-  output reg                      du_latch_nxt_pc_o,
-  output reg                      du_flush_o,
+  output                          du_latch_nxt_pc_o,
+  output                          du_flush_o,
+  output                          du_flush_cache_o,
   output reg                      du_we_rf_o,
   output reg                      du_we_frf_o,
   output reg                      du_we_csr_o,
@@ -218,9 +219,10 @@ module riscv_du #(
 
 
   assign du_latch_nxt_pc_o =  dbg_stall_i & ~du_stall_dly; //Latch nxt-pc address while entering debug
+  assign du_flush_cache_o  =  du_latch_nxt_pc_o;
   assign du_flush_o        = ~dbg_stall_i &  du_stall_dly; // & |du_exceptions_i; //flush upon debug exit. Maybe program memory contents changed
 
-  
+
   always @(posedge clk_i)
   begin
       du_addr_o      <= dbg_addr_i[DU_ADDR_SIZE-1:0];
