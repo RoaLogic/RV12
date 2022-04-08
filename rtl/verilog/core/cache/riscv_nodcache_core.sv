@@ -111,7 +111,8 @@ module riscv_nodcache_core #(
 generate
   for (n=1; n < DEPTH; n++)
     always @(posedge clk_i, negedge rst_ni)
-      misaligned[n] <= misaligned[n-1];
+      if (!rst_ni) misaligned[n] <= 1'b0;
+      else         misaligned[n] <= misaligned[n-1];
 endgenerate
 
   always @(posedge clk_i)
