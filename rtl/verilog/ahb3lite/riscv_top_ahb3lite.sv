@@ -35,58 +35,58 @@ import biu_constants_pkg::*;
 import ahb3lite_pkg::*;
 
 module riscv_top_ahb3lite #(
-  parameter            XLEN               = 32,     //CPU data size
-  parameter            ALEN               = XLEN,   //CPU Address Space size
+  parameter int        XLEN               = 32,     //CPU data size
+  parameter int        ALEN               = XLEN,   //CPU Address Space size
   parameter [XLEN-1:0] PC_INIT            = 'h200,
-  parameter            HAS_USER           = 0,
-  parameter            HAS_SUPER          = 0,
-  parameter            HAS_HYPER          = 0,
-  parameter            HAS_BPU            = 1,
-  parameter            HAS_FPU            = 0,
-  parameter            HAS_MMU            = 0,
-  parameter            HAS_RVM            = 1,
-  parameter            HAS_RVA            = 0,
-  parameter            HAS_RVC            = 0,
-  parameter            IS_RV32E           = 0,
+  parameter int        HAS_USER           = 0,
+  parameter int        HAS_SUPER          = 0,
+  parameter int        HAS_HYPER          = 0,
+  parameter int        HAS_BPU            = 1,
+  parameter int        HAS_FPU            = 0,
+  parameter int        HAS_MMU            = 0,
+  parameter int        HAS_RVM            = 1,
+  parameter int        HAS_RVA            = 0,
+  parameter int        HAS_RVC            = 0,
+  parameter int        IS_RV32E           = 0,
 
-  parameter            MULT_LATENCY       = 0,
+  parameter int        MULT_LATENCY       = 0,
 
-  parameter            BREAKPOINTS        = 3,  //Number of hardware breakpoints
+  parameter int        BREAKPOINTS        = 3,  //Number of hardware breakpoints
 
-  parameter            PMA_CNT            = 1, //16,
-  parameter            PMP_CNT            = 0, //16, //Number of Physical Memory Protection entries
+  parameter int        PMA_CNT            = 1, //16,
+  parameter int        PMP_CNT            = 0, //16, //Number of Physical Memory Protection entries
 
-  parameter            BP_GLOBAL_BITS     = 2,
-  parameter            BP_LOCAL_BITS      = 10,
+  parameter int        BP_GLOBAL_BITS     = 2,
+  parameter int        BP_LOCAL_BITS      = 10,
 
-  parameter            ICACHE_SIZE        = 0,  //in KBytes
-  parameter            ICACHE_BLOCK_SIZE  = 32, //in Bytes
-  parameter            ICACHE_WAYS        = 2,  //'n'-way set associative
-  parameter            ICACHE_REPLACE_ALG = 0,
+  parameter int        ICACHE_SIZE        = 0,  //in KBytes
+  parameter int        ICACHE_BLOCK_SIZE  = 32, //in Bytes
+  parameter int        ICACHE_WAYS        = 2,  //'n'-way set associative
+  parameter int        ICACHE_REPLACE_ALG = 0,
 
-  parameter            DCACHE_SIZE        = 0,  //in KBytes
-  parameter            DCACHE_BLOCK_SIZE  = 32, //in Bytes
-  parameter            DCACHE_WAYS        = 2,  //'n'-way set associative
-  parameter            DCACHE_REPLACE_ALG = 0,
-  parameter            WRITEBUFFER_SIZE   = 8,
+  parameter int        DCACHE_SIZE        = 0,  //in KBytes
+  parameter int        DCACHE_BLOCK_SIZE  = 32, //in Bytes
+  parameter int        DCACHE_WAYS        = 2,  //'n'-way set associative
+  parameter int        DCACHE_REPLACE_ALG = 0,
+  parameter int        WRITEBUFFER_SIZE   = 8,
 
-  parameter            TECHNOLOGY         = "GENERIC",
+  parameter string     TECHNOLOGY         = "GENERIC",
 
-  parameter            MNMIVEC_DEFAULT    = PC_INIT -'h004,
-  parameter            MTVEC_DEFAULT      = PC_INIT -'h040,
-  parameter            HTVEC_DEFAULT      = PC_INIT -'h080,
-  parameter            STVEC_DEFAULT      = PC_INIT -'h0C0,
-  parameter            UTVEC_DEFAULT      = PC_INIT -'h100,
+  parameter [XLEN-1:0] MNMIVEC_DEFAULT    = PC_INIT -'h004,
+  parameter [XLEN-1:0] MTVEC_DEFAULT      = PC_INIT -'h040,
+  parameter [XLEN-1:0] HTVEC_DEFAULT      = PC_INIT -'h080,
+  parameter [XLEN-1:0] STVEC_DEFAULT      = PC_INIT -'h0C0,
+  parameter [XLEN-1:0] UTVEC_DEFAULT      = PC_INIT -'h100,
 
-  parameter            JEDEC_BANK            = 10,
-  parameter            JEDEC_MANUFACTURER_ID = 'h6e,
+  parameter int        JEDEC_BANK            = 10,
+  parameter int        JEDEC_MANUFACTURER_ID = 'h6e,
 
-  parameter            HARTID             = 0,
+  parameter int        HARTID             = 0,
 
-  parameter            STRICT_AHB         = 1,
+  parameter int        STRICT_AHB         = 1,
 
-  localparam           PARCEL_SIZE        = 16, //16bits per parcel
-  localparam           BIUTAG_SIZE        = $clog2(XLEN/PARCEL_SIZE)
+  localparam int       PARCEL_SIZE        = 16, //16bits per parcel
+  localparam int       BIUTAG_SIZE        = $clog2(XLEN/PARCEL_SIZE)
 )
 (
   //AHB interfaces
@@ -175,8 +175,10 @@ module riscv_top_ahb3lite #(
   logic    [15:0][XLEN            -1:0] st_pmpaddr;
   logic          [                 1:0] st_prv;
 
-  logic                                 cacheflush,
-                                        dcflush_rdy;
+  logic                                 cm_ic_invalidate,
+                                        cm_dc_invalidate,
+                                        cm_dc_clean,
+                                        cm_dc_clean_rdy;
 
   /* Instruction Memory BIU connections
    */
@@ -296,7 +298,9 @@ module riscv_top_ahb3lite #(
     .st_prv_o                 ( st_prv                 ),
     .st_pmpcfg_o              ( st_pmpcfg              ),
     .st_pmpaddr_o             ( st_pmpaddr             ),
-    .cacheflush_o             ( cacheflush             ),
+    .cm_ic_invalidate_o       ( cm_ic_invalidate       ),
+    .cm_dc_invalidate_o       ( cm_dc_invalidate       ),
+    .cm_dc_clean_o            ( cm_dc_clean            ),
 
 
     //Interrupts
@@ -351,8 +355,10 @@ module riscv_top_ahb3lite #(
     .mem_error_o       ( imem_error        ),
     .parcel_o          ( imem_parcel       ),
     .parcel_valid_o    ( imem_parcel_valid ),
-    .cache_flush_i     ( cacheflush        ),
-    .dcflush_rdy_i     ( dcflush_rdy       ),
+
+    //Cache management
+    .cm_invalidate_i   ( cm_ic_invalidate  ),
+    .cm_dc_clean_rdy_i ( cm_dc_clean_rdy   ),
 
      //BIU ports
     .biu_stb_o         ( ibiu_stb          ),
@@ -412,8 +418,11 @@ endgenerate
     .mem_err_o         ( dmem_err          ),
     .mem_misaligned_o  ( dmem_misaligned   ),
     .mem_pagefault_o   ( dmem_pagefault    ),
-    .cache_flush_i     ( cacheflush        ),
-    .cache_flush_rdy_o ( dcflush_rdy       ),
+
+    //Cache management
+    .cm_invalidate_i   ( cm_dc_invalidate  ),
+    .cm_clean_i        ( cm_dc_clean       ),
+    .cm_clean_rdy_o    ( cm_dc_clean_rdy   ),
 
      //BIU ports
     .biu_stb_o         ( dbiu_stb          ),
