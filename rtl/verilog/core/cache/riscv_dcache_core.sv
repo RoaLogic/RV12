@@ -254,8 +254,11 @@ module riscv_dcache_core #(
   logic                     hit_latchmem,
                             mem_recover;
   logic                     armed,
-                            flushing, flush_valid, flush_dirty,
-	                    filling;
+                            filling,
+                            cleaning,
+                            clean_block,
+                            invalidate_block,
+                            invalidate_all_blocks;
 
 
   //////////////////////////////////////////////////////////////////
@@ -383,12 +386,14 @@ endgenerate
     .flush_i                   ( mem_flush_i             ),
 
     //flush in-order with CPU pipeline
-    .cacheflush_req_i          ( tag_clean               ),
-    .cacheflush_rdy_o          ( clean_rdy_o             ),
+    .invalidate_i              ( tag_invalidate          ),
+    .clean_i                   ( tag_clean               ),
+    .clean_rdy_o               ( clean_rdy_o             ),
     .armed_o                   ( armed                   ),
-    .flushing_o                ( flushing                ),
-    .flush_valid_o             ( flush_valid             ),
-    .flush_dirty_o             ( flush_dirty             ),
+    .cleaning_o                ( cleaning                ),
+    .clean_block_o             ( clean_block             ),
+    .invalidate_block_o        ( invalidate_block        ),
+    .invalidate_all_blocks_o   ( invalidate_all_blocks   ),
     .filling_o                 ( filling                 ),
     .fill_way_i                ( mem_fill_way            ),
     .fill_way_o                ( hit_fill_way            ),
@@ -473,10 +478,10 @@ endgenerate
     .stall_i                   ( stall_o                 ),
 
     .armed_i                   ( armed                   ),
-    .flushing_i                ( flushing                ),
-    .flush_valid_i             ( 1'b0                    ),
-    .flush_valid_all_i         ( 1'b0                    ),
-    .flush_dirty_i             ( flush_dirty             ),
+    .cleaning_i                ( cleaning                ),
+    .clean_block_i             ( clean_block             ),
+    .invalidate_block_i        ( 1'b0                    ),
+    .invalidate_all_blocks_i   ( invalidate_all_blocks   ),
     .filling_i                 ( filling                 ),
     .fill_way_select_i         ( fill_way_select         ),
     .fill_way_i                ( hit_fill_way            ),

@@ -60,10 +60,10 @@ module riscv_cache_memory #(
   input  logic                     stall_i,
 
   input  logic                     armed_i,
-  input  logic                     flushing_i,
-  input  logic                     flush_valid_i,
-  input  logic                     flush_valid_all_i,
-  input  logic                     flush_dirty_i,
+  input  logic                     cleaning_i,
+  input  logic                     clean_block_i,
+  input  logic                     invalidate_block_i,
+  input  logic                     invalidate_all_blocks_i,
   input  logic                     filling_i,
   input  logic [WAYS         -1:0] fill_way_select_i,
   input  logic [WAYS         -1:0] fill_way_i,
@@ -274,7 +274,7 @@ module riscv_cache_memory #(
   //Bypass(es) valid
   always @(posedge clk_i, negedge rst_ni)
     if      (!rst_ni    ) byp_valid <= 1'b0;
-    else if ( flushing_i) byp_valid <= 1'b0;
+    else if ( cleaning_i) byp_valid <= 1'b0;
     else if ( biumem_we ) byp_valid <= 1'b1;
 
 
@@ -297,7 +297,7 @@ module riscv_cache_memory #(
 
   //Memory Index
   always_comb
-    unique casex ( {flushing_i, biumem_we} )
+    unique casex ( {cleaning_i, biumem_we} )
       {2'b1?}: tag_idx = idx_flushing;
       {2'b?1}: tag_idx = idx_filling;
       default: tag_idx = rd_idx_i;
@@ -333,10 +333,10 @@ generate
        * Valid is stored in DFF
        */ 
       always @(posedge clk_i, negedge rst_ni)
-        if      (!rst_ni           ) tag_valid[way]          <= 'h0;
-	else if ( flush_valid_all_i) tag_valid[way]          <= 'h0;
-        else if ( flush_valid_i    ) tag_valid[way][tag_idx] <= 1'b0;
-        else if ( tag_we[way]      ) tag_valid[way][tag_idx] <= tag_in[way].valid;
+        if      (!rst_ni                 ) tag_valid[way]          <= 'h0;
+	else if ( invalidate_all_blocks_i) tag_valid[way]          <= 'h0;
+        else if ( invalidate_block_i     ) tag_valid[way][tag_idx] <= 1'b0;
+        else if ( tag_we[way]            ) tag_valid[way][tag_idx] <= tag_in[way].valid;
 
       assign tag_out[way].valid = tag_valid[way][rd_idx_dly];
 
@@ -351,7 +351,7 @@ generate
        */ 
       always @(posedge clk_i, negedge rst_ni)
         if      (!rst_ni           ) tag_dirty[way]          <= 'h0;
-        else if ( flush_dirty_i    ) tag_dirty[way][dat_idx] <= 'h0; //TODO
+        else if ( clean_block_i    ) tag_dirty[way][dat_idx] <= 'h0; //TODO
         else if ( tag_we_dirty[way]) tag_dirty[way][dat_idx] <= tag_in[way].dirty;
 
       assign tag_out[way].dirty = tag_dirty[way][rd_idx_dly];
@@ -381,10 +381,10 @@ endgenerate
   /* Generate Hit
    */
   always @(posedge clk_i)
-    if      ( flush_valid_all_i) hit_o <= 1'b0;
-    else if ( bypass_biumem_we ) hit_o <= 1'b1;
-    else if ( latchmem_i       ) hit_o <= rd_idx_dly_eq_byp_idx ? byp_valid & (rd_core_tag_i == tag_byp_tag)
-                                                               : |way_hit & ~we_dly;
+    if      ( invalidate_all_blocks_i) hit_o <= 1'b0;
+    else if ( bypass_biumem_we       ) hit_o <= 1'b1;
+    else if ( latchmem_i             ) hit_o <= rd_idx_dly_eq_byp_idx ? byp_valid & (rd_core_tag_i == tag_byp_tag)
+                                                                      : |way_hit & ~we_dly;
 
 
   always @(posedge clk_i)
@@ -421,13 +421,13 @@ endgenerate
    */
   always @(posedge clk_i)
 /*    if      ( bypass_biumem_we_evict) evict_tag_o <= tag_filling;
-    else*/ if ( flushing_i      ) evict_tag_o <= tag_out[way_flushing_dly].tag;
+    else*/ if ( cleaning_i      ) evict_tag_o <= tag_out[way_flushing_dly].tag;
     else if ( latchmem_i      ) evict_tag_o <= rd_idx_dly_eq_byp_idx ? tag_byp_tag
                                                                      : tag_out[evict_way_select_int].tag;
 
 
   always @(posedge clk_i)
-    if      ( flushing_i) evict_idx_o <= idx_flushing_dly;
+    if      ( cleaning_i) evict_idx_o <= idx_flushing_dly;
     else if ( latchmem_i) evict_idx_o <= rd_idx_dly;
 
 
@@ -437,7 +437,7 @@ endgenerate
 
   //Memory Index
   always_comb
-    unique casex ( {flushing_i, biumem_we, writebuffer_we} )
+    unique casex ( {cleaning_i, biumem_we, writebuffer_we} )
       {3'b1??}: dat_idx = idx_flushing;
       {3'b?1?}: dat_idx = idx_filling;
       {3'b??1}: dat_idx = writebuffer_idx_i;
@@ -512,7 +512,7 @@ endgenerate
    */
   always @(posedge clk_i)
 /*    if      ( bypass_biumem_we_evict) evict_line_o <= biu_line_i;
-    else*/ if ( flushing_i            ) evict_line_o <= dat_out[way_flushing_dly];
+    else*/ if ( cleaning_i            ) evict_line_o <= dat_out[way_flushing_dly];
     else if ( latchmem_i            ) evict_line_o <= be_mux(bypass_writebuffer_we,
                                                              writebuffer_be_i,
                                                              rd_idx_dly_eq_byp_idx ? dat_byp_q : dat_out[evict_way_select_int],

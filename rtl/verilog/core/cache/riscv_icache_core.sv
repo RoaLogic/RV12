@@ -210,8 +210,8 @@ module riscv_icache_core #(
   logic [BLK_BITS     -1:0] biu_line;
 
   logic                     armed,
-                            flushing, flush_valid,
-	                    filling;
+	                    filling,
+                            invalidate_all_blocks;
 
 
   //////////////////////////////////////////////////////////////////
@@ -340,12 +340,11 @@ endgenerate
     .stall_o                   ( mem_stall_o             ),
     .flush_i                   ( mem_flush_i             ),
 
-    //Instructions are pre-fetched. Therefore flush immediately
-    .cacheflush_req_i          ( tag_invalidate          ),
-    .dcflush_rdy_i             ( dc_clean_rdy_i          ),
+    .invalidate_i              ( tag_invalidate          ),
+    .dc_clean_rdy_i            ( dc_clean_rdy_i          ),
+
     .armed_o                   ( armed                   ),
-    .flushing_o                ( flushing                ),
-    .flush_valid_all_o         ( flush_valid_all         ), //flush all valid bits
+    .invalidate_all_blocks_o   ( invalidate_all_blocks   ),
     .filling_o                 ( filling                 ),
     .fill_way_i                ( mem_fill_way            ),
     .fill_way_o                ( hit_fill_way            ),
@@ -410,10 +409,10 @@ endgenerate
     .stall_i                   ( mem_stall_o             ),
 
     .armed_i                   ( armed                   ),
-    .flushing_i                ( flushing                ),
-    .flush_valid_i             ( 1'b0                    ),
-    .flush_valid_all_i         ( flush_valid_all         ),
-    .flush_dirty_i             ( 1'b0                    ),
+    .cleaning_i                ( 1'b0                    ),
+    .clean_block_i             ( 1'b0                    ),
+    .invalidate_block_i        ( 1'b0                    ),
+    .invalidate_all_blocks_i   ( invalidate_all_blocks   ),
     .filling_i                 ( filling                 ),
     .fill_way_select_i         ( fill_way_select         ),
     .fill_way_i                ( hit_fill_way            ),
