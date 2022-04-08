@@ -57,18 +57,19 @@ module riscv_cache_hit #(
   input  logic                        clk_i,
 
   output logic                        stall_o,
-  input  logic                        flush_i,           //flush pipe
+  input  logic                        flush_i,                 //flush pipe
 
-  input  logic                        cacheflush_req_i,  //flush cache
-  input  logic                        dcflush_rdy_i,     //data cache flush ready
+  input  logic                        invalidate_i,            //flush cache
+  input  logic                        dc_clean_rdy_i,          //data cache flush ready
+
   output logic                        armed_o,
   output logic                        flushing_o,
-  output logic                        flush_valid_all_o, //flush all cache valid bits
+  output logic                        invalidate_all_blocks_o, //invalidate all cache valid bits
   output logic                        filling_o,
   input  logic [WAYS            -1:0] fill_way_i,
   output logic [WAYS            -1:0] fill_way_o,
 
-  input  logic                        req_i,             //from previous-stage
+  input  logic                        req_i,                   //from previous-stage
   input  logic [PLEN            -1:0] adr_i,
   input  biu_size_t                   size_i,
   input  logic                        lock_i,
@@ -79,7 +80,7 @@ module riscv_cache_hit #(
   input  logic                        pmp_exception_i,
   input  logic                        pagefault_i,
 
-  input  logic                        cache_hit_i,       //from cache-memory
+  input  logic                        cache_hit_i,             //from cache-memory
   input  logic [BLK_BITS        -1:0] cache_line_i,
   output logic [IDX_BITS        -1:0] idx_o,
   output logic [TAG_BITS        -1:0] core_tag_o,
@@ -176,13 +177,12 @@ module riscv_cache_hit #(
   logic [XLEN          -1:0] cache_q;
   logic                      cache_ack;
   logic                      biu_cacheable_ack;
-  logic                      biu_cache_we_unstall;
-  logic                      cacheflush;
+  logic                      invalidate;
   logic                      pma_pmp_exception;
   logic                      valid_req;
 
   enum logic [2:0] {ARMED=0,
-                    FLUSH,
+                    INVALIDATE,
                     NONCACHEABLE,
                     READ,
                     RECOVER0,
@@ -205,30 +205,30 @@ module riscv_cache_hit #(
 
   //hold flush until ready to be serviced
   always @(posedge clk_i, negedge rst_ni)
-    if (!rst_ni) cacheflush <= 1'b0;
-    else         cacheflush <= cacheflush_req_i | (cacheflush & ~flushing_o);
+    if (!rst_ni) invalidate <= 1'b0;
+    else         invalidate <= invalidate_i | (invalidate & ~flushing_o);
 
 
   //State Machine
   always @(posedge clk_i, negedge rst_ni)
     if (!rst_ni)
     begin
-        memfsm_state      <= ARMED;
-        armed_o           <= 1'b1;
-        flushing_o        <= 1'b0;
-        flush_valid_all_o <= 1'b0;
-        filling_o         <= 1'b0;
-        fill_way_o        <=  'hx;
-        biucmd_o          <= BIUCMD_NOP;
+        memfsm_state            <= ARMED;
+        armed_o                 <= 1'b1;
+        flushing_o              <= 1'b0;
+        invalidate_all_blocks_o <= 1'b0;
+        filling_o               <= 1'b0;
+        fill_way_o              <=  'hx;
+        biucmd_o                <= BIUCMD_NOP;
     end
     else
     unique case (memfsm_state)
-       ARMED        : if (cacheflush)
+       ARMED        : if (invalidate_i | invalidate)
                       begin
-                          memfsm_state      <= FLUSH;
-                          armed_o           <= 1'b0;
-                          flushing_o        <= 1'b1;
-                          flush_valid_all_o <= 1'b1;
+                          memfsm_state            <= INVALIDATE;
+                          armed_o                 <= 1'b0;
+                          flushing_o              <= 1'b1;
+                          invalidate_all_blocks_o <= 1'b1;
                       end
 		      else if (valid_req && !cacheable_i && !misaligned_i && !flush_i)
                       begin
@@ -249,11 +249,11 @@ module riscv_cache_hit #(
                           biucmd_o <= BIUCMD_NOP;
                       end
 
-       FLUSH        : if (dcflush_rdy_i) //wait for data-cache to complete flushing
+       INVALIDATE   : if (dc_clean_rdy_i) //wait for data-cache to complete flushing
                       begin
-                          memfsm_state      <= RECOVER0; //allow to read new tag_idx
-                          flushing_o        <= 1'b0;
-                          flush_valid_all_o <= 1'b0;
+                          memfsm_state            <= RECOVER0; //allow to read new tag_idx
+                          flushing_o              <= 1'b0;
+                          invalidate_all_blocks_o <= 1'b0;
                       end
 
         NONCACHEABLE: if ( flush_i                                       ||  //flush pipe, no biu_ack's will come
@@ -303,11 +303,11 @@ module riscv_cache_hit #(
   //non-cacheable access
   always_comb
     unique case (memfsm_state)
-      FLUSH   : biucmd_noncacheable_req_o = 1'b0;
-      READ    : biucmd_noncacheable_req_o = 1'b0;
-      RECOVER0: biucmd_noncacheable_req_o = 1'b0;
-      RECOVER1: biucmd_noncacheable_req_o = 1'b0;
-      default : biucmd_noncacheable_req_o = valid_req & ~cacheable_i & ~misaligned_i & ~flush_i;
+      INVALIDATE: biucmd_noncacheable_req_o = 1'b0;
+      READ      : biucmd_noncacheable_req_o = 1'b0;
+      RECOVER0  : biucmd_noncacheable_req_o = 1'b0;
+      RECOVER1  : biucmd_noncacheable_req_o = 1'b0;
+      default   : biucmd_noncacheable_req_o = valid_req & ~cacheable_i & ~misaligned_i & ~flush_i;
     endcase
 
 
@@ -328,7 +328,7 @@ module riscv_cache_hit #(
   //Cache core halt signal
   always_comb
     unique case (memfsm_state)
-      ARMED       : stall_o =  cacheflush |
+      ARMED       : stall_o =  invalidate |
                               (valid_req & (cacheable_i ? ~cache_hit_i : ~biu_stb_ack_i));
 
       //req_i == 0 ? stall=|inflight_cnt
@@ -346,15 +346,13 @@ module riscv_cache_hit #(
 
       RECOVER1    : stall_o = 1'b1;
 
-      FLUSH       : stall_o = 1'b1;
+      INVALIDATE  : stall_o = 1'b1;
 
       default     : stall_o = 1'b0;
     endcase
 
 
-  //signal downstream the BIU reported an error
-  assign parcel_error_o = biu_err_i | (valid_req & (pma_exception_i | pmp_exception_i));
-
+ 
 
   //Shift amount for data
   assign dat_offset = adr_i[BLK_OFFS_BITS-1 -: DAT_OFFS_BITS];
@@ -370,7 +368,7 @@ module riscv_cache_hit #(
 
 
   //acknowledge cache hit
-  assign cache_ack         =  valid_req & cacheable_i & cache_hit_i & ~flush_i & ~cacheflush;
+  assign cache_ack         =  valid_req & cacheable_i & cache_hit_i & ~flush_i & ~invalidate;
   assign biu_cacheable_ack = (valid_req & biu_ack_i & biu_adro_eq_cache_adr_dly & ~flush_i) |
                               cache_ack;
 
@@ -381,22 +379,20 @@ module riscv_cache_hit #(
       ARMED       : parcel_valid_o = {$bits(parcel_valid_o){cache_ack                }} << adr_i   [1 +: $clog2(XLEN/PARCEL_SIZE)]; 
       NONCACHEABLE: parcel_valid_o = {$bits(parcel_valid_o){biucmd_noncacheable_ack_i}} << biu_adro[1 +: $clog2(XLEN/PARCEL_SIZE)];
       READ        : parcel_valid_o = {$bits(parcel_valid_o){biu_cacheable_ack        }} << adr_i   [1 +: $clog2(XLEN/PARCEL_SIZE)];
-//      RECOVER0    : parcel_valid_o = {$bits(parcel_valid_o){cache_ack                }} << adr_i   [1 +: $clog2(XLEN/PARCEL_SIZE)];
       default     : parcel_valid_o = {$bits(parcel_valid_o){1'b0}};
     endcase    
 
 
-  //unstall when parcel was valid during Cache Memory write
-  always @(posedge clk_i)
-    biu_cache_we_unstall = valid_req & biu_adro_eq_cache_adr_dly & biucmd_ack_i & |parcel_valid_o;
+ //signal downstream the BIU reported an error
+  assign parcel_error_o = biu_err_i | (req_i & pma_pmp_exception);
 
 
   //generate misaligned
-  assign parcel_misaligned_o = valid_req & misaligned_i;
+  assign parcel_misaligned_o = req_i & misaligned_i;
 
 
   //generate pagefault
-  assign parcel_pagefault_o = pagefault_i;
+  assign parcel_pagefault_o = req_i & pagefault_i;
 
 endmodule
 
