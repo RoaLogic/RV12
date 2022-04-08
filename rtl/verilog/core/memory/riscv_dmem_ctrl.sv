@@ -438,9 +438,9 @@ generate
         .biu_ack_i        ( biu_ack_i        ),
         .biu_err_i        ( biu_err_i        ) );
 
-      assign stall             = 1'b0;
-      assign cache_flush_rdy_o = 1'b1; //no data cache to flush. Always ready
-      assign mem_pagefault_o   = 1'b0;
+      assign stall           = 1'b0;
+      assign cm_clean_rdy_o  = 1'b1; //no data cache to flush. Always ready
+      assign mem_pagefault_o = 1'b0;
   end
 endgenerate
 
