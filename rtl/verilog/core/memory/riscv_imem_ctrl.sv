@@ -381,7 +381,7 @@ generate
      .if_parcel_valid_o      ( parcel_valid_o    ),
      .if_parcel_misaligned_o ( mem_misaligned_o  ),
      .if_parcel_error_o      ( mem_error_o       ),
-     .dcflush_rdy_i          ( dcflush_rdy_i     ),
+     .cm_dc_clean_rdy_i      ( cm_dc_clean_rdy_i ),
      .st_prv_i               ( st_prv_i          ),
 
      //BIU
