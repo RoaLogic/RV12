@@ -33,95 +33,97 @@ import riscv_opcodes_pkg::*;
 import biu_constants_pkg::*;
 
 module riscv_core #(
-  parameter            XLEN                  = 32,
+  parameter int        XLEN                  = 32,
   parameter [XLEN-1:0] PC_INIT               = 'h200,
-  parameter            HAS_USER              = 0,
-  parameter            HAS_SUPER             = 0,
-  parameter            HAS_HYPER             = 0,
-  parameter            HAS_BPU               = 1,
-  parameter            HAS_FPU               = 0,
-  parameter            HAS_MMU               = 0,
-  parameter            HAS_RVA               = 0,
-  parameter            HAS_RVM               = 0,
-  parameter            HAS_RVC               = 0,
-  parameter            IS_RV32E              = 0,
+  parameter int        HAS_USER              = 0,
+  parameter int        HAS_SUPER             = 0,
+  parameter int        HAS_HYPER             = 0,
+  parameter int        HAS_BPU               = 1,
+  parameter int        HAS_FPU               = 0,
+  parameter int        HAS_MMU               = 0,
+  parameter int        HAS_RVA               = 0,
+  parameter int        HAS_RVM               = 0,
+  parameter int        HAS_RVC               = 0,
+  parameter int        IS_RV32E              = 0,
 
-  parameter            RF_REGOUT             = 1,
-  parameter            MULT_LATENCY          = 1,
+  parameter int        RF_REGOUT             = 1,
+  parameter int        MULT_LATENCY          = 1,
 
-  parameter            BREAKPOINTS           = 3,
-  parameter            PMP_CNT               = 16,
+  parameter int        BREAKPOINTS           = 3,
+  parameter int        PMP_CNT               = 16,
 
-  parameter            BP_GLOBAL_BITS        = 2,
-  parameter            BP_LOCAL_BITS         = 10,
+  parameter int        BP_GLOBAL_BITS        = 2,
+  parameter int        BP_LOCAL_BITS         = 10,
 
-  parameter            TECHNOLOGY            = "GENERIC",
+  parameter string     TECHNOLOGY            = "GENERIC",
 
-  parameter            MNMIVEC_DEFAULT       = PC_INIT -'h004,
-  parameter            MTVEC_DEFAULT         = PC_INIT -'h040,
-  parameter            HTVEC_DEFAULT         = PC_INIT -'h080,
-  parameter            STVEC_DEFAULT         = PC_INIT -'h0C0,
-  parameter            UTVEC_DEFAULT         = PC_INIT -'h100,
+  parameter [XLEN-1:0] MNMIVEC_DEFAULT       = PC_INIT -'h004,
+  parameter [XLEN-1:0] MTVEC_DEFAULT         = PC_INIT -'h040,
+  parameter [XLEN-1:0] HTVEC_DEFAULT         = PC_INIT -'h080,
+  parameter [XLEN-1:0] STVEC_DEFAULT         = PC_INIT -'h0C0,
+  parameter [XLEN-1:0] UTVEC_DEFAULT         = PC_INIT -'h100,
 
-  parameter            JEDEC_BANK            = 10,
-  parameter            JEDEC_MANUFACTURER_ID = 'h6e,
+  parameter int        JEDEC_BANK            = 10,
+  parameter int        JEDEC_MANUFACTURER_ID = 'h6e,
 
-  parameter            HARTID                = 0,
+  parameter int        HARTID                = 0,
 
-  parameter            PARCEL_SIZE           = 16,
-  parameter            MEM_STAGES            = 1    //Minimal 1, causes wb_stall
+  parameter int        PARCEL_SIZE           = 16,
+  parameter int        MEM_STAGES            = 1    //Minimal 1, causes wb_stall
                                                     //no data cache: max 2: optimal, no wb_stall
 )
 (
-  input                                  rst_ni,   //Reset
-  input                                  clk_i,    //Clock
+  input  logic                                 rst_ni,   //Reset
+  input  logic                                 clk_i,    //Clock
 
   //Instruction Memory Access bus
-  output          [XLEN            -1:0] imem_adr_o,
-  output                                 imem_req_o,
-  input                                  imem_ack_i,
-  output                                 imem_flush_o,
-  input           [XLEN            -1:0] imem_parcel_i,
-  input           [XLEN/PARCEL_SIZE-1:0] imem_parcel_valid_i,
-  input                                  imem_parcel_misaligned_i,
-  input                                  imem_parcel_page_fault_i,
-  input                                  imem_parcel_error_i,
+  output logic          [XLEN            -1:0] imem_adr_o,
+  output logic                                 imem_req_o,
+  input  logic                                 imem_ack_i,
+  output logic                                 imem_flush_o,
+  input  logic          [XLEN            -1:0] imem_parcel_i,
+  input  logic          [XLEN/PARCEL_SIZE-1:0] imem_parcel_valid_i,
+  input  logic                                 imem_parcel_misaligned_i,
+  input  logic                                 imem_parcel_page_fault_i,
+  input  logic                                 imem_parcel_error_i,
 
   //Data memory Access  bus
-  output          [XLEN            -1:0] dmem_adr_o,
-                                         dmem_d_o,
-  input           [XLEN            -1:0] dmem_q_i,
-  output                                 dmem_we_o,
-  output biu_size_t                      dmem_size_o,
-  output                                 dmem_lock_o,
-  output                                 dmem_req_o,
-  input                                  dmem_ack_i,
-                                         dmem_err_i,
-                                         dmem_misaligned_i,
-                                         dmem_page_fault_i,
+  output logic          [XLEN            -1:0] dmem_adr_o,
+                                               dmem_d_o,
+  input  logic          [XLEN            -1:0] dmem_q_i,
+  output logic                                 dmem_we_o,
+  output biu_size_t                            dmem_size_o,
+  output logic                                 dmem_lock_o,
+  output logic                                 dmem_req_o,
+  input  logic                                 dmem_ack_i,
+                                               dmem_err_i,
+                                               dmem_misaligned_i,
+                                               dmem_page_fault_i,
 
   //cpu state
-  output          [                 1:0] st_prv_o,
-  output pmpcfg_t [                15:0] st_pmpcfg_o,
-  output [   15:0][XLEN            -1:0] st_pmpaddr_o,
+  output logic          [                 1:0] st_prv_o,
+  output pmpcfg_t       [                15:0] st_pmpcfg_o,
+  output logic [   15:0][XLEN            -1:0] st_pmpaddr_o,
 
-  output                                 cacheflush_o,
+  output logic                                 cm_ic_invalidate_o,
+  output logic                                 cm_dc_invalidate_o,
+  output logic                                 cm_dc_clean_o,
 
   //Interrupts
-  input                                  int_nmi_i,
-                                         int_timer_i,
-                                         int_software_i,
-  input           [                 3:0] int_external_i,
+  input  logic                                 int_nmi_i,
+                                               int_timer_i,
+                                               int_software_i,
+  input  logic          [                 3:0] int_external_i,
 
   //Debug Interface
-  input                                  dbg_stall_i,
-  input                                  dbg_strb_i,
-  input                                  dbg_we_i,
-  input           [DBG_ADDR_SIZE   -1:0] dbg_addr_i,
-  input           [XLEN            -1:0] dbg_dati_i,
-  output          [XLEN            -1:0] dbg_dato_o,
-  output                                 dbg_ack_o,
-  output                                 dbg_bp_o
+  input  logic                                 dbg_stall_i,
+  input  logic                                 dbg_strb_i,
+  input  logic                                 dbg_we_i,
+  input  logic          [DBG_ADDR_SIZE   -1:0] dbg_addr_i,
+  input  logic          [XLEN            -1:0] dbg_dati_i,
+  output logic          [XLEN            -1:0] dbg_dato_o,
+  output logic                                 dbg_ack_o,
+  output logic                                 dbg_bp_o
 );
 
 
@@ -255,7 +257,9 @@ module riscv_core #(
   // Module Body
   //
 
-  assign cacheflush_o = du_flush | bu_cacheflush;
+  assign cm_ic_invalidate_o = du_flush | bu_cacheflush;
+  assign cm_dc_invalidate_o = du_flush | bu_cacheflush;
+  assign cm_dc_clean_o      = du_flush | bu_cacheflush;
 
 
   /*
