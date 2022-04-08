@@ -54,7 +54,8 @@ module riscv_cache_setup #(
   input  biu_prot_t            prot_i,
   input  logic                 we_i,
   input  logic [XLEN     -1:0] d_i,
-  input  logic                 cacheflush_i,
+  input  logic                 invalidate_i,
+                               clean_i,
 
   output logic                 req_o,
   output logic                 rreq_o,
@@ -63,7 +64,8 @@ module riscv_cache_setup #(
   output biu_prot_t            prot_o,
   output logic                 we_o,
   output logic [XLEN     -1:0] q_o,
-  output logic                 cacheflush_o,
+  output logic                 invalidate_o,
+                               clean_o,
 
   output logic [IDX_BITS -1:0] idx_o
 );
@@ -108,7 +110,8 @@ module riscv_cache_setup #(
         prot_o       <= prot_i;
         we_o         <= we_i;
         q_o          <= d_i;
-	cacheflush_o <= cacheflush_i;
+	invalidate_o <= invalidate_i;
+	clean_o      <= clean_i;
     end
 
 

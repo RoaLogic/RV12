@@ -57,7 +57,8 @@ module riscv_cache_tag #(
   input  biu_prot_t                prot_i,
   input  logic                     we_i,
   input  logic [XLEN         -1:0] d_i,
-  input  logic                     cacheflush_i,
+  input  logic                     invalidate_i,
+  input  logic                     clean_i,
   input  logic                     pagefault_i,
 
   output logic                     req_o,
@@ -69,7 +70,8 @@ module riscv_cache_tag #(
   output logic                     we_o,
   output logic [XLEN/8       -1:0] be_o,
   output logic [XLEN         -1:0] q_o,
-  output logic                     cacheflush_o,
+  output logic                     invalidate_o,
+  output logic                     clean_o,
   output logic                     pagefault_o,
   output logic [TAG_BITS     -1:0] core_tag_o
 );
@@ -125,7 +127,8 @@ module riscv_cache_tag #(
         we_o         <= we_i;
         be_o         <= size2be(size_i, phys_adr_i);
         q_o          <= d_i;
-        cacheflush_o <= cacheflush_i;
+	invalidate_o <= invalidate_i;
+	clean_o      <= clean_i;
         pagefault_o  <= pagefault_i;
     end
 

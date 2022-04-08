@@ -66,25 +66,25 @@ import riscv_cache_pkg::*;
 import biu_constants_pkg::*;
 
 module riscv_icache_core #(
-  parameter XLEN        = 32,
-  parameter PLEN        = XLEN,
-  parameter PARCEL_SIZE = XLEN,
-  parameter HAS_RVC     = 0,
+  parameter int    XLEN        = 32,
+  parameter int    PLEN        = XLEN,
+  parameter int    PARCEL_SIZE = XLEN,
+  parameter int    HAS_RVC     = 0,
 
-  parameter SIZE        = 64,     //KBYTES
-  parameter BLOCK_SIZE  = XLEN,   //BYTES, number of bytes in a block (way)
-                                  //Must be [XLEN*2,XLEN,XLEN/2]
-  parameter WAYS        =  2,     // 1           : Direct Mapped
-                                  //<n>          : n-way set associative
-                                  //<n>==<blocks>: fully associative
-  parameter REPLACE_ALG = 0,      //0: Random
-                                  //1: FIFO
-                                  //2: LRU
+  parameter int    SIZE        = 64,     //KBYTES
+  parameter int    BLOCK_SIZE  = XLEN,   //BYTES, number of bytes in a block (way)
+                                         //Must be [XLEN*2,XLEN,XLEN/2]
+  parameter int    WAYS        =  2,     // 1           : Direct Mapped
+                                         //<n>          : n-way set associative
+                                         //<n>==<blocks>: fully associative
+  parameter int    REPLACE_ALG = 0,      //0: Random
+                                         //1: FIFO
+                                         //2: LRU
 
-  parameter TECHNOLOGY  = "GENERIC",
+  parameter string TECHNOLOGY  = "GENERIC",
 
-  parameter DEPTH       = 2,      //number of transactions in flight
-  parameter BIUTAG_SIZE = $clog2(XLEN/PARCEL_SIZE)
+  parameter int    DEPTH       = 2,      //number of transactions in flight
+  parameter int    BIUTAG_SIZE = $clog2(XLEN/PARCEL_SIZE)
 )
 (
   input  logic                        rst_ni,
@@ -115,8 +115,10 @@ module riscv_icache_core #(
   output logic                        parcel_error_o,
   output logic                        parcel_misaligned_o,
   output logic                        parcel_pagefault_o,
-  input  logic                        cache_flush_i,        //flush (invalidate) cache
-  input  logic                        dcflush_rdy_i,        //data cache ready flushing
+
+  //Cache management
+  input  logic                        invalidate_i,         //invalidate cache
+  input  logic                        dc_clean_rdy_i,       //data cache ready cleaning
 
   //To BIU
   output logic                        biu_stb_o,            //access request
@@ -185,7 +187,7 @@ module riscv_icache_core #(
   biu_size_t                setup_size,       tag_size;
   logic                     setup_lock,       tag_lock;
   biu_prot_t                setup_prot,       tag_prot;
-  logic                     setup_cacheflush, tag_cacheflush;
+  logic                     setup_invalidate, tag_invalidate;
   logic                                       tag_pagefault;
 
   logic [TAG_BITS     -1:0] tag_core_tag,
@@ -259,7 +261,8 @@ endgenerate
     .prot_i                    ( mem_prot_i              ),
     .we_i                      ( 1'b0                    ),
     .d_i                       ( {XLEN{1'b0}}            ),
-    .cacheflush_i              ( cache_flush_i           ),
+    .invalidate_i              ( invalidate_i            ),
+    .clean_i                   ( 1'b0                    ),
 
     .req_o                     ( setup_req               ),
     .rreq_o                    (                         ),
@@ -268,7 +271,8 @@ endgenerate
     .prot_o                    ( setup_prot              ),
     .we_o                      (                         ),
     .q_o                       (                         ),
-    .cacheflush_o              ( setup_cacheflush        ),
+    .invalidate_o              ( setup_invalidate        ),
+    .clean_o                   (                         ),
  
     .idx_o                     ( setup_idx               ) );
 
@@ -297,7 +301,8 @@ endgenerate
     .prot_i                    ( setup_prot              ),
     .we_i                      ( 1'b0                    ),
     .d_i                       ( {XLEN{1'b0}}            ),
-    .cacheflush_i              ( setup_cacheflush        ),
+    .invalidate_i              ( setup_invalidate        ),
+    .clean_i                   (                         ),
 
     .req_o                     ( tag_req                 ),
     .wreq_o                    (                         ),
@@ -308,7 +313,8 @@ endgenerate
     .we_o                      (                         ),
     .be_o                      (                         ),
     .q_o                       (                         ),
-    .cacheflush_o              ( tag_cacheflush          ),
+    .invalidate_o              ( tag_invalidate          ),
+    .clean_o                   (                         ),
     .pagefault_o               ( tag_pagefault           ),
     .core_tag_o                ( tag_core_tag            ) );
 
@@ -335,8 +341,8 @@ endgenerate
     .flush_i                   ( mem_flush_i             ),
 
     //Instructions are pre-fetched. Therefore flush immediately
-    .cacheflush_req_i          ( tag_cacheflush          ),
-    .dcflush_rdy_i             ( dcflush_rdy_i           ),
+    .cacheflush_req_i          ( tag_invalidate          ),
+    .dcflush_rdy_i             ( dc_clean_rdy_i          ),
     .armed_o                   ( armed                   ),
     .flushing_o                ( flushing                ),
     .flush_valid_all_o         ( flush_valid_all         ), //flush all valid bits

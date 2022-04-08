@@ -116,8 +116,12 @@ module riscv_dcache_core #(
   input  logic                    mem_we_i,
   input  logic [XLEN        -1:0] mem_d_i,
   output logic [XLEN        -1:0] mem_q_o,
-  input  logic                    cache_flush_i,        //flush (invalidate) cache
-  output logic                    cache_flush_rdy_o,    //data cache ready flushing
+
+  //Cache Block Management, per CMO spec
+  //Flush = Invalidate + Clean
+  input  logic                    invalidate_i,         //Invalidate blocks
+                                  clean_i,              //Write back dirty blocks
+  output logic                    clean_rdy_o,          //Data cache ready cleaning
 
   //To BIU
   output logic                    biu_stb_o,            //access request
@@ -201,7 +205,8 @@ module riscv_dcache_core #(
   biu_prot_t                setup_prot,       tag_prot;
   logic                     setup_we,         tag_we;
   logic [XLEN         -1:0] setup_q,          tag_q;
-  logic                     setup_cacheflush, tag_cacheflush;
+  logic                     setup_invalidate, tag_invalidate;
+  logic                     setup_cacheclean, tag_clean;
   logic                                       tag_pagefault;
   logic [XLEN/8       -1:0]                   tag_be;
 
@@ -300,7 +305,8 @@ endgenerate
     .prot_i                    ( mem_prot_i              ),
     .we_i                      ( mem_we_i                ),
     .d_i                       ( mem_d_i                 ),
-    .cacheflush_i              ( cache_flush_i           ),
+    .invalidate_i              ( invalidate_i            ),
+    .clean_i                   ( clean_i                 ),
 
     .req_o                     ( setup_req               ),
     .rreq_o                    ( setup_rreq              ),
@@ -309,7 +315,8 @@ endgenerate
     .prot_o                    ( setup_prot              ),
     .we_o                      ( setup_we                ),
     .q_o                       ( setup_q                 ),
-    .cacheflush_o              ( setup_cacheflush        ),
+    .invalidate_o              ( setup_invalidate        ),
+    .clean_o                   ( setup_clean             ),
 
     .idx_o                     ( setup_idx               ) );
 
@@ -338,7 +345,8 @@ endgenerate
     .prot_i                    ( setup_prot              ),
     .we_i                      ( setup_we                ),
     .d_i                       ( setup_q                 ),
-    .cacheflush_i              ( setup_cacheflush        ),
+    .invalidate_i              ( setup_invalidate        ),
+    .clean_i                   ( setup_clean             ),
     .pagefault_i               ( pagefault_i             ), //aligned with phys_adr_i
 
     .req_o                     ( tag_req                 ),
@@ -350,7 +358,8 @@ endgenerate
     .we_o                      ( tag_we                  ),
     .be_o                      ( tag_be                  ),
     .q_o                       ( tag_q                   ),
-    .cacheflush_o              ( tag_cacheflush          ),
+    .invalidate_o              ( tag_invalidate          ),
+    .clean_o                   ( tag_clean               ),
     .pagefault_o               ( tag_pagefault           ),
     .core_tag_o                ( tag_core_tag            ) );
 
@@ -374,8 +383,8 @@ endgenerate
     .flush_i                   ( mem_flush_i             ),
 
     //flush in-order with CPU pipeline
-    .cacheflush_req_i          ( tag_cacheflush          ),
-    .cacheflush_rdy_o          ( cache_flush_rdy_o       ),
+    .cacheflush_req_i          ( tag_clean               ),
+    .cacheflush_rdy_o          ( clean_rdy_o             ),
     .armed_o                   ( armed                   ),
     .flushing_o                ( flushing                ),
     .flush_valid_o             ( flush_valid             ),
