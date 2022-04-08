@@ -79,6 +79,8 @@ module riscv_cache_setup #(
   logic [IDX_BITS-1:0] adr_idx,
                        adr_idx_dly;
 
+  logic                invalidate_hold,
+                       clean_hold;
 
   //////////////////////////////////////////////////////////////////
   //
@@ -90,6 +92,20 @@ module riscv_cache_setup #(
    */
   always @(posedge clk_i)
     flush_dly <= flush_i;
+
+
+  /* Hold invalidate/clean signals
+   */
+  always @(posedge clk_i, negedge rst_ni)
+    if      (!rst_ni ) invalidate_hold <= 1'b0;
+    else if (!stall_i) invalidate_hold <= 1'b0;
+    else               invalidate_hold <= invalidate_i | invalidate_hold;
+
+
+  always @(posedge clk_i, negedge rst_ni)
+    if      (!rst_ni ) clean_hold <= 1'b0;
+    else if (!stall_i) clean_hold <= 1'b0;
+    else               clean_hold <= clean_i | clean_hold;
 
 
   /*feed input signals to next stage
@@ -110,8 +126,8 @@ module riscv_cache_setup #(
         prot_o       <= prot_i;
         we_o         <= we_i;
         q_o          <= d_i;
-	invalidate_o <= invalidate_i;
-	clean_o      <= clean_i;
+	invalidate_o <= invalidate_i | invalidate_hold;
+	clean_o      <= clean_i      | clean_hold;
     end
 
 
