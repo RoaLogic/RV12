@@ -157,6 +157,11 @@ module riscv_core #(
                              du_flush,
                              bu_cacheflush;
 
+  logic                      cm_ic_invalidate,
+                             cm_dc_invalidate,
+                             cm_dc_clean,
+                             du_flush_cache;
+
   logic                      id_stall,
                              pd_stall,
                              ex_stall,
@@ -257,9 +262,11 @@ module riscv_core #(
   // Module Body
   //
 
-  assign cm_ic_invalidate_o = du_flush | bu_cacheflush;
-  assign cm_dc_invalidate_o = du_flush | bu_cacheflush;
-  assign cm_dc_clean_o      = du_flush | bu_cacheflush;
+  //cache management
+  //flush = clean + invalidate
+  assign cm_ic_invalidate_o = cm_ic_invalidate | du_flush_cache;
+  assign cm_dc_invalidate_o = cm_dc_invalidate;
+  assign cm_dc_clean_o      = cm_dc_clean      | du_flush_cache;
 
 
   /*
@@ -488,7 +495,13 @@ module riscv_core #(
     .ex_pc_o                ( ex_pc                ),
     .bu_nxt_pc_o            ( bu_nxt_pc            ),
     .bu_flush_o             ( bu_flush             ),
-    .bu_cacheflush_o        ( bu_cacheflush        ),
+
+    //cache management
+    .cm_ic_invalidate_o     ( cm_ic_invalidate     ),
+    .cm_dc_invalidate_o     ( cm_dc_invalidate     ),
+    .cm_dc_clean_o          ( cm_dc_clean          ),
+
+    //branch (prediction)
     .id_bp_predict_i        ( id_bp_predict        ),
     .bu_bp_predict_o        ( bu_bp_predict        ),
     .id_bp_history_i        ( id_bp_history        ),
@@ -818,6 +831,7 @@ endgenerate
 
     .du_latch_nxt_pc_o ( du_latch_nxt_pc                 ),
     .du_flush_o        ( du_flush                        ),
+    .du_flush_cache_o  ( du_flush_cache                  ),
     .du_we_rf_o        ( du_we_rf                        ),
     .du_we_frf_o       ( du_we_frf                       ),
     .du_re_csr_o       ( du_re_csr                       ),
