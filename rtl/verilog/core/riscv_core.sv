@@ -268,7 +268,7 @@ module riscv_core #(
   //cache management
   //flush = clean + invalidate
   assign cm_ic_invalidate_o = cm_ic_invalidate | du_flush_cache;
-  assign cm_dc_invalidate_o = cm_dc_invalidate;
+  assign cm_dc_invalidate_o = cm_dc_invalidate | du_flush_cache;
   assign cm_dc_clean_o      = cm_dc_clean      | du_flush_cache;
 
 
