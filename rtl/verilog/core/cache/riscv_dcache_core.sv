@@ -206,7 +206,7 @@ module riscv_dcache_core #(
   logic                     setup_we,         tag_we;
   logic [XLEN         -1:0] setup_q,          tag_q;
   logic                     setup_invalidate, tag_invalidate;
-  logic                     setup_cacheclean, tag_clean;
+  logic                     setup_clean,      tag_clean;
   logic                                       tag_pagefault;
   logic [XLEN/8       -1:0]                   tag_be;
 
