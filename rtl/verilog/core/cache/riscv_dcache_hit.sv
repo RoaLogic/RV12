@@ -601,8 +601,8 @@ module riscv_dcache_hit #(
                     end
 
       default     : begin
-                        stall_o    = 1'b0;
-                        latchmem_o = 1'b1;
+                        stall_o    = 1'b1;
+                        latchmem_o = 1'b0;
                     end
     endcase
 
