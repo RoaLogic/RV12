@@ -421,7 +421,7 @@ module riscv_dcache_hit #(
         biucmd_o                <= nxt_biucmd;
         fill_way_o              <= fill_way;
 	clean_rdy_o             <= clean_rdy;
-	invalidate_all_blocks_o <= invalidate_block;
+	invalidate_all_blocks_o <= invalidate_all_blocks;
 	invalidate_block_o      <= invalidate_block;
 	clean_block_o           <= clean_block;
 
