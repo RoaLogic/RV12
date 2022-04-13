@@ -600,6 +600,11 @@ module riscv_dcache_hit #(
                         latchmem_o = 1'b1;
                     end
 
+      CLEANWAYS   : begin
+                        stall_o    = 1'b1;
+                        latchmem_o = 1'b1;
+                    end
+
       default     : begin
                         stall_o    = 1'b1;
                         latchmem_o = 1'b0;
