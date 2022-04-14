@@ -83,7 +83,7 @@ module riscv_bu #(
   logic                    has_rsb;
   logic                    is_16bit_instruction;
   opcR_t                   opcR;
-  rsd_t                    rs;
+  rsd_t                    rs1;
   logic                    is_ret;
   logic                    misaligned_instruction;
 
