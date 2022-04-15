@@ -232,8 +232,8 @@ module riscv_dcache_core #(
   logic [BLK_BITS     -1:0] cache_line;
 
 
-  logic [IDX_BITS     -1:0] evict_idx;
   logic [TAG_BITS     -1:0] evict_tag;
+  logic [IDX_BITS     -1:0] evict_idx;
   logic [BLK_BITS     -1:0] evict_line;
   logic [PLEN         -1:0] evictbuffer_adr;
   logic [BLK_BITS     -1:0] evictbuffer_line;
@@ -437,8 +437,8 @@ endgenerate
     .writebuffer_be_o          ( writebuffer_be          ),
     .writebuffer_ways_hit_o    ( writebuffer_ways_hit    ),
 
-    .evict_idx_i               ( evict_idx               ),
     .evict_tag_i               ( evict_tag               ),
+    .evict_idx_i               ( evict_idx               ),
     .evict_line_i              ( evict_line              ),
     .evictbuffer_adr_o         ( evictbuffer_adr         ),
     .evictbuffer_line_o        ( evictbuffer_line        ),
@@ -500,8 +500,8 @@ endgenerate
     .writebuffer_data_i        ( writebuffer_data        ),
     .writebuffer_ways_hit_i    ( writebuffer_ways_hit    ),
 
-    .evict_idx_o               ( evict_idx               ),
     .evict_tag_o               ( evict_tag               ),
+    .evict_idx_o               ( evict_idx               ),
     .evict_line_o              ( evict_line              ),
 
     .biu_line_i                ( biu_line                ), //Write data line
@@ -509,7 +509,6 @@ endgenerate
     .biucmd_ack_i              ( biucmd_ack              ), //Write data write-enable
 
     .latchmem_i                ( hit_latchmem            ), //latch TAG/DATA memory output
-    .recover_o                 ( mem_recover             ), //add recovery cycles
     .hit_o                     ( cache_hit               ),
     .ways_hit_o                ( ways_hit                ),
     .cache_dirty_o             ( cache_dirty             ), //cache has dirty lines
