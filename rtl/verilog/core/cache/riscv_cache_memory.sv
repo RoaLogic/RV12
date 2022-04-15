@@ -91,7 +91,6 @@ module riscv_cache_memory #(
   output logic [BLK_BITS     -1:0] evict_line_o,
 
   input  logic                     latchmem_i,        //latch output from memories
-  output logic                     recover_o,         //add recovery cycles
   output logic                     hit_o,             //cache-hit
   output logic [WAYS         -1:0] ways_hit_o,        //list of hit ways
   output logic                     cache_dirty_o,     //(at least) one way is dirty
@@ -183,7 +182,6 @@ module riscv_cache_memory #(
   logic                              byp_valid,               //bypass(es) valid
                                      rd_idx_dly_eq_byp_idx,   //rd_idx_dly == byp_idx
                                      bypass_biumem_we,        //bypass outputs on biumem_we
-                                     bypass_biumem_we_evict,  //bypass evict_* outputs on biumem_we
                                      bypass_writebuffer_we;   //bypass outputs on writebuffer_we
 
   /* TAG
@@ -284,8 +282,7 @@ module riscv_cache_memory #(
 
   //Bypass on biumem_we?
   assign bypass_biumem_we       = biumem_we & (rd_idx_dly == idx_filling) & (rd_core_tag_dly == tag_filling);
-  assign bypass_biumem_we_evict = biumem_we & (rd_idx_dly == idx_filling);
-  assign recover_o              = ~bypass_biumem_we;
+
 
   //Bypass on writebuffer_we?
   assign bypass_writebuffer_we = writebuffer_we_i & (rd_idx_dly == writebuffer_idx_i); //and hit
