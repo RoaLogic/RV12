@@ -398,7 +398,9 @@ module riscv_if #(
   //
   //RVC
   //
-  assign rvc_parcel1 = parcel12.instr[15:0];
+  assign rvc_parcel1 = parcel12.instr[15: 0];
+  assign rvc_parcel2 = parcel12.instr[31:16];
+
 
   //Instruction Bubble
   assign if_nxt_insn_o.bubble = flushes | ~parcel_valid;
