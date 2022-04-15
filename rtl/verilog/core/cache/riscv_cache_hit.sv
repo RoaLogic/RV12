@@ -201,7 +201,7 @@ module riscv_cache_hit #(
   //
 
   assign pma_pmp_exception = pma_exception_i | pmp_exception_i;
-  assign valid_req         = req_i & ~pma_pmp_exception & ~misaligned_i & ~pagefault_i;
+  assign valid_req         = req_i & ~pma_pmp_exception & ~misaligned_i & ~pagefault_i & ~flush_i;
 
 
   //hold flush until ready to be serviced
@@ -231,12 +231,12 @@ module riscv_cache_hit #(
                           invalidating            <= 1'b1;
                           invalidate_all_blocks_o <= 1'b1;
                       end
-		      else if (valid_req && !cacheable_i && !misaligned_i && !flush_i)
+		      else if (valid_req && !cacheable_i)
                       begin
                           memfsm_state <= NONCACHEABLE;
                           armed_o      <= 1'b0;
                       end
-                      else if (valid_req && cacheable_i && !cache_hit_i && !flush_i)
+                      else if (valid_req && cacheable_i && !cache_hit_i)
                       begin
                           //Load way
                           memfsm_state <= READ;
@@ -308,7 +308,7 @@ module riscv_cache_hit #(
       READ      : biucmd_noncacheable_req_o = 1'b0;
       RECOVER0  : biucmd_noncacheable_req_o = 1'b0;
       RECOVER1  : biucmd_noncacheable_req_o = 1'b0;
-      default   : biucmd_noncacheable_req_o = valid_req & ~cacheable_i & ~misaligned_i & ~flush_i;
+      default   : biucmd_noncacheable_req_o = valid_req & ~cacheable_i;
     endcase
 
 
@@ -369,8 +369,8 @@ module riscv_cache_hit #(
 
 
   //acknowledge cache hit
-  assign cache_ack         =  valid_req & cacheable_i & cache_hit_i & ~flush_i & ~invalidate;
-  assign biu_cacheable_ack = (valid_req & biu_ack_i & biu_adro_eq_cache_adr_dly & ~flush_i) |
+  assign cache_ack         =  valid_req & cacheable_i & cache_hit_i & ~invalidate;
+  assign biu_cacheable_ack = (valid_req & biu_ack_i & biu_adro_eq_cache_adr_dly) |
                               cache_ack;
 
 
