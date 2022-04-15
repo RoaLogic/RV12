@@ -119,8 +119,7 @@ module riscv_ex #(
   //
 
   //Operand generation
-  logic [XLEN          -1:0] opA,opB,
-                             hold_opA, hold_opB;
+  logic [XLEN          -1:0] opA,opB;
 
   logic [XLEN          -1:0] alu_r,
                              lsu_r,
