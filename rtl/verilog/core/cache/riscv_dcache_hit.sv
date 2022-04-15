@@ -571,8 +571,10 @@ module riscv_dcache_hit #(
   /* Stall & Latchmem
    */
 
-  //register biu_stb_ack_i
-  //This slows down non-cacheable accesses by 1 cycle, but improves critical path considerably
+  //Always stall on non-cacheable accesses.
+  //This prevents waiting for biu_stb_ack_i, which is an async path.
+  //However this stall the access, which causes it to be executed twice
+  //Use a registered version of biu_stb_ack_i to negate 'stall' for 1 cycle during NONCACHEABLE
   logic biu_stb_ack_reg;
   always @(posedge clk_i)
     biu_stb_ack_reg <= (memfsm_state == ARMED) && biu_stb_ack_i;
