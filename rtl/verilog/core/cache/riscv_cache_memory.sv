@@ -61,7 +61,6 @@ module riscv_cache_memory #(
 
   input  logic                     armed_i,
   input  logic                     cleaning_i,
-  input  logic                     clean_block_i,
   input  logic                     invalidate_block_i,
   input  logic                     invalidate_all_blocks_i,
   input  logic                     filling_i,
@@ -92,8 +91,6 @@ module riscv_cache_memory #(
 
   input  logic                     evict_read_i,
   output logic [PLEN         -1:0] evict_adr_o,
-  output logic [IDX_BITS     -1:0] evict_idx_o,
-  output logic [TAG_BITS     -1:0] evict_tag_o,
   output logic [BLK_BITS     -1:0] evict_line_o,
 
   input  logic                     latchmem_i,        //latch output from memories
@@ -178,7 +175,6 @@ module riscv_cache_memory #(
   logic [$clog2(WAYS)-1:0]           clean_way_int,           //way currently flushing
                                      clean_way_int_dly;       //delayed way currently flushing, same delay as through memory
   logic [$clog2(WAYS)-1:0]           evict_way_select_int;    //integer version of fill_way_select_dly
-  logic                              evict_latch;             //latch evict_* signals
 
   logic [IDX_BITS    -1:0]           rd_idx_dly,              //delay idx, same delay as through memory
                                      filling_idx,             //index for/currently filling
@@ -212,6 +208,13 @@ module riscv_cache_memory #(
   logic [BLK_BITS    -1:0]           dat_out     [WAYS];      //data memory output
   logic [BLK_BITS    -1:0]           way_q_mux   [WAYS];      //data out multiplexor
   logic [BLK_BITS    -1:0]           dat_byp_q;
+
+
+  /* EVICT
+   */
+  logic                              evict_latch;             //latch evict_* signals
+  logic [TAG_BITS    -1:0]           evict_tag;               //tag to evict
+  logic [IDX_BITS    -1:0]           evict_idx;               //index to evict
 
 
   //////////////////////////////////////////////////////////////////
@@ -379,7 +382,7 @@ endgenerate
   always @(posedge clk_i)
     if      ( invalidate_all_blocks_i) hit_o <= 1'b0;
     else if ( bypass_biumem_we       ) hit_o <= 1'b1;
-    else if ( latchmem_i             ) hit_o <= way_hit & ~we_dly;
+    else if ( latchmem_i             ) hit_o <= |way_hit & ~we_dly;
 
 
   always @(posedge clk_i)
@@ -415,16 +418,17 @@ endgenerate
    * Used for EVICT address generation
    */
   always @(posedge clk_i)
-    if      ( cleaning_i  ) evict_tag_o <= tag_out[clean_way_int_dly].tag;
-    else if ( evict_latch ) evict_tag_o <= tag_out[evict_way_select_int].tag;
+    if      ( cleaning_i ) evict_tag <= tag_out[clean_way_int_dly].tag;
+    else if ( evict_latch) evict_tag <= tag_out[evict_way_select_int].tag;
 
 
   always @(posedge clk_i)
-    if      ( cleaning_i ) evict_idx_o <= clean_idx_dly;
-    else if ( evict_latch) evict_idx_o <= filling_idx;
+    if      ( cleaning_i ) evict_idx <= clean_idx_dly;
+    else if ( evict_latch) evict_idx <= filling_idx;
 
 
-  assign evict_adr_o = { evict_tag_o, evict_idx_o, {BLK_OFFS_BITS{1'b0}} };
+  assign evict_adr_o = { evict_tag, evict_idx, {BLK_OFFS_BITS{1'b0}} };
+
 
   //----------------------------------------------------------------
   // Data Memory
@@ -437,7 +441,7 @@ endgenerate
       {4'b?1??}: dat_idx = filling_idx;
       {4'b??1?}: dat_idx = filling_idx;
       {4'b???1}: dat_idx = writebuffer_idx_i;
-      default : dat_idx = rd_idx_i;
+      default  : dat_idx = rd_idx_i;
     endcase
 
 
