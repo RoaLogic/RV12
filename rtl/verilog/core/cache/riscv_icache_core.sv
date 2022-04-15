@@ -409,8 +409,13 @@ endgenerate
     .stall_i                   ( mem_stall_o             ),
 
     .armed_i                   ( armed                   ),
+
     .cleaning_i                ( 1'b0                    ),
-    .clean_block_i             ( 1'b0                    ),
+    .clean_way_int_o           (                         ),
+    .clean_idx_o               (                         ),
+    .clean_way_i               ( {WAYS        {1'b0}}    ),
+    .clean_idx_i               ( {IDX_BITS    {1'b0}}    ),
+
     .invalidate_block_i        ( 1'b0                    ),
     .invalidate_all_blocks_i   ( invalidate_all_blocks   ),
     .filling_i                 ( filling                 ),
@@ -431,8 +436,8 @@ endgenerate
     .writebuffer_data_i        ( {XLEN         {1'b0}}   ),
     .writebuffer_ways_hit_i    ( {WAYS         {1'b0}}   ),
 
-    .evict_idx_o               (                         ),
-    .evict_tag_o               (                         ),
+    .evict_read_i              ( 1'b0                    ),
+    .evict_adr_o               (                         ),
     .evict_line_o              (                         ),
 
     .biu_line_i                ( biu_line                ),
