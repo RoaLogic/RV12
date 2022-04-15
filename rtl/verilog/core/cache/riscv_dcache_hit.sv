@@ -202,7 +202,8 @@ module riscv_dcache_hit #(
                              biu_cacheable_ack;
 
   logic                      pma_pmp_exception;
-  logic                      valid_req;
+  logic                      valid_req,
+                             valid_wreq;
 
 
   enum logic [          3:0] {ARMED=0,
@@ -293,12 +294,12 @@ module riscv_dcache_hit #(
                            begin
                                if (!writebuffer_we_o) invalidate_all_blocks = 1'b1;
                            end
-                           else if (valid_req && !cacheable_i && !misaligned_i && !flush_i && !biucmd_busy_i)
+                           else if (valid_req && !cacheable_i && !biucmd_busy_i)
                            begin
                                nxt_memfsm_state = NONCACHEABLE;
                                nxt_biucmd       = BIUCMD_NOP;
                            end
-                           else if (valid_req && cacheable_i && !cache_hit_i && !flush_i && !(biucmd_busy_i /*&& !biucmd_ack_i*/))
+                           else if (valid_req && cacheable_i && !cache_hit_i && !(biucmd_busy_i /*&& !biucmd_ack_i*/))
                            begin
                                fill_way = fill_way_i; //write to same way as was read
 
@@ -518,7 +519,7 @@ module riscv_dcache_hit #(
 
 
   /* WriteBuffer
-  */
+   */
   always @(posedge clk_i, negedge rst_ni)
     if      (!rst_ni                                           ) writebuffer_we_o <= 1'b0;
     else if ( flush_i                                          ) writebuffer_we_o <= 1'b0;
@@ -551,8 +552,8 @@ module riscv_dcache_hit #(
   //non-cacheable access
   always_comb
     unique case (memfsm_state)
-      ARMED       : biucmd_noncacheable_req_o = valid_req & ~cacheable_i & ~misaligned_i & ~flush_i;
-      NONCACHEABLE: biucmd_noncacheable_req_o = valid_req & ~cacheable_i & ~misaligned_i & ~flush_i & biu_ack_i;
+      ARMED       : biucmd_noncacheable_req_o = valid_req & ~cacheable_i;
+      NONCACHEABLE: biucmd_noncacheable_req_o = valid_req & ~cacheable_i & biu_ack_i;
       default     : biucmd_noncacheable_req_o = 1'b0;
     endcase
 
@@ -568,12 +569,19 @@ module riscv_dcache_hit #(
 
 
   /* Stall & Latchmem
-  */
+   */
+
+  //register biu_stb_ack_i
+  //This slows down non-cacheable accesses by 1 cycle, but improves critical path considerably
+  logic biu_stb_ack_reg;
+  always @(posedge clk_i)
+    biu_stb_ack_reg <= (memfsm_state == ARMED) && biu_stb_ack_i;
+
   always_comb
     unique case (memfsm_state)
       ARMED       : begin
                         stall_o    = clean_hold                                                   | //cacheflush pending
-                                    (valid_req & ~cacheable_i & (~biu_stb_ack_i | biucmd_busy_i)) | //non-cacheable access
+                                    (valid_req & ~cacheable_i /*& (~biu_stb_ack_reg | biucmd_busy_i)*/) | //non-cacheable access
                                     (valid_req &  cacheable_i & ~cache_hit_i                    );  //cacheable access
 
 		        latchmem_o = ~stall_o;
@@ -585,7 +593,7 @@ module riscv_dcache_hit #(
       NONCACHEABLE: begin
                         stall_o    = ~valid_req ? |inflight_cnt_i
                                                 :  cacheable_i |
-                                                 (~cacheable_i & ~biu_ack_i); //=is_cacheble | biu_ack_i
+                                                 (~cacheable_i & ~biu_ack_i & ~biu_stb_ack_reg); //=is_cacheble | biu_ack_i
 
                         latchmem_o = ~stall_o;
                      end
