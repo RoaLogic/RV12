@@ -111,8 +111,8 @@ module riscv_dcache_hit #(
   output logic [WAYS            -1:0] writebuffer_ways_hit_o,
 
   //EvictBuffer
-  input  logic [IDX_BITS        -1:0] evict_idx_i,
   input  logic [TAG_BITS        -1:0] evict_tag_i,
+  input  logic [IDX_BITS        -1:0] evict_idx_i,
   input  logic [BLK_BITS        -1:0] evict_line_i,
   output logic [PLEN            -1:0] evictbuffer_adr_o,
   output logic [BLK_BITS        -1:0] evictbuffer_line_o,
@@ -229,6 +229,7 @@ module riscv_dcache_hit #(
   logic                      biu_adro_eq_cache_adr;
   logic [DAT_OFFS_BITS -1:0] dat_offset;
   logic                      bypass_writebuffer_we;
+  logic                      bypass_writebuffer_evict;
   logic [BLK_BITS      -1:0] cache_line;
 
 
@@ -268,23 +269,26 @@ module riscv_dcache_hit #(
         ARMED        : begin 
 //                           nxt_biucmd = BIUCMD_NOP;
 
-                           if (clean_hold && !writebuffer_we_o)
+                           if (clean_hold)
                            begin
-                               if (cache_dirty_i)
+                               if (!writebuffer_we_o)
                                begin
-                                   //Cache has dirty ways
-                                   nxt_memfsm_state = CLEAN0;
-                                   nxt_biucmd       = BIUCMD_NOP;
-                                   clean_rdy        = 1'b0;
-                               end
-			       else if (invalidate_hold)
-                               begin
-                                   invalidate_all_blocks = 1'b1;
+                                   if (cache_dirty_i)
+                                   begin
+                                       //Cache has dirty ways
+                                       nxt_memfsm_state = CLEAN0;
+                                       nxt_biucmd       = BIUCMD_NOP;
+                                       clean_rdy        = 1'b0;
+                                   end
+			           else if (invalidate_hold)
+                                   begin
+                                       invalidate_all_blocks = 1'b1;
+                                   end
                                end
                            end
-                           else if (invalidate_hold && !writebuffer_we_o)
+                           else if (invalidate_hold)
                            begin
-                               invalidate_all_blocks = 1'b1;
+                               if (!writebuffer_we_o) invalidate_all_blocks = 1'b1;
                            end
                            else if (valid_req && !cacheable_i && !misaligned_i && !flush_i && !biucmd_busy_i)
                            begin
@@ -293,7 +297,7 @@ module riscv_dcache_hit #(
                            end
                            else if (valid_req && cacheable_i && !cache_hit_i && !flush_i && !(biucmd_busy_i /*&& !biucmd_ack_i*/))
                            begin
-                               fill_way = fill_way_i; //write to same way as we read
+                               fill_way = fill_way_i; //write to same way as was read
 
                                if (way_dirty_i)
                                begin
@@ -518,14 +522,19 @@ module riscv_dcache_hit #(
 
 
   /* EvictBuffer
-   * Store here, because READWAY before WRITEWAY
+   * Store here; (1) READWAY before WRITEWAY, (2) cache_memory keeps running while filling
    */
+  assign bypass_writebuffer_evict = writebuffer_we_o & (evict_idx_i == writebuffer_idx_o);
+
   always @(posedge clk_i)
     if (memfsm_state == ARMED ||
         memfsm_state == CLEANWAYS )
     begin
         evictbuffer_adr_o  <= { evict_tag_i, evict_idx_i, {BLK_OFFS_BITS{1'b0}} };
-        evictbuffer_line_o <= evict_line_i;
+        evictbuffer_line_o <= be_mux(bypass_writebuffer_evict,
+                                     writebuffer_be_o,
+                                     evict_line_i,
+                                     {BLK_BITS/XLEN{writebuffer_data_o}});
     end
 
 
@@ -649,8 +658,8 @@ module riscv_dcache_hit #(
   //Assign q_o
   assign cache_line = be_mux(bypass_writebuffer_we,
                              writebuffer_be_o,
-	                     in_biubuffer_i ? biubuffer_i : cache_line_i,
-			     {BLK_BITS/XLEN{writebuffer_data_o}});
+                             in_biubuffer_i ? biubuffer_i : cache_line_i,
+                             {BLK_BITS/XLEN{writebuffer_data_o}});
 
   assign cache_q = cache_line >> (dat_offset * XLEN);
 
