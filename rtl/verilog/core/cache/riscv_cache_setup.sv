@@ -146,7 +146,7 @@ module riscv_cache_setup #(
   always @(posedge clk_i)
     if (!stall_i || flush_dly) adr_idx_dly <= adr_idx;
 
-  assign idx_o = stall_i && !flush_dly ? adr_idx_dly : adr_idx;
+  assign idx_o = stall_i /*&& !flush_dly*/ ? adr_idx_dly : adr_idx;
 endmodule
 
 
