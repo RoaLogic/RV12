@@ -68,6 +68,10 @@ module riscv_cache_memory #(
   input  logic [WAYS         -1:0] fill_way_select_i,
   input  logic [WAYS         -1:0] fill_way_i,
   output logic [WAYS         -1:0] fill_way_o,
+  output logic [$clog2(WAYS) -1:0] clean_way_int_o,
+  output logic [IDX_BITS     -1:0] clean_idx_o,
+  input  logic [WAYS         -1:0] clean_way_i,
+  input  logic [IDX_BITS     -1:0] clean_idx_i,
 
   input  logic [TAG_BITS     -1:0] rd_core_tag_i,
                                    wr_core_tag_i,
@@ -86,6 +90,8 @@ module riscv_cache_memory #(
   input  logic                     biu_line_dirty_i,
   input  logic                     biucmd_ack_i,
 
+  input  logic                     evict_read_i,
+  output logic [PLEN         -1:0] evict_adr_o,
   output logic [IDX_BITS     -1:0] evict_idx_o,
   output logic [TAG_BITS     -1:0] evict_tag_o,
   output logic [BLK_BITS     -1:0] evict_line_o,
@@ -168,20 +174,19 @@ module riscv_cache_memory #(
                                      we_dly;
 
   logic [WAYS        -1:0]           fill_way_select_dly;
-  logic [$clog2(WAYS)-1:0]           way_cleaning,            //way currently flushing
-                                     way_cleaning_dly;        //delayed way currently flushing, same delay as through memory
+  logic [$clog2(WAYS)-1:0]           fill_way_select_int_dly; //integer version of fill_way_select_dly
+  logic [$clog2(WAYS)-1:0]           clean_way_int,           //way currently flushing
+                                     clean_way_int_dly;       //delayed way currently flushing, same delay as through memory
   logic [$clog2(WAYS)-1:0]           evict_way_select_int;    //integer version of fill_way_select_dly
+  logic                              evict_latch;             //latch evict_* signals
 
-  logic [IDX_BITS    -1:0]           byp_idx,                 //Bypass index (for RAW hazard)
-                                     rd_idx_dly,              //delay idx, same delay as through memory
-                                     idx_filling,             //index for/currently filling
-                                     idx_cleaning,            //index for/currently flushing
-                                     idx_cleaning_dly;        //delayed flusing idx, same delay as through memory
+  logic [IDX_BITS    -1:0]           rd_idx_dly,              //delay idx, same delay as through memory
+                                     filling_idx,             //index for/currently filling
+                                     clean_idx,               //index for/currently flushing
+                                     clean_idx_dly;           //delayed flusing idx, same delay as through memory
   logic [TAG_BITS    -1:0]           rd_core_tag_dly,         //delay core_tag, same delay as through memory
-                                     tag_filling;             //TAG for filling
-  logic                              byp_valid,               //bypass(es) valid
-                                     rd_idx_dly_eq_byp_idx,   //rd_idx_dly == byp_idx
-                                     bypass_biumem_we,        //bypass outputs on biumem_we
+                                     filling_tag;             //TAG for filling
+  logic                              bypass_biumem_we,        //bypass outputs on biumem_we
                                      bypass_writebuffer_we;   //bypass outputs on writebuffer_we
 
   /* TAG
@@ -224,7 +229,7 @@ module riscv_cache_memory #(
 
   //Delayed write. Masks 'hit'
   always @(posedge clk_i)
-    we_dly <= biumem_we;// | writebuffer_we;
+    we_dly <= biumem_we;
 
 
   //delay rd_idx_i, rd_core_tag_i, same delay as through memory
@@ -235,53 +240,45 @@ module riscv_cache_memory #(
   end
 
 
-  //hold idx and tag, to be used during biumem_we=1
+  //hold idx and tag, to be used during biumem_we=1 and for evict_*
   always @(posedge clk_i)
     if (!filling_i)
     begin
-        idx_filling <= wr_idx_i;
-        tag_filling <= wr_core_tag_i;
+        filling_idx <= wr_idx_i;
+        filling_tag <= wr_core_tag_i;
     end
 
 
-  //Index during flushing
+  //Latch evict_*
+  always @(posedge clk_i)
+    begin
+        evict_latch          <= evict_read_i;
+        evict_way_select_int <= onehot2int(fill_way_i);
+    end
+
+
+  //Index during cleaning
   always @(posedge clk_i)
   begin
-      idx_cleaning <= first_dirty_way(tag_valid, tag_dirty) % SETS; //from vector-int to index
-      way_cleaning <= first_dirty_way(tag_valid, tag_dirty) / SETS; //from vector-int to way
+      clean_idx_o       <= first_dirty_way(tag_valid, tag_dirty) % SETS; //from vector-int to index
+      clean_way_int_o   <= first_dirty_way(tag_valid, tag_dirty) / SETS; //from vector-int to way
 
-      //same delay as through Data memory (adr=idx_cleaning)
-      idx_cleaning_dly <= idx_cleaning;
-      way_cleaning_dly <= way_cleaning;
+      //same delay as through Data memory (adr=clean_idx_i)
+      clean_idx_dly     <= clean_idx_i;
+      clean_way_int_dly <= onehot2int(clean_way_i);
   end
 
 
   //delay fill-way-select, same delay as through memory
   always @(posedge clk_i)
     begin
-        fill_way_select_dly  <= fill_way_select_i;
-        evict_way_select_int <= onehot2int(fill_way_select_i);
+        fill_way_select_dly     <= fill_way_select_i;
+	fill_way_select_int_dly <= onehot2int(fill_way_select_i);
     end
 
 
-  //Index bypass (RAW hazard)
-  always @(posedge clk_i)
-    if (biumem_we) byp_idx <= idx_filling;
-
-
-  //Bypass(es) valid
-  always @(posedge clk_i, negedge rst_ni)
-    if      (!rst_ni    ) byp_valid <= 1'b0;
-    else if ( cleaning_i) byp_valid <= 1'b0;
-    else if ( biumem_we ) byp_valid <= 1'b1;
-
-
-  //Should bypass when rd_idx_dly == byp_idx
-  assign rd_idx_dly_eq_byp_idx = 1'b0; //byp_valid & (rd_idx_dly == byp_idx);
-
-
   //Bypass on biumem_we?
-  assign bypass_biumem_we       = biumem_we & (rd_idx_dly == idx_filling) & (rd_core_tag_dly == tag_filling);
+  assign bypass_biumem_we      = biumem_we & (rd_idx_dly == filling_idx) & (rd_core_tag_dly == filling_tag);
 
 
   //Bypass on writebuffer_we?
@@ -294,9 +291,9 @@ module riscv_cache_memory #(
 
   //Memory Index
   always_comb
-    unique casex ( {cleaning_i, biumem_we} )
-      {2'b1?}: tag_idx = idx_cleaning;
-      {2'b?1}: tag_idx = idx_filling;
+    unique casex ( {evict_read_i,biumem_we} )
+      {2'b?1}: tag_idx = filling_idx;
+      {2'b1?}: tag_idx = filling_idx;
       default: tag_idx = rd_idx_i;
     endcase
 
@@ -340,17 +337,18 @@ generate
 
       //compare way-tag to TAG;
       assign way_hit[way] = tag_out[way].valid & (rd_core_tag_i == tag_out[way].tag) &
-                           ~(filling_i & fill_way_i[way] & ~rreq_i); //actually wreq_i
+                           ~(filling_i & fill_way_i[way] & ~rreq_i); //actually wreq_i.
+                                                                     //Can get a hit when reading data as the block still contains previous data
+                                                                     //Cannot get a hit when writing data, because that's for the new block
 
       /* TAG Dirty
        * Dirty is stored in DFF
        * Use dat_idx here to update dirty on writebuffer_we
        */ 
       always @(posedge clk_i, negedge rst_ni)
-        if      (!rst_ni             ) tag_dirty[way]          <= 'h0;
-        else if ( clean_block_i      &&
-                  way == way_cleaning) tag_dirty[way][dat_idx] <= 1'b0;                  //TODO: specify block number for cbo.clean
-        else if ( tag_we_dirty[way]  ) tag_dirty[way][dat_idx] <= tag_in[way].dirty;
+        if      (!rst_ni            ) tag_dirty[way]              <= 'h0;
+        else if ( clean_way_i [way] ) tag_dirty[way][clean_idx_i] <= 1'b0;
+        else if ( tag_we_dirty[way] ) tag_dirty[way][dat_idx    ] <= tag_in[way].dirty;
 
       assign tag_out[way].dirty = tag_dirty[way][rd_idx_dly];
 
@@ -371,7 +369,7 @@ generate
       //clear valid tag during flushing and cache-coherency checks
       assign tag_in[way].valid = 1'b1;
       assign tag_in[way].dirty = biumem_we ? biu_line_dirty_i : writebuffer_we_i;
-      assign tag_in[way].tag   = tag_filling;
+      assign tag_in[way].tag   = filling_tag;
   end
 endgenerate
 
@@ -381,8 +379,7 @@ endgenerate
   always @(posedge clk_i)
     if      ( invalidate_all_blocks_i) hit_o <= 1'b0;
     else if ( bypass_biumem_we       ) hit_o <= 1'b1;
-    else if ( latchmem_i             ) hit_o <= rd_idx_dly_eq_byp_idx ? byp_valid & (rd_core_tag_i == tag_byp_tag)
-                                                                      : |way_hit & ~we_dly;
+    else if ( latchmem_i             ) hit_o <= way_hit & ~we_dly;
 
 
   always @(posedge clk_i)
@@ -407,7 +404,7 @@ endgenerate
   //selected way is dirty
   always @(posedge clk_i)
     if      ( bypass_biumem_we) way_dirty_o <= biu_line_dirty_i;
-    else if (latchmem_i       ) way_dirty_o <= way_dirty[evict_way_select_int];
+    else if (latchmem_i       ) way_dirty_o <= way_dirty[fill_way_select_int_dly];
 
 
   always @(posedge clk_i)
@@ -418,15 +415,16 @@ endgenerate
    * Used for EVICT address generation
    */
   always @(posedge clk_i)
-    if      ( cleaning_i ) evict_tag_o <= tag_out[way_cleaning_dly].tag;
-    else if ( latchmem_i ) evict_tag_o <= rd_idx_dly_eq_byp_idx ? tag_byp_tag
-                                                                : tag_out[evict_way_select_int].tag;
+    if      ( cleaning_i  ) evict_tag_o <= tag_out[clean_way_int_dly].tag;
+    else if ( evict_latch ) evict_tag_o <= tag_out[evict_way_select_int].tag;
 
 
   always @(posedge clk_i)
-    if      ( cleaning_i) evict_idx_o <= idx_cleaning_dly;
-    else if ( latchmem_i) evict_idx_o <= rd_idx_dly;
+    if      ( cleaning_i ) evict_idx_o <= clean_idx_dly;
+    else if ( evict_latch) evict_idx_o <= filling_idx;
 
+
+  assign evict_adr_o = { evict_tag_o, evict_idx_o, {BLK_OFFS_BITS{1'b0}} };
 
   //----------------------------------------------------------------
   // Data Memory
@@ -434,10 +432,11 @@ endgenerate
 
   //Memory Index
   always_comb
-    unique casex ( {cleaning_i, biumem_we, writebuffer_we} )
-      {3'b1??}: dat_idx = idx_cleaning;
-      {3'b?1?}: dat_idx = idx_filling;
-      {3'b??1}: dat_idx = writebuffer_idx_i;
+    unique casex ( {cleaning_i, evict_read_i, biumem_we, writebuffer_we} )
+      {4'b1???}: dat_idx = clean_idx_i;
+      {4'b?1??}: dat_idx = filling_idx;
+      {4'b??1?}: dat_idx = filling_idx;
+      {4'b???1}: dat_idx = writebuffer_idx_i;
       default : dat_idx = rd_idx_i;
     endcase
 
@@ -501,18 +500,18 @@ endgenerate
     if      ( bypass_biumem_we ) cache_line_o <= biu_line_i;
     else if ( latchmem_i       ) cache_line_o <= be_mux(bypass_writebuffer_we,
                                                         writebuffer_be_i,
-                                                        rd_idx_dly_eq_byp_idx ? dat_byp_q : way_q_mux[WAYS-1],
+                                                        way_q_mux[WAYS-1],
                                                         {BLK_BITS/XLEN{writebuffer_data_i}});
 
 
   /* Evict line output
    */
   always @(posedge clk_i)
-    if      ( cleaning_i ) evict_line_o <= dat_out[way_cleaning_dly];
-    else if ( latchmem_i ) evict_line_o <= be_mux(bypass_writebuffer_we,
-                                                  writebuffer_be_i,
-                                                  rd_idx_dly_eq_byp_idx ? dat_byp_q : dat_out[evict_way_select_int],
-                                                  {BLK_BITS/XLEN{writebuffer_data_i}});
+    if      ( cleaning_i  ) evict_line_o <= dat_out[clean_way_int_dly];
+    else if ( evict_latch ) evict_line_o <= be_mux(bypass_writebuffer_we,
+                                                   writebuffer_be_i,
+                                                   dat_out[evict_way_select_int],
+                                                   {BLK_BITS/XLEN{writebuffer_data_i}});
 endmodule
 
 
