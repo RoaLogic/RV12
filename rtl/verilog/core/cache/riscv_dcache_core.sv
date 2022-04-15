@@ -232,11 +232,13 @@ module riscv_dcache_core #(
   logic [BLK_BITS     -1:0] cache_line;
 
 
-  logic [TAG_BITS     -1:0] evict_tag;
-  logic [IDX_BITS     -1:0] evict_idx;
+  logic [PLEN         -1:0] evict_adr;
   logic [BLK_BITS     -1:0] evict_line;
-  logic [PLEN         -1:0] evictbuffer_adr;
-  logic [BLK_BITS     -1:0] evictbuffer_line;
+
+  logic [$clog2(WAYS) -1:0] mem_clean_way_int;
+  logic [IDX_BITS     -1:0] mem_clean_idx;
+  logic [WAYS         -1:0] hit_clean_way;
+  logic [IDX_BITS     -1:0] hit_clean_idx;
 
 
   logic [INFLIGHT_BITS-1:0] inflight_cnt;
@@ -255,7 +257,6 @@ module riscv_dcache_core #(
   logic                     armed,
                             filling,
                             cleaning,
-                            clean_block,
                             invalidate_block,
                             invalidate_all_blocks;
 
@@ -390,12 +391,15 @@ endgenerate
     .clean_rdy_o               ( clean_rdy_o             ),
     .armed_o                   ( armed                   ),
     .cleaning_o                ( cleaning                ),
-    .clean_block_o             ( clean_block             ),
     .invalidate_block_o        ( invalidate_block        ),
     .invalidate_all_blocks_o   ( invalidate_all_blocks   ),
     .filling_o                 ( filling                 ),
     .fill_way_i                ( mem_fill_way            ),
     .fill_way_o                ( hit_fill_way            ),
+    .clean_way_int_i           ( mem_clean_way_int       ),
+    .clean_idx_i               ( mem_clean_idx           ),
+    .clean_way_o               ( hit_clean_way           ),
+    .clean_idx_o               ( hit_clean_idx           ),
 
     .cacheable_i               ( pma_cacheable_i         ),
     .misaligned_i              ( pma_misaligned_i        ),
@@ -436,11 +440,7 @@ endgenerate
     .writebuffer_be_o          ( writebuffer_be          ),
     .writebuffer_ways_hit_o    ( writebuffer_ways_hit    ),
 
-    .evict_tag_i               ( evict_tag               ),
-    .evict_idx_i               ( evict_idx               ),
-    .evict_line_i              ( evict_line              ),
-    .evictbuffer_adr_o         ( evictbuffer_adr         ),
-    .evictbuffer_line_o        ( evictbuffer_line        ),
+    .evict_read_o              ( evict_read              ),
 
     .biucmd_o                  ( biucmd                  ),
     .biucmd_ack_i              ( biucmd_ack              ),
@@ -478,13 +478,16 @@ endgenerate
 
     .armed_i                   ( armed                   ),
     .cleaning_i                ( cleaning                ),
-    .clean_block_i             ( clean_block             ),
     .invalidate_block_i        ( 1'b0                    ),
     .invalidate_all_blocks_i   ( invalidate_all_blocks   ),
     .filling_i                 ( filling                 ),
     .fill_way_select_i         ( fill_way_select         ),
     .fill_way_i                ( hit_fill_way            ),
     .fill_way_o                ( mem_fill_way            ),
+    .clean_way_int_o           ( mem_clean_way_int       ),
+    .clean_idx_o               ( mem_clean_idx           ),
+    .clean_way_i               ( hit_clean_way           ),
+    .clean_idx_i               ( hit_clean_idx           ),
 
     .rd_core_tag_i             ( tag_core_tag            ),
     .wr_core_tag_i             ( hit_core_tag            ),
@@ -499,8 +502,8 @@ endgenerate
     .writebuffer_data_i        ( writebuffer_data        ),
     .writebuffer_ways_hit_i    ( writebuffer_ways_hit    ),
 
-    .evict_tag_o               ( evict_tag               ),
-    .evict_idx_o               ( evict_idx               ),
+    .evict_read_i              ( evict_read              ),
+    .evict_adr_o               ( evict_adr               ),
     .evict_line_o              ( evict_line              ),
 
     .biu_line_i                ( biu_line                ), //Write data line
@@ -512,7 +515,7 @@ endgenerate
     .ways_hit_o                ( ways_hit                ),
     .cache_dirty_o             ( cache_dirty             ), //cache has dirty lines
     .way_dirty_o               ( way_dirty               ), //selected way is dirty (for evict)
-    .ways_dirty_o              ( ways_dirty              ),
+    .ways_dirty_o              (                         ),
     .cache_line_o              ( cache_line              ) );
 
 
@@ -556,8 +559,8 @@ endgenerate
     .biu_line_o                ( biu_line                ),
     .biu_line_dirty_o          ( biu_line_dirty          ),
 
-    .evictbuffer_adr_i         ( evictbuffer_adr         ),
-    .evictbuffer_d_i           ( evictbuffer_line        ),
+    .evictbuffer_adr_i         ( evict_adr               ),
+    .evictbuffer_d_i           ( evict_line              ),
 
      //To BIU
     .biu_stb_o                 ( biu_stb_o               ),
