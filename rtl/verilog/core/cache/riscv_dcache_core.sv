@@ -251,8 +251,7 @@ module riscv_dcache_core #(
   logic [BLK_BITS     -1:0] biu_line;
   logic                     biu_line_dirty;
 
-  logic                     hit_latchmem,
-                            mem_recover;
+  logic                     hit_latchmem;
   logic                     armed,
                             filling,
                             cleaning,
