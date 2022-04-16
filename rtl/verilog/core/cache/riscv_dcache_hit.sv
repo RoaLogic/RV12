@@ -542,7 +542,7 @@ module riscv_dcache_hit #(
    */
   always @(posedge clk_i)
     begin
-        clean_way_o <= (1 << clean_way_int_i) & clean_block;
+        clean_way_o <= (1 << clean_way_int_i) & {WAYS{clean_block}};
         clean_idx_o <= clean_idx_i;
     end
 
@@ -572,9 +572,10 @@ module riscv_dcache_hit #(
    */
 
   //Always stall on non-cacheable accesses.
-  //This prevents waiting for biu_stb_ack_i, which is an async path.
-  //However this stall the access, which causes it to be executed twice
+  //This removes dependency on biu_stb_ack_i, which is an async path.
+  //However this stalls the access, which causes it to be executed twice
   //Use a registered version of biu_stb_ack_i to negate 'stall' for 1 cycle during NONCACHEABLE
+  //thus removing the second access
   logic biu_stb_ack_reg;
   always @(posedge clk_i)
     biu_stb_ack_reg <= (memfsm_state == ARMED) && biu_stb_ack_i;
