@@ -418,7 +418,7 @@ endgenerate
    * Used for EVICT address generation
    */
   always @(posedge clk_i)
-    if      ( cleaning_i ) evict_tag <= tag_out[clean_way_int_dly].tag;
+    if      ( cleaning_i ) evict_tag <= tag_out[clean_way_int_o].tag;   //this takes forever, can use clean_way_int_o
     else if ( evict_latch) evict_tag <= tag_out[evict_way_select_int].tag;
 
 
@@ -511,7 +511,7 @@ endgenerate
   /* Evict line output
    */
   always @(posedge clk_i)
-    if      ( cleaning_i  ) evict_line_o <= dat_out[clean_way_int_dly];
+    if      ( cleaning_i  ) evict_line_o <= dat_out[clean_way_int_o]; //takes forever, can use clean_way_int_o
     else if ( evict_latch ) evict_line_o <= be_mux(bypass_writebuffer_we,
                                                    writebuffer_be_i,
                                                    dat_out[evict_way_select_int],
