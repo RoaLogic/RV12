@@ -172,8 +172,7 @@ module riscv_cache_memory #(
 
   logic [WAYS        -1:0]           fill_way_select_dly;
   logic [$clog2(WAYS)-1:0]           fill_way_select_int_dly; //integer version of fill_way_select_dly
-  logic [$clog2(WAYS)-1:0]           clean_way_int,           //way currently flushing
-                                     clean_way_int_dly;       //delayed way currently flushing, same delay as through memory
+  logic [$clog2(WAYS)-1:0]           clean_way_int_dly;       //delayed way currently flushing
   logic [$clog2(WAYS)-1:0]           evict_way_select_int;    //integer version of fill_way_select_dly
 
   logic [IDX_BITS    -1:0]           rd_idx_dly,              //delay idx, same delay as through memory
@@ -294,10 +293,11 @@ module riscv_cache_memory #(
 
   //Memory Index
   always_comb
-    unique casex ( {evict_read_i,biumem_we} )
-      {2'b?1}: tag_idx = filling_idx;
-      {2'b1?}: tag_idx = filling_idx;
-      default: tag_idx = rd_idx_i;
+    unique casex ( {cleaning_i, evict_read_i, biumem_we} )
+      {3'b1??}: tag_idx = clean_idx_i;
+      {3'b?1?}: tag_idx = filling_idx;
+      {3'b??1}: tag_idx = filling_idx;
+      default : tag_idx = rd_idx_i;
     endcase
 
 
