@@ -303,6 +303,7 @@ generate
         .rst_ni       ( rst_ni       ),
         .clk_i        ( clk_i        ),
 
+        .mem_stall_i  ( mem_stall_i  ),
         .ex_stall_i   ( ex_stall_o   ),
         .mul_stall_o  ( mul_stall    ),
 
@@ -318,23 +319,24 @@ generate
 
 
       riscv_div #(
-        .XLEN         ( XLEN       ) )
+        .XLEN         ( XLEN        ) )
       div (
-        .rst_ni       ( rst_ni     ),
-        .clk_i        ( clk_i      ),
+        .rst_ni       ( rst_ni      ),
+        .clk_i        ( clk_i       ),
 
-        .ex_stall_i   ( ex_stall_o ),
-        .div_stall_o  ( div_stall  ),
+	.mem_stall_i  ( mem_stall_i ),
+        .ex_stall_i   ( ex_stall_o  ),
+        .div_stall_o  ( div_stall   ),
 
-        .id_insn_i    (id_insn_i   ),
+        .id_insn_i    (id_insn_i    ),
 
-        .opA_i        ( opA        ),
-        .opB_i        ( opB        ),
+        .opA_i        ( opA         ),
+        .opB_i        ( opB         ),
 
-        .st_xlen_i    ( st_xlen_i  ),
+        .st_xlen_i    ( st_xlen_i   ),
 
-        .div_bubble_o ( div_bubble ),
-        .div_r_o      ( div_r      ) );
+        .div_bubble_o ( div_bubble  ),
+        .div_r_o      ( div_r       ) );
   end
   else
   begin
