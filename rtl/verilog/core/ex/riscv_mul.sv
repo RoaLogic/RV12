@@ -38,6 +38,7 @@ module riscv_mul #(
   input                 rst_ni,
   input                 clk_i,
 
+  input                 mem_stall_i,
   input                 ex_stall_i,
   output reg            mul_stall_o,
 
@@ -329,8 +330,8 @@ endgenerate
                          end
                          else
                          begin
-                             state       <= ST_WAIT;
-                             cnt         <= cnt -1;
+                             state        <= ST_WAIT;
+                             cnt          <= LATENCY -1;
 
                              mul_bubble_o <= 1'b1;
                              mul_stall_o  <= 1'b1;
@@ -339,7 +340,7 @@ endgenerate
 
           ST_WAIT: if (|cnt)
                      cnt <= cnt -1;
-                   else
+                   else if (!mem_stall_i)
                    begin
                        state        <= ST_IDLE;
                        cnt          <= LATENCY;

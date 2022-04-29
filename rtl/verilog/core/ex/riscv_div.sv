@@ -39,6 +39,7 @@ module riscv_div #(
   input                 rst_ni,
   input                 clk_i,
 
+  input                 mem_stall_i,
   input                 ex_stall_i,
   output reg            div_stall_o,
 
@@ -393,7 +394,8 @@ module riscv_div #(
           /*
            * Result
            */
-          ST_RES: begin
+          ST_RES: if (!mem_stall_i)
+	          begin
                       state        <= ST_CHK;
                       div_bubble_o <= 1'b0;
                       div_stall_o  <= 1'b0;
