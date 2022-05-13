@@ -668,7 +668,7 @@ module riscv_dcache_hit #(
 
 
   //Bypass on writebuffer_we?
-  assign bypass_writebuffer_we = writebuffer_we_o & (idx_o == writebuffer_idx_o);
+  assign bypass_writebuffer_we = writebuffer_we_o & (idx_o == writebuffer_idx_o) & (writebuffer_ways_hit_o == ways_hit_i);
   
 
   //Shift amount for data
