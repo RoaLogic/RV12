@@ -167,8 +167,7 @@ module riscv_top_ahb3lite #(
                                         dmem_q;
   logic                                 dmem_ack,
                                         dmem_err;
-  logic                                 dmem_is_misaligned,
-                                        dmem_misaligned;
+  logic                                 dmem_misaligned;
   logic                                 dmem_pagefault;
 
   pmpcfg_t [15:0]                       st_pmpcfg;
