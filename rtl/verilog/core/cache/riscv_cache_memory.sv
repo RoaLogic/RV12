@@ -181,14 +181,14 @@ module riscv_cache_memory #(
                                      clean_idx_dly;           //delayed flusing idx, same delay as through memory
   logic [TAG_BITS    -1:0]           rd_core_tag_dly,         //delay core_tag, same delay as through memory
                                      filling_tag;             //TAG for filling
-  logic                              bypass_biumem_we,        //bypass outputs on biumem_we
-                                     bypass_writebuffer_we;   //bypass outputs on writebuffer_we
+  logic                              bypass_biumem_we;        //bypass outputs on biumem_we
+  logic [WAYS        -1:0]           bypass_writebuffer_we;   //bypass outputs on writebuffer_we
 
   /* TAG
    */
   logic [IDX_BITS    -1:0]           tag_idx;                 //tag memory read index
-  tag_struct                         tag_in      [WAYS],      //tag memory input data
-                                     tag_out     [WAYS];      //tag memory output data
+  tag_struct                         tag_in          [WAYS],  //tag memory input data
+                                     tag_out         [WAYS];  //tag memory output data
   logic [WAYS        -1:0]           tag_we,                  //tag memory write enable
                                      tag_we_dirty;            //tag-dirty write enable
   logic [TAG_BITS    -1:0]           tag_byp_tag;
@@ -204,8 +204,9 @@ module riscv_cache_memory #(
   logic [BLK_BITS    -1:0]           dat_in;                  //data into memory
   logic [WAYS        -1:0]           dat_we;                  //data memory write enable
   logic [BLK_BITS/8  -1:0]           dat_be;                  //data memory write byte enables
-  logic [BLK_BITS    -1:0]           dat_out     [WAYS];      //data memory output
-  logic [BLK_BITS    -1:0]           way_q_mux   [WAYS];      //data out multiplexor
+  logic [BLK_BITS    -1:0]           dat_out         [WAYS],  //data memory output
+                                     dat_out_bypassed[WAYS];  //data memory output with writebuffer bypass
+  logic [BLK_BITS    -1:0]           way_q_mux       [WAYS];  //data out multiplexor
   logic [BLK_BITS    -1:0]           dat_byp_q;
 
 
@@ -284,7 +285,9 @@ module riscv_cache_memory #(
 
 
   //Bypass on writebuffer_we?
-  assign bypass_writebuffer_we = writebuffer_we_i & (rd_idx_dly == writebuffer_idx_i); //and hit
+  always_comb
+    for (int n=0; n<WAYS; n++)
+      bypass_writebuffer_we[n] = writebuffer_we_i & (rd_idx_dly == writebuffer_idx_i) & writebuffer_ways_hit_i[n];
 
 
   //----------------------------------------------------------------
@@ -486,14 +489,20 @@ generate
       assign dat_we[way] = (biumem_we      & fill_way_i[way]            ) |
                            (writebuffer_we & writebuffer_ways_hit_i[way]);
       
+      /* Bypass Data Output
+      */
+      assign dat_out_bypassed[way] = be_mux(bypass_writebuffer_we[way],
+                                            writebuffer_be_i,
+                                            dat_out[way],
+                                            {BLK_BITS/XLEN{writebuffer_data_i}});
 
       /* Data Ouput Mux
        * assign way_q; Build MUX (AND/OR) structure
        */
       if (way == 0)
-        assign way_q_mux[way] =  dat_out[way] & {BLK_BITS{way_hit[way]}};
+        assign way_q_mux[way] =  dat_out_bypassed[way] & {BLK_BITS{way_hit[way]}};
       else
-        assign way_q_mux[way] = (dat_out[way] & {BLK_BITS{way_hit[way]}}) | way_q_mux[way -1];
+        assign way_q_mux[way] = (dat_out_bypassed[way] & {BLK_BITS{way_hit[way]}}) | way_q_mux[way -1];
   end
 endgenerate
 
@@ -502,20 +511,14 @@ endgenerate
    */
   always @(posedge clk_i)
     if      ( bypass_biumem_we ) cache_line_o <= biu_line_i;
-    else if ( latchmem_i       ) cache_line_o <= be_mux(bypass_writebuffer_we,
-                                                        writebuffer_be_i,
-                                                        way_q_mux[WAYS-1],
-                                                        {BLK_BITS/XLEN{writebuffer_data_i}});
+    else if ( latchmem_i       ) cache_line_o <= way_q_mux[WAYS-1];
 
 
   /* Evict line output
    */
   always @(posedge clk_i)
-    if      ( cleaning_i  ) evict_line_o <= dat_out[clean_way_int_o]; //takes forever, can use clean_way_int_o
-    else if ( evict_latch ) evict_line_o <= be_mux(bypass_writebuffer_we,
-                                                   writebuffer_be_i,
-                                                   dat_out[evict_way_select_int],
-                                                   {BLK_BITS/XLEN{writebuffer_data_i}});
+    if      ( cleaning_i  ) evict_line_o <= dat_out_bypassed[clean_way_int_o]; //takes forever, can use clean_way_int_o
+    else if ( evict_latch ) evict_line_o <= dat_out_bypassed[evict_way_select_int];
 endmodule
 
 
