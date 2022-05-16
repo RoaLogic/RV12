@@ -45,7 +45,7 @@ module riscv_dcache_hit #(
   localparam SETS          = no_of_sets(SIZE, BLOCK_SIZE, WAYS),
   localparam BLK_BITS      = no_of_block_bits(BLOCK_SIZE),
   localparam BLK_OFFS_BITS = no_of_block_offset_bits(BLOCK_SIZE),
-  localparam DAT_OFFS_BITS = no_of_data_offset_bits (XLEN, BLK_BITS),   //Offset in block
+  localparam DAT_OFFS_BITS = no_of_data_offset_bits (XLEN, BLK_BITS),                //Offset in block
   localparam IDX_BITS      = no_of_index_bits(SETS),
   localparam TAG_BITS      = no_of_tag_bits(PLEN, IDX_BITS, BLK_OFFS_BITS),
 
@@ -56,11 +56,11 @@ module riscv_dcache_hit #(
   input  logic                        clk_i,
 
   output logic                        stall_o,
-  input  logic                        flush_i,           //flush pipe
+  input  logic                        flush_i,                                       //flush pipe
 
   input  logic                        invalidate_i,
-  input  logic                        clean_i,           //clean cache
-  output logic                        clean_rdy_o,       //cache clean ready
+  input  logic                        clean_i,                                       //clean cache
+  output logic                        clean_rdy_o,                                   //cache clean ready
   output logic                        armed_o,
   output logic                        cleaning_o,
   output logic                        invalidate_block_o,
@@ -78,7 +78,7 @@ module riscv_dcache_hit #(
   input  logic                        pma_exception_i,
   input  logic                        pmp_exception_i,
   input  logic                        pagefault_i,
-  input  logic                        req_i,             //from previous-stage
+  input  logic                        req_i,                                         //from previous-stage
   input  logic                        wreq_i,
   input  logic [PLEN            -1:0] adr_i,
   input  biu_size_t                   size_i,
@@ -94,15 +94,14 @@ module riscv_dcache_hit #(
   output logic                        pagefault_o,
   
   //To/From Cache Memories
-  input  logic                        cache_hit_i,            //from cache-memory
+  input  logic                        cache_hit_i,                                   //from cache-memory
   input  logic [WAYS            -1:0] ways_hit_i,
   input  logic [BLK_BITS        -1:0] cache_line_i,
   input  logic                        cache_dirty_i,
   input  logic                        way_dirty_i,
   output logic [IDX_BITS        -1:0] idx_o,
   output logic [TAG_BITS        -1:0] core_tag_o,
-  output logic                        latchmem_o,             //latch TAG/DATA memory outputs
-  input  logic                        recover_i,              //add recover cycles
+  output logic                        latchmem_o,                                    //latch TAG/DATA memory outputs
 
   //WriteBuffer
   output logic                        writebuffer_we_o,
@@ -110,8 +109,9 @@ module riscv_dcache_hit #(
   output logic [IDX_BITS        -1:0] writebuffer_idx_o,
   output logic [DAT_OFFS_BITS   -1:0] writebuffer_offs_o,
   output logic [XLEN            -1:0] writebuffer_data_o,
-  output logic [BLK_BITS/8      -1:0] writebuffer_be_o,       //writebuffer_be is already blk_bits aligned
+  output logic [BLK_BITS/8      -1:0] writebuffer_be_o,                              //writebuffer_be is already blk_bits aligned
   output logic [WAYS            -1:0] writebuffer_ways_hit_o,
+  output logic                        writebuffer_cleaning_o,                        //clean(empty) writebuffer
 
   //EvictBuffer
   output logic                        evict_read_o,
@@ -227,7 +227,8 @@ module riscv_dcache_hit #(
                              clean_rdy,
                              clean_block,
                              invalidate_block,
-                             invalidate_all_blocks;
+                             invalidate_all_blocks,
+                             writebuffer_cleaning;
 
   logic                      evict_read;
 
@@ -270,12 +271,14 @@ module riscv_dcache_hit #(
       invalidate_block      = 1'b0;
       clean_block           = 1'b0;
       evict_read            = 1'b0;
+      writebuffer_cleaning  = 1'b0;
 
       unique case (memfsm_state)
         ARMED        : begin 
                            if (clean_hold)
                            begin
-                               if (!writebuffer_we_o)
+                               if (writebuffer_we_o) writebuffer_cleaning = 1'b1;    //wait for writebuffer to empty
+                               else
                                begin
                                    if (cache_dirty_i)
                                    begin
@@ -292,30 +295,35 @@ module riscv_dcache_hit #(
                            end
                            else if (invalidate_hold)
                            begin
-                               if (!writebuffer_we_o) invalidate_all_blocks = 1'b1;
+                               if (writebuffer_we_o) writebuffer_cleaning   = 1'b1;  //wait for writebuffer to empty
+                               else                  invalidate_all_blocks = 1'b1;
                            end
                            else if (valid_req && !cacheable_i && !biucmd_busy_i)
                            begin
                                nxt_memfsm_state = NONCACHEABLE;
                                nxt_biucmd       = BIUCMD_NOP;
                            end
-                           else if (valid_req && cacheable_i && !cache_hit_i && !(biucmd_busy_i /*&& !biucmd_ack_i*/))
+                           else if (valid_req && cacheable_i && !cache_hit_i && !biucmd_busy_i)
                            begin
-                               fill_way = fill_way_i; //write to same way as was read
-
-                               if (way_dirty_i)
-                               begin
-                                   //selected way is dirty
-                                   nxt_memfsm_state = EVICT;
-                                   nxt_biucmd       = BIUCMD_READWAY; //read new line before evicting old one
-                                   evict_read       = 1'b1;           //read block to evict
-                                                                      //in evict_* 2 cycles later
-                               end
+                               if (writebuffer_we_o) writebuffer_cleaning = 1'b1;    //wait for writebuffer to empty
                                else
                                begin
-                                   //Load way
-                                   nxt_memfsm_state = READ;
-                                   nxt_biucmd       = BIUCMD_READWAY;
+                                   fill_way = fill_way_i;                            //write to same way as was read
+
+                                   if (way_dirty_i)
+                                   begin
+                                       //selected way is dirty
+                                       nxt_memfsm_state = EVICT;
+                                       nxt_biucmd       = BIUCMD_READWAY;            //read new line before evicting old one
+                                       evict_read       = 1'b1;                      //read block to evict
+                                                                                     //in evict_* 2 cycles later
+                                   end
+                                   else
+                                   begin
+                                       //Load way
+                                       nxt_memfsm_state = READ;
+                                       nxt_biucmd       = BIUCMD_READWAY;
+                                   end
                                end
                            end
                        end
@@ -380,7 +388,7 @@ module riscv_dcache_hit #(
 
         EVICT       : if (biucmd_ack_i || biu_err_i)
                       begin
-                          nxt_memfsm_state = RECOVER0; //recover_i ? RECOVER0 : ARMED;
+                          nxt_memfsm_state = RECOVER0;
                           nxt_biucmd       = BIUCMD_WRITEWAY; //evict dirty way
                       end
                       else
@@ -429,6 +437,7 @@ module riscv_dcache_hit #(
         fill_way_o              <=  'hx;
         clean_rdy_o             <= 1'b1;
         evict_read_o            <= 1'b0;
+        writebuffer_cleaning_o  <= 1'b1;
     end
     else
     begin
@@ -439,6 +448,7 @@ module riscv_dcache_hit #(
         invalidate_all_blocks_o <= invalidate_all_blocks;
         invalidate_block_o      <= invalidate_block;
         evict_read_o            <= evict_read;
+        writebuffer_cleaning_o  <= writebuffer_cleaning;
 
         unique case (nxt_memfsm_state)
           ARMED       : begin

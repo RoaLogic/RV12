@@ -216,6 +216,7 @@ module riscv_dcache_core #(
   logic [XLEN         -1:0] writebuffer_data;
   logic [BLK_BITS/8   -1:0] writebuffer_be;
   logic [WAYS         -1:0] writebuffer_ways_hit;
+  logic                     writebuffer_cleaning;
 
   logic [TAG_BITS     -1:0] tag_core_tag,
                             hit_core_tag;
@@ -422,7 +423,6 @@ endgenerate
     .pagefault_o               ( mem_pagefault_o         ),
 
     .latchmem_o                ( hit_latchmem            ),
-    .recover_i                 ( mem_recover             ),
     .idx_o                     ( hit_idx                 ),
     .core_tag_o                ( hit_core_tag            ),
 
@@ -439,6 +439,7 @@ endgenerate
     .writebuffer_data_o        ( writebuffer_data        ),
     .writebuffer_be_o          ( writebuffer_be          ),
     .writebuffer_ways_hit_o    ( writebuffer_ways_hit    ),
+    .writebuffer_cleaning_o    ( writebuffer_cleaning    ),
 
     .evict_read_o              ( evict_read              ),
 
@@ -501,6 +502,7 @@ endgenerate
     .writebuffer_offs_i        ( writebuffer_offs        ),
     .writebuffer_data_i        ( writebuffer_data        ),
     .writebuffer_ways_hit_i    ( writebuffer_ways_hit    ),
+    .writebuffer_cleaning_i    ( writebuffer_cleaning    ),
 
     .evict_read_i              ( evict_read              ),
     .evict_adr_o               ( evict_adr               ),

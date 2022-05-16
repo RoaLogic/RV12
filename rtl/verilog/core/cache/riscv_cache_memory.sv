@@ -84,6 +84,7 @@ module riscv_cache_memory #(
   input  logic [DAT_OFFS_BITS-1:0] writebuffer_offs_i,
   input  logic [XLEN         -1:0] writebuffer_data_i,
   input  logic [WAYS         -1:0] writebuffer_ways_hit_i,
+  input  logic                     writebuffer_cleaning_i,
 
   input  logic [BLK_BITS     -1:0] biu_line_i,
   input  logic                     biu_line_dirty_i,
@@ -227,7 +228,7 @@ module riscv_cache_memory #(
 
 
   //WriteBuffer write opportunity
-  assign writebuffer_we = ~rreq_i & writebuffer_we_i;
+  assign writebuffer_we = (~rreq_i | writebuffer_cleaning_i) & writebuffer_we_i;
 
 
   //Delayed write. Masks 'hit'

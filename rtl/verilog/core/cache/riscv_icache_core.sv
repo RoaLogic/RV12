@@ -435,6 +435,7 @@ endgenerate
     .writebuffer_offs_i        ( {DAT_OFFS_BITS{1'b0}}   ),
     .writebuffer_data_i        ( {XLEN         {1'b0}}   ),
     .writebuffer_ways_hit_i    ( {WAYS         {1'b0}}   ),
+    .writebuffer_cleaning_i    ( 1'b0                    ),
 
     .evict_read_i              ( 1'b0                    ),
     .evict_adr_o               (                         ),
