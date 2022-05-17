@@ -305,12 +305,15 @@ module riscv_dcache_hit #(
                            end
                            else if (valid_req && cacheable_i && !cache_hit_i && !biucmd_busy_i)
                            begin
-                               if (writebuffer_we_o) writebuffer_cleaning = 1'b1;    //wait for writebuffer to empty
-                               else
                                begin
                                    fill_way = fill_way_i;                            //write to same way as was read
 
-                                   if (way_dirty_i)
+                                   if ( way_dirty_i                              ||
+                                        (  writebuffer_we_o                      &&
+                                          (idx_o      == writebuffer_idx_o     ) &&
+                                          (fill_way_i == writebuffer_ways_hit_o)
+                                        )
+				      )
                                    begin
                                        //selected way is dirty
                                        nxt_memfsm_state = EVICT;
@@ -593,9 +596,9 @@ module riscv_dcache_hit #(
   always_comb
     unique case (memfsm_state)
       ARMED       : begin
-                        stall_o    = clean_hold                                                   | //cacheflush pending
-                                    (valid_req & ~cacheable_i /*& (~biu_stb_ack_reg | biucmd_busy_i)*/) | //non-cacheable access
-                                    (valid_req &  cacheable_i & ~cache_hit_i                    );  //cacheable access
+                        stall_o    = clean_hold                               |      //cacheflush pending
+                                    (valid_req & ~cacheable_i               ) |      //non-cacheable access
+                                    (valid_req &  cacheable_i & ~cache_hit_i);       //cacheable access
 
 		        latchmem_o = ~stall_o;
                     end
