@@ -53,6 +53,9 @@ module riscv_membuf #(
   input  logic             we_i,
   input  logic [XLEN -1:0] d_i,
 
+  input  logic             cm_clean_i,
+  input  logic             cm_invalidate_i,
+
   //Memory system side
   output logic             req_o,
   input  logic             ack_i,
@@ -62,6 +65,9 @@ module riscv_membuf #(
   output biu_prot_t        prot_o,
   output logic             we_o,
   output logic [XLEN -1:0] q_o,
+
+  output logic             cm_clean_o,
+  output logic             cm_invalidate_o,
 
   output logic             empty_o,
   output logic             full_o
@@ -78,6 +84,9 @@ module riscv_membuf #(
     biu_prot_t        prot;
     logic             we;
     logic [XLEN -1:0] d;
+
+    logic             cm_clean;
+    logic             cm_invalidate;
   } queue_t;
 
 
@@ -99,12 +108,14 @@ module riscv_membuf #(
   //
 
   // Assign queue-data
-  assign queue_d.adr  = adr_i;
-  assign queue_d.size = size_i;
-  assign queue_d.lock = lock_i;
-  assign queue_d.prot = prot_i;
-  assign queue_d.we   = we_i;
-  assign queue_d.d    = d_i;
+  assign queue_d.adr           = adr_i;
+  assign queue_d.size          = size_i;
+  assign queue_d.lock          = lock_i;
+  assign queue_d.prot          = prot_i;
+  assign queue_d.we            = we_i;
+  assign queue_d.d             = d_i;
+  assign queue_d.cm_clean      = cm_clean_i;
+  assign queue_d.cm_invalidate = cm_invalidate_i;
 
 
   // Instantiate Queue 
@@ -140,17 +151,19 @@ module riscv_membuf #(
       endcase
 
 
-  assign queue_we =  req_i   &  (stall_i | |access_pending);
+  assign queue_we = (req_i   &  (stall_i | |access_pending)) |
+                    cm_clean_i | cm_invalidate_i;
   assign queue_re = ~empty_o & ~stall_i;
 
 
   //queue outputs
-  assign req_o  = ~empty_o | req_i;
-  assign adr_o  =  empty_o ? adr_i  : queue_q.adr;
-  assign size_o =  empty_o ? size_i : queue_q.size;
-  assign lock_o =  empty_o ? lock_i : queue_q.lock;
-  assign prot_o =  empty_o ? prot_i : queue_q.prot;
-  assign we_o   =  empty_o ? we_i   : queue_q.we;
-  assign q_o    =  empty_o ? d_i    : queue_q.d;
-
+  assign req_o           = ~empty_o | req_i;
+  assign adr_o           =  empty_o ? adr_i           : queue_q.adr;
+  assign size_o          =  empty_o ? size_i          : queue_q.size;
+  assign lock_o          =  empty_o ? lock_i          : queue_q.lock;
+  assign prot_o          =  empty_o ? prot_i          : queue_q.prot;
+  assign we_o            =  empty_o ? we_i            : queue_q.we;
+  assign q_o             =  empty_o ? d_i             : queue_q.d;
+  assign cm_clean_o      =  empty_o ? cm_clean_i      : queue_q.cm_clean;
+  assign cm_invalidate_o =  empty_o ? cm_invalidate_i : queue_q.cm_invalidate;
 endmodule

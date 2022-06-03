@@ -130,6 +130,9 @@ module riscv_dmem_ctrl #(
   logic            queue_we;
   logic [XLEN-1:0] queue_d;
 
+  logic            queue_cm_clean;
+  logic            queue_cm_invalidate;
+
  
   //MMU
   logic            mmu_req;
@@ -139,6 +142,8 @@ module riscv_dmem_ctrl #(
   logic            mmu_we;
   logic            mmu_pagefault;
 
+  logic            mmu_cm_clean;
+  logic            mmu_cm_invalidate;
 
   //Misalignment check
   logic            misaligned;
@@ -171,34 +176,44 @@ module riscv_dmem_ctrl #(
    * Is this necessary in case of nodcache?
    */
   riscv_membuf #(
-    .DEPTH   ( 2          ),
-    .XLEN    ( XLEN       ) )
+    .DEPTH           ( 2                   ),
+    .XLEN            ( XLEN                ) )
   membuffer_inst (
-    .rst_ni  ( rst_ni     ),
-    .clk_i   ( clk_i      ),
+    .rst_ni          ( rst_ni              ),
+    .clk_i           ( clk_i               ),
 
-    .flush_i ( 1'b0       ),
-    .stall_i ( stall      ),
+    .flush_i         ( 1'b0                ),
+    .stall_i         ( stall               ),
 
-    .req_i   ( mem_req_i  ),
-    .adr_i   ( mem_adr_i  ),
-    .size_i  ( mem_size_i ),
-    .lock_i  ( mem_lock_i ),
-    .prot_i  ( prot       ),
-    .we_i    ( mem_we_i   ),
-    .d_i     ( mem_d_i    ),
+    .req_i           ( mem_req_i           ),
+    .adr_i           ( mem_adr_i           ),
+    .size_i          ( mem_size_i          ),
+    .lock_i          ( mem_lock_i          ),
+    .prot_i          ( prot                ),
+    .we_i            ( mem_we_i            ),
+    .d_i             ( mem_d_i             ),
 
-    .req_o   ( queue_req  ),
-    .ack_i   ( mem_ack_o | mem_err_o ),
-    .adr_o   ( queue_adr  ),
-    .size_o  ( queue_size ),
-    .lock_o  ( queue_lock ),
-    .prot_o  ( queue_prot ),
-    .we_o    ( queue_we   ),
-    .q_o     ( queue_d    ),
+    .cm_clean_i      ( cm_clean_i          ),
+    .cm_invalidate_i ( cm_invalidate_i     ),
 
-    .empty_o (            ),
-    .full_o  (            ) );
+    .req_o           ( queue_req           ),
+    .ack_i           ( mem_ack_o        |
+                       mem_err_o        |
+                       mem_misaligned_o |
+                       mem_pagefault_o     ),
+
+    .adr_o           ( queue_adr           ),
+    .size_o          ( queue_size          ),
+    .lock_o          ( queue_lock          ),
+    .prot_o          ( queue_prot          ),
+    .we_o            ( queue_we            ),
+    .q_o             ( queue_d             ),
+
+    .cm_clean_o      ( queue_cm_clean      ),
+    .cm_invalidate_o ( queue_cm_invalidate ),
+
+    .empty_o         (                     ),
+    .full_o          (                     ) );
 
 
 
@@ -215,27 +230,33 @@ generate
       else
       begin : nommu_blk
           riscv_nommu #(
-            .XLEN        ( XLEN           ),
-            .PLEN        ( PLEN           ) )
+            .XLEN            ( XLEN                ),
+            .PLEN            ( PLEN                ) )
           mmu_inst (
-            .rst_ni      ( rst_ni         ),
-            .clk_i       ( clk_i          ),
-            .stall_i     ( stall          ),
+            .rst_ni          ( rst_ni              ),
+            .clk_i           ( clk_i               ),
+            .stall_i         ( stall               ),
 
-            .flush_i     ( 1'b0           ),
-            .req_i       ( queue_req      ),
-            .adr_i       ( queue_adr      ), //virtual address
-            .size_i      ( queue_size     ),
-            .lock_i      ( queue_lock     ),
-            .we_i        ( queue_we       ),
+            .flush_i         ( 1'b0                ),
+            .req_i           ( queue_req           ),
+            .adr_i           ( queue_adr           ), //virtual address
+            .size_i          ( queue_size          ),
+            .lock_i          ( queue_lock          ),
+            .we_i            ( queue_we            ),
 
-            .req_o       ( mmu_req        ),
-            .adr_o       ( mmu_adr        ), //physical address
-            .size_o      ( mmu_size       ),
-            .lock_o      ( mmu_lock       ),
-            .we_o        ( mmu_we         ),
+            .cm_clean_i      ( queue_cm_clean      ),
+            .cm_invalidate_i ( queue_cm_invalidate ),
 
-            .pagefault_o ( mmu_pagefault  ) );
+            .req_o           ( mmu_req             ),
+            .adr_o           ( mmu_adr             ), //physical address
+            .size_o          ( mmu_size            ),
+            .lock_o          ( mmu_lock            ),
+            .we_o            ( mmu_we              ),
+
+            .cm_clean_o      ( mmu_cm_clean        ),
+            .cm_invalidate_o ( mmu_cm_invalidate   ),
+
+            .pagefault_o     ( mmu_pagefault       ) );
       end
 
 
@@ -373,8 +394,8 @@ generate
         .mem_pagefault_o   ( mem_pagefault_o   ),
 
 	//Cache Block Management
-	.invalidate_i      ( cm_invalidate_i   ),
-        .clean_i           ( cm_clean_i        ),
+	.invalidate_i      ( mmu_cm_invalidate ),
+        .clean_i           ( mmu_cm_clean      ),
         .clean_rdy_o       ( cm_clean_rdy_o    ),
 
         //To BIU
