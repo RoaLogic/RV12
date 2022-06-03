@@ -78,6 +78,7 @@ module riscv_membuf #(
   // Typedefs
   //
   typedef struct packed {
+    logic             req;
     logic [XLEN -1:0] adr;
     biu_size_t        size;
     logic             lock;
@@ -108,6 +109,7 @@ module riscv_membuf #(
   //
 
   // Assign queue-data
+  assign queue_d.req           = req_i;
   assign queue_d.adr           = adr_i;
   assign queue_d.size          = size_i;
   assign queue_d.lock          = lock_i;
@@ -157,13 +159,13 @@ module riscv_membuf #(
 
 
   //queue outputs
-  assign req_o           = ~empty_o | req_i;
-  assign adr_o           =  empty_o ? adr_i           : queue_q.adr;
-  assign size_o          =  empty_o ? size_i          : queue_q.size;
-  assign lock_o          =  empty_o ? lock_i          : queue_q.lock;
-  assign prot_o          =  empty_o ? prot_i          : queue_q.prot;
-  assign we_o            =  empty_o ? we_i            : queue_q.we;
-  assign q_o             =  empty_o ? d_i             : queue_q.d;
-  assign cm_clean_o      =  empty_o ? cm_clean_i      : queue_q.cm_clean;
-  assign cm_invalidate_o =  empty_o ? cm_invalidate_i : queue_q.cm_invalidate;
+  assign req_o           = empty_o ? req_i           : queue_q.req;
+  assign adr_o           = empty_o ? adr_i           : queue_q.adr;
+  assign size_o          = empty_o ? size_i          : queue_q.size;
+  assign lock_o          = empty_o ? lock_i          : queue_q.lock;
+  assign prot_o          = empty_o ? prot_i          : queue_q.prot;
+  assign we_o            = empty_o ? we_i            : queue_q.we;
+  assign q_o             = empty_o ? d_i             : queue_q.d;
+  assign cm_clean_o      = empty_o ? cm_clean_i      : queue_q.cm_clean;
+  assign cm_invalidate_o = empty_o ? cm_invalidate_i : queue_q.cm_invalidate;
 endmodule
