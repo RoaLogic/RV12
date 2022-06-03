@@ -208,7 +208,6 @@ module riscv_cache_memory #(
   logic [BLK_BITS    -1:0]           dat_out         [WAYS],  //data memory output
                                      dat_out_bypassed[WAYS];  //data memory output with writebuffer bypass
   logic [BLK_BITS    -1:0]           way_q_mux       [WAYS];  //data out multiplexor
-  logic [BLK_BITS    -1:0]           dat_byp_q;
 
 
   /* EVICT
@@ -361,8 +360,8 @@ generate
 
 
       //extract 'dirty' from tag
-      assign way_dirty[way] = (tag_out[way].valid    & tag_out[way].dirty         ) |
-                              (bypass_writebuffer_we & writebuffer_ways_hit_i[way]);
+      assign way_dirty[way] = (tag_out[way].valid         & tag_out[way].dirty         ) |
+                              (bypass_writebuffer_we[way] & writebuffer_ways_hit_i[way]);
 
 
       /* TAG Write Enable
@@ -457,15 +456,6 @@ endgenerate
   //generate DAT-memory byte enable
   assign dat_be = writebuffer_we ? writebuffer_be_i
                                  : {BLK_BITS/8{1'b1}};
-
-  
-  //dat-register for bypass (RAW hazard)
-  always @(posedge clk_i)
-    if (biumem_we) dat_byp_q <= dat_in;
-    else           dat_byp_q <= be_mux(bypass_writebuffer_we,
-                                       writebuffer_be_i,
-                                       dat_byp_q,
-                                       {BLK_BITS/XLEN{writebuffer_data_i}});
 
 
 generate
