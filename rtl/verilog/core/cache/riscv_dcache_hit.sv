@@ -224,6 +224,7 @@ module riscv_dcache_hit #(
 
   logic                      invalidate_hold,
                              clean_hold,
+                             clean_hold_clr,                                         //when there's nothing to clear...
                              clean_rdy,
                              clean_block,
                              invalidate_block,
@@ -256,7 +257,7 @@ module riscv_dcache_hit #(
 
   always @(posedge clk_i, negedge rst_ni)
     if (!rst_ni) clean_hold <= 1'b0;
-    else         clean_hold <= clean_i | (clean_hold & ~cleaning_o);
+    else         clean_hold <= clean_i | (clean_hold & ~(cleaning_o | clean_hold_clr) );
 
 
   /* State Machine
@@ -295,7 +296,7 @@ module riscv_dcache_hit #(
                            end
                            else if (invalidate_hold)
                            begin
-                               if (writebuffer_we_o) writebuffer_cleaning   = 1'b1;  //wait for writebuffer to empty
+                               if (writebuffer_we_o) writebuffer_cleaning  = 1'b1;   //wait for writebuffer to empty
                                else                  invalidate_all_blocks = 1'b1;
                            end
                            else if (valid_req && !cacheable_i && !biucmd_busy_i)
@@ -438,6 +439,7 @@ module riscv_dcache_hit #(
         invalidate_block_o      <= 1'b0;
         filling_o               <= 1'b0;
         fill_way_o              <=  'hx;
+        clean_hold_clr          <= 1'b0;
         clean_rdy_o             <= 1'b1;
         evict_read_o            <= 1'b0;
         writebuffer_cleaning_o  <= 1'b1;
@@ -447,6 +449,7 @@ module riscv_dcache_hit #(
         memfsm_state            <= nxt_memfsm_state;
         biucmd_o                <= nxt_biucmd;
         fill_way_o              <= fill_way;
+        clean_hold_clr          <= 1'b0;
         clean_rdy_o             <= clean_rdy;
         invalidate_all_blocks_o <= invalidate_all_blocks;
         invalidate_block_o      <= invalidate_block;
@@ -460,7 +463,7 @@ module riscv_dcache_hit #(
                             filling_o  <= 1'b0;
 
                             if (clean_hold && !writebuffer_we_o)
-                              if (~cache_dirty_i) cleaning_o <= 1'b1;
+                              if (!cache_dirty_i) clean_hold_clr <= 1'b1;
                         end
 
           CLEAN0      : begin
@@ -596,9 +599,9 @@ module riscv_dcache_hit #(
   always_comb
     unique case (memfsm_state)
       ARMED       : begin
-                        stall_o    = clean_hold                               |      //cacheflush pending
-                                    (valid_req & ~cacheable_i               ) |      //non-cacheable access
-                                    (valid_req &  cacheable_i & ~cache_hit_i);       //cacheable access
+                        stall_o    =(clean_hold & ~clean_hold_clr            ) |      //cacheclean pending
+                                    (valid_req  & ~cacheable_i               ) |      //non-cacheable access
+                                    (valid_req  &  cacheable_i & ~cache_hit_i);       //cacheable access
 
 		        latchmem_o = ~stall_o;
                     end
