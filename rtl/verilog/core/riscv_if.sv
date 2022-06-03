@@ -868,7 +868,12 @@ module riscv_if #(
       if (pd_latch_nxt_pc_i)         if_insn_o.bubble <= 1'b1;
       else                           if_insn_o.bubble <= if_nxt_insn_o.bubble;
 
-      
+
+  always @(posedge clk_i, negedge rst_ni)
+    if (rst_ni) if_insn_o.dbg <= 1'b0;
+    else        if_insn_o.dbg <= du_stall_i;
+
+
   //exceptions
   always @(posedge clk_i, negedge rst_ni)
     if      (!rst_ni    ) if_exceptions_o <= {$bits(if_exceptions_o){1'b0}};

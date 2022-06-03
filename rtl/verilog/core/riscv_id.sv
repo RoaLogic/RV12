@@ -298,6 +298,11 @@ module riscv_id #(
     if (!stalls) id_insn_o.instr <= pd_insn_i.instr;
 
 
+  always @(posedge clk_i, negedge rst_ni)
+    if      (!rst_ni) id_insn_o.dbg <= 1'b0;
+    else if (!stalls) id_insn_o.dbg <= pd_insn_i.dbg;
+
+
   always @(posedge clk_i,negedge rst_ni)
     if      (!rst_ni                  ) id_bubble_r <= 1'b1;
     else if ( bu_flush_i || st_flush_i) id_bubble_r <= 1'b1;

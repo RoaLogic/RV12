@@ -143,6 +143,8 @@ package riscv_opcodes_pkg;
   
   //Instruction type = bubble + joined instruction formats
   typedef struct packed {
+    logic   dbg;
+
     logic   bubble;
     instr_t instr;
   } instruction_t;

@@ -871,6 +871,7 @@ endgenerate
     .mem_insn_i        ( mem_insn         [MEM_STAGES-1] ),
     .mem_exceptions_i  ( mem_exceptions_dn[MEM_STAGES-1] ),
     .mem_memadr_i      ( mem_memadr       [MEM_STAGES-1] ),
+    .wb_insn_i         ( wb_insn                         ),
     .dmem_ack_i        ( dmem_ack_i                      ),
     .ex_stall_i        ( ex_stall                        ),
 
