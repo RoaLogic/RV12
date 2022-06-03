@@ -86,6 +86,7 @@ module riscv_du #(
                                   if_insn_i,
                                   pd_insn_i,
                                   mem_insn_i,
+                                  wb_insn_i, //only for 'dbg' signal
 
   input  interrupts_exceptions_t  mem_exceptions_i,
   input      [XLEN          -1:0] mem_memadr_i,
@@ -136,7 +137,8 @@ module riscv_du #(
   // Variables
   //
   logic                                dbg_strb_i_dly,
-                                       du_stall_dly;
+                                       du_stall_dly,
+                                       wb_dbg_dly;
 				       
   logic [DBG_ADDR_SIZE-1:DU_ADDR_SIZE] du_bank_addr;
   logic                                du_sel_internal,
@@ -219,9 +221,14 @@ module riscv_du #(
     else         du_stall_dly <= dbg_stall_i;
 
 
-  assign du_latch_nxt_pc_o =  dbg_stall_i & ~du_stall_dly; //Latch nxt-pc address while entering debug
-  assign du_flush_cache_o  =  du_latch_nxt_pc_o;
-  assign du_flush_o        = ~dbg_stall_i &  du_stall_dly; // & |du_exceptions_i; //flush upon debug exit. Maybe program memory contents changed
+  always @(posedge clk_i,negedge rst_ni)
+    if (!rst_ni) wb_dbg_dly <= 1'b0;
+    else         wb_dbg_dly <= wb_insn_i.dbg;
+
+
+  assign du_latch_nxt_pc_o =  dbg_stall_i   & ~du_stall_dly; //Latch nxt-pc address while entering debug
+  assign du_flush_cache_o  =  wb_insn_i.dbg & ~wb_dbg_dly;   //flush cache when stall exits CPU pipeline (i.e. all pending instructions executed)
+  assign du_flush_o        = ~dbg_stall_i   &  du_stall_dly; // & |du_exceptions_i; //flush upon debug exit. Maybe program memory contents changed
 
 
   always @(posedge clk_i)
