@@ -870,8 +870,8 @@ module riscv_if #(
 
 
   always @(posedge clk_i, negedge rst_ni)
-    if (rst_ni) if_insn_o.dbg <= 1'b0;
-    else        if_insn_o.dbg <= du_stall_i;
+    if (!rst_ni) if_insn_o.dbg <= 1'b0;
+    else         if_insn_o.dbg <= du_stall_i;
 
 
   //exceptions
