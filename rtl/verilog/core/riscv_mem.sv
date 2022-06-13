@@ -90,7 +90,12 @@ module riscv_mem #(
     if (!mem_stall_i) mem_insn_o.instr <= mem_insn_i.instr;
 
 
-  always @(posedge clk_i,negedge rst_ni)
+  always @(posedge clk_i, negedge rst_ni)
+    if      (!rst_ni     ) mem_insn_o.dbg <= 1'b0;
+    else if (!mem_stall_i) mem_insn_o.dbg <= mem_insn_i.dbg;
+
+
+  always @(posedge clk_i, negedge rst_ni)
     if      (!rst_ni                 ) mem_insn_o.bubble <= 1'b1;
     else if ( mem_exceptions_up_i.any) mem_insn_o.bubble <= 1'b1;
     else if (!mem_stall_i            ) mem_insn_o.bubble <= mem_insn_i.bubble;

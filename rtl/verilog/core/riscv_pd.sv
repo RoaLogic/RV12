@@ -204,6 +204,11 @@ module riscv_pd #(
     else if (!id_stall_i) pd_insn_o.instr <= if_insn_i.instr;
 
 
+  always @(posedge clk_i, negedge rst_ni)
+    if      (!rst_ni    ) pd_insn_o.dbg <= 1'b0;
+    else if (!id_stall_i) pd_insn_o.dbg <= if_insn_i.dbg;
+    
+
   //Bubble
   always @(posedge clk_i, negedge rst_ni)
     if      (!rst_ni              ) pd_insn_o.bubble <= 1'b1;

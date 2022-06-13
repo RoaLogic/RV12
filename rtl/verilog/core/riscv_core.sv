@@ -247,7 +247,8 @@ module riscv_core #(
 
   //Debug
   logic                      du_latch_nxt_pc;
-  logic                      du_we_rf,
+  logic                      du_re_rf,
+                             du_we_rf,
                              du_we_frf,
                              du_re_csr,
                              du_we_csr,
@@ -771,7 +772,7 @@ endgenerate
     .pd_stall_i  ( pd_stall   ),
     .id_stall_i  ( id_stall   ),
 
-    .du_stall_i  ( du_stall   ),
+    .du_re_rf_i  ( du_re_rf   ),
     .du_we_rf_i  ( du_we_rf   ),
     .du_d_i      ( du_dato    ),
     .du_rf_q_o   ( du_dati_rf ),
@@ -842,6 +843,7 @@ endgenerate
     .du_latch_nxt_pc_o ( du_latch_nxt_pc                 ),
     .du_flush_o        ( du_flush                        ),
     .du_flush_cache_o  ( du_flush_cache                  ),
+    .du_re_rf_o        ( du_re_rf                        ),
     .du_we_rf_o        ( du_we_rf                        ),
     .du_we_frf_o       ( du_we_frf                       ),
     .du_re_csr_o       ( du_re_csr                       ),
@@ -869,6 +871,7 @@ endgenerate
     .mem_insn_i        ( mem_insn         [MEM_STAGES-1] ),
     .mem_exceptions_i  ( mem_exceptions_dn[MEM_STAGES-1] ),
     .mem_memadr_i      ( mem_memadr       [MEM_STAGES-1] ),
+    .wb_insn_i         ( wb_insn                         ),
     .dmem_ack_i        ( dmem_ack_i                      ),
     .ex_stall_i        ( ex_stall                        ),
 

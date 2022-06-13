@@ -46,12 +46,18 @@ module riscv_nommu #(
   input                   lock_i,
   input  logic            we_i,
 
+  input  logic            cm_clean_i,
+  input  logic            cm_invalidate_i,
+
   //To memory subsystem
   output logic            req_o,
   output logic [PLEN-1:0] adr_o,
   output biu_size_t       size_o,
   output logic            lock_o,
   output logic            we_o,
+
+  output logic            cm_clean_o,
+  output logic            cm_invalidate_o,
   
   output logic            pagefault_o
 );
@@ -83,10 +89,13 @@ module riscv_nommu #(
   always @(posedge clk_i)
     if (!stall_i)
     begin
-        adr_o  <= XLEN == 32 ? {2'h0,adr_i} : adr_i[PLEN-1:0];
-        size_o <= size_i;
-        lock_o <= lock_i;
-        we_o   <= we_i;
+        adr_o           <= XLEN == 32 ? {2'h0,adr_i} : adr_i[PLEN-1:0];
+        size_o          <= size_i;
+        lock_o          <= lock_i;
+        we_o            <= we_i;
+
+	cm_clean_o      <= cm_clean_i;
+	cm_invalidate_o <= cm_invalidate_i;
     end
 
   assign pagefault_o = 1'b0;

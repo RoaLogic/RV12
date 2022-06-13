@@ -106,9 +106,14 @@ module riscv_wb #(
   /*
    * Instruction
    */
+  always @(posedge clk_i)
+    if (!wb_stall_o) wb_insn_o.instr <= mem_insn_i.instr;
+
+
   always @(posedge clk_i, negedge rst_ni)
-    if      (!rst_ni    ) wb_insn_o.instr <= INSTR_NOP;
-    else if (!wb_stall_o) wb_insn_o.instr <= mem_insn_i.instr;
+    if      (!rst_ni    ) wb_insn_o.dbg <= 1'b0;
+    else if (!wb_stall_o) wb_insn_o.dbg <= 1'b1;
+
 
   assign opcR = decode_opcR(mem_insn_i.instr);
   assign dst  = decode_rd(mem_insn_i.instr);

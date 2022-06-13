@@ -161,6 +161,10 @@ module riscv_ex #(
   always @(posedge clk_i)
     if (!ex_stall_o) ex_insn_o.instr <= id_insn_i.instr;
 
+  always @(posedge clk_i, negedge rst_ni)
+    if      (!rst_ni    ) ex_insn_o.dbg <= 1'b0;
+    else if (!ex_stall_o) ex_insn_o.dbg <= id_insn_i.dbg;
+    
 
   /*
    * Bypasses
