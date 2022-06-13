@@ -954,15 +954,13 @@ endgenerate
 
   always_comb
     if      (bu_flush_i || st_flush_i || du_flush_i) id_stall_o = 'b0;        //flush overrules stall
-    else if (stalls                                ) id_stall_o = 'b1;
+    else if (stalls                                ) id_stall_o =1'b1;// ~pd_insn_i.bubble; //TODO
     else                                             id_stall_o = stall_ld_id | stall_ld_ex | |stall_ld_mem;
 
 
   /*
    * Generate Illegal Instruction
    */
-
-  //TODO RVC Illegal Instructions
   always_comb
     casex (pd_opcR.opcode)
       OPC_LOAD  : illegal_instr = illegal_lsu_instr;
