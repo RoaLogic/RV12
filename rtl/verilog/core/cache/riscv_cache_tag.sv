@@ -60,6 +60,7 @@ module riscv_cache_tag #(
   input  logic                     invalidate_i,
   input  logic                     clean_i,
   input  logic                     pagefault_i,
+  input  logic                     invalidate_all_block_i,
 
   output logic                     req_o,
   output logic                     wreq_o,
@@ -130,17 +131,16 @@ module riscv_cache_tag #(
         pagefault_o  <= pagefault_i;
     end
 
+
   always @(posedge clk_i, negedge rst_ni)
-    if (!rst_ni)
-    begin
-        invalidate_o <= 1'b0;
-        clean_o      <= 1'b0;
-    end
-    else if (!stall_i)
-    begin
-        invalidate_o <= invalidate_i;
-        clean_o      <= clean_i;
-    end
+    if      (!rst_ni ) clean_o <= 1'b0;
+    else if (!stall_i) clean_o <= clean_i;
+
+
+  always @(posedge clk_i, negedge rst_ni)
+    if      (!rst_ni                 ) invalidate_o <= 1'b0;
+    else if ( invalidate_all_blocks_i) invalidate_o <= 1'b0;
+    else if (!stall_i                ) invalidate_o <= invalidate_i;
 
 
   //core-tag

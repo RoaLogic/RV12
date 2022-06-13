@@ -352,6 +352,7 @@ endgenerate
     .invalidate_i              ( setup_invalidate        ),
     .clean_i                   ( setup_clean             ),
     .pagefault_i               ( pagefault_i             ), //aligned with phys_adr_i
+    .invalidate_all_blocks_i   ( invalidate_all_blocks   ),
 
     .req_o                     ( tag_req                 ),
     .wreq_o                    ( tag_wreq                ),

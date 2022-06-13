@@ -303,6 +303,7 @@ endgenerate
     .d_i                       ( {XLEN{1'b0}}            ),
     .invalidate_i              ( setup_invalidate        ),
     .clean_i                   (                         ),
+    .invalidate_all_blocks_i   ( invalidate_all_blocks   ),
 
     .req_o                     ( tag_req                 ),
     .wreq_o                    (                         ),
