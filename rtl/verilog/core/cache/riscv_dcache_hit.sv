@@ -680,7 +680,7 @@ module riscv_dcache_hit #(
 
 
   //generate Page Fault
-  always @(posedge clk_i) pagefault_o <= pagefault_i;
+  always @(posedge clk_i) pagefault_o <= req_i & pagefault_i;
 
 
   //Bypass on writebuffer_we?
