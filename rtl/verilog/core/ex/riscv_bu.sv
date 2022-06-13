@@ -281,14 +281,14 @@ module riscv_bu #(
                                    end
                       endcase
       default       : begin
-                          btaken     = 'b0;
-                          bp_update  = 'b0;
-                          pipeflush  = 'b0;
-                          cacheflush = 'b0;
+                          btaken        = 'b0;
+                          bp_update     = 'b0;
+                          pipeflush     = 'b0;
+                          cacheflush    = 'b0;
                           ic_invalidate = 'b0;
                           dc_invalidate = 'b0;
                           dc_clean      = 'b0;
-                          nxt_pc     = id_pc_i + (is_16bit_instruction ? 'h2 : 'h4);
+                          nxt_pc        = id_pc_i + (is_16bit_instruction ? 'h2 : 'h4);
                       end
     endcase
 
@@ -312,7 +312,7 @@ module riscv_bu #(
     end
     else
     begin
-        bu_flush_o                <= pipeflush;
+        bu_flush_o                <= (pipeflush === 1'b1);
         cm_ic_invalidate_o        <= ic_invalidate;
         cm_dc_invalidate_o        <= dc_invalidate;
         cm_dc_clean_o             <= dc_clean;
