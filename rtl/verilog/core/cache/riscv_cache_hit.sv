@@ -59,8 +59,8 @@ module riscv_cache_hit #(
   output logic                        stall_o,
   input  logic                        flush_i,                 //flush pipe
 
-  input  logic                        invalidate_i,            //flush cache
-  input  logic                        dc_clean_rdy_i,          //data cache flush ready
+  input  logic                        invalidate_i,            //invalidate cache
+  input  logic                        dc_clean_rdy_i,          //data cache clean ready
 
   output logic                        armed_o,
   output logic                        invalidate_all_blocks_o, //invalidate all cache valid bits
