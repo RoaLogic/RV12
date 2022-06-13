@@ -302,7 +302,7 @@ module riscv_cache_hit #(
       READ      : biucmd_noncacheable_req_o = 1'b0;
       RECOVER0  : biucmd_noncacheable_req_o = 1'b0;
       RECOVER1  : biucmd_noncacheable_req_o = 1'b0;
-      default   : biucmd_noncacheable_req_o = valid_req & ~cacheable_i;
+      default   : biucmd_noncacheable_req_o = valid_req & ~cacheable_i & ~(invalidate_i | invalidate_hold);
     endcase
 
 
@@ -323,7 +323,7 @@ module riscv_cache_hit #(
   //Cache core halt signal
   always_comb
     unique case (memfsm_state)
-      ARMED       : stall_o =  (invalidate_i | invalidate_hold) |
+      ARMED       : stall_o = (invalidate_i | invalidate_hold) |
                               (valid_req & (cacheable_i ? ~cache_hit_i : ~biu_stb_ack_i));
 
       //req_i == 0 ? stall=|inflight_cnt
