@@ -126,8 +126,19 @@ module riscv_cache_setup #(
         prot_o       <= prot_i;
         we_o         <= we_i;
         q_o          <= d_i;
-	invalidate_o <= invalidate_i | invalidate_hold;
-	clean_o      <= clean_i      | clean_hold;
+    end
+
+
+  always @(posedge clk_i, negedge rst_ni)
+    if (!rst_ni)
+    begin
+        invalidate_o <= 1'b0;
+        clean_o      <= 1'b0;
+    end
+    else if (!stall_i)
+    begin
+        invalidate_o <= invalidate_i | invalidate_hold;
+        clean_o      <= clean_i      | clean_hold;
     end
 
 
