@@ -60,7 +60,7 @@ module riscv_cache_tag #(
   input  logic                     invalidate_i,
   input  logic                     clean_i,
   input  logic                     pagefault_i,
-  input  logic                     invalidate_all_block_i,
+  input  logic                     invalidate_all_blocks_i,
 
   output logic                     req_o,
   output logic                     wreq_o,
