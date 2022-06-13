@@ -176,7 +176,7 @@ module riscv_cache_hit #(
   logic [XLEN          -1:0] cache_q;
   logic                      cache_ack;
   logic                      biu_cacheable_ack;
-  logic                      invalidate;
+  logic                      invalidate_hold;
   logic                      pma_pmp_exception;
   logic                      valid_req;
 
@@ -186,9 +186,6 @@ module riscv_cache_hit #(
                     READ,
                     RECOVER0,
                     RECOVER1 } memfsm_state;
-
-  logic                      invalidating;
-
 
   logic [PLEN          -1:0] biu_adro;
   logic                      biu_adro_eq_cache_adr_dly;
@@ -206,8 +203,8 @@ module riscv_cache_hit #(
 
   //hold flush until ready to be serviced
   always @(posedge clk_i, negedge rst_ni)
-    if (!rst_ni) invalidate <= 1'b0;
-    else         invalidate <= invalidate_i | (invalidate & ~invalidating);
+    if (!rst_ni) invalidate_hold <= 1'b0;
+    else         invalidate_hold <= invalidate_i | (invalidate_hold & ~invalidate_all_blocks_o);
 
 
   //State Machine
@@ -216,7 +213,6 @@ module riscv_cache_hit #(
     begin
         memfsm_state            <= ARMED;
         armed_o                 <= 1'b1;
-        invalidating            <= 1'b0;
         invalidate_all_blocks_o <= 1'b0;
         filling_o               <= 1'b0;
         fill_way_o              <=  'hx;
@@ -224,11 +220,10 @@ module riscv_cache_hit #(
     end
     else
     unique case (memfsm_state)
-       ARMED        : if (invalidate_i | invalidate)
+       ARMED        : if (invalidate_i | invalidate_hold)
                       begin
                           memfsm_state            <= INVALIDATE;
                           armed_o                 <= 1'b0;
-                          invalidating            <= 1'b1;
                           invalidate_all_blocks_o <= 1'b1;
                       end
 		      else if (valid_req && !cacheable_i)
@@ -253,7 +248,6 @@ module riscv_cache_hit #(
        INVALIDATE   : if (dc_clean_rdy_i) //wait for data-cache to complete cleaning
                       begin
                           memfsm_state            <= RECOVER0; //allow to read new tag_idx
-                          invalidating            <= 1'b0;
                           invalidate_all_blocks_o <= 1'b0;
                       end
 
@@ -329,7 +323,7 @@ module riscv_cache_hit #(
   //Cache core halt signal
   always_comb
     unique case (memfsm_state)
-      ARMED       : stall_o =  invalidate |
+      ARMED       : stall_o =  (invalidate_i | invalidate_hold) |
                               (valid_req & (cacheable_i ? ~cache_hit_i : ~biu_stb_ack_i));
 
       //req_i == 0 ? stall=|inflight_cnt
@@ -369,7 +363,7 @@ module riscv_cache_hit #(
 
 
   //acknowledge cache hit
-  assign cache_ack         =  valid_req & cacheable_i & cache_hit_i & ~invalidate;
+  assign cache_ack         =  valid_req & cacheable_i & cache_hit_i & ~(invalidate_i | invalidate_hold);
   assign biu_cacheable_ack = (valid_req & biu_ack_i & biu_adro_eq_cache_adr_dly) |
                               cache_ack;
 
