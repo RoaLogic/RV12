@@ -112,7 +112,7 @@ module riscv_wb #(
 
   always @(posedge clk_i, negedge rst_ni)
     if      (!rst_ni    ) wb_insn_o.dbg <= 1'b0;
-    else if (!wb_stall_o) wb_insn_o.dbg <= 1'b1;
+    else if (!wb_stall_o) wb_insn_o.dbg <= mem_insn_i.dbg;
 
 
   assign opcR = decode_opcR(mem_insn_i.instr);
