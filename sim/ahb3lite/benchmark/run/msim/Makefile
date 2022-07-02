@@ -59,17 +59,25 @@ sim: vlog
 
 simw: vlog
 	echo "--- Running sim with waveform dump"
-	vsim $(SIM_OPTS) 							\
-	  -l $(LOG) $(TOP)							\
-	  +access +r -wlf $(TOP).wlf						\
-	  -do "set WildcardFilter [lsearch -not -all -inline $$WildcardFilter Memory];	\
-               log -r /$(TOP)/*;							\
-	       log /$(TOP)/dut/core/int_rf/rf;						\
-	       log /$(TOP)/dut/dmem_ctrl_inst/genblk1/dcache_inst/cache_memory_inst/tag_out;	\
-	       log /$(TOP)/dut/dmem_ctrl_inst/genblk1/dcache_inst/cache_memory_inst/tag_in;	\
-	       log /$(TOP)/dut/dmem_ctrl_inst/genblk1/dcache_inst/cache_memory_inst/dat_out;	\
-	       log /$(TOP)/dut/dmem_ctrl_inst/genblk1/dcache_inst/cache_memory_inst/way_q_mux;	\
-	       run -all;								\
+	vsim $(SIM_OPTS) 										\
+	  -l $(LOG) $(TOP)										\
+	  +access +r -wlf $(TOP).wlf									\
+	  -do "set WildcardFilter [lsearch -not -all -inline $$WildcardFilter Memory];			\
+               log -r /$(TOP)/*;									\
+	       log /$(TOP)/dut/core/mem_pc;								\
+	       log /$(TOP)/dut/core/mem_insn;								\
+	       log /$(TOP)/dut/core/mem_exceptions;							\
+	       log /$(TOP)/dut/core/mem_r;								\
+	       log /$(TOP)/dut/core/id_unit/mem_insn_i;							\
+	       log /$(TOP)/dut/core/id_unit/mem_opcode;							\
+	       log /$(TOP)/dut/core/id_unit/mem_rd;							\
+	       log /$(TOP)/dut/core/id_unit/can_use_memr;						\
+	       log /$(TOP)/dut/core/int_rf/rf;								\
+	       log /$(TOP)/dut/dmem_ctrl_inst/cache_blk/dcache_inst/cache_memory_inst/tag_out;		\
+	       log /$(TOP)/dut/dmem_ctrl_inst/cache_blk/dcache_inst/cache_memory_inst/tag_in;		\
+	       log /$(TOP)/dut/dmem_ctrl_inst/cache_blk/dcache_inst/cache_memory_inst/dat_out;		\
+	       log /$(TOP)/dut/dmem_ctrl_inst/cache_blk/dcache_inst/cache_memory_inst/way_q_mux;	\
+	       run -all;										\
 	       quit"				\
 	$(foreach p, $(PARAMS),-g`echo $p | sed -r 's/(\w+)=([^0-9].*)/\1="\2"/'`)
 	
