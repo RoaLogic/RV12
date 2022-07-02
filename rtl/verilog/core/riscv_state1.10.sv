@@ -678,7 +678,7 @@ $display ("NMI");
         end
         else if (take_interrupt && !du_stall_i && !du_flush_i)
         begin
-$display ("take_interrupt");
+$display ("take_interrupt %x @%0t", wb_exceptions_i.interrupts, $time);
             st_flush_o  <= 1'b1;
 
             //Check if interrupts are delegated
