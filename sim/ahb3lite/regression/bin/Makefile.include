@@ -81,6 +81,7 @@ RTL_VLOG = $(DUT_SRC_DIR)/pkg/riscv_rvl_pkg.sv			\
 	   $(DUT_SRC_DIR)/core/ex/riscv_mul.sv			\
 	   $(DUT_SRC_DIR)/core/ex/riscv_div.sv			\
 	   $(DUT_SRC_DIR)/core/riscv_if.sv			\
+	   $(DUT_SRC_DIR)/core/riscv_rsb.sv			\
 	   $(DUT_SRC_DIR)/core/riscv_pd.sv			\
 	   $(DUT_SRC_DIR)/core/riscv_id.sv			\
 	   $(DUT_SRC_DIR)/core/riscv_ex.sv			\
