@@ -1,3 +1,16 @@
 docs/build
 
 favicon.ico
+
+#ignore all vi(m) swap files
+**.swp
+
+#ignore all files in sim/run directory
+sim/ahb3lite/benchmark/run/*
+sim/ahb3lite/regression/run/*
+
+#except for the makefile (links)
+!sim/ahb3lite/benchmark/run/Makefile
+!sim/ahb3lite/benchmark/run/Makefile.include
+!sim/ahb3lite/regression/run/Makefile
+!sim/ahb3lite/regression/run/Makefile.include

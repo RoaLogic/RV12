@@ -10,7 +10,7 @@
 //                                                                 //
 /////////////////////////////////////////////////////////////////////
 //                                                                 //
-//             Copyright (C) 2018 ROA Logic BV                     //
+//             Copyright (C) 2018-2021 Roa Logic BV                //
 //             www.roalogic.com                                    //
 //                                                                 //
 //     Unless specifically agreed in writing, this software is     //
@@ -65,57 +65,59 @@ module riscv_state1_10 #(
   parameter            HARTID                = 0      //hardware thread-id
 )
 (
-  input                                 rstn,
-  input                                 clk,
+  input                             rst_ni,
+  input                             clk_i,
 
-  input            [XLEN          -1:0] id_pc,
-  input                                 id_bubble,
-  input            [ILEN          -1:0] id_instr,
-  input                                 id_stall,
+  input               [XLEN   -1:0] id_pc_i,
+  input  instruction_t              id_insn_i,
 
-  input                                 bu_flush,
-  input            [XLEN          -1:0] bu_nxt_pc,
-  output reg                            st_flush,
-  output reg       [XLEN          -1:0] st_nxt_pc,
+  input                             bu_flush_i,
+  input               [XLEN   -1:0] bu_nxt_pc_i,
+  output reg                        st_flush_o,
+  output reg          [XLEN   -1:0] st_nxt_pc_o,
 
-  input            [XLEN          -1:0] wb_pc,
-  input                                 wb_bubble,
-  input            [ILEN          -1:0] wb_instr,
-  input            [EXCEPTION_SIZE-1:0] wb_exception,
-  input            [XLEN          -1:0] wb_badaddr,
+  input               [XLEN   -1:0] wb_pc_i,
+  input  instruction_t              wb_insn_i,
+  input  interrupts_exceptions_t    wb_exceptions_i,
+  input               [XLEN   -1:0] wb_badaddr_i,
 
-  output reg                            st_interrupt,
-  output reg       [               1:0] st_prv,        //Privilege level
-  output reg       [               1:0] st_xlen,       //Active Architecture
-  output                                st_tvm,        //trap on satp access or SFENCE.VMA
-                                        st_tw,         //trap on WFI (after time >=0)
-                                        st_tsr,        //trap SRET
-  output           [XLEN          -1:0] st_mcounteren,
-                                        st_scounteren,
-  output pmpcfg_t         [PMP_CNT-1:0] st_pmpcfg,
-  output     [PMP_CNT-1:0][XLEN          -1:0] st_pmpaddr,
+  output reg          [        1:0] st_prv_o,        //Privilege level
+  output reg          [        1:0] st_xlen_o,       //Active Architecture
+  output                            st_tvm_o,        //trap on satp access or SFENCE.VMA
+                                    st_tw_o,         //trap on WFI (after time >=0)
+                                    st_tsr_o,        //trap SRET
+  output              [XLEN   -1:0] st_mcounteren_o,
+                                    st_scounteren_o,
+  output pmpcfg_t     [       15:0] st_pmpcfg_o,
+  output [       15:0][XLEN   -1:0] st_pmpaddr_o,
 
 
   //interrupts (3=M-mode, 0=U-mode)
-  input            [               3:0] ext_int,       //external interrupt (per privilege mode; determined by PIC)
-  input                                 ext_tint,      //machine timer interrupt
-                                        ext_sint,      //machine software interrupt (for ipi)
-  input                                 ext_nmi,       //non-maskable interrupt
+  input               [        3:0] int_external_i,  //external interrupt (per privilege mode; determined by PIC)
+  input                             int_timer_i,     //machine timer interrupt
+                                    int_software_i,  //machine software interrupt (for ipi)
+  output interrupts_t               st_int_o,
 
+  
   //CSR interface
-  input            [              11:0] ex_csr_reg,
-  input                                 ex_csr_we,
-  input            [XLEN          -1:0] ex_csr_wval,
-  output reg       [XLEN          -1:0] st_csr_rval,
+  input                             pd_stall_i,
+  input                             id_stall_i,
+  input               [       11:0] pd_csr_reg_i,
+  input               [       11:0] ex_csr_reg_i,
+  input                             ex_csr_we_i,
+  input               [XLEN   -1:0] ex_csr_wval_i,
+  output reg          [XLEN   -1:0] st_csr_rval_o,
 
   //Debug interface
-  input                                 du_stall,
-                                        du_flush,
-                                        du_we_csr,
-  input            [XLEN          -1:0] du_dato,       //output from debug unit
-  input            [              11:0] du_addr,
-  input            [              31:0] du_ie,
-  output           [              31:0] du_exceptions
+  input                             du_stall_i,
+                                    du_flush_i,
+                                    du_re_csr_i,
+                                    du_we_csr_i,
+  output reg           [XLEN  -1:0] du_csr_rval_o,
+  input                [XLEN  -1:0] du_dato_i,       //output from debug unit
+  input                [      11:0] du_addr_i,
+  input                [      31:0] du_ie_i,
+  output               [      31:0] du_exceptions_o
 );
   ////////////////////////////////////////////////////////////////
   //
@@ -262,12 +264,13 @@ module riscv_state1_10 #(
 
   logic             take_interrupt;
 
-  logic [     11:0] st_int;
   logic [      3:0] interrupt_cause,
                     trap_cause;
 
-  //Mux for debug-unit
+
+  //CSR access
   logic [     11:0] csr_raddr;    //CSR read address
+  logic [XLEN -1:0] csr_rval;     //CSR read value
   logic [XLEN -1:0] csr_wval;     //CSR write value
 
 
@@ -298,9 +301,11 @@ module riscv_state1_10 #(
   assign has_ext   = (HAS_EXT    !=   0);
 
   //Mux address/data for Debug-Unit access
-  assign csr_raddr = du_stall ? du_addr : ex_csr_reg;
-  assign csr_wval  = du_stall ? du_dato : ex_csr_wval;
+  always @(posedge clk_i)
+	  if      ( du_re_csr_i) csr_raddr <= du_addr_i;
+	  else if (!pd_stall_i ) csr_raddr <= pd_csr_reg_i;
 
+  assign csr_wval  = du_we_csr_i ? du_dato_i : ex_csr_wval_i;
 
 
   /*
@@ -336,98 +341,107 @@ module riscv_state1_10 #(
   
   //Read
   always_comb
-    case (csr_raddr)
+    unique case (csr_raddr)
       //User
-      USTATUS   : st_csr_rval = {mstatus[127],mstatus[XLEN-2:0]} & 'h11;
-      UIE       : st_csr_rval = has_n ? csr.mie & 12'h111               : 'h0;
-      UTVEC     : st_csr_rval = has_n ? csr.utvec                       : 'h0;
-      USCRATCH  : st_csr_rval = has_n ? csr.uscratch                    : 'h0;
-      UEPC      : st_csr_rval = has_n ? csr.uepc                        : 'h0;
-      UCAUSE    : st_csr_rval = has_n ? csr.ucause                      : 'h0;
-      UTVAL     : st_csr_rval = has_n ? csr.utval                       : 'h0;
-      UIP       : st_csr_rval = has_n ? csr.mip & csr.mideleg & 12'h111 : 'h0;
+      USTATUS   : csr_rval = {mstatus[127],mstatus[XLEN-2:0]} & 'h11;
+      UIE       : csr_rval = has_n ? csr.mie & 12'h111               : 'h0;
+      UTVEC     : csr_rval = has_n ? csr.utvec                       : 'h0;
+      USCRATCH  : csr_rval = has_n ? csr.uscratch                    : 'h0;
+      UEPC      : csr_rval = has_n ? csr.uepc                        : 'h0;
+      UCAUSE    : csr_rval = has_n ? csr.ucause                      : 'h0;
+      UTVAL     : csr_rval = has_n ? csr.utval                       : 'h0;
+      UIP       : csr_rval = has_n ? csr.mip & csr.mideleg & 12'h111 : 'h0;
 
-      FFLAGS    : st_csr_rval = has_fpu ? { {XLEN-$bits(csr.fcsr.flags){1'b0}},csr.fcsr.flags } : 'h0;
-      FRM       : st_csr_rval = has_fpu ? { {XLEN-$bits(csr.fcsr.rm   ){1'b0}},csr.fcsr.rm    } : 'h0;
-      FCSR      : st_csr_rval = has_fpu ? { {XLEN-$bits(csr.fcsr      ){1'b0}},csr.fcsr       } : 'h0;
-      CYCLE     : st_csr_rval = csr.mcycle[XLEN-1:0];
-//      TIME      : st_csr_rval = csr.timer[XLEN-1:0];
-      INSTRET   : st_csr_rval = csr.minstret[XLEN-1:0];
-      CYCLEH    : st_csr_rval = is_rv32 ? csr.mcycle.h   : 'h0;
-//      TIMEH     : st_csr_rval = is_rv32 ? csr.timer.h   : 'h0;
-      INSTRETH  : st_csr_rval = is_rv32 ? csr.minstret.h : 'h0;
+      FFLAGS    : csr_rval = has_fpu ? { {XLEN-$bits(csr.fcsr.flags){1'b0}},csr.fcsr.flags } : 'h0;
+      FRM       : csr_rval = has_fpu ? { {XLEN-$bits(csr.fcsr.rm   ){1'b0}},csr.fcsr.rm    } : 'h0;
+      FCSR      : csr_rval = has_fpu ? { {XLEN-$bits(csr.fcsr      ){1'b0}},csr.fcsr       } : 'h0;
+      CYCLE     : csr_rval = csr.mcycle[XLEN-1:0];
+//      TIME      : csr_rval = csr.timer[XLEN-1:0];
+      INSTRET   : csr_rval = csr.minstret[XLEN-1:0];
+      CYCLEH    : csr_rval = is_rv32 ? csr.mcycle.h   : 'h0;
+//      TIMEH     : csr_rval = is_rv32 ? csr.timer.h   : 'h0;
+      INSTRETH  : csr_rval = is_rv32 ? csr.minstret.h : 'h0;
 
       //Supervisor
-      SSTATUS   : st_csr_rval = {mstatus[127],mstatus[XLEN-2:0]} & (1 << XLEN-1 | 2'b11 << 32 | 'hde133);
-      STVEC     : st_csr_rval = has_s            ? csr.stvec                       : 'h0;
-      SCOUNTEREN: st_csr_rval = has_s            ? csr.scounteren                  : 'h0;
-      SIE       : st_csr_rval = has_s            ? csr.mie               & 12'h333 : 'h0;
-      SEDELEG   : st_csr_rval = has_s            ? csr.sedeleg                     : 'h0;
-      SIDELEG   : st_csr_rval = has_s            ? csr.mideleg           & 12'h111 : 'h0;
-      SSCRATCH  : st_csr_rval = has_s            ? csr.sscratch                    : 'h0;
-      SEPC      : st_csr_rval = has_s            ? csr.sepc                        : 'h0;
-      SCAUSE    : st_csr_rval = has_s            ? csr.scause                      : 'h0;
-      STVAL     : st_csr_rval = has_s            ? csr.stval                       : 'h0;
-      SIP       : st_csr_rval = has_s            ? csr.mip & csr.mideleg & 12'h333 : 'h0;
-      SATP      : st_csr_rval = has_s && has_mmu ? csr.satp                        : 'h0;
+      SSTATUS   : csr_rval = {mstatus[127],mstatus[XLEN-2:0]} & (1 << XLEN-1 | 2'b11 << 32 | 'hde133);
+      STVEC     : csr_rval = has_s            ? csr.stvec                       : 'h0;
+      SCOUNTEREN: csr_rval = has_s            ? csr.scounteren                  : 'h0;
+      SIE       : csr_rval = has_s            ? csr.mie               & 12'h333 : 'h0;
+      SEDELEG   : csr_rval = has_s            ? csr.sedeleg                     : 'h0;
+      SIDELEG   : csr_rval = has_s            ? csr.mideleg           & 12'h111 : 'h0;
+      SSCRATCH  : csr_rval = has_s            ? csr.sscratch                    : 'h0;
+      SEPC      : csr_rval = has_s            ? csr.sepc                        : 'h0;
+      SCAUSE    : csr_rval = has_s            ? csr.scause                      : 'h0;
+      STVAL     : csr_rval = has_s            ? csr.stval                       : 'h0;
+      SIP       : csr_rval = has_s            ? csr.mip & csr.mideleg & 12'h333 : 'h0;
+      SATP      : csr_rval = has_s && has_mmu ? csr.satp                        : 'h0;
 /*
       //Hypervisor
-      HSTATUS   : st_csr_rval = {mstatus[127],mstatus[XLEN-2:0] & (1 << XLEN-1 | 2'b11 << 32 | 'hde133);
-      HTVEC     : st_csr_rval = has_h ? csr.htvec                       : 'h0;
-      HIE       : st_csr_rval = has_h ? csr.mie & 12'h777               : 'h0;
-      HEDELEG   : st_csr_rval = has_h ? csr.hedeleg                     : 'h0;
-      HIDELEG   : st_csr_rval = has_h ? csr.mideleg & 12'h333           : 'h0;
-      HSCRATCH  : st_csr_rval = has_h ? csr.hscratch                    : 'h0;
-      HEPC      : st_csr_rval = has_h ? csr.hepc                        : 'h0;
-      HCAUSE    : st_csr_rval = has_h ? csr.hcause                      : 'h0;
-      HTVAL     : st_csr_rval = has_h ? csr.htval                       : 'h0;
-      HIP       : st_csr_rval = has_h ? csr.mip & csr.mideleg & 12'h777 : 'h0;
+      HSTATUS   : csr_rval = {mstatus[127],mstatus[XLEN-2:0] & (1 << XLEN-1 | 2'b11 << 32 | 'hde133);
+      HTVEC     : csr_rval = has_h ? csr.htvec                       : 'h0;
+      HIE       : csr_rval = has_h ? csr.mie & 12'h777               : 'h0;
+      HEDELEG   : csr_rval = has_h ? csr.hedeleg                     : 'h0;
+      HIDELEG   : csr_rval = has_h ? csr.mideleg & 12'h333           : 'h0;
+      HSCRATCH  : csr_rval = has_h ? csr.hscratch                    : 'h0;
+      HEPC      : csr_rval = has_h ? csr.hepc                        : 'h0;
+      HCAUSE    : csr_rval = has_h ? csr.hcause                      : 'h0;
+      HTVAL     : csr_rval = has_h ? csr.htval                       : 'h0;
+      HIP       : csr_rval = has_h ? csr.mip & csr.mideleg & 12'h777 : 'h0;
 */
       //Machine
-      MISA      : st_csr_rval = {csr.misa.base, {XLEN-$bits(csr.misa){1'b0}}, csr.misa.extensions};
-      MVENDORID : st_csr_rval = {{XLEN-$bits(csr.mvendorid){1'b0}}, csr.mvendorid};
-      MARCHID   : st_csr_rval = csr.marchid;
-      MIMPID    : st_csr_rval = is_rv32 ? csr.mimpid : { {XLEN-$bits(csr.mimpid){1'b0}}, csr.mimpid };
-      MHARTID   : st_csr_rval = csr.mhartid;
-      MSTATUS   : st_csr_rval = {mstatus[127],mstatus[XLEN-2:0]};
-      MTVEC     : st_csr_rval = csr.mtvec;
-      MCOUNTEREN: st_csr_rval = csr.mcounteren;
-      MNMIVEC   : st_csr_rval = csr.mnmivec;
-      MEDELEG   : st_csr_rval = csr.medeleg;
-      MIDELEG   : st_csr_rval = csr.mideleg;
-      MIE       : st_csr_rval = csr.mie & 12'hFFF;
-      MSCRATCH  : st_csr_rval = csr.mscratch;
-      MEPC      : st_csr_rval = csr.mepc;
-      MCAUSE    : st_csr_rval = csr.mcause;
-      MTVAL     : st_csr_rval = csr.mtval;
-      MIP       : st_csr_rval = csr.mip;
-      PMPCFG0   : st_csr_rval =            csr.pmpcfg[ 0 +: XLEN/8];
-      PMPCFG1   : st_csr_rval = is_rv32  ? csr.pmpcfg[ 4 +: XLEN/8] : 'h0;
-      PMPCFG2   : st_csr_rval =~is_rv128 ? csr.pmpcfg[ 8 +: XLEN/8] : 'h0;
-      PMPCFG3   : st_csr_rval = is_rv32  ? csr.pmpcfg[12 +: XLEN/8] : 'h0;
-      PMPADDR0  : st_csr_rval = csr.pmpaddr[0];
-      PMPADDR1  : st_csr_rval = csr.pmpaddr[1];
-      PMPADDR2  : st_csr_rval = csr.pmpaddr[2];
-      PMPADDR3  : st_csr_rval = csr.pmpaddr[3];
-      PMPADDR4  : st_csr_rval = csr.pmpaddr[4];
-      PMPADDR5  : st_csr_rval = csr.pmpaddr[5];
-      PMPADDR6  : st_csr_rval = csr.pmpaddr[6];
-      PMPADDR7  : st_csr_rval = csr.pmpaddr[7];
-      PMPADDR8  : st_csr_rval = csr.pmpaddr[8];
-      PMPADDR9  : st_csr_rval = csr.pmpaddr[9];
-      PMPADDR10 : st_csr_rval = csr.pmpaddr[10];
-      PMPADDR11 : st_csr_rval = csr.pmpaddr[11];
-      PMPADDR12 : st_csr_rval = csr.pmpaddr[12];
-      PMPADDR13 : st_csr_rval = csr.pmpaddr[13];
-      PMPADDR14 : st_csr_rval = csr.pmpaddr[14];
-      PMPADDR15 : st_csr_rval = csr.pmpaddr[15];
-      MCYCLE    : st_csr_rval = csr.mcycle[XLEN-1:0];
-      MINSTRET  : st_csr_rval = csr.minstret[XLEN-1:0];
-      MCYCLEH   : st_csr_rval = is_rv32 ? csr.mcycle.h   : 'h0;
-      MINSTRETH : st_csr_rval = is_rv32 ? csr.minstret.h : 'h0;
+      MISA      : csr_rval = {csr.misa.base, {XLEN-$bits(csr.misa){1'b0}}, csr.misa.extensions};
+      MVENDORID : csr_rval = {{XLEN-$bits(csr.mvendorid){1'b0}}, csr.mvendorid};
+      MARCHID   : csr_rval = csr.marchid;
+      MIMPID    : csr_rval = is_rv32 ? csr.mimpid : { {XLEN-$bits(csr.mimpid){1'b0}}, csr.mimpid };
+      MHARTID   : csr_rval = csr.mhartid;
+      MSTATUS   : csr_rval = {mstatus[127],mstatus[XLEN-2:0]};
+      MTVEC     : csr_rval = csr.mtvec;
+      MCOUNTEREN: csr_rval = csr.mcounteren;
+      MNMIVEC   : csr_rval = csr.mnmivec;
+      MEDELEG   : csr_rval = csr.medeleg;
+      MIDELEG   : csr_rval = csr.mideleg;
+      MIE       : csr_rval = csr.mie & 12'hFFF;
+      MSCRATCH  : csr_rval = csr.mscratch;
+      MEPC      : csr_rval = csr.mepc;
+      MCAUSE    : csr_rval = csr.mcause;
+      MTVAL     : csr_rval = csr.mtval;
+      MIP       : csr_rval = csr.mip;
+      PMPCFG0   : csr_rval =            csr.pmpcfg[ 0 +: XLEN/8];
+      PMPCFG1   : csr_rval = is_rv32  ? csr.pmpcfg[ 4 +: XLEN/8] : 'h0;
+      PMPCFG2   : csr_rval =~is_rv128 ? csr.pmpcfg[ 8 +: XLEN/8] : 'h0;
+      PMPCFG3   : csr_rval = is_rv32  ? csr.pmpcfg[12 +: XLEN/8] : 'h0;
+      PMPADDR0  : csr_rval = csr.pmpaddr[0];
+      PMPADDR1  : csr_rval = csr.pmpaddr[1];
+      PMPADDR2  : csr_rval = csr.pmpaddr[2];
+      PMPADDR3  : csr_rval = csr.pmpaddr[3];
+      PMPADDR4  : csr_rval = csr.pmpaddr[4];
+      PMPADDR5  : csr_rval = csr.pmpaddr[5];
+      PMPADDR6  : csr_rval = csr.pmpaddr[6];
+      PMPADDR7  : csr_rval = csr.pmpaddr[7];
+      PMPADDR8  : csr_rval = csr.pmpaddr[8];
+      PMPADDR9  : csr_rval = csr.pmpaddr[9];
+      PMPADDR10 : csr_rval = csr.pmpaddr[10];
+      PMPADDR11 : csr_rval = csr.pmpaddr[11];
+      PMPADDR12 : csr_rval = csr.pmpaddr[12];
+      PMPADDR13 : csr_rval = csr.pmpaddr[13];
+      PMPADDR14 : csr_rval = csr.pmpaddr[14];
+      PMPADDR15 : csr_rval = csr.pmpaddr[15];
+      MCYCLE    : csr_rval = csr.mcycle[XLEN-1:0];
+      MINSTRET  : csr_rval = csr.minstret[XLEN-1:0];
+      MCYCLEH   : csr_rval = is_rv32 ? csr.mcycle.h   : 'h0;
+      MINSTRETH : csr_rval = is_rv32 ? csr.minstret.h : 'h0;
 
-      default   : st_csr_rval = 32'h0;
+      default   : csr_rval = 32'h0;
     endcase
+
+
+  //output CSR read value; bypass a write
+  always @(posedge clk_i)
+    if (!id_stall_i) st_csr_rval_o <= csr_rval;
+
+  always @(posedge clk_i)
+    du_csr_rval_o <= csr_rval;
+
 
 
   ////////////////////////////////////////////////////////////////
@@ -474,9 +488,9 @@ module riscv_state1_10 #(
   //mstatus
   assign csr.mstatus.sd = &csr.mstatus.fs | &csr.mstatus.xs;
 
-  assign st_tvm = csr.mstatus.tvm;
-  assign st_tw  = csr.mstatus.tw;
-  assign st_tsr = csr.mstatus.tsr;
+  assign st_tvm_o = csr.mstatus.tvm;
+  assign st_tw_o  = csr.mstatus.tw;
+  assign st_tsr_o = csr.mstatus.tsr;
 
 generate
   if (XLEN == 128)
@@ -498,19 +512,19 @@ endgenerate
 
 
   always_comb
-    case (st_prv)
-      PRV_S  : st_xlen = has_s ? csr.mstatus.sxl : csr.misa.base;
-      PRV_U  : st_xlen = has_u ? csr.mstatus.uxl : csr.misa.base;
-      default: st_xlen = csr.misa.base;
+    case (st_prv_o)
+      PRV_S  : st_xlen_o = has_s ? csr.mstatus.sxl : csr.misa.base;
+      PRV_U  : st_xlen_o = has_u ? csr.mstatus.uxl : csr.misa.base;
+      default: st_xlen_o = csr.misa.base;
     endcase
 
 
-  always @(posedge clk,negedge rstn)
-    if (!rstn)
+  always @(posedge clk_i,negedge rst_ni)
+    if (!rst_ni)
     begin
-        st_prv           <= PRV_M;    //start in machine mode
-        st_nxt_pc        <= PC_INIT;
-        st_flush         <= 1'b1;
+        st_prv_o           <= PRV_M;    //start in machine mode
+        st_nxt_pc_o        <= PC_INIT;
+        st_flush_o         <= 1'b1;     //flush CPU(heart) upon reset exit
 
 //        csr.mstatus.vm   <= VM_MBARE;
         csr.mstatus.sxl  <= has_s ? csr.misa.base : 2'b00;
@@ -524,7 +538,7 @@ endgenerate
         csr.mstatus.xs   <= {2{has_ext}};
         csr.mstatus.fs   <= 2'b00;
 
-        csr.mstatus.mpp  <= 2'h3;
+        csr.mstatus.mpp  <= PRV_M;
         csr.mstatus.hpp  <= 2'h0;  //reserved
         csr.mstatus.spp  <= has_s;
         csr.mstatus.mpie <= 1'b0;
@@ -538,11 +552,11 @@ endgenerate
     end
     else
     begin
-        st_flush <= 1'b0;
+        st_flush_o <= 1'b0;
 
         //write from EX, Machine Mode
-        if ( (ex_csr_we && ex_csr_reg == MSTATUS && st_prv == PRV_M) ||
-             (du_we_csr && du_addr    == MSTATUS)                     )
+        if ( (ex_csr_we_i && ex_csr_reg_i == MSTATUS && st_prv_o == PRV_M) ||
+             (du_we_csr_i && du_addr_i    == MSTATUS)                     )
         begin
 //            csr.mstatus.vm    <= csr_wval[28:24];
             csr.mstatus.sxl   <= has_s && XLEN > 32 ? sxl_wval        : 2'b00;
@@ -556,7 +570,12 @@ endgenerate
             csr.mstatus.xs    <= has_ext            ? csr_wval[16:15] : 2'b00; //TODO
             csr.mstatus.fs    <= has_s && has_fpu   ? csr_wval[14:13] : 2'b00; //TODO
 
-            csr.mstatus.mpp   <=         csr_wval[12:11];
+	    case (csr_wval[12:11])
+              PRV_M: csr.mstatus.mpp <=         PRV_M;
+              PRV_H: csr.mstatus.mpp <= has_h ? PRV_H : csr.mstatus.mpp;
+              PRV_S: csr.mstatus.mpp <= has_s ? PRV_S : csr.mstatus.mpp;
+              PRV_U: csr.mstatus.mpp <= has_u ? PRV_U : csr.mstatus.mpp;
+            endcase
             csr.mstatus.hpp   <= 2'h0;                              //reserved
             csr.mstatus.spp   <= has_s ? csr_wval[   8] : 1'b0;
             csr.mstatus.mpie  <=         csr_wval[   7];
@@ -572,8 +591,8 @@ endgenerate
         //Supervisor Mode access
         if (has_s)
         begin
-            if ( (ex_csr_we && ex_csr_reg == SSTATUS && st_prv >= PRV_S) ||
-                 (du_we_csr && du_addr    == SSTATUS)                     )
+            if ( (ex_csr_we_i && ex_csr_reg_i == SSTATUS && st_prv_o >= PRV_S) ||
+                 (du_we_csr_i && du_addr_i    == SSTATUS)                     )
             begin
                 csr.mstatus.uxl  <= uxl_wval;
                 csr.mstatus.mxr  <= csr_wval[19];
@@ -590,15 +609,15 @@ endgenerate
         end
 
         //MRET,HRET,SRET,URET
-        if (!id_bubble && !bu_flush && !du_stall)
+        if (!id_insn_i.bubble && !bu_flush_i)
         begin
-            case (id_instr)
+            case (id_insn_i.instr)
               //pop privilege stack
               MRET : begin
                          //set privilege level
-                         st_prv    <= csr.mstatus.mpp;
-                         st_nxt_pc <= csr.mepc;
-                         st_flush  <= 1'b1;
+                         st_prv_o    <= csr.mstatus.mpp;
+                         st_nxt_pc_o <= csr.mepc;
+                         st_flush_o  <= 1'b1;
 
                          //set MIE
                          csr.mstatus.mie  <= csr.mstatus.mpie;
@@ -608,9 +627,9 @@ endgenerate
 /*
               HRET : begin
                          //set privilege level
-                         st_prv    <= csr.mstatus.hpp;
-                         st_nxt_pc <= csr.hepc;
-                         st_flush  <= 1'b1;
+                         st_prv_o    <= csr.mstatus.hpp;
+                         st_nxt_pc_o <= csr.hepc;
+                         st_flush_o  <= 1'b1;
 
                          //set HIE
                          csr.mstatus.hie  <= csr.mstatus.hpie;
@@ -620,9 +639,9 @@ endgenerate
 */
               SRET : begin
                          //set privilege level
-                         st_prv    <= {1'b0,csr.mstatus.spp};
-                         st_nxt_pc <= csr.sepc;
-                         st_flush  <= 1'b1;
+                         st_prv_o    <= {1'b0,csr.mstatus.spp};
+                         st_nxt_pc_o <= csr.sepc;
+                         st_flush_o  <= 1'b1;
 
                          //set SIE
                          csr.mstatus.sie  <= csr.mstatus.spie;
@@ -631,9 +650,9 @@ endgenerate
                      end
               URET : begin
                          //set privilege level
-                         st_prv    <= PRV_U;
-                         st_nxt_pc <= csr.uepc;
-                         st_flush  <= 1'b1;
+                         st_prv_o    <= PRV_U;
+                         st_nxt_pc_o <= csr.uepc;
+                         st_flush_o  <= 1'b1;
 
                          //set UIE
                          csr.mstatus.uie  <= csr.mstatus.upie;
@@ -643,105 +662,104 @@ endgenerate
         end
 
         //push privilege stack
-        if (ext_nmi)
+        if (wb_exceptions_i.nmi)
         begin
 $display ("NMI");
             //NMI always at Machine-mode
-            st_prv    <= PRV_M;
-            st_nxt_pc <= csr.mnmivec;
-            st_flush  <= 1'b1;
+            st_prv_o    <= PRV_M;
+            st_nxt_pc_o <= csr.mnmivec;
+            st_flush_o  <= 1'b1;
 
             //store current state
             csr.mstatus.mpie <= csr.mstatus.mie;
             csr.mstatus.mie  <= 1'b0;
-            csr.mstatus.mpp  <= st_prv;
+            csr.mstatus.mpp  <= st_prv_o;
         end
-        else if (take_interrupt)
+        else if (take_interrupt && !du_stall_i && !du_flush_i)
         begin
-$display ("take_interrupt");
-            st_flush  <= ~du_stall & ~du_flush;
+$display ("take_interrupt %x @%0t", wb_exceptions_i.interrupts, $time);
+            st_flush_o  <= 1'b1;
 
             //Check if interrupts are delegated
-            if (has_n && st_prv == PRV_U && ( st_int & csr.mideleg & 12'h111) )
+            if (has_n && st_prv_o == PRV_U && ( wb_exceptions_i.interrupts & csr.mideleg & 12'h111) )
             begin
-                st_prv    <= PRV_U;
-                st_nxt_pc <= csr.utvec & ~'h3 + (csr.utvec[0] ? interrupt_cause << 2 : 0);
+                st_prv_o    <= PRV_U;
+                st_nxt_pc_o <= csr.utvec & ~'h3 + (csr.utvec[0] ? interrupt_cause << 2 : 0);
 
                 csr.mstatus.upie <= csr.mstatus.uie;
                 csr.mstatus.uie  <= 1'b0;
             end
-            else if (has_s && st_prv >= PRV_S && (st_int & csr.mideleg & 12'h333) )
+            else if (has_s && st_prv_o >= PRV_S && (wb_exceptions_i.interrupts & csr.mideleg & 12'h333) )
             begin
-                st_prv    <= PRV_S;
-                st_nxt_pc <= csr.stvec & ~'h3 + (csr.stvec[0] ? interrupt_cause << 2 : 0);
+                st_prv_o    <= PRV_S;
+                st_nxt_pc_o <= csr.stvec & ~'h3 + (csr.stvec[0] ? interrupt_cause << 2 : 0);
 
                 csr.mstatus.spie <= csr.mstatus.sie;
                 csr.mstatus.sie  <= 1'b0;
-                csr.mstatus.spp  <= st_prv[0];
+                csr.mstatus.spp  <= st_prv_o[0];
             end
 /*
-            else if (has_h && st_prv >= PRV_H && (st_int & csr.mideleg & 12'h777) )
+            else if (has_h && st_prv_o >= PRV_H && (st_int & csr.mideleg & 12'h777) )
             begin
-                st_prv    <= PRV_H;
-                st_nxt_pc <= csr.htvec;
+                st_prv_o    <= PRV_H;
+                st_nxt_pc_o <= csr.htvec;
 
                 csr.mstatus.hpie <= csr.mstatus.hie;
                 csr.mstatus.hie  <= 1'b0;
-                csr.mstatus.hpp  <= st_prv;
+                csr.mstatus.hpp  <= st_prv_o;
             end
 */
             else
             begin
-                st_prv    <= PRV_M;
-                st_nxt_pc <= csr.mtvec & ~'h3 + (csr.mtvec[0] ? interrupt_cause << 2 : 0);
+                st_prv_o    <= PRV_M;
+                st_nxt_pc_o <= csr.mtvec & ~'h3 + (csr.mtvec[0] ? interrupt_cause << 2 : 0);
 
                 csr.mstatus.mpie <= csr.mstatus.mie;
                 csr.mstatus.mie  <= 1'b0;
-                csr.mstatus.mpp  <= st_prv;
+                csr.mstatus.mpp  <= st_prv_o;
             end
         end
-        else if ( |(wb_exception & ~du_ie[15:0]) )
+        else if ( |(wb_exceptions_i.exceptions & ~du_ie_i[15:0]) )
         begin
-$display("exception");
-            st_flush  <= 1'b1;
+            st_flush_o  <= 1'b1;
 
-            if (has_n && st_prv == PRV_U && |(wb_exception & csr.medeleg))
+            if (has_n && st_prv_o == PRV_U && |(wb_exceptions_i.exceptions & csr.medeleg))
             begin
-                st_prv    <= PRV_U;
-                st_nxt_pc <= csr.utvec;
+                st_prv_o    <= PRV_U;
+                st_nxt_pc_o <= csr.utvec;
 
                 csr.mstatus.upie <= csr.mstatus.uie;
                 csr.mstatus.uie  <= 1'b0;
             end
-            else if (has_s && st_prv >= PRV_S && |(wb_exception & csr.medeleg))
+            else if (has_s && st_prv_o >= PRV_S && |(wb_exceptions_i.exceptions & csr.medeleg))
             begin
-                st_prv    <= PRV_S;
-                st_nxt_pc <= csr.stvec;
+                st_prv_o    <= PRV_S;
+                st_nxt_pc_o <= csr.stvec;
 
                 csr.mstatus.spie <= csr.mstatus.sie;
                 csr.mstatus.sie  <= 1'b0;
-                csr.mstatus.spp  <= st_prv[0];
+                csr.mstatus.spp  <= st_prv_o[0];
 
             end
 /*
-            else if (has_h && st_prv >= PRV_H && |(wb_exception & csr.medeleg))
+            else if (has_h && st_prv_o >= PRV_H && |(wb_exception_i.exceptions & csr.medeleg))
             begin
-                st_prv    <= PRV_H;
-                st_nxt_pc <= csr.htvec;
+                st_prv_o    <= PRV_H;
+                st_nxt_pc_o <= csr.htvec;
 
                 csr.mstatus.hpie <= csr.mstatus.hie;
                 csr.mstatus.hie  <= 1'b0;
-                csr.mstatus.hpp  <= st_prv;
+                csr.mstatus.hpp  <= st_prv_o;
             end
 */
             else
             begin
-                st_prv    <= PRV_M;
-                st_nxt_pc <= csr.mtvec & ~'h3;
+                st_prv_o    <= PRV_M;
+                st_nxt_pc_o <= csr.mtvec & ~'h3;
 
                 csr.mstatus.mpie <= csr.mstatus.mie;
                 csr.mstatus.mie  <= 1'b0;
-                csr.mstatus.mpp  <= st_prv;
+                csr.mstatus.mpp  <= st_prv_o;
             end
         end
     end
@@ -753,8 +771,8 @@ $display("exception");
 generate
   if (XLEN==32)
   begin
-      always @(posedge clk,negedge rstn)
-      if (!rstn)
+      always @(posedge clk_i,negedge rst_ni)
+      if (!rst_ni)
       begin
           csr.mcycle   <= 'h0;
           csr.minstret <= 'h0;
@@ -762,30 +780,30 @@ generate
       else
       begin
           //cycle always counts (thread active time)
-          if      ( (ex_csr_we && ex_csr_reg == MCYCLE  && st_prv == PRV_M) ||
-                    (du_we_csr && du_addr    == MCYCLE)  )
+          if      ( (ex_csr_we_i && ex_csr_reg_i == MCYCLE  && st_prv_o == PRV_M) ||
+                    (du_we_csr_i && du_addr_i    == MCYCLE)  )
             csr.mcycle.l <= csr_wval;
-          else if ( (ex_csr_we && ex_csr_reg == MCYCLEH && st_prv == PRV_M) ||
-                    (du_we_csr && du_addr    == MCYCLEH)  )
+          else if ( (ex_csr_we_i && ex_csr_reg_i == MCYCLEH && st_prv_o == PRV_M) ||
+                    (du_we_csr_i && du_addr_i    == MCYCLEH)  )
             csr.mcycle.h <= csr_wval;
           else
             csr.mcycle <= csr.mcycle + 'h1;
 
           //instruction retire counter
-          if      ( (ex_csr_we && ex_csr_reg == MINSTRET  && st_prv == PRV_M) ||
-                    (du_we_csr && du_addr    == MINSTRET)  )
+          if      ( (ex_csr_we_i && ex_csr_reg_i == MINSTRET  && st_prv_o == PRV_M) ||
+                    (du_we_csr_i && du_addr_i    == MINSTRET)  )
             csr.minstret.l <= csr_wval;
-          else if ( (ex_csr_we && ex_csr_reg == MINSTRETH && st_prv == PRV_M) ||
-                    (du_we_csr && du_addr    == MINSTRETH)  )
+          else if ( (ex_csr_we_i && ex_csr_reg_i == MINSTRETH && st_prv_o == PRV_M) ||
+                    (du_we_csr_i && du_addr_i    == MINSTRETH)  )
             csr.minstret.h <= csr_wval;
-          else if   (!wb_bubble)
+          else if   (!wb_insn_i.bubble)
             csr.minstret <= csr.minstret + 'h1;
       end
   end
   else //(XLEN > 32)
   begin
-      always @(posedge clk,negedge rstn)
-      if (!rstn)
+      always @(posedge clk_i,negedge rst_ni)
+      if (!rst_ni)
       begin
           csr.mcycle   <= 'h0;
           csr.minstret <= 'h0;
@@ -793,17 +811,17 @@ generate
       else
       begin
           //cycle always counts (thread active time)
-          if ( (ex_csr_we && ex_csr_reg == MCYCLE && st_prv == PRV_M) ||
-               (du_we_csr && du_addr    == MCYCLE)  )
+          if ( (ex_csr_we_i && ex_csr_reg_i == MCYCLE && st_prv_o == PRV_M) ||
+               (du_we_csr_i && du_addr_i    == MCYCLE)  )
             csr.mcycle <= csr_wval[63:0];
           else
             csr.mcycle <= csr.mcycle + 'h1;
 
           //instruction retire counter
-          if ( (ex_csr_we && ex_csr_reg == MINSTRET && st_prv == PRV_M) ||
-               (du_we_csr && du_addr    == MINSTRET)  )
+          if ( (ex_csr_we_i && ex_csr_reg_i == MINSTRET && st_prv_o == PRV_M) ||
+               (du_we_csr_i && du_addr_i    == MINSTRET)  )
             csr.minstret <= csr_wval[63:0];
-          else if (!wb_bubble)
+          else if (!wb_insn_i.bubble)
             csr.minstret <= csr.minstret + 'h1;
       end
   end
@@ -813,36 +831,36 @@ endgenerate
   /*
    * mnmivec - RoaLogic Extension
    */
-  always @(posedge clk,negedge rstn)
-    if (!rstn)
+  always @(posedge clk_i,negedge rst_ni)
+    if (!rst_ni)
       csr.mnmivec <= MNMIVEC_DEFAULT;
-    else if ( (ex_csr_we && ex_csr_reg == MNMIVEC && st_prv == PRV_M) ||
-              (du_we_csr && du_addr    == MNMIVEC)                     )
+    else if ( (ex_csr_we_i && ex_csr_reg_i == MNMIVEC && st_prv_o == PRV_M) ||
+              (du_we_csr_i && du_addr_i    == MNMIVEC)                     )
       csr.mnmivec <= {csr_wval[XLEN-1:2],2'b00};
 
 
   /*
    * mtvec
    */
-  always @(posedge clk,negedge rstn)
-    if (!rstn)
+  always @(posedge clk_i,negedge rst_ni)
+    if (!rst_ni)
       csr.mtvec <= MTVEC_DEFAULT;
-    else if ( (ex_csr_we && ex_csr_reg == MTVEC && st_prv == PRV_M) ||
-              (du_we_csr && du_addr    == MTVEC)                     )
+    else if ( (ex_csr_we_i && ex_csr_reg_i == MTVEC && st_prv_o == PRV_M) ||
+              (du_we_csr_i && du_addr_i    == MTVEC)                     )
       csr.mtvec <= csr_wval & ~'h2;
 
 
   /*
    * mcounteren
    */
-  always @(posedge clk,negedge rstn)
-    if (!rstn)
+  always @(posedge clk_i,negedge rst_ni)
+    if (!rst_ni)
       csr.mcounteren <= 'h0;
-    else if ( (ex_csr_we && ex_csr_reg == MCOUNTEREN && st_prv == PRV_M) ||
-              (du_we_csr && du_addr    == MCOUNTEREN)                     )
+    else if ( (ex_csr_we_i && ex_csr_reg_i == MCOUNTEREN && st_prv_o == PRV_M) ||
+              (du_we_csr_i && du_addr_i    == MCOUNTEREN)                     )
       csr.mcounteren <= csr_wval & 'h7;
 
-  assign st_mcounteren = csr.mcounteren;
+  assign st_mcounteren_o = csr.mcounteren;
 
 
   /*
@@ -857,19 +875,19 @@ generate
   else
   begin
       //medeleg
-      always @(posedge clk,negedge rstn)
-        if (!rstn)
+      always @(posedge clk_i,negedge rst_ni)
+        if (!rst_ni)
           csr.medeleg <= 'h0;
-        else if ( (ex_csr_we && ex_csr_reg == MEDELEG && st_prv == PRV_M) ||
-                  (du_we_csr && du_addr    == MEDELEG)                     )
+        else if ( (ex_csr_we_i && ex_csr_reg_i == MEDELEG && st_prv_o == PRV_M) ||
+                  (du_we_csr_i && du_addr_i    == MEDELEG)                     )
           csr.medeleg <= csr_wval & {EXCEPTION_SIZE{1'b1}};
 
       //mideleg
-      always @(posedge clk,negedge rstn)
-        if (!rstn)
+      always @(posedge clk_i,negedge rst_ni)
+        if (!rst_ni)
           csr.mideleg <= 'h0;
-        else if ( (ex_csr_we && ex_csr_reg == MIDELEG && st_prv == PRV_M) ||
-                  (du_we_csr && du_addr    == MIDELEG)                )
+        else if ( (ex_csr_we_i && ex_csr_reg_i == MIDELEG && st_prv_o == PRV_M) ||
+                  (du_we_csr_i && du_addr_i    == MIDELEG)                )
         begin
             csr.mideleg[SSI] <= has_s & csr_wval[SSI];
             csr.mideleg[USI] <= has_n & csr_wval[USI];
@@ -877,8 +895,8 @@ generate
 /*
         else if (has_h)
         begin
-            if ( (ex_csr_we && ex_csr_reg == HIDELEG && st_prv >= PRV_H) ||
-                 (du_we_csr && du_addr    == HIDELEG)                )
+            if ( (ex_csr_we_i && ex_csr_reg_i == HIDELEG && st_prv_o >= PRV_H) ||
+                 (du_we_csr_i && du_addr_i    == HIDELEG)                )
             begin
                 csr.mideleg[SSI] <= has_s & csr_wval[SSI];
                 csr.mideleg[USI] <= has_n & csr_wval[USI];
@@ -887,8 +905,8 @@ generate
 */
         else if (has_s)
         begin
-            if ( (ex_csr_we && ex_csr_reg == SIDELEG && st_prv >= PRV_S) ||
-                 (du_we_csr && du_addr    == SIDELEG)                )
+            if ( (ex_csr_we_i && ex_csr_reg_i == SIDELEG && st_prv_o >= PRV_S) ||
+                 (du_we_csr_i && du_addr_i    == SIDELEG)                )
             begin
                 csr.mideleg[USI] <= has_n & csr_wval[USI];
             end
@@ -900,8 +918,8 @@ endgenerate
   /*
    * mip
    */
-  always @(posedge clk,negedge rstn)
-    if (!rstn)
+  always @(posedge clk_i,negedge rst_ni)
+    if (!rst_ni)
     begin
         csr.mip   <= 'h0;
         soft_seip <= 1'b0;
@@ -910,14 +928,14 @@ endgenerate
     else
     begin
         //external interrupts
-        csr.mip.meip <=          ext_int[PRV_M]; 
-        csr.mip.heip <= has_h &  ext_int[PRV_H];
-        csr.mip.seip <= has_s & (ext_int[PRV_S] | soft_seip);
-        csr.mip.ueip <= has_n & (ext_int[PRV_U] | soft_ueip);
+        csr.mip.meip <=          int_external_i[PRV_M]; 
+        csr.mip.heip <= has_h &  int_external_i[PRV_H];
+        csr.mip.seip <= has_s & (int_external_i[PRV_S] | soft_seip);
+        csr.mip.ueip <= has_n & (int_external_i[PRV_U] | soft_ueip);
 
         //may only be written by M-mode
-        if ( (ex_csr_we & ex_csr_reg == MIP & st_prv == PRV_M) ||
-             (du_we_csr & du_addr    == MIP)                  )
+        if ( (ex_csr_we_i & ex_csr_reg_i == MIP & st_prv_o == PRV_M) ||
+             (du_we_csr_i & du_addr_i    == MIP)                  )
         begin
             soft_seip <= csr_wval[SEI] & has_s;
             soft_ueip <= csr_wval[UEI] & has_n;
@@ -925,11 +943,11 @@ endgenerate
  
 
         //timer interrupts
-        csr.mip.mtip <= ext_tint;
+        csr.mip.mtip <= int_timer_i;
 
         //may only be written by M-mode
-        if ( (ex_csr_we & ex_csr_reg == MIP & st_prv == PRV_M) ||
-             (du_we_csr & du_addr    == MIP)                  )
+        if ( (ex_csr_we_i & ex_csr_reg_i == MIP & st_prv_o == PRV_M) ||
+             (du_we_csr_i & du_addr_i    == MIP)                  )
         begin
             csr.mip.htip <= csr_wval[HTI] & has_h;
             csr.mip.stip <= csr_wval[STI] & has_s;
@@ -938,10 +956,10 @@ endgenerate
 
 
         //software interrupts
-        csr.mip.msip <= ext_sint;
+        csr.mip.msip <= int_software_i;
         //Machine Mode write
-        if ( (ex_csr_we && ex_csr_reg == MIP && st_prv == PRV_M) ||
-             (du_we_csr && du_addr    == MIP)                   )
+        if ( (ex_csr_we_i && ex_csr_reg_i == MIP && st_prv_o == PRV_M) ||
+             (du_we_csr_i && du_addr_i    == MIP)                   )
         begin
             csr.mip.hsip <= csr_wval[HSI] & has_h;
             csr.mip.ssip <= csr_wval[SSI] & has_s;
@@ -951,8 +969,8 @@ endgenerate
         else if (has_h)
         begin
             //Hypervisor Mode write
-            if ( (ex_csr_we && ex_csr_reg == HIP && st_prv >= PRV_H) ||
-                 (du_we_csr && du_addr    == HIP)                   )
+            if ( (ex_csr_we_i && ex_csr_reg_i == HIP && st_prv_o >= PRV_H) ||
+                 (du_we_csr_i && du_addr_i    == HIP)                   )
             begin
                 csr.mip.hsip <= csr_wval[HSI] & csr.mideleg[HSI];
                 csr.mip.ssip <= csr_wval[SSI] & csr.mideleg[SSI] & has_s;
@@ -963,8 +981,8 @@ endgenerate
         else if (has_s)
         begin
             //Supervisor Mode write
-            if ( (ex_csr_we && ex_csr_reg == SIP && st_prv >= PRV_S) ||
-                 (du_we_csr && du_addr    == SIP)                   )
+            if ( (ex_csr_we_i && ex_csr_reg_i == SIP && st_prv_o >= PRV_S) ||
+                 (du_we_csr_i && du_addr_i    == SIP)                   )
             begin
                 csr.mip.ssip <= csr_wval[SSI] & csr.mideleg[SSI];
                 csr.mip.usip <= csr_wval[USI] & csr.mideleg[USI] & has_n;
@@ -973,8 +991,8 @@ endgenerate
         else if (has_n)
         begin
             //User Mode write
-            if ( (ex_csr_we && ex_csr_reg == UIP) ||
-                 (du_we_csr && du_addr    == UIP)  )
+            if ( (ex_csr_we_i && ex_csr_reg_i == UIP) ||
+                 (du_we_csr_i && du_addr_i    == UIP)  )
             begin
                 csr.mip.usip <= csr_wval[USI] & csr.mideleg[USI];
             end
@@ -985,11 +1003,11 @@ endgenerate
   /*
    * mie
    */
-  always @(posedge clk,negedge rstn)
-    if (!rstn)
+  always @(posedge clk_i,negedge rst_ni)
+    if (!rst_ni)
       csr.mie <= 'h0;
-    else if ( (ex_csr_we && ex_csr_reg == MIE && st_prv == PRV_M) ||
-              (du_we_csr && du_addr    == MIE)                   )
+    else if ( (ex_csr_we_i && ex_csr_reg_i == MIE && st_prv_o == PRV_M) ||
+              (du_we_csr_i && du_addr_i    == MIE)                   )
     begin
         csr.mie.meie <= csr_wval[MEI];
         csr.mie.heie <= csr_wval[HEI] & has_h;
@@ -1007,8 +1025,8 @@ endgenerate
 /*
     else if (has_h)
     begin
-        if ( (ex_csr_we && ex_csr_reg == HIE && st_prv >= PRV_H) ||
-             (du_we_csr && du_addr    == HIE)                   )
+        if ( (ex_csr_we_i && ex_csr_reg_i == HIE && st_prv_o >= PRV_H) ||
+             (du_we_csr_i && du_addr_i    == HIE)                   )
         begin
             csr.mie.heie <= csr_wval[HEI];
             csr.mie.seie <= csr_wval[SEI] & has_s;
@@ -1024,8 +1042,8 @@ endgenerate
 */
     else if (has_s)
     begin
-        if ( (ex_csr_we && ex_csr_reg == SIE && st_prv >= PRV_S) ||
-             (du_we_csr && du_addr    == SIE)                   )
+        if ( (ex_csr_we_i && ex_csr_reg_i == SIE && st_prv_o >= PRV_S) ||
+             (du_we_csr_i && du_addr_i    == SIE)                   )
         begin
             csr.mie.seie <= csr_wval[SEI];
             csr.mie.ueie <= csr_wval[UEI] & has_n;
@@ -1037,8 +1055,8 @@ endgenerate
     end
    else if (has_n)
     begin
-        if ( (ex_csr_we && ex_csr_reg == UIE) ||
-             (du_we_csr && du_addr    == UIE)  )
+        if ( (ex_csr_we_i && ex_csr_reg_i == UIE) ||
+             (du_we_csr_i && du_addr_i    == UIE)  )
         begin
             csr.mie.ueie <= csr_wval[UEI];
             csr.mie.utie <= csr_wval[UTI];
@@ -1050,38 +1068,48 @@ endgenerate
   /*
    * mscratch
    */
-  always @(posedge clk,negedge rstn)
-    if      (!rstn)
+  always @(posedge clk_i,negedge rst_ni)
+    if      (!rst_ni)
       csr.mscratch <= 'h0;
-    else if ( (ex_csr_we && ex_csr_reg == MSCRATCH && st_prv == PRV_M) ||
-              (du_we_csr && du_addr    == MSCRATCH                   ) )
+    else if ( (ex_csr_we_i && ex_csr_reg_i == MSCRATCH && st_prv_o == PRV_M) ||
+              (du_we_csr_i && du_addr_i    == MSCRATCH                   ) )
       csr.mscratch <= csr_wval;
 
 
-  assign trap_cause = get_trap_cause( wb_exception & ~du_ie[15:0]);
+  assign trap_cause = get_trap_cause( wb_exceptions_i.exceptions & ~du_ie_i[15:0]);
 
 
   //decode interrupts
   //priority external, software, timer
-  assign st_int[CAUSE_MEINT] = ( ((st_prv < PRV_M) | (st_prv == PRV_M & csr.mstatus.mie)) & (csr.mip.meip & csr.mie.meie) );
-  assign st_int[CAUSE_HEINT] = ( ((st_prv < PRV_H) | (st_prv == PRV_H & csr.mstatus.hie)) & (csr.mip.heip & csr.mie.heie) );
-  assign st_int[CAUSE_SEINT] = ( ((st_prv < PRV_S) | (st_prv == PRV_S & csr.mstatus.sie)) & (csr.mip.seip & csr.mie.seie) );
-  assign st_int[CAUSE_UEINT] = (                     (st_prv == PRV_U & csr.mstatus.uie)  & (csr.mip.ueip & csr.mie.ueie) );
+  //st_int_o goes into ID, where the interrupts are synchronized
+  //with the CPU pipeline
+  assign st_int_o.external[PRV_M] = ( ((st_prv_o < PRV_M) | (st_prv_o == PRV_M & csr.mstatus.mie)) & (csr.mip.meip & csr.mie.meie) );
+  assign st_int_o.external[PRV_H] = ( ((st_prv_o < PRV_H) | (st_prv_o == PRV_H & csr.mstatus.hie)) & (csr.mip.heip & csr.mie.heie) );
+  assign st_int_o.external[PRV_S] = ( ((st_prv_o < PRV_S) | (st_prv_o == PRV_S & csr.mstatus.sie)) & (csr.mip.seip & csr.mie.seie) );
+  assign st_int_o.external[PRV_U] = (                       (st_prv_o == PRV_U & csr.mstatus.uie)  & (csr.mip.ueip & csr.mie.ueie) );
 
-  assign st_int[CAUSE_MSINT] = ( ((st_prv < PRV_M) | (st_prv == PRV_M & csr.mstatus.mie)) & (csr.mip.msip & csr.mie.msie) ) & ~st_int[CAUSE_MEINT];
-  assign st_int[CAUSE_HSINT] = ( ((st_prv < PRV_H) | (st_prv == PRV_H & csr.mstatus.hie)) & (csr.mip.hsip & csr.mie.hsie) ) & ~st_int[CAUSE_HEINT];
-  assign st_int[CAUSE_SSINT] = ( ((st_prv < PRV_S) | (st_prv == PRV_S & csr.mstatus.sie)) & (csr.mip.ssip & csr.mie.ssie) ) & ~st_int[CAUSE_SEINT];
-  assign st_int[CAUSE_USINT] = (                     (st_prv == PRV_U & csr.mstatus.uie)  & (csr.mip.usip & csr.mie.usie) ) & ~st_int[CAUSE_UEINT];
+  assign st_int_o.software[PRV_M] = ( ((st_prv_o < PRV_M) | (st_prv_o == PRV_M & csr.mstatus.mie)) & (csr.mip.msip & csr.mie.msie) ) &
+                                   ~st_int_o.external[PRV_M];
+  assign st_int_o.software[PRV_H] = ( ((st_prv_o < PRV_H) | (st_prv_o == PRV_H & csr.mstatus.hie)) & (csr.mip.hsip & csr.mie.hsie) ) &
+                                   ~st_int_o.external[PRV_H];
+  assign st_int_o.software[PRV_S] = ( ((st_prv_o < PRV_S) | (st_prv_o == PRV_S & csr.mstatus.sie)) & (csr.mip.ssip & csr.mie.ssie) ) &
+                                   ~st_int_o.external[PRV_S];
+  assign st_int_o.software[PRV_U] = (                       (st_prv_o == PRV_U & csr.mstatus.uie)  & (csr.mip.usip & csr.mie.usie) ) &
+                                   ~st_int_o.external[PRV_U];
 
-  assign st_int[CAUSE_MTINT] = ( ((st_prv < PRV_M) | (st_prv == PRV_M & csr.mstatus.mie)) & (csr.mip.mtip & csr.mie.mtie) ) & ~(st_int[CAUSE_MEINT] | st_int[CAUSE_MSINT]);
-  assign st_int[CAUSE_HTINT] = ( ((st_prv < PRV_H) | (st_prv == PRV_H & csr.mstatus.hie)) & (csr.mip.htip & csr.mie.htie) ) & ~(st_int[CAUSE_HEINT] | st_int[CAUSE_HSINT]);
-  assign st_int[CAUSE_STINT] = ( ((st_prv < PRV_S) | (st_prv == PRV_S & csr.mstatus.sie)) & (csr.mip.stip & csr.mie.stie) ) & ~(st_int[CAUSE_SEINT] | st_int[CAUSE_SSINT]);
-  assign st_int[CAUSE_UTINT] = (                     (st_prv == PRV_U & csr.mstatus.uie)  & (csr.mip.utip & csr.mie.utie) ) & ~(st_int[CAUSE_UEINT] | st_int[CAUSE_USINT]);
+  assign st_int_o.timer   [PRV_M] = ( ((st_prv_o < PRV_M) | (st_prv_o == PRV_M & csr.mstatus.mie)) & (csr.mip.mtip & csr.mie.mtie) ) &
+                                   ~(st_int_o.external[PRV_M] | st_int_o.software[PRV_M]);
+  assign st_int_o.timer   [PRV_H] = ( ((st_prv_o < PRV_H) | (st_prv_o == PRV_H & csr.mstatus.hie)) & (csr.mip.htip & csr.mie.htie) ) &
+                                   ~(st_int_o.external[PRV_H] | st_int_o.software[PRV_H]);
+  assign st_int_o.timer   [PRV_S] = ( ((st_prv_o < PRV_S) | (st_prv_o == PRV_S & csr.mstatus.sie)) & (csr.mip.stip & csr.mie.stie) ) &
+                                   ~(st_int_o.external[PRV_S] | st_int_o.software[PRV_S]);
+  assign st_int_o.timer   [PRV_U] = (                       (st_prv_o == PRV_U & csr.mstatus.uie)  & (csr.mip.utip & csr.mie.utie) ) &
+                                   ~(st_int_o.external[PRV_U] | st_int_o.software[PRV_U]);
 
 
   //interrupt cause priority
   always_comb
-    casex (st_int & ~du_ie[31:16])
+    casex (wb_exceptions_i.interrupts & ~du_ie_i[31:16])
        12'h??1 : interrupt_cause = 0;
        12'h??2 : interrupt_cause = 1;
        12'h??4 : interrupt_cause = 2;
@@ -1097,19 +1125,18 @@ endgenerate
        default : interrupt_cause = 0;
     endcase
 
-  assign take_interrupt = |(st_int & ~du_ie[31:16]);
+  assign take_interrupt = |(wb_exceptions_i.interrupts & ~du_ie_i[31:16]);
 
 
   //for Debug Unit
-  assign du_exceptions = { {16-$bits(st_int){1'b0}}, st_int, {16-$bits(wb_exception){1'b0}}, wb_exception} & du_ie;
+  assign du_exceptions_o = du_ie_i & { {16-$bits(wb_exceptions_i.interrupts){1'b0}}, wb_exceptions_i.interrupts,
+                                       {16-$bits(wb_exceptions_i.exceptions){1'b0}}, wb_exceptions_i.exceptions };
 
 
   //Update mepc and mcause
-  always @(posedge clk,negedge rstn)
-    if (!rstn)
+  always @(posedge clk_i,negedge rst_ni)
+    if (!rst_ni)
     begin
-        st_interrupt <= 'b0;
-
         csr.mepc     <= 'h0;
 //        csr.hepc     <= 'h0;
         csr.sepc     <= 'h0;
@@ -1128,144 +1155,163 @@ endgenerate
     else
     begin
         //Write access to regs (lowest priority)
-        if ( (ex_csr_we && ex_csr_reg == MEPC && st_prv == PRV_M) ||
-             (du_we_csr && du_addr    == MEPC)                  )
+        if ( (ex_csr_we_i && ex_csr_reg_i == MEPC && st_prv_o == PRV_M) ||
+             (du_we_csr_i && du_addr_i    == MEPC)                  )
           csr.mepc <= {csr_wval[XLEN-1:2], csr_wval[1] & has_rvc, 1'b0};
 /*
-        if ( (ex_csr_we && ex_csr_reg == HEPC && st_prv >= PRV_H) ||
-             (du_we_csr && du_addr    == HEPC)                  )
+        if ( (ex_csr_we_i && ex_csr_reg_i == HEPC && st_prv_o >= PRV_H) ||
+             (du_we_csr_i && du_addr_i    == HEPC)                  )
           csr.hepc <= {csr_wval[XLEN-1:2], csr_wval[1] & has_rvc, 1'b0};
 */
-        if ( (ex_csr_we && ex_csr_reg == SEPC && st_prv >= PRV_S) ||
-             (du_we_csr && du_addr    == SEPC)                  )
+        if ( (ex_csr_we_i && ex_csr_reg_i == SEPC && st_prv_o >= PRV_S) ||
+             (du_we_csr_i && du_addr_i    == SEPC)                  )
           csr.sepc <= {csr_wval[XLEN-1:2], csr_wval[1] & has_rvc, 1'b0};
 
-        if ( (ex_csr_we && ex_csr_reg == UEPC && st_prv >= PRV_U) ||
-             (du_we_csr && du_addr    == UEPC)                  )
+        if ( (ex_csr_we_i && ex_csr_reg_i == UEPC && st_prv_o >= PRV_U) ||
+             (du_we_csr_i && du_addr_i    == UEPC)                  )
           csr.uepc <= {csr_wval[XLEN-1:2], csr_wval[1] & has_rvc, 1'b0};
 
 
-        if ( (ex_csr_we && ex_csr_reg == MCAUSE && st_prv == PRV_M) ||
-             (du_we_csr && du_addr    == MCAUSE)                  )
+        if ( (ex_csr_we_i && ex_csr_reg_i == MCAUSE && st_prv_o == PRV_M) ||
+             (du_we_csr_i && du_addr_i    == MCAUSE)                  )
           csr.mcause <= csr_wval;
 /*
-        if ( (ex_csr_we && ex_csr_reg == HCAUSE && st_prv >= PRV_H) ||
-             (du_we_csr && du_addr    == HCAUSE)                  )
+        if ( (ex_csr_we_i && ex_csr_reg_i == HCAUSE && st_prv_o >= PRV_H) ||
+             (du_we_csr_i && du_addr_i    == HCAUSE)                  )
           csr.hcause <= csr_wval;
 */
-        if ( (ex_csr_we && ex_csr_reg == SCAUSE && st_prv >= PRV_S) ||
-             (du_we_csr && du_addr    == SCAUSE)                  )
+        if ( (ex_csr_we_i && ex_csr_reg_i == SCAUSE && st_prv_o >= PRV_S) ||
+             (du_we_csr_i && du_addr_i    == SCAUSE)                  )
           csr.scause <= csr_wval;
 
-        if ( (ex_csr_we && ex_csr_reg == UCAUSE && st_prv >= PRV_U) ||
-             (du_we_csr && du_addr    == UCAUSE)                  )
+        if ( (ex_csr_we_i && ex_csr_reg_i == UCAUSE && st_prv_o >= PRV_U) ||
+             (du_we_csr_i && du_addr_i    == UCAUSE)                  )
           csr.ucause <= csr_wval;
 
 
-        if ( (ex_csr_we && ex_csr_reg == MTVAL && st_prv == PRV_M) ||
-             (du_we_csr && du_addr    == MTVAL)                  )
+        if ( (ex_csr_we_i && ex_csr_reg_i == MTVAL && st_prv_o == PRV_M) ||
+             (du_we_csr_i && du_addr_i    == MTVAL)                  )
           csr.mtval <= csr_wval;
 /*
-        if ( (ex_csr_we && ex_csr_reg == HTVAL && st_prv >= PRV_H) ||
-             (du_we_csr && du_addr    == HTVAL)                  )
+        if ( (ex_csr_we_i && ex_csr_reg_i == HTVAL && st_prv_o >= PRV_H) ||
+             (du_we_csr_i && du_addr_i    == HTVAL)                  )
           csr.htval <= csr_wval;
 */
-        if ( (ex_csr_we && ex_csr_reg == STVAL && st_prv >= PRV_S) ||
-             (du_we_csr && du_addr    == STVAL)                  )
+        if ( (ex_csr_we_i && ex_csr_reg_i == STVAL && st_prv_o >= PRV_S) ||
+             (du_we_csr_i && du_addr_i    == STVAL)                  )
           csr.stval <= csr_wval;
 
-        if ( (ex_csr_we && ex_csr_reg == UTVAL && st_prv >= PRV_U) ||
-             (du_we_csr && du_addr    == UTVAL)                  )
+        if ( (ex_csr_we_i && ex_csr_reg_i == UTVAL && st_prv_o >= PRV_U) ||
+             (du_we_csr_i && du_addr_i    == UTVAL)                  )
           csr.utval <= csr_wval;
 
 
         /*
          * Handle exceptions
          */
-        st_interrupt <= 1'b0;
-
         //priority external interrupts, software interrupts, timer interrupts, traps
-        if (ext_nmi) //TODO: doesn't this cause a deadlock? Need to hold of NMI once handled
+        if (wb_exceptions_i.nmi) //TODO: doesn't this cause a deadlock? Need to hold of NMI once handled
         begin
             //NMI always at Machine Level
-            st_interrupt <= 1'b1;
-            csr.mepc     <= bu_flush ? bu_nxt_pc : id_pc;
+            csr.mepc     <= bu_flush_i ? bu_nxt_pc_i : wb_pc_i;
             csr.mcause   <= (1 << (XLEN-1)) | 'h0; //Implementation dependent. '0' indicates 'unknown cause'
         end
         else if (take_interrupt)
         begin
-            st_interrupt <= 1'b1;
-
             //Check if interrupts are delegated
-            if (has_n && st_prv == PRV_U && ( st_int & csr.mideleg & 12'h111) )
+            if (has_n && st_prv_o == PRV_U && ( wb_exceptions_i.interrupts & csr.mideleg & 12'h111) )
             begin
                 csr.ucause <= (1 << (XLEN-1)) | interrupt_cause;
-                csr.uepc   <= id_pc;
+
+		//don't update application return address if state caused a flush (ISR exit)
+		if (!st_flush_o) csr.uepc <= wb_pc_i;
             end
-            else if (has_s && st_prv >= PRV_S && (st_int & csr.mideleg & 12'h333) )
+            else if (has_s && st_prv_o >= PRV_S && (wb_exceptions_i.interrupts & csr.mideleg & 12'h333) )
             begin
-                csr.scause <= (1 << (XLEN-1)) | interrupt_cause;;
-                csr.sepc   <= id_pc;
+                csr.scause <= (1 << (XLEN-1)) | interrupt_cause;
+		
+		//don't update application return address if state caused a flush (ISR exit)
+                if (!st_flush_o) csr.sepc <= wb_pc_i;
             end
 /*
-            else if (has_h && st_prv >= PRV_H && (st_int & csr.mideleg & 12'h777) )
+            else if (has_h && st_prv_o >= PRV_H && (st_int & csr.mideleg & 12'h777) )
             begin
                 csr.hcause <= (1 << (XLEN-1)) | interrupt_cause;;
-                csr.hepc   <= id_pc;
+                csr.hepc   <= id_pc_i;
             end
 */
             else
             begin
                 csr.mcause <= (1 << (XLEN-1)) | interrupt_cause;;
-                csr.mepc   <= id_pc;
+
+		//don't update application return address if state caused a flush (ISR exit)
+                if (!st_flush_o) csr.mepc <= wb_pc_i;
             end
         end
-        else if (|(wb_exception & ~du_ie[15:0]))
+        else if (|(wb_exceptions_i.exceptions & ~du_ie_i[15:0]))
         begin
             //Trap
-            if (has_n && st_prv == PRV_U && |(wb_exception & csr.medeleg))
+            if (has_n && st_prv_o == PRV_U && |(wb_exceptions_i.exceptions & csr.medeleg))
             begin
-                csr.uepc   <= wb_pc;
+                csr.uepc   <= wb_pc_i;
                 csr.ucause <= trap_cause;
-                csr.utval  <= wb_badaddr;
+                csr.utval  <= wb_badaddr_i;
             end
-            else if (has_s && st_prv >= PRV_S && |(wb_exception & csr.medeleg))
+            else if (has_s && st_prv_o >= PRV_S && |(wb_exceptions_i.exceptions & csr.medeleg))
             begin
-                csr.sepc   <= wb_pc;
+                csr.sepc   <= wb_pc_i;
                 csr.scause <= trap_cause;
 
-                if (wb_exception[CAUSE_ILLEGAL_INSTRUCTION])
-                  csr.stval <= wb_instr;
-                else if (wb_exception[CAUSE_MISALIGNED_INSTRUCTION] || wb_exception[CAUSE_INSTRUCTION_ACCESS_FAULT] || wb_exception[CAUSE_INSTRUCTION_PAGE_FAULT] ||
-                         wb_exception[CAUSE_MISALIGNED_LOAD       ] || wb_exception[CAUSE_LOAD_ACCESS_FAULT       ] || wb_exception[CAUSE_LOAD_PAGE_FAULT       ] ||
-                         wb_exception[CAUSE_MISALIGNED_STORE      ] || wb_exception[CAUSE_STORE_ACCESS_FAULT      ] || wb_exception[CAUSE_STORE_PAGE_FAULT      ] )
-                  csr.stval <= wb_badaddr;
+                if (wb_exceptions_i.exceptions.illegal_instruction)
+                  csr.stval <= wb_insn_i.instr;
+/*	  
+                else if (wb_exceptions_i.exceptions.misaligned_instruction   ||
+                         wb_exceptions_i.exceptions.instruction_access_fault ||
+                         wb_exceptions_i.exceptions.instruction_page_fault   ||
+                         wb_exceptions_i.exceptions.misaligned_load          ||
+                         wb_exceptions_i.exceptions.load_access_fault        ||
+                         wb_exceptions_i.exceptions.load_page_fault          ||
+                         wb_exceptions_i.exceptions.misaligned_store         ||
+                         wb_exceptions_i.exceptions.store_access_fault       ||
+                         wb_exceptions_i.exceptions.store_page_fault         )
+*/
+                else			 
+                  csr.stval <= wb_badaddr_i;
             end
 /*
-            else if (has_h && st_prv >= PRV_H && |(wb_exception & csr.medeleg))
+            else if (has_h && st_prv_o >= PRV_H && |(wb_exception & csr.medeleg))
             begin
-                csr.hepc   <= wb_pc;
+                csr.hepc   <= wb_pc_i;
                 csr.hcause <= trap_cause;
 
                 if (wb_exception[CAUSE_ILLEGAL_INSTRUCTION])
-                  csr.htval <= wb_instr;
+                  csr.htval <= wb_insn_i.instr;
                 else if (wb_exception[CAUSE_MISALIGNED_INSTRUCTION] || wb_exception[CAUSE_INSTRUCTION_ACCESS_FAULT] || wb_exception[CAUSE_INSTRUCTION_PAGE_FAULT] ||
                          wb_exception[CAUSE_MISALIGNED_LOAD       ] || wb_exception[CAUSE_LOAD_ACCESS_FAULT       ] || wb_exception[CAUSE_LOAD_PAGE_FAULT       ] ||
                          wb_exception[CAUSE_MISALIGNED_STORE      ] || wb_exception[CAUSE_STORE_ACCESS_FAULT      ] || wb_exception[CAUSE_STORE_PAGE_FAULT      ] )
-                  csr.htval <= wb_badaddr;
+                  csr.htval <= wb_badaddr_i;
             end
 */
             else
             begin
-                csr.mepc   <= wb_pc;
+                csr.mepc   <= wb_pc_i;
                 csr.mcause <= trap_cause;
 
-                if (wb_exception[CAUSE_ILLEGAL_INSTRUCTION])
-                  csr.mtval <= wb_instr;
-                else if (wb_exception[CAUSE_MISALIGNED_INSTRUCTION] || wb_exception[CAUSE_INSTRUCTION_ACCESS_FAULT] || wb_exception[CAUSE_INSTRUCTION_PAGE_FAULT] ||
-                         wb_exception[CAUSE_MISALIGNED_LOAD       ] || wb_exception[CAUSE_LOAD_ACCESS_FAULT       ] || wb_exception[CAUSE_LOAD_PAGE_FAULT       ] ||
-                         wb_exception[CAUSE_MISALIGNED_STORE      ] || wb_exception[CAUSE_STORE_ACCESS_FAULT      ] || wb_exception[CAUSE_STORE_PAGE_FAULT      ] )
-                  csr.mtval <= wb_badaddr;
+                if (wb_exceptions_i.exceptions.illegal_instruction)
+                  csr.mtval <= wb_insn_i.instr;
+/*	  
+                else if (wb_exceptions_i.exceptions.misaligned_instruction   ||
+                         wb_exceptions_i.exceptions.instruction_access_fault ||
+                         wb_exceptions_i.exceptions.instruction_page_fault   ||
+                         wb_exceptions_i.exceptions.misaligned_load          ||
+                         wb_exceptions_i.exceptions.load_access_fault        ||
+                         wb_exceptions_i.exceptions.load_page_fault          ||
+                         wb_exceptions_i.exceptions.misaligned_store         ||
+                         wb_exceptions_i.exceptions.store_access_fault       ||
+                         wb_exceptions_i.exceptions.store_page_fault         )
+*/
+                else
+                  csr.mtval <= wb_badaddr_i;
             end
         end
      end
@@ -1283,10 +1329,10 @@ generate
       begin: gen_pmpcfg0
           if (idx < PMP_CNT)
           begin
-              always @(posedge clk,negedge rstn)
-                if (!rstn) csr.pmpcfg[idx] <= 'h0;
-                else if ( (ex_csr_we && ex_csr_reg == PMPCFG0 && st_prv == PRV_M) ||
-                          (du_we_csr && du_addr    == PMPCFG0                   ) )
+              always @(posedge clk_i,negedge rst_ni)
+                if (!rst_ni) csr.pmpcfg[idx] <= 'h0;
+                else if ( (ex_csr_we_i && ex_csr_reg_i == PMPCFG0 && st_prv_o == PRV_M) ||
+                          (du_we_csr_i && du_addr_i    == PMPCFG0                     ) )
                   if (!csr.pmpcfg[idx].l) csr.pmpcfg[idx] <= csr_wval[idx*8 +: 8] & PMPCFG_MASK;
           end
           else
@@ -1299,22 +1345,30 @@ generate
   begin
       for (idx=0; idx<8; idx++)
       begin: gen_pmpcfg0
-          always @(posedge clk,negedge rstn)
-            if (!rstn) csr.pmpcfg[idx] <= 'h0;
-            else if ( (ex_csr_we && ex_csr_reg == PMPCFG0 && st_prv == PRV_M) ||
-                      (du_we_csr && du_addr    == PMPCFG0                   ) )
-              if (idx < PMP_CNT && !csr.pmpcfg[idx].l)
-                csr.pmpcfg[idx] <= csr_wval[0 + idx*8 +: 8] & PMPCFG_MASK;
+	  if (idx < PMP_CNT)
+          begin
+              always @(posedge clk_i,negedge rst_ni)
+                if (!rst_ni) csr.pmpcfg[idx] <= 'h0;
+                else if ( (ex_csr_we_i && ex_csr_reg_i == PMPCFG0 && st_prv_o == PRV_M) ||
+                          (du_we_csr_i && du_addr_i    == PMPCFG0                     ) )
+                  if (!csr.pmpcfg[idx].l) csr.pmpcfg[idx] <= csr_wval[0 + idx*8 +: 8] & PMPCFG_MASK;
+          end
+          else
+            assign csr.pmpcfg[idx] = 'h0;
       end //next idx
 
       for (idx=8; idx<16; idx++)
       begin: gen_pmpcfg2
-          always @(posedge clk,negedge rstn)
-            if (!rstn) csr.pmpcfg[idx] <= 'h0;
-            else if ( (ex_csr_we && ex_csr_reg == PMPCFG2 && st_prv == PRV_M) ||
-                      (du_we_csr && du_addr    == PMPCFG2                   ) )
-              if (idx < PMP_CNT && !csr.pmpcfg[idx].l)
-                csr.pmpcfg[idx] <= csr_wval[(idx-8)*8 +:8] & PMPCFG_MASK;
+          if (idx < PMP_CNT)
+          begin
+              always @(posedge clk_i,negedge rst_ni)
+                if (!rst_ni) csr.pmpcfg[idx] <= 'h0;
+                else if ( (ex_csr_we_i && ex_csr_reg_i == PMPCFG2 && st_prv_o == PRV_M) ||
+                          (du_we_csr_i && du_addr_i    == PMPCFG2                     ) )
+                  if (!csr.pmpcfg[idx].l) csr.pmpcfg[idx] <= csr_wval[(idx-8)*8 +:8] & PMPCFG_MASK;
+           end
+           else
+             assign csr.pmpcfg[idx] = 'h0;
       end //next idx
 
 
@@ -1324,72 +1378,87 @@ generate
           begin
               if (idx == 15)
               begin
-                  always @(posedge clk,negedge rstn)
-                    if (!rstn) csr.pmpaddr[idx] <= 'h0;
-                    else if ( (ex_csr_we && ex_csr_reg == (PMPADDR0 +idx) && st_prv == PRV_M &&
-                               !csr.pmpcfg[idx].l                                              ) ||
-                              (du_we_csr && du_addr    == (PMPADDR0 +idx)                      ) )
+                  always @(posedge clk_i,negedge rst_ni)
+                    if (!rst_ni) csr.pmpaddr[idx] <= 'h0;
+                    else if ( (ex_csr_we_i && ex_csr_reg_i == (PMPADDR0 +idx) && st_prv_o == PRV_M &&
+                               !csr.pmpcfg[idx].l                                                 ) ||
+                              (du_we_csr_i && du_addr_i    == (PMPADDR0 +idx)                     ) )
                       csr.pmpaddr[idx] <= {10'h0,csr_wval[53:0]};
               end
               else
               begin
-                  always @(posedge clk,negedge rstn)
-                    if (!rstn) csr.pmpaddr[idx] <= 'h0;
-                    else if ( (ex_csr_we && ex_csr_reg == (PMPADDR0 +idx) && st_prv == PRV_M &&
+                  always @(posedge clk_i,negedge rst_ni)
+                    if (!rst_ni) csr.pmpaddr[idx] <= 'h0;
+                    else if ( (ex_csr_we_i && ex_csr_reg_i == (PMPADDR0 +idx) && st_prv_o == PRV_M &&
                                !csr.pmpcfg[idx].l && !(csr.pmpcfg[idx+1].a==TOR && csr.pmpcfg[idx+1].l) ) ||
-                              (du_we_csr && du_addr    == (PMPADDR0 +idx)                               ) )
+                              (du_we_csr_i && du_addr_i    == (PMPADDR0 +idx)                           ) )
                       csr.pmpaddr[idx] <= {10'h0,csr_wval[53:0]};
               end
           end
           else
-          begin
-              assign csr.pmpaddr[idx] = 'h0;
-          end
+            assign csr.pmpaddr[idx] = 'h0;
       end //next idx
   end
   else //RV32
   begin
       for (idx=0; idx<4; idx++)
       begin: gen_pmpcfg0
-          always @(posedge clk,negedge rstn)
-            if (!rstn) csr.pmpcfg[idx] <= 'h0;
-            else if ( (ex_csr_we && ex_csr_reg == PMPCFG0 && st_prv == PRV_M) ||
-                      (du_we_csr && du_addr    == PMPCFG0                   ) )
-              if (idx < PMP_CNT && !csr.pmpcfg[idx].l)
-                csr.pmpcfg[idx] <= csr_wval[idx*8 +:8] & PMPCFG_MASK;
+          if (idx < PMP_CNT)
+          begin
+              always @(posedge clk_i,negedge rst_ni)
+                if (!rst_ni) csr.pmpcfg[idx] <= 'h0;
+                else if ( (ex_csr_we_i && ex_csr_reg_i == PMPCFG0 && st_prv_o == PRV_M) ||
+                          (du_we_csr_i && du_addr_i    == PMPCFG0                     ) )
+                  if (!csr.pmpcfg[idx].l) csr.pmpcfg[idx] <= csr_wval[idx*8 +:8] & PMPCFG_MASK;
+          end
+          else
+            assign csr.pmpcfg[idx] = 'h0;
       end //next idx
 
 
       for (idx=4; idx<8; idx++)
       begin: gen_pmpcfg1
-          always @(posedge clk,negedge rstn)
-            if (!rstn) csr.pmpcfg[idx] <= 'h0;
-            else if ( (ex_csr_we && ex_csr_reg == PMPCFG1 && st_prv == PRV_M) ||
-                      (du_we_csr && du_addr    == PMPCFG1                   ) )
-              if (idx < PMP_CNT && !csr.pmpcfg[idx].l)
-                csr.pmpcfg[idx] <= csr_wval[(idx-4)*8 +:8] & PMPCFG_MASK;
+          if (idx < PMP_CNT)
+          begin
+              always @(posedge clk_i,negedge rst_ni)
+                if (!rst_ni) csr.pmpcfg[idx] <= 'h0;
+                else if ( (ex_csr_we_i && ex_csr_reg_i == PMPCFG1 && st_prv_o == PRV_M) ||
+                          (du_we_csr_i && du_addr_i    == PMPCFG1                     ) )
+                  if (!csr.pmpcfg[idx].l) csr.pmpcfg[idx] <= csr_wval[(idx-4)*8 +:8] & PMPCFG_MASK;
+          end
+          else
+            assign csr.pmpcfg[idx] = 'h0;
       end //next idx
 
 
       for (idx=8; idx<12; idx++)
       begin: gen_pmpcfg2
-          always @(posedge clk,negedge rstn)
-            if (!rstn) csr.pmpcfg[idx] <= 'h0;
-            else if ( (ex_csr_we && ex_csr_reg == PMPCFG2 && st_prv == PRV_M) ||
-                      (du_we_csr && du_addr    == PMPCFG2                   ) )
-              if (idx < PMP_CNT && !csr.pmpcfg[idx].l)
-                csr.pmpcfg[idx] <= csr_wval[(idx-8)*8 +:8] & PMPCFG_MASK;
+          if (idx < PMP_CNT)
+          begin
+              always @(posedge clk_i,negedge rst_ni)
+                if (!rst_ni) csr.pmpcfg[idx] <= 'h0;
+                  else if ( (ex_csr_we_i && ex_csr_reg_i == PMPCFG2 && st_prv_o == PRV_M) ||
+                            (du_we_csr_i && du_addr_i    == PMPCFG2                     ) )
+                  if (!csr.pmpcfg[idx].l) csr.pmpcfg[idx] <= csr_wval[(idx-8)*8 +:8] & PMPCFG_MASK;
+          end
+          else
+            assign csr.pmpcfg[idx] = 'h0;
       end //next idx
 
 
       for (idx=12; idx<16; idx++)
       begin: gen_pmpcfg3
-          always @(posedge clk,negedge rstn)
-            if (!rstn) csr.pmpcfg[idx] <= 'h0;
-            else if ( (ex_csr_we && ex_csr_reg == PMPCFG3 && st_prv == PRV_M) ||
-                      (du_we_csr && du_addr    == PMPCFG3                   ) )
-              if (idx < PMP_CNT && !csr.pmpcfg[idx].l)
-                csr.pmpcfg[idx] <= csr_wval[(idx-12)*8 +:8] & PMPCFG_MASK;
+          if (idx < PMP_CNT)
+          begin
+              always @(posedge clk_i,negedge rst_ni)
+                if (!rst_ni) csr.pmpcfg[idx] <= 'h0;
+                else if ( (ex_csr_we_i && ex_csr_reg_i == PMPCFG3 && st_prv_o == PRV_M) ||
+                          (du_we_csr_i && du_addr_i    == PMPCFG3                     ) )
+                  if (idx < PMP_CNT && !csr.pmpcfg[idx].l)
+                    csr.pmpcfg[idx] <= csr_wval[(idx-12)*8 +:8] & PMPCFG_MASK;
+          end
+          else
+            assign csr.pmpcfg[idx] = 'h0;
       end //next idx
 
 
@@ -1399,35 +1468,33 @@ generate
           begin
               if (idx == 15)
               begin
-                  always @(posedge clk,negedge rstn)
-                    if (!rstn) csr.pmpaddr[idx] <= 'h0;
-                    else if ( (ex_csr_we && ex_csr_reg == (PMPADDR0 +idx) && st_prv == PRV_M &&
-                               !csr.pmpcfg[idx].l                                              ) ||
-                              (du_we_csr && du_addr    == (PMPADDR0 +idx)                      ) )
+                  always @(posedge clk_i,negedge rst_ni)
+                    if (!rst_ni) csr.pmpaddr[idx] <= 'h0;
+                    else if ( (ex_csr_we_i && ex_csr_reg_i == (PMPADDR0 +idx) && st_prv_o == PRV_M &&
+                               !csr.pmpcfg[idx].l                                                ) ||
+                              (du_we_csr_i && du_addr_i    == (PMPADDR0 +idx)                    ) )
                       csr.pmpaddr[idx] <= csr_wval;
               end
               else
               begin
-                  always @(posedge clk,negedge rstn)
-                    if (!rstn) csr.pmpaddr[idx] <= 'h0;
-                    else if ( (ex_csr_we && ex_csr_reg == (PMPADDR0 +idx) && st_prv == PRV_M &&
+                  always @(posedge clk_i,negedge rst_ni)
+                    if (!rst_ni) csr.pmpaddr[idx] <= 'h0;
+                    else if ( (ex_csr_we_i && ex_csr_reg_i == (PMPADDR0 +idx) && st_prv_o == PRV_M &&
                                !csr.pmpcfg[idx].l && !(csr.pmpcfg[idx+1].a==TOR && csr.pmpcfg[idx+1].l) ) ||
-                              (du_we_csr && du_addr    == (PMPADDR0 +idx)                               ) )
+                              (du_we_csr_i && du_addr_i    == (PMPADDR0 +idx)                           ) )
                       csr.pmpaddr[idx] <= csr_wval;
               end
           end
           else
-          begin
-              assign csr.pmpaddr[idx] = 'h0;
-          end
+            assign csr.pmpaddr[idx] = 'h0;
       end //next idx
 
   end
 endgenerate
 
 
-  assign st_pmpcfg  = csr.pmpcfg;
-  assign st_pmpaddr = csr.pmpaddr;
+  assign st_pmpcfg_o  = csr.pmpcfg;
+  assign st_pmpaddr_o = csr.pmpaddr;
 
 
 
@@ -1439,48 +1506,48 @@ generate
   if (HAS_SUPER)
   begin
       //stvec
-      always @(posedge clk,negedge rstn)
-        if      (!rstn)
+      always @(posedge clk_i,negedge rst_ni)
+        if      (!rst_ni)
           csr.stvec <= STVEC_DEFAULT;
-        else if ( (ex_csr_we && ex_csr_reg == STVEC && st_prv >= PRV_S) ||
-                  (du_we_csr && du_addr    == STVEC                   ) )
+        else if ( (ex_csr_we_i && ex_csr_reg_i == STVEC && st_prv_o >= PRV_S) ||
+                  (du_we_csr_i && du_addr_i    == STVEC                   ) )
           csr.stvec <= csr_wval & ~'h2;
 
 
       //scounteren
-      always @(posedge clk,negedge rstn)
-        if (!rstn)
+      always @(posedge clk_i,negedge rst_ni)
+        if (!rst_ni)
           csr.scounteren <= 'h0;
-        else if ( (ex_csr_we && ex_csr_reg == SCOUNTEREN && st_prv == PRV_M) ||
-                  (du_we_csr && du_addr    == SCOUNTEREN                   ) )
+        else if ( (ex_csr_we_i && ex_csr_reg_i == SCOUNTEREN && st_prv_o == PRV_M) ||
+                  (du_we_csr_i && du_addr_i    == SCOUNTEREN                   ) )
           csr.scounteren <= csr_wval & 'h7;
 
 
       //sedeleg
-      always @(posedge clk,negedge rstn)
-        if      (!rstn)
+      always @(posedge clk_i,negedge rst_ni)
+        if      (!rst_ni)
           csr.sedeleg <= 'h0;
-        else if ( (ex_csr_we && ex_csr_reg == SEDELEG && st_prv >= PRV_S) ||
-                  (du_we_csr && du_addr    == SEDELEG                   ) )
+        else if ( (ex_csr_we_i && ex_csr_reg_i == SEDELEG && st_prv_o >= PRV_S) ||
+                  (du_we_csr_i && du_addr_i    == SEDELEG                   ) )
           csr.sedeleg <= csr_wval & ((1<<CAUSE_UMODE_ECALL) | (1<<CAUSE_SMODE_ECALL));
 
 
       //sscratch
-      always @(posedge clk,negedge rstn)
-        if      (!rstn)
+      always @(posedge clk_i,negedge rst_ni)
+        if      (!rst_ni)
           csr.sscratch <= 'h0;
-        else if ( (ex_csr_we && ex_csr_reg == SSCRATCH && st_prv >= PRV_S) ||
-                  (du_we_csr && du_addr    == SSCRATCH                   ) )
+        else if ( (ex_csr_we_i && ex_csr_reg_i == SSCRATCH && st_prv_o >= PRV_S) ||
+                  (du_we_csr_i && du_addr_i    == SSCRATCH                   ) )
           csr.sscratch <= csr_wval;
 
 
       //satp
-      always @(posedge clk,negedge rstn)
-        if      (!rstn)
+      always @(posedge clk_i,negedge rst_ni)
+        if      (!rst_ni)
           csr.satp <= 'h0;
-        else if ( (ex_csr_we && ex_csr_reg == SATP && st_prv >= PRV_S) ||
-                  (du_we_csr && du_addr    == SATP                   ) )
-          csr.satp <= ex_csr_wval;
+        else if ( (ex_csr_we_i && ex_csr_reg_i == SATP && st_prv_o >= PRV_S) ||
+                  (du_we_csr_i && du_addr_i    == SATP                   ) )
+          csr.satp <= ex_csr_wval_i;
   end
   else //NO SUPERVISOR MODE
   begin
@@ -1492,7 +1559,7 @@ generate
   end
 endgenerate
 
-  assign st_scounteren = csr.scounteren;
+  assign st_scounteren_o = csr.scounteren;
 
 
   ////////////////////////////////////////////////////////////////
@@ -1502,19 +1569,19 @@ generate
   if (HAS_USER)
   begin
       //utvec
-      always @(posedge clk,negedge rstn)
-        if      (!rstn)
+      always @(posedge clk_i,negedge rst_ni)
+        if      (!rst_ni)
           csr.utvec <= UTVEC_DEFAULT;
-        else if ( (ex_csr_we && ex_csr_reg == UTVEC) ||
-                  (du_we_csr && du_addr    == UTVEC)  )
+        else if ( (ex_csr_we_i && ex_csr_reg_i == UTVEC) ||
+                  (du_we_csr_i && du_addr_i    == UTVEC)  )
           csr.utvec <= {csr_wval[XLEN-1:2],2'b00};
 
       //uscratch
-      always @(posedge clk,negedge rstn)
-        if      (!rstn)
+      always @(posedge clk_i,negedge rst_ni)
+        if      (!rst_ni)
           csr.uscratch <= 'h0;
-        else if ( (ex_csr_we && ex_csr_reg == USCRATCH) ||
-                  (du_we_csr && du_addr    == USCRATCH)  )
+        else if ( (ex_csr_we_i && ex_csr_reg_i == USCRATCH) ||
+                  (du_we_csr_i && du_addr_i    == USCRATCH)  )
           csr.uscratch <= csr_wval;
 
       //Floating point registers

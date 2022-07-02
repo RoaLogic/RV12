@@ -10,7 +10,7 @@
 ##                                                                 ##
 #####################################################################
 ##                                                                 ##
-##             Copyright (C) 2017 ROA Logic BV                     ##
+##             Copyright (C) 2017-2022 ROA Logic BV                ##
 ##             www.roalogic.com                                    ##
 ##                                                                 ##
 ##   This source file may be used and distributed without          ##
@@ -80,16 +80,20 @@ RTL_VLOG = $(DUT_SRC_DIR)/pkg/riscv_rv12_pkg.sv			\
 	   $(DUT_SRC_DIR)/core/ex/riscv_bu.sv			\
 	   $(DUT_SRC_DIR)/core/ex/riscv_mul.sv			\
 	   $(DUT_SRC_DIR)/core/ex/riscv_div.sv			\
-	   $(DUT_SRC_DIR)/core/riscv_ex.sv			\
-	   $(DUT_SRC_DIR)/core/riscv_id.sv			\
 	   $(DUT_SRC_DIR)/core/riscv_if.sv			\
+	   $(DUT_SRC_DIR)/core/riscv_rsb.sv			\
+	   $(DUT_SRC_DIR)/core/riscv_pd.sv			\
+	   $(DUT_SRC_DIR)/core/riscv_id.sv			\
+	   $(DUT_SRC_DIR)/core/riscv_ex.sv			\
 	   $(DUT_SRC_DIR)/core/riscv_mem.sv			\
 	   $(DUT_SRC_DIR)/core/riscv_wb.sv			\
+	   $(DUT_SRC_DIR)/core/riscv_dwb.sv			\
 	   $(DUT_SRC_DIR)/core/riscv_rf.sv			\
 	   $(DUT_SRC_DIR)/core/riscv_state1.10.sv		\
 	   $(DUT_SRC_DIR)/core/riscv_bp.sv			\
 	   $(DUT_SRC_DIR)/core/riscv_du.sv			\
 	   $(DUT_SRC_DIR)/core/riscv_core.sv			\
+	   $(DUT_SRC_DIR)/core/riscv_parcel_queue.sv		\
 	   $(MEM_SRC_DIR)/rl_ram_1r1w.sv			\
 	   $(MEM_SRC_DIR)/rl_ram_1r1w_generic.sv		\
 	   $(MEM_SRC_DIR)/rl_ram_1r1w_easic_n3x.sv		\
@@ -98,17 +102,24 @@ RTL_VLOG = $(DUT_SRC_DIR)/pkg/riscv_rv12_pkg.sv			\
 	   $(MEM_SRC_DIR)/rl_ram_1rw_generic.sv			\
 	   $(MEM_SRC_DIR)/rl_ram_1rw_easic_n3x.sv		\
 	   $(MEM_SRC_DIR)/rl_queue.sv				\
-	   $(DUT_SRC_DIR)/core/memory/riscv_membuf.sv		\
+	   $(DUT_SRC_DIR)/pkg/riscv_cache_pkg.sv		\
+	   $(DUT_SRC_DIR)/core/cache/riscv_cache_setup.sv	\
+	   $(DUT_SRC_DIR)/core/cache/riscv_cache_tag.sv		\
+	   $(DUT_SRC_DIR)/core/cache/riscv_cache_hit.sv		\
+	   $(DUT_SRC_DIR)/core/cache/riscv_cache_biu_ctrl.sv	\
+	   $(DUT_SRC_DIR)/core/cache/riscv_cache_memory.sv	\
+	   $(DUT_SRC_DIR)/core/cache/riscv_icache_core.sv	\
+	   $(DUT_SRC_DIR)/core/cache/riscv_noicache_core.sv	\
+	   $(DUT_SRC_DIR)/core/cache/riscv_dcache_hit.sv	\
+	   $(DUT_SRC_DIR)/core/cache/riscv_dcache_core.sv	\
+	   $(DUT_SRC_DIR)/core/cache/riscv_nodcache_core.sv	\
+	   $(DUT_SRC_DIR)/core/mmu/riscv_nommu.sv		\
 	   $(DUT_SRC_DIR)/core/memory/riscv_memmisaligned.sv	\
-	   $(DUT_SRC_DIR)/core/memory/riscv_mmu.sv		\
+	   $(DUT_SRC_DIR)/core/memory/riscv_membuf.sv		\
 	   $(DUT_SRC_DIR)/core/memory/riscv_pmachk.sv		\
 	   $(DUT_SRC_DIR)/core/memory/riscv_pmpchk.sv		\
-	   $(DUT_SRC_DIR)/core/memory/biu_mux.sv		\
 	   $(DUT_SRC_DIR)/core/memory/riscv_imem_ctrl.sv	\
 	   $(DUT_SRC_DIR)/core/memory/riscv_dmem_ctrl.sv	\
-	   $(DUT_SRC_DIR)/core/cache/riscv_icache_core.sv	\
-	   $(DUT_SRC_DIR)/core/cache/riscv_dcache_core.sv	\
-	   $(DUT_SRC_DIR)/core/cache/riscv_dext.sv		\
 	   $(DUT_SRC_DIR)/$(busif)/biu_$(busif).sv		\
 	   $(DUT_SRC_DIR)/$(busif)/riscv_top_$(busif).sv
 RTL_VHDL =

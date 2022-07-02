@@ -1,272 +1,149 @@
-/////////////////////////////////////////////////////////////////
-//                                                             //
-//    ██████╗  ██████╗  █████╗                                 //
-//    ██╔══██╗██╔═══██╗██╔══██╗                                //
-//    ██████╔╝██║   ██║███████║                                //
-//    ██╔══██╗██║   ██║██╔══██║                                //
-//    ██║  ██║╚██████╔╝██║  ██║                                //
-//    ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝                                //
-//          ██╗      ██████╗  ██████╗ ██╗ ██████╗              //
-//          ██║     ██╔═══██╗██╔════╝ ██║██╔════╝              //
-//          ██║     ██║   ██║██║  ███╗██║██║                   //
-//          ██║     ██║   ██║██║   ██║██║██║                   //
-//          ███████╗╚██████╔╝╚██████╔╝██║╚██████╗              //
-//          ╚══════╝ ╚═════╝  ╚═════╝ ╚═╝ ╚═════╝              //
-//                                                             //
-//    RISC-V                                                   //
-//    No-Instruction Cache Core Logic                          //
-//                                                             //
-/////////////////////////////////////////////////////////////////
-//                                                             //
-//             Copyright (C) 2014-2017 ROA Logic BV            //
-//             www.roalogic.com                                //
-//                                                             //
-//    Unless specifically agreed in writing, this software is  //
-//  licensed under the RoaLogic Non-Commercial License         //
-//  version-1.0 (the "License"), a copy of which is included   //
-//  with this file or may be found on the RoaLogic website     //
-//  http://www.roalogic.com. You may not use the file except   //
-//  in compliance with the License.                            //
-//                                                             //
-//    THIS SOFTWARE IS PROVIDED "AS IS" AND WITHOUT ANY        //
-//  EXPRESS OF IMPLIED WARRANTIES OF ANY KIND.                 //
-//  See the License for permissions and limitations under the  //
-//  License.                                                   //
-//                                                             //
-/////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////
+//   ,------.                    ,--.                ,--.          //
+//   |  .--. ' ,---.  ,--,--.    |  |    ,---. ,---. `--' ,---.    //
+//   |  '--'.'| .-. |' ,-.  |    |  |   | .-. | .-. |,--.| .--'    //
+//   |  |\  \ ' '-' '\ '-'  |    |  '--.' '-' ' '-' ||  |\ `--.    //
+//   `--' '--' `---'  `--`--'    `-----' `---' `-   /`--' `---'    //
+//                                             `---'               //
+//    RISC-V                                                       //
+//    No Instruction Cache Core Logic                              //
+//                                                                 //
+/////////////////////////////////////////////////////////////////////
+//                                                                 //
+//             Copyright (C) 2014-2021 ROA Logic BV                //
+//             www.roalogic.com                                    //
+//                                                                 //
+//     Unless specifically agreed in writing, this software is     //
+//   licensed under the RoaLogic Non-Commercial License            //
+//   version-1.0 (the "License"), a copy of which is included      //
+//   with this file or may be found on the RoaLogic website        //
+//   http://www.roalogic.com. You may not use the file except      //
+//   in compliance with the License.                               //
+//                                                                 //
+//     THIS SOFTWARE IS PROVIDED "AS IS" AND WITHOUT ANY           //
+//   EXPRESS OF IMPLIED WARRANTIES OF ANY KIND.                    //
+//   See the License for permissions and limitations under the     //
+//   License.                                                      //
+//                                                                 //
+/////////////////////////////////////////////////////////////////////
 
 import biu_constants_pkg::*;
+import riscv_state_pkg::*;
 
 module riscv_noicache_core #(
-  parameter XLEN           = 32,
-  parameter PHYS_ADDR_SIZE = XLEN, //MSB determines cacheable(0) and non-cacheable(1)
-  parameter PARCEL_SIZE    = 32
+  parameter XLEN        = 32,
+  parameter PLEN        = XLEN,
+  parameter PARCEL_SIZE = 16,
+  parameter HAS_RVC     = 0,
+  parameter DEPTH       = 2,        //number of transactions in flight
+  parameter BIUTAG_SIZE = $clog2(XLEN/PARCEL_SIZE)
 )
 (
-  input                           rstn,
-  input                           clk,
+  input                             rst_ni,
+  input                             clk_i,
  
   //CPU side
-  output reg                      if_stall_nxt_pc,
-  input                           if_stall,
-                                  if_flush,
-  input      [XLEN          -1:0] if_nxt_pc,
-  output reg [XLEN          -1:0] if_parcel_pc,
-  output reg [PARCEL_SIZE   -1:0] if_parcel,
-  output reg                      if_parcel_valid,
-  output                          if_parcel_misaligned,
-  input                           bu_cacheflush,
-                                  dcflush_rdy,
-  input       [              1:0] st_prv,
+  input      [XLEN            -1:0] if_nxt_pc_i,
+  input                             if_req_i,
+  output                            if_ack_o,
+  input  biu_prot_t                 if_prot_i,
+  input                             if_flush_i,
+  output     [XLEN            -1:0] if_parcel_pc_o,
+  output     [XLEN            -1:0] if_parcel_o,
+  output     [XLEN/PARCEL_SIZE-1:0] if_parcel_valid_o,
+  output                            if_parcel_misaligned_o,
+  output                            if_parcel_error_o,
+  input                             cm_dc_clean_rdy_i,
+  input      [                 1:0] st_prv_i,
 
   //To BIU
-  output reg                      biu_stb,
-  input                           biu_stb_ack,
-  output     [PHYS_ADDR_SIZE-1:0] biu_adri,
-  input      [PHYS_ADDR_SIZE-1:0] biu_adro,
-  output biu_size_t               biu_size,     //transfer size
-  output biu_type_t               biu_type,     //burst type -AHB style
-  output                          biu_lock,
-  output                          biu_we,
-  output     [XLEN          -1:0] biu_di,
-  input      [XLEN          -1:0] biu_do,
-  input                           biu_ack,      //data acknowledge, 1 per data
-  input                           biu_err,      //data error
-
-  output                          biu_is_cacheable,
-                                  biu_is_instruction,
-  output     [               1:0] biu_prv
+  output                            biu_stb_o,
+  input                             biu_stb_ack_i,
+  input                             biu_d_ack_i,
+  output     [PLEN            -1:0] biu_adri_o,
+  input      [PLEN            -1:0] biu_adro_i,
+  output biu_size_t                 biu_size_o,     //transfer size
+  output biu_type_t                 biu_type_o,     //burst type -AHB style
+  output                            biu_lock_o,
+  output                            biu_we_o,
+  output biu_prot_t                 biu_prot_o,
+  output     [XLEN            -1:0] biu_d_o,
+  input      [XLEN            -1:0] biu_q_i,
+  input                             biu_ack_i,      //data acknowledge, 1 per data
+  input                             biu_err_i,      //data error
+  output     [BIUTAG_SIZE     -1:0] biu_tagi_o,
+  input      [BIUTAG_SIZE     -1:0] biu_tago_i
 );
-  //////////////////////////////////////////////////////////////////
-  //
-  // Typedefs
-  //
-  typedef struct packed {
-    logic                       valid;
-    logic [XLEN           -1:0] dat;
-    logic [PHYS_ADDR_SIZE -1:0] adr;
-  } fifo_struct;
-
 
   //////////////////////////////////////////////////////////////////
   //
   // Variables
   //
-  logic        is_cacheable;
+  logic if_flush_dly;
 
-  logic  [1:0] biu_stb_cnt;
-  fifo_struct  biu_fifo[3];
-  logic        if_flush_dly;
-
+  logic [$clog2(DEPTH):0] inflight,
+	                  discard;
+  
 
   //////////////////////////////////////////////////////////////////
   //
   // Module Body
   //
 
-  //Is this a cacheable region?
-  //MSB=1 non-cacheable (IO region)
-  //MSB=0 cacheabel (instruction/data region)
-  assign is_cacheable = ~if_nxt_pc[PHYS_ADDR_SIZE-1];
-
-  //For now don't support 16bit accesses
-  assign if_parcel_misaligned = |if_nxt_pc[1:0]; //send out together with instruction
-
   //delay IF-flush
-  always @(posedge clk,negedge rstn)
-    if (!rstn) if_flush_dly <= 1'b0;
-    else       if_flush_dly <= if_flush;
+  always @(posedge clk_i, negedge rst_ni)
+    if (!rst_ni) if_flush_dly <= 1'b0;
+    else         if_flush_dly <= if_flush_i;
+
+
+  always @(posedge clk_i, negedge rst_ni)
+    if      (!rst_ni) inflight <= 'h0;
+    else
+      unique case ({biu_stb_ack_i, biu_ack_i | biu_err_i})
+        2'b01  : inflight <= inflight -1;
+        2'b10  : inflight <= inflight +1;
+        default: ; //do nothing
+      endcase
+
+      
+  always @(posedge clk_i, negedge rst_ni)
+    if (!rst_ni) discard <= 'h0;
+    else if (if_flush_i)
+    begin
+        if (|inflight && (biu_ack_i | biu_err_i)) discard <= inflight -1;
+        else                                      discard <= inflight;
+    end
+    else if (|discard && (biu_ack_i | biu_err_i)) discard <= discard -1;
 
 
   /*
    * To CPU
    */
-  assign if_stall_nxt_pc = ~dcflush_rdy | ~biu_stb_ack | biu_fifo[1].valid;
-  assign if_parcel_valid =  dcflush_rdy & ~(if_flush | if_flush_dly) & ~if_stall & biu_fifo[0].valid;
-  assign if_parcel_pc    = { {XLEN-PHYS_ADDR_SIZE{1'b0}},biu_fifo[0].adr};
-  assign if_parcel       = biu_fifo[0].dat[ if_parcel_pc[$clog2(XLEN/32)+1:1]*16 +: PARCEL_SIZE ];
-
+  assign if_ack_o               = cm_dc_clean_rdy_i & biu_stb_ack_i;  //get next parcel address
+  assign if_parcel_misaligned_o = (HAS_RVC != 0) ? if_parcel_pc_o[0] : |if_parcel_pc_o[1:0];
+  assign if_parcel_error_o      = biu_err_i;
+  assign if_parcel_valid_o      = cm_dc_clean_rdy_i & ~(if_flush_i | if_flush_dly) & biu_ack_i & ~|discard
+                                ? {XLEN/PARCEL_SIZE{1'b1}} << biu_tago_i
+                                : {XLEN/PARCEL_SIZE{1'b0}};
+  assign if_parcel_pc_o         = { {PLEN - (BIUTAG_SIZE+1) - $bits(biu_tago_i) -1{1'b0}},biu_adro_i[PLEN -1 : BIUTAG_SIZE+1], biu_tago_i, 1'b0};
+  assign if_parcel_o            = biu_q_i;
 
 
   /*
    * External Interface
    */
-  assign biu_stb   = dcflush_rdy & ~if_flush & ~if_stall & ~biu_fifo[1].valid; //TODO when is ~biu_fifo[1] required?
-  assign biu_adri  = if_nxt_pc[PHYS_ADDR_SIZE -1:0];
-  assign biu_size  = XLEN==64 ? DWORD : WORD;
-  assign biu_lock  = 1'b0;
-  assign biu_we    = 1'b0;   //no writes
-  assign biu_di    =  'h0;
-  assign biu_type  = SINGLE; //single access
-
-  //Instruction cache..
-  assign biu_is_instruction = 1'b1;
-  assign biu_is_cacheable   = is_cacheable;
-  assign biu_prv            = st_prv;
-
-
-  /*
-   * FIFO
-   */
-  always @(posedge clk,negedge rstn)
-    if      (!rstn       ) biu_stb_cnt <= 2'h0;
-    else if ( if_flush   ) biu_stb_cnt <= 2'h0;
-    else if ( biu_stb_ack) biu_stb_cnt <= {1'b1,biu_stb_cnt[1]};
-
-
-  //valid bits
-  always @(posedge clk,negedge rstn)
-    if (!rstn)
-    begin
-        biu_fifo[0].valid <= 1'b0;
-        biu_fifo[1].valid <= 1'b0;
-        biu_fifo[2].valid <= 1'b0;
-    end
-    else if (!biu_stb_cnt[0])
-    begin
-        biu_fifo[0].valid <= 1'b0;
-        biu_fifo[1].valid <= 1'b0;
-        biu_fifo[2].valid <= 1'b0;
-    end
-    else
-      case ({biu_ack,if_parcel_valid})
-        2'b00: ; //no action
-        2'b10:   //FIFO write
-               case ({biu_fifo[1].valid,biu_fifo[0].valid})
-                 2'b11  : begin
-                              //entry 0,1 full. Fill entry2
-                              biu_fifo[2].valid <= 1'b1;
-                          end
-                 2'b01  : begin
-                              //entry 0 full. Fill entry1, clear entry2
-                              biu_fifo[1].valid <= 1'b1;
-                              biu_fifo[2].valid <= 1'b0;
-                          end
-                 default: begin
-                            //Fill entry0, clear entry1,2
-                            biu_fifo[0].valid <= 1'b1;
-                            biu_fifo[1].valid <= 1'b0;
-                            biu_fifo[2].valid <= 1'b0;
-                        end
-               endcase
-        2'b01: begin  //FIFO read
-                   biu_fifo[0].valid <= biu_fifo[1].valid;
-                   biu_fifo[1].valid <= biu_fifo[2].valid;
-                   biu_fifo[2].valid <= 1'b0;
-               end
-        2'b11: ; //FIFO read/write, no change
-      endcase
-
-
-  //Address & Data
-  always @(posedge clk)
-    case ({biu_ack,if_parcel_valid})
-        2'b00: ;
-        2'b10: case({biu_fifo[1].valid,biu_fifo[0].valid})
-                 2'b11 : begin
-                             //fill entry2
-                             biu_fifo[2].dat <= biu_do;
-                             biu_fifo[2].adr <= biu_adro;
-                         end
-                 2'b01 : begin
-                             //fill entry1
-                             biu_fifo[1].dat <= biu_do;
-                             biu_fifo[1].adr <= biu_adro;
-                         end
-                 default:begin
-                             //fill entry0
-                             biu_fifo[0].dat <= biu_do;
-                             biu_fifo[0].adr <= biu_adro;
-                         end
-               endcase
-        2'b01: begin
-                   biu_fifo[0].dat <= biu_fifo[1].dat;
-                   biu_fifo[0].adr <= biu_fifo[1].adr;
-                   biu_fifo[1].dat <= biu_fifo[2].dat;
-                   biu_fifo[1].adr <= biu_fifo[2].adr;
-                   biu_fifo[2].dat <= 'hx;
-                   biu_fifo[2].adr <= 'hx;
-               end
-        2'b11: casex({biu_fifo[2].valid,biu_fifo[1].valid,biu_fifo[0].valid})
-                 3'b1?? : begin
-                              //fill entry2
-                              biu_fifo[2].dat <= biu_do;
-                              biu_fifo[2].adr <= biu_adro;
-
-                              //push other entries
-                              biu_fifo[0].dat <= biu_fifo[1].dat;
-                              biu_fifo[0].adr <= biu_fifo[1].adr;
-                              biu_fifo[1].dat <= biu_fifo[2].dat;
-                              biu_fifo[1].adr <= biu_fifo[2].adr;
-                          end
-                 3'b01? : begin
-                              //fill entry1
-                              biu_fifo[1].dat <= biu_do;
-                              biu_fifo[1].adr <= biu_adro;
-
-                              //push entry0
-                              biu_fifo[0].dat <= biu_fifo[1].dat;
-                              biu_fifo[0].adr <= biu_fifo[1].adr;
-
-                              //don't care
-                              biu_fifo[2].dat <= 'hx;
-                              biu_fifo[2].adr <= 'hx;
-                         end
-                 default:begin
-                              //fill entry0
-                              biu_fifo[0].dat <= biu_do;
-                              biu_fifo[0].adr <= biu_adro;
-
-                              //don't care
-                              biu_fifo[1].dat <= 'hx;
-                              biu_fifo[1].adr <= 'hx;
-                              biu_fifo[2].dat <= 'hx;
-                              biu_fifo[2].adr <= 'hx;
-                         end
-               endcase
-      endcase
-
-
+  assign biu_stb_o   = cm_dc_clean_rdy_i & ~if_flush_i & if_req_i;
+generate  
+  if (PLEN <= XLEN) assign biu_adri_o = if_nxt_pc_i[PLEN -1:0]           & (XLEN==64 ? ~'h7 : ~'h3); //Always start at aligned address
+  else              assign biu_adri_o = {{PLEN-XLEN{1'b0}}, if_nxt_pc_i} & (XLEN==64 ? ~'h7 : ~'h3);
+endgenerate
+  assign biu_tagi_o  = if_nxt_pc_i[1 +: BIUTAG_SIZE];                     //Use TAG to remember offset (actual address LSBs)
+  assign biu_size_o  = XLEN==64 ? DWORD : WORD;
+  assign biu_lock_o  = 1'b0;
+  assign biu_prot_o  = if_prot_i;
+  assign biu_we_o    = 1'b0;   //no writes
+  assign biu_d_o     =  'h0;
+  assign biu_type_o  = INCR;
 endmodule
 
 

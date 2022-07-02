@@ -38,6 +38,7 @@
 //               Fixed some QuestaSim compilation errors
 //
 
+import ahb3lite_pkg::*;
 
 module memory_model_ahb3lite #(
   parameter ADDR_WIDTH = 16,
@@ -53,24 +54,19 @@ module memory_model_ahb3lite #(
   input                          HCLK,
   input                          HRESETn,
 
-  input      [              1:0] HTRANS [PORTS],
-  output                         HREADY [PORTS],
-  output                         HRESP  [PORTS],
+  input                          HSEL      [PORTS],
+  input      [HTRANS_SIZE  -1:0] HTRANS    [PORTS],
+  input                          HREADY    [PORTS],
+  output                         HREADYOUT [PORTS],
+  output                         HRESP     [PORTS],
 
-  input      [ADDR_WIDTH   -1:0] HADDR  [PORTS],
-  input                          HWRITE [PORTS],
-  input      [              2:0] HSIZE  [PORTS],
-  input      [              3:0] HBURST [PORTS],
-  input      [DATA_WIDTH   -1:0] HWDATA [PORTS],
-  output reg [DATA_WIDTH   -1:0] HRDATA [PORTS]
+  input      [ADDR_WIDTH   -1:0] HADDR     [PORTS],
+  input                          HWRITE    [PORTS],
+  input      [HSIZE_SIZE   -1:0] HSIZE     [PORTS],
+  input      [HBURST_SIZE  -1:0] HBURST    [PORTS],
+  input      [DATA_WIDTH   -1:0] HWDATA    [PORTS],
+  output reg [DATA_WIDTH   -1:0] HRDATA    [PORTS]
 );
-  ////////////////////////////////////////////////////////////////
-  //
-  // Constants
-  //
-  import ahb3lite_pkg::*;
-
-
   ////////////////////////////////////////////////////////////////
   //
   // Typedefs
@@ -101,10 +97,10 @@ module memory_model_ahb3lite #(
   logic [LATENCY        :1] ack_latency [PORTS];
 
 
-  logic [              1:0] dHTRANS [PORTS];
+  logic [HTRANS_SIZE  -1:0] dHTRANS [PORTS];
   logic                     dHWRITE [PORTS];
-  logic [              2:0] dHSIZE  [PORTS];
-  logic [              3:0] dHBURST [PORTS];
+  logic [HSIZE_SIZE   -1:0] dHSIZE  [PORTS];
+  logic [HBURST_SIZE  -1:0] dHBURST [PORTS];
 
 
   ////////////////////////////////////////////////////////////////
@@ -250,7 +246,7 @@ module memory_model_ahb3lite #(
    */
   task dump;
     foreach (mem_array[i])
-      $display("[%8h]:%8h", i,mem_array[i]);
+      $display("[%8h]:%8h   %s", i,mem_array[i], mem_array[i]);
   endtask
 
 
@@ -270,18 +266,21 @@ generate
      if (LATENCY > 0)
      begin
          always @(posedge HCLK,negedge HRESETn)
-           if      (!HRESETn                   ) ack_latency[p] <= {LATENCY{1'b1}};
+           if      (!HRESETn                   )
+           begin
+               ack_latency[p] <= {LATENCY{1'b1}};
+           end
            else if (HREADY[p])
            begin
-               if      ( HTRANS[p] == HTRANS_IDLE  ) ack_latency[p] <= {LATENCY{1'b1}};
-               else if ( HTRANS[p] == HTRANS_NONSEQ) ack_latency[p] <= 'h0;
+               if      (!HSEL[p] || HTRANS[p] == HTRANS_IDLE  ) ack_latency[p] <= {LATENCY{1'b1}};
+               else if (            HTRANS[p] == HTRANS_NONSEQ) ack_latency[p] <= 'h0;
            end
            else                                      ack_latency[p] <= {ack_latency[p],1'b1};
 
-         assign HREADY[p] = ack_latency[p][LATENCY];
+         assign HREADYOUT[p] = ack_latency[p][LATENCY];
      end
      else
-         assign HREADY[p] = 1'b1;
+         assign HREADYOUT[p] = 1'b1;
 
       assign HRESP[p] = HRESP_OKAY;
 
@@ -300,7 +299,7 @@ generate
         end
 
       always @(posedge HCLK)
-        if (HREADY[p] && HTRANS[p] != HTRANS_BUSY)
+        if (HREADY[p] && HSEL[p] && HTRANS[p] != HTRANS_BUSY)
         begin
             waddr[p] <= HADDR[p] & ( {DATA_WIDTH{1'b1}} << $clog2(DATA_WIDTH/8) );
 
@@ -314,7 +313,7 @@ generate
 
 
      always @(posedge HCLK)
-       if (HREADY[p]) wreq[p] <= (HTRANS[p] != HTRANS_IDLE & HTRANS[p] != HTRANS_BUSY) & HWRITE[p];
+       if (HREADY[p]) wreq[p] <= HSEL[p] & (HTRANS[p] != HTRANS_IDLE) & (HTRANS[p] != HTRANS_BUSY) & HWRITE[p];
 
 
       always @(posedge HCLK)
@@ -328,7 +327,7 @@ generate
 
 
       always @(posedge HCLK)
-        if (HREADY[p] && (HTRANS[p] != HTRANS_IDLE) && (HTRANS[p] != HTRANS_BUSY) && !HWRITE[p])
+        if (HREADY[p] && HSEL[p] && (HTRANS[p] != HTRANS_IDLE) && (HTRANS[p] != HTRANS_BUSY) && !HWRITE[p])
           if (iaddr[p] == waddr[p] && wreq[p])
           begin
               for (j=0; j<DATA_WIDTH/8; j++)

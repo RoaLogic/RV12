@@ -10,7 +10,7 @@
 //                                                                 //
 /////////////////////////////////////////////////////////////////////
 //                                                                 //
-//             Copyright (C) 2016-2017 ROA Logic BV                //
+//             Copyright (C) 2016-2021 ROA Logic BV                //
 //             www.roalogic.com                                    //
 //                                                                 //
 //   This source file may be used and distributed without          //

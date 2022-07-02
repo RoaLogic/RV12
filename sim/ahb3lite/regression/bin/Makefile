@@ -9,7 +9,7 @@
 ##                                                                 ##
 #####################################################################
 ##                                                                 ##
-##             Copyright (C) 2014-2017 ROA Logic BV                ##
+##             Copyright (C) 2014-2022 ROA Logic BV                ##
 ##             www.roalogic.com                                    ##
 ##                                                                 ##
 ##   This source file may be used and distributed without          ##
@@ -41,7 +41,7 @@
 all: regression
 
 SIMULATORS = ncsim vcs msim riviera
-SIM        = riviera
+SIM        = msim
 SIMWAVES   = $(addsuffix _waves, $(SIMULATORS))
 
 MS     = -s
@@ -57,15 +57,13 @@ TST_SRC_DIR=$(ROOT_DIR)/../bench/tests/regression
 ##########################################################################
 #REGRESSION_MEM_LATENCY      = 0 1 2 3 4 5 7 8 15
 #REGRESSION_MEM_LATENCY      = 0 1 3 8
-REGRESSION_MEM_LATENCY     = 0 1 3 8 
+REGRESSION_MEM_LATENCY     = 0 1 2 3 8 
 #REGRESSION_XLEN             = 32 64
 REGRESSION_XLEN             = 64
-#REGRESSION_WRITEBUFFER_SIZE = 0 2 8
 REGRESSION_WRITEBUFFER_SIZE = 0 
-REGRESSION_ICACHE_SIZE = 0 4
+REGRESSION_ICACHE_SIZE = 0 4 
 REGRESSION_DCACHE_SIZE = 0 4
 REGRESSION_MULT_LATENCY = 3 2 1 0
-#REGRESSION_MULT_LATENCY = 2
 
 
 ##########################################################################
@@ -74,13 +72,13 @@ REGRESSION_MULT_LATENCY = 3 2 1 0
 #
 ##########################################################################
 XLEN    = 64
-HAS_RVC = 0
+HAS_RVC = 1
 HAS_U   = 1 
-HAS_S   = 
-HAS_H   = 
-HAS_RVA = 
-HAS_FPU =
-HAS_MMU =
+HAS_S   = 0
+HAS_H   = 0
+HAS_RVA = 0
+HAS_FPU = 0
+HAS_MMU = 0
 HAS_RVM = 1
 HAS_DIV = $(HAS_RVM)
 CORES   = 1

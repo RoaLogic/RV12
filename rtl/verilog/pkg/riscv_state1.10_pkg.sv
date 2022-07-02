@@ -115,10 +115,19 @@ package riscv_state_pkg;
   } fcsr_struct;
 
 
+  //State towards core
+  typedef struct packed {
+    logic       interrupt;
+    logic [1:0] prv;        //Privilege level
+    logic [1:0] xlen;       //Active Architecture
+    logic       tvm,        //trap on satp access or SFENCE.VMA
+                two,        //trap on WFI (after time >=0)
+                tsr;   
+  } state_t;
 
-
+  
   //CSR mapping
-  parameter [11:0] //User
+  localparam[11:0] //User
                    //User Trap Setup
                    USTATUS       = 'h000,
                    UIE           = 'h004,
@@ -239,20 +248,20 @@ package riscv_state_pkg;
                    DSCRATCH      = 'h7B2;
 
   //MXL mapping
-  parameter [ 1:0] RV32I  = 2'b01,
+  localparam[ 1:0] RV32I  = 2'b01,
                    RV32E  = 2'b01,
                    RV64I  = 2'b10,
                    RV128I = 2'b11;
 
 
   //Privilege levels
-  parameter [ 1:0] PRV_M = 2'b11,
+  localparam[ 1:0] PRV_M = 2'b11,
                    PRV_H = 2'b10,
                    PRV_S = 2'b01,
                    PRV_U = 2'b00;
 
   //Virtualisation
-  parameter [ 3:0] VM_MBARE = 4'd0,
+  localparam[ 3:0] VM_MBARE = 4'd0,
                    VM_SV32  = 4'd1,
                    VM_SV39  = 4'd8,
                    VM_SV48  = 4'd9,
@@ -260,7 +269,7 @@ package riscv_state_pkg;
                    VM_SV64  = 4'd11;
 
   //MIE MIP
-  parameter        MEI = 11,
+  localparam       MEI = 11,
                    HEI = 10,
                    SEI = 9,
                    UEI = 8,
@@ -274,17 +283,50 @@ package riscv_state_pkg;
                    USI = 0;
 
   //Performance counters
-  parameter        CY = 0,
+  localparam       CY = 0,
                    TM = 1,
                    IR = 2;
 
 
 
 
-  //Exception causes
-  parameter        EXCEPTION_SIZE                 = 16;
+  //Interrupts and Exceptions
+  typedef struct packed {
+    logic [3:0] external,
+                timer,
+                software;
+  } interrupts_t;
 
-  parameter        CAUSE_MISALIGNED_INSTRUCTION   = 0,
+  typedef struct packed {
+    logic store_page_fault,              //15
+          res14,                         //14
+	  load_page_fault,               //13
+	  instruction_page_fault,        //12
+	  mmode_ecall,                   //11
+	  hmode_ecall,                   //10
+	  smode_ecall,                   //9
+	  umode_ecall,                   //8
+	  store_access_fault,            //7
+	  misaligned_store,              //6
+	  load_access_fault,             //5
+	  misaligned_load,               //4
+	  breakpoint,                    //3
+	  illegal_instruction,           //2
+	  instruction_access_fault,      //1
+	  misaligned_instruction;        //0
+  } exceptions_t;
+
+  typedef struct packed {
+    logic any;                 //OR of all interrupts and exceptions
+    logic nmi;                 //Non-Maskable interrupt
+    interrupts_t interrupts;   //Interrupts
+    exceptions_t exceptions;   //Exceptions
+  } interrupts_exceptions_t;
+
+
+  localparam       EXCEPTION_SIZE                 = 16;
+
+  localparam       CAUSE_MISALIGNED_INSTRUCTION   = 0,
                    CAUSE_INSTRUCTION_ACCESS_FAULT = 1,
                    CAUSE_ILLEGAL_INSTRUCTION      = 2,
                    CAUSE_BREAKPOINT               = 3,
@@ -300,7 +342,7 @@ package riscv_state_pkg;
                    CAUSE_LOAD_PAGE_FAULT          = 13,
                    CAUSE_STORE_PAGE_FAULT         = 15;
 
-  parameter        CAUSE_USINT                    = 0,
+  localparam       CAUSE_USINT                    = 0,
                    CAUSE_SSINT                    = 1,
                    CAUSE_HSINT                    = 2,
                    CAUSE_MSINT                    = 3,

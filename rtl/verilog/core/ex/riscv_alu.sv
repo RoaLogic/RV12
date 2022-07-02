@@ -10,7 +10,7 @@
 //                                                                 //
 /////////////////////////////////////////////////////////////////////
 //                                                                 //
-//             Copyright (C) 2014-2018 ROA Logic BV                //
+//             Copyright (C) 2014-2021 ROA Logic BV                //
 //             www.roalogic.com                                    //
 //                                                                 //
 //     Unless specifically agreed in writing, this software is     //
@@ -31,39 +31,43 @@ import riscv_opcodes_pkg::*;
 import riscv_state_pkg::*;
 
 module riscv_alu #(
-  parameter            XLEN    = 32,
-  parameter            HAS_RVC = 0
+  parameter             XLEN    = 32,
+  parameter             HAS_RVC = 0
 )
 (
-  input                  rstn,
-  input                  clk,
+  input                          rst_ni,
+  input                          clk_i,
 
-  input                  ex_stall,
+  input                          ex_stall_i,
 
   //Program counter
-  input      [XLEN-1:0] id_pc,
+  input      [XLEN         -1:0] id_pc_i,
 
   //Instruction
-  input                 id_bubble,
-  input      [ILEN-1:0] id_instr,
+  input  instruction_t           id_insn_i,
 
   //Operands
-  input      [XLEN-1:0] opA,
-                        opB,
+  input      [XLEN         -1:0] opA_i,
+                                 opB_i,
+
+  //catch WB-exceptions
+  input  interrupts_exceptions_t ex_exceptions_i,
+                                 mem_exceptions_i,
+                                 wb_exceptions_i,
 
   //to WB
-  output reg            alu_bubble,
-  output reg [XLEN-1:0] alu_r,
+  output reg                     alu_bubble_o,
+  output reg [XLEN         -1:0] alu_r_o,
 
 
   //To State
-  output reg [    11:0] ex_csr_reg,
-  output reg [XLEN-1:0] ex_csr_wval,
-  output reg            ex_csr_we,
+  output reg [             11:0] ex_csr_reg_o,
+  output reg [XLEN         -1:0] ex_csr_wval_o,
+  output reg                     ex_csr_we_o,
 
   //From State
-  input      [XLEN-1:0] st_csr_rval,
-  input      [     1:0] st_xlen
+  input      [XLEN         -1:0] st_csr_rval_i,
+  input      [              1:0] st_xlen_i
 );
 
 
@@ -87,20 +91,16 @@ module riscv_alu #(
   //
   localparam SBITS=$clog2(XLEN);
 
-  logic [             6:2] opcode;
-  logic [             2:0] func3;
-  logic [             6:0] func7;
-  logic [             4:0] rs1;
-  logic                    xlen32;
-  logic                    has_rvc;
+  opcR_t             opcR;
+  logic              xlen32;
+  logic              has_rvc;
 
   //Operand generation
-  logic [            31:0] opA32;
-  logic [            31:0] opB32;
-  logic [SBITS       -1:0] shamt;
-  logic [             4:0] shamt32;
-  logic [XLEN        -1:0] csri;
-
+  logic [      31:0] opA32;
+  logic [      31:0] opB32;
+  logic [SBITS -1:0] shamt;
+  logic [       4:0] shamt32;
+  logic [XLEN  -1:0] csri;
 
   ////////////////////////////////////////////////////////////////
   //
@@ -110,163 +110,173 @@ module riscv_alu #(
   /*
    * Instruction
    */
-  assign func7  = id_instr[31:25];
-  assign func3  = id_instr[14:12];
-  assign opcode = id_instr[ 6: 2];
-
-  assign xlen32  = (st_xlen == RV32I);
+  assign opcR    = decode_opcR(id_insn_i.instr);
+  assign xlen32  = (st_xlen_i == RV32I);
   assign has_rvc = (HAS_RVC !=     0);
 
   /*
    *
    */
-  assign opA32   = opA[     31:0];
-  assign opB32   = opB[     31:0];
-  assign shamt   = opB[SBITS-1:0];
-  assign shamt32 = opB[      4:0];
+  assign opA32   = opA_i[     31:0];
+  assign opB32   = opB_i[     31:0];
+  assign shamt   = opB_i[SBITS-1:0];
+  assign shamt32 = opB_i[      4:0];
   
 
   /*
    * ALU operations
    */
-  always @(posedge clk, negedge rstn)
-    if      (!rstn    ) alu_r <= 'h0;
-    else if (!ex_stall)
-      casex ( {xlen32,func7,func3,opcode} )
-        {1'b?,LUI   }: alu_r <= opA + opB; //actually just opB, but simplify encoding
-        {1'b?,AUIPC }: alu_r <= opA + opB;
-        {1'b?,JAL   }: alu_r <= id_pc + 'h4;
-        {1'b?,JALR  }: alu_r <= id_pc + 'h4;
+  always @(posedge clk_i, negedge rst_ni)
+    if      (!rst_ni    ) alu_r_o <= 'h0;
+    else if (!ex_stall_i)
+      casex ( {xlen32, opcR} )
+        {1'b?,LUI   }: alu_r_o <= opA_i + opB_i; //actually just opB_i, but simplify encoding
+        {1'b?,AUIPC }: alu_r_o <= opA_i + opB_i;
+        {1'b?,JAL   }: alu_r_o <= id_pc_i + (&id_insn_i.instr[1:0] || !has_rvc ? 'h4 : 'h2);
+        {1'b?,JALR  }: alu_r_o <= id_pc_i + (&id_insn_i.instr[1:0] || !has_rvc ? 'h4 : 'h2);
 
         //logical operators
-        {1'b?,ADDI  }: alu_r <= opA + opB;
-        {1'b?,ADD   }: alu_r <= opA + opB;
-        {1'b0,ADDIW }: alu_r <= sext32(opA32 + opB32);    //RV64
-        {1'b0,ADDW  }: alu_r <= sext32(opA32 + opB32);    //RV64
-        {1'b?,SUB   }: alu_r <= opA - opB;
-        {1'b0,SUBW  }: alu_r <= sext32(opA32 - opB32);    //RV64
-        {1'b?,XORI  }: alu_r <= opA ^ opB;
-        {1'b?,XOR   }: alu_r <= opA ^ opB;
-        {1'b?,ORI   }: alu_r <= opA | opB;
-        {1'b?,OR    }: alu_r <= opA | opB;
-        {1'b?,ANDI  }: alu_r <= opA & opB;
-        {1'b?,AND   }: alu_r <= opA & opB;
-        {1'b?,SLLI  }: alu_r <= opA << shamt;
-        {1'b?,SLL   }: alu_r <= opA << shamt;
-        {1'b0,SLLIW }: alu_r <= sext32(opA32 << shamt32); //RV64
-        {1'b0,SLLW  }: alu_r <= sext32(opA32 << shamt32); //RV64
-        {1'b?,SLTI  }: alu_r <= {~opA[XLEN-1],opA[XLEN-2:0]} < {~opB[XLEN-1],opB[XLEN-2:0]} ? 'h1 : 'h0;
-        {1'b?,SLT   }: alu_r <= {~opA[XLEN-1],opA[XLEN-2:0]} < {~opB[XLEN-1],opB[XLEN-2:0]} ? 'h1 : 'h0;
-        {1'b?,SLTIU }: alu_r <= opA < opB ? 'h1 : 'h0;
-        {1'b?,SLTU  }: alu_r <= opA < opB ? 'h1 : 'h0;
-        {1'b?,SRLI  }: alu_r <= opA >> shamt;
-        {1'b?,SRL   }: alu_r <= opA >> shamt;
-        {1'b0,SRLIW }: alu_r <= sext32(opA32 >> shamt32); //RV64
-        {1'b0,SRLW  }: alu_r <= sext32(opA32 >> shamt32); //RV64
-        {1'b?,SRAI  }: alu_r <= $signed(opA) >>> shamt;
-        {1'b?,SRA   }: alu_r <= $signed(opA) >>> shamt;
-        {1'b0,SRAIW }: alu_r <= sext32($signed(opA32) >>> shamt32);
-        {1'b?,SRAW  }: alu_r <= sext32($signed(opA32) >>> shamt32);
+        {1'b?,ADDI  }: alu_r_o <= opA_i + opB_i;
+        {1'b?,ADD   }: alu_r_o <= opA_i + opB_i;
+        {1'b0,ADDIW }: alu_r_o <= sext32(opA32 + opB32);    //RV64
+        {1'b0,ADDW  }: alu_r_o <= sext32(opA32 + opB32);    //RV64
+        {1'b?,SUB   }: alu_r_o <= opA_i - opB_i;
+        {1'b0,SUBW  }: alu_r_o <= sext32(opA32 - opB32);    //RV64
+        {1'b?,XORI  }: alu_r_o <= opA_i ^ opB_i;
+        {1'b?,XOR   }: alu_r_o <= opA_i ^ opB_i;
+        {1'b?,ORI   }: alu_r_o <= opA_i | opB_i;
+        {1'b?,OR    }: alu_r_o <= opA_i | opB_i;
+        {1'b?,ANDI  }: alu_r_o <= opA_i & opB_i;
+        {1'b?,AND   }: alu_r_o <= opA_i & opB_i;
+        {1'b?,SLLI  }: alu_r_o <= opA_i << shamt;
+        {1'b?,SLL   }: alu_r_o <= opA_i << shamt;
+        {1'b0,SLLIW }: alu_r_o <= sext32(opA32 << shamt32); //RV64
+        {1'b0,SLLW  }: alu_r_o <= sext32(opA32 << shamt32); //RV64
+        {1'b?,SLTI  }: alu_r_o <= {~opA_i[XLEN-1],opA_i[XLEN-2:0]} < {~opB_i[XLEN-1],opB_i[XLEN-2:0]} ? 'h1 : 'h0;
+        {1'b?,SLT   }: alu_r_o <= {~opA_i[XLEN-1],opA_i[XLEN-2:0]} < {~opB_i[XLEN-1],opB_i[XLEN-2:0]} ? 'h1 : 'h0;
+        {1'b?,SLTIU }: alu_r_o <= opA_i < opB_i ? 'h1 : 'h0;
+        {1'b?,SLTU  }: alu_r_o <= opA_i < opB_i ? 'h1 : 'h0;
+        {1'b?,SRLI  }: alu_r_o <= opA_i >> shamt;
+        {1'b?,SRL   }: alu_r_o <= opA_i >> shamt;
+        {1'b0,SRLIW }: alu_r_o <= sext32(opA32 >> shamt32); //RV64
+        {1'b0,SRLW  }: alu_r_o <= sext32(opA32 >> shamt32); //RV64
+        {1'b?,SRAI  }: alu_r_o <= $signed(opA_i) >>> shamt;
+        {1'b?,SRA   }: alu_r_o <= $signed(opA_i) >>> shamt;
+        {1'b0,SRAIW }: alu_r_o <= sext32($signed(opA32) >>> shamt32);
+        {1'b?,SRAW  }: alu_r_o <= sext32($signed(opA32) >>> shamt32);
 
         //CSR access
-        {1'b?,CSRRW }: alu_r <= {XLEN{1'b0}} | st_csr_rval;
-        {1'b?,CSRRWI}: alu_r <= {XLEN{1'b0}} | st_csr_rval;
-        {1'b?,CSRRS }: alu_r <= {XLEN{1'b0}} | st_csr_rval;
-        {1'b?,CSRRSI}: alu_r <= {XLEN{1'b0}} | st_csr_rval;
-        {1'b?,CSRRC }: alu_r <= {XLEN{1'b0}} | st_csr_rval;
-        {1'b?,CSRRCI}: alu_r <= {XLEN{1'b0}} | st_csr_rval;
+        {1'b?,CSRRW }: alu_r_o <= {XLEN{1'b0}} | st_csr_rval_i;
+        {1'b?,CSRRWI}: alu_r_o <= {XLEN{1'b0}} | st_csr_rval_i;
+        {1'b?,CSRRS }: alu_r_o <= {XLEN{1'b0}} | st_csr_rval_i;
+        {1'b?,CSRRSI}: alu_r_o <= {XLEN{1'b0}} | st_csr_rval_i;
+        {1'b?,CSRRC }: alu_r_o <= {XLEN{1'b0}} | st_csr_rval_i;
+        {1'b?,CSRRCI}: alu_r_o <= {XLEN{1'b0}} | st_csr_rval_i;
 
-        default      : alu_r <= 'hx;
+        default      : alu_r_o <= 'hx;
       endcase
 
 
-  always @(posedge clk, negedge rstn)
-    if (!rstn) alu_bubble <= 1'b1;
-    else if (!ex_stall)
-    casex ( {xlen32,func7,func3,opcode} )
-      {1'b?,LUI   }: alu_bubble <= id_bubble;
-      {1'b?,AUIPC }: alu_bubble <= id_bubble;
-      {1'b?,JAL   }: alu_bubble <= id_bubble;
-      {1'b?,JALR  }: alu_bubble <= id_bubble;
+  always @(posedge clk_i, negedge rst_ni)
+    if      (!rst_ni                ) alu_bubble_o <= 1'b1;
+    else if ( ex_exceptions_i.any  ||
+              mem_exceptions_i.any ||
+              wb_exceptions_i.any   ) alu_bubble_o <= 1'b1;
+    else if (!ex_stall_i)
+      casex ( {xlen32,opcR} )
+        {1'b?,LUI   }: alu_bubble_o <= id_insn_i.bubble;
+        {1'b?,AUIPC }: alu_bubble_o <= id_insn_i.bubble;
+        {1'b?,JAL   }: alu_bubble_o <= id_insn_i.bubble;
+        {1'b?,JALR  }: alu_bubble_o <= id_insn_i.bubble;
 
-      //logical operators
-      {1'b?,ADDI  }: alu_bubble <= id_bubble;
-      {1'b?,ADD   }: alu_bubble <= id_bubble;
-      {1'b0,ADDIW }: alu_bubble <= id_bubble;
-      {1'b0,ADDW  }: alu_bubble <= id_bubble;
-      {1'b?,SUB   }: alu_bubble <= id_bubble;
-      {1'b0,SUBW  }: alu_bubble <= id_bubble;
-      {1'b?,XORI  }: alu_bubble <= id_bubble;
-      {1'b?,XOR   }: alu_bubble <= id_bubble;
-      {1'b?,ORI   }: alu_bubble <= id_bubble;
-      {1'b?,OR    }: alu_bubble <= id_bubble;
-      {1'b?,ANDI  }: alu_bubble <= id_bubble;
-      {1'b?,AND   }: alu_bubble <= id_bubble;
-      {1'b?,SLLI  }: alu_bubble <= id_bubble;
-      {1'b?,SLL   }: alu_bubble <= id_bubble;
-      {1'b0,SLLIW }: alu_bubble <= id_bubble;
-      {1'b0,SLLW  }: alu_bubble <= id_bubble;
-      {1'b?,SLTI  }: alu_bubble <= id_bubble;
-      {1'b?,SLT   }: alu_bubble <= id_bubble;
-      {1'b?,SLTIU }: alu_bubble <= id_bubble;
-      {1'b?,SLTU  }: alu_bubble <= id_bubble;
-      {1'b?,SRLI  }: alu_bubble <= id_bubble;
-      {1'b?,SRL   }: alu_bubble <= id_bubble;
-      {1'b0,SRLIW }: alu_bubble <= id_bubble;
-      {1'b0,SRLW  }: alu_bubble <= id_bubble;
-      {1'b?,SRAI  }: alu_bubble <= id_bubble;
-      {1'b?,SRA   }: alu_bubble <= id_bubble;
-      {1'b0,SRAIW }: alu_bubble <= id_bubble;
-      {1'b?,SRAW  }: alu_bubble <= id_bubble;
+        //logical operators
+        {1'b?,ADDI  }: alu_bubble_o <= id_insn_i.bubble;
+        {1'b?,ADD   }: alu_bubble_o <= id_insn_i.bubble;
+        {1'b0,ADDIW }: alu_bubble_o <= id_insn_i.bubble;
+        {1'b0,ADDW  }: alu_bubble_o <= id_insn_i.bubble;
+        {1'b?,SUB   }: alu_bubble_o <= id_insn_i.bubble;
+        {1'b0,SUBW  }: alu_bubble_o <= id_insn_i.bubble;
+        {1'b?,XORI  }: alu_bubble_o <= id_insn_i.bubble;
+        {1'b?,XOR   }: alu_bubble_o <= id_insn_i.bubble;
+        {1'b?,ORI   }: alu_bubble_o <= id_insn_i.bubble;
+        {1'b?,OR    }: alu_bubble_o <= id_insn_i.bubble;
+        {1'b?,ANDI  }: alu_bubble_o <= id_insn_i.bubble;
+        {1'b?,AND   }: alu_bubble_o <= id_insn_i.bubble;
+        {1'b?,SLLI  }: alu_bubble_o <= id_insn_i.bubble;
+        {1'b?,SLL   }: alu_bubble_o <= id_insn_i.bubble;
+        {1'b0,SLLIW }: alu_bubble_o <= id_insn_i.bubble;
+        {1'b0,SLLW  }: alu_bubble_o <= id_insn_i.bubble;
+        {1'b?,SLTI  }: alu_bubble_o <= id_insn_i.bubble;
+        {1'b?,SLT   }: alu_bubble_o <= id_insn_i.bubble;
+        {1'b?,SLTIU }: alu_bubble_o <= id_insn_i.bubble;
+        {1'b?,SLTU  }: alu_bubble_o <= id_insn_i.bubble;
+        {1'b?,SRLI  }: alu_bubble_o <= id_insn_i.bubble;
+        {1'b?,SRL   }: alu_bubble_o <= id_insn_i.bubble;
+        {1'b0,SRLIW }: alu_bubble_o <= id_insn_i.bubble;
+        {1'b0,SRLW  }: alu_bubble_o <= id_insn_i.bubble;
+        {1'b?,SRAI  }: alu_bubble_o <= id_insn_i.bubble;
+        {1'b?,SRA   }: alu_bubble_o <= id_insn_i.bubble;
+        {1'b0,SRAIW }: alu_bubble_o <= id_insn_i.bubble;
+        {1'b?,SRAW  }: alu_bubble_o <= id_insn_i.bubble;
 
-      //CSR access
-      {1'b?,CSRRW }: alu_bubble <= id_bubble;
-      {1'b?,CSRRWI}: alu_bubble <= id_bubble;
-      {1'b?,CSRRS }: alu_bubble <= id_bubble;
-      {1'b?,CSRRSI}: alu_bubble <= id_bubble;
-      {1'b?,CSRRC }: alu_bubble <= id_bubble;
-      {1'b?,CSRRCI}: alu_bubble <= id_bubble;
+        //CSR access
+        {1'b?,CSRRW }: alu_bubble_o <= id_insn_i.bubble;
+        {1'b?,CSRRWI}: alu_bubble_o <= id_insn_i.bubble;
+        {1'b?,CSRRS }: alu_bubble_o <= id_insn_i.bubble;
+        {1'b?,CSRRSI}: alu_bubble_o <= id_insn_i.bubble;
+        {1'b?,CSRRC }: alu_bubble_o <= id_insn_i.bubble;
+        {1'b?,CSRRCI}: alu_bubble_o <= id_insn_i.bubble;
 
-      default      : alu_bubble <= 1'b1;
+        default      : alu_bubble_o <= 1'b1;
     endcase
 
 
   /*
    * CSR
    */
-  assign ex_csr_reg = id_instr[31:20];
-  assign csri = {{XLEN-5{1'b0}},opB[4:0]};
+  assign csri = {{XLEN-5{1'b0}},opB_i[4:0]};
 
-  always_comb
-    casex ( {id_bubble,func7,func3,opcode} )
-      {1'b0,CSRRW } : begin
-                          ex_csr_we   = 'b1;
-                          ex_csr_wval = opA;
-                      end
-      {1'b0,CSRRWI} : begin
-                          ex_csr_we   = |csri;
-                          ex_csr_wval = csri;
-                      end
-      {1'b0,CSRRS } : begin
-                          ex_csr_we   = |opA;
-                          ex_csr_wval = st_csr_rval | opA;
-                      end
-      {1'b0,CSRRSI} : begin
-                          ex_csr_we   = |csri;
-                          ex_csr_wval = st_csr_rval | csri;
-                      end
-      {1'b0,CSRRC } : begin
-                          ex_csr_we   = |opA;
-                          ex_csr_wval = st_csr_rval & ~opA;
-                      end
-      {1'b0,CSRRCI} : begin
-                          ex_csr_we   = |csri;
-                          ex_csr_wval = st_csr_rval & ~csri;
-                      end
-      default       : begin
-                          ex_csr_we   = 'b0;
-                          ex_csr_wval = 'hx;
-                      end
+  always @(posedge clk_i,negedge rst_ni)
+    if (!rst_ni)
+    begin
+        ex_csr_reg_o  <= 'hx;
+        ex_csr_wval_o <= 'hx;
+        ex_csr_we_o   <= 1'b0;
+    end
+    else
+    begin
+        ex_csr_reg_o <= id_insn_i.instr.I.imm;
+
+        casex ( {id_insn_i.bubble,opcR} )
+          {1'b0,CSRRW } : begin
+                              ex_csr_we_o   <= 'b1;
+                              ex_csr_wval_o <= opA_i;
+                          end
+          {1'b0,CSRRWI} : begin
+                              ex_csr_we_o   <= |csri;
+                              ex_csr_wval_o <= csri;
+                          end
+          {1'b0,CSRRS } : begin
+                              ex_csr_we_o   <= |opA_i;
+                              ex_csr_wval_o <= st_csr_rval_i | opA_i;
+                          end
+          {1'b0,CSRRSI} : begin
+                              ex_csr_we_o   <= |csri;
+                              ex_csr_wval_o <= st_csr_rval_i | csri;
+                          end
+          {1'b0,CSRRC } : begin
+                              ex_csr_we_o   <= |opA_i;
+                              ex_csr_wval_o <= st_csr_rval_i & ~opA_i;
+                          end
+          {1'b0,CSRRCI} : begin
+                              ex_csr_we_o   <= |csri;
+                              ex_csr_wval_o <= st_csr_rval_i & ~csri;
+                          end
+          default       : begin
+                              ex_csr_we_o   <= 'b0;
+                              ex_csr_wval_o <= 'hx;
+                          end
     endcase
+    end
 
 endmodule 

@@ -35,26 +35,26 @@ module riscv_mul #(
   parameter MULT_LATENCY = 0
 )
 (
-  input                 rstn,
-  input                 clk,
+  input                 rst_ni,
+  input                 clk_i,
 
-  input                 ex_stall,
-  output reg            mul_stall,
+  input                 mem_stall_i,
+  input                 ex_stall_i,
+  output reg            mul_stall_o,
 
   //Instruction
-  input                 id_bubble,
-  input      [ILEN-1:0] id_instr,
+  input instruction_t   id_insn_i,
 
   //Operands
-  input      [XLEN-1:0] opA,
-                        opB,
+  input      [XLEN-1:0] opA_i,
+                        opB_i,
 
   //from State
-  input      [     1:0] st_xlen,
+  input      [     1:0] st_xlen_i,
 
   //to WB
-  output reg            mul_bubble,
-  output reg [XLEN-1:0] mul_r
+  output reg            mul_bubble_o,
+  output reg [XLEN-1:0] mul_r_o
 );
 
   ////////////////////////////////////////////////////////////////
@@ -117,13 +117,10 @@ module riscv_mul #(
   // Variables
   //
   logic              xlen32;
-  logic [ILEN  -1:0] mul_instr;
+  instr_t            mul_instr;
 
-  logic [       6:2] opcode, mul_opcode;
-  logic [       2:0] func3,  mul_func3;
-  logic [       6:0] func7,  mul_func7;
-
-
+  opcR_t             opcR, opcR_mul;
+  
   //Operand generation
   logic [      31:0] opA32,
                      opB32;
@@ -149,22 +146,17 @@ module riscv_mul #(
   /*
    * Instruction
    */
-  assign func7      = id_instr[31:25];
-  assign func3      = id_instr[14:12];
-  assign opcode     = id_instr[ 6: 2];
+  assign opcR     = decode_opcR(id_insn_i.instr);
+  assign opcR_mul = decode_opcR(mul_instr);
 
-  assign mul_func7  = mul_instr[31:25];
-  assign mul_func3  = mul_instr[14:12];
-  assign mul_opcode = mul_instr[ 6: 2];
-
-  assign xlen32     = st_xlen == RV32I;
+  assign xlen32  = st_xlen_i == RV32I;
 
 
   /*
    * 32bit operands
    */
-  assign opA32   = opA[31:0];
-  assign opB32   = opB[31:0];
+  assign opA32 = opA_i[31:0];
+  assign opB32 = opB_i[31:0];
 
 
   /*
@@ -177,27 +169,27 @@ module riscv_mul #(
 
   //multiplier operand-A
   always_comb 
-    unique casex ( {func7,func3,opcode} )
+    unique casex ( opcR )
       MULW   : mult_opA = abs( sext32(opA32) ); //RV64
-      MULHU  : mult_opA =             opA     ;
-      default: mult_opA = abs(        opA    );
+      MULHU  : mult_opA =             opA_i   ;
+      default: mult_opA = abs(        opA_i  );
     endcase
 
   //multiplier operand-B
   always_comb 
-    unique casex ( {func7,func3,opcode} )
+    unique casex ( opcR )
       MULW   : mult_opB = abs( sext32(opB32) ); //RV64
-      MULHSU : mult_opB =             opB     ;
-      MULHU  : mult_opB =             opB     ;
-      default: mult_opB = abs(        opB    );
+      MULHSU : mult_opB =             opB_i   ;
+      MULHU  : mult_opB =             opB_i   ;
+      default: mult_opB = abs(        opB_i  );
     endcase
 
   //negate multiplier output?
   always_comb 
-    unique casex ( {func7,func3,opcode} )
-      MUL    : mult_neg = opA[XLEN-1] ^ opB[XLEN-1];
-      MULH   : mult_neg = opA[XLEN-1] ^ opB[XLEN-1];
-      MULHSU : mult_neg = opA[XLEN-1];
+    unique casex ( opcR )
+      MUL    : mult_neg = opA_i[XLEN-1] ^ opB_i[XLEN-1];
+      MULH   : mult_neg = opA_i[XLEN-1] ^ opB_i[XLEN-1];
+      MULHSU : mult_neg = opA_i[XLEN-1];
       MULHU  : mult_neg = 1'b0;
       MULW   : mult_neg = opA32[31] ^ opB32[31];  //RV64
       default: mult_neg = 'hx;
@@ -223,7 +215,7 @@ generate
        * Registers at: - output
        */
       //Register holding instruction for multiplier-output-selector
-      assign mul_instr = id_instr;
+      assign mul_instr = id_insn_i.instr;
 
       //Registers holding multiplier operands
       assign mult_opA_reg = mult_opA;
@@ -245,12 +237,12 @@ generate
        *               - output
        */
       //Register holding instruction for multiplier-output-selector
-      always @(posedge clk)
-        if (!ex_stall) mul_instr <= id_instr;
+      always @(posedge clk_i)
+        if (!ex_stall_i) mul_instr <= id_insn_i.instr;
 
       //Registers holding multiplier operands
-      always @(posedge clk)
-        if (!ex_stall)
+      always @(posedge clk_i)
+        if (!ex_stall_i)
         begin
             mult_opA_reg <= mult_opA;
             mult_opB_reg <= mult_opB;
@@ -268,7 +260,7 @@ generate
       else if (LATENCY == 2)
       begin
           //Register holding multiplier output
-          always @(posedge clk)
+          always @(posedge clk_i)
             mult_r_reg <= mult_r;
 
           //Register holding sign correction
@@ -277,11 +269,11 @@ generate
       else
       begin
           //Register holding multiplier output
-          always @(posedge clk)
+          always @(posedge clk_i)
             mult_r_reg <= mult_r;
 
           //Register holding sign correction
-          always @(posedge clk)
+          always @(posedge clk_i)
             mult_r_signed_reg <= mult_r_signed;
       end
   end
@@ -292,11 +284,11 @@ endgenerate
   /*
    * Final output register
    */
-  always @(posedge clk)
-    unique casex ( {mul_func7,mul_func3,mul_opcode} )
-      MUL    : mul_r <= mult_r_signed_reg[XLEN -1:   0];
-      MULW   : mul_r <= sext32( mult_r_signed_reg[31:0] );  //RV64
-      default: mul_r <= mult_r_signed_reg[DXLEN-1:XLEN];
+  always @(posedge clk_i)
+    unique casex ( opcR_mul )
+      MUL    : mul_r_o <= mult_r_signed_reg[XLEN -1:   0];
+      MULW   : mul_r_o <= sext32( mult_r_signed_reg[31:0] );  //RV64
+      default: mul_r_o <= mult_r_signed_reg[DXLEN-1:XLEN];
     endcase
 
 
@@ -304,7 +296,7 @@ endgenerate
    * Stall / Bubble generation
    */
   always_comb
-    unique casex ( {func7,func3,opcode} )
+    unique casex ( opcR )
       MUL    : is_mul = 1'b1;
       MULH   : is_mul = 1'b1;
       MULW   : is_mul = ~xlen32;
@@ -314,47 +306,47 @@ endgenerate
     endcase
 
 
-  always @(posedge clk,negedge rstn)
-    if (!rstn)
+  always @(posedge clk_i,negedge rst_ni)
+    if (!rst_ni)
     begin
-        state      <= ST_IDLE;
-        cnt        <= LATENCY;
+        state        <= ST_IDLE;
+        cnt          <= LATENCY;
 
-        mul_bubble <= 1'b1;
-        mul_stall  <= 1'b0;
+        mul_bubble_o <= 1'b1;
+        mul_stall_o  <= 1'b0;
     end
     else
     begin
-        mul_bubble <= 1'b1;
+        mul_bubble_o <= 1'b1;
 
         unique case (state)
-          ST_IDLE: if (!ex_stall)
-                     if (!id_bubble && is_mul)
+          ST_IDLE: if (!ex_stall_i)
+                     if (!id_insn_i.bubble && is_mul)
                      begin
                          if (LATENCY == 0)
                          begin
-                             mul_bubble <= 1'b0;
-                             mul_stall  <= 1'b0;
+                             mul_bubble_o <= 1'b0;
+                             mul_stall_o  <= 1'b0;
                          end
                          else
                          begin
-                             state      <= ST_WAIT;
-                             cnt        <= cnt -1;
+                             state        <= ST_WAIT;
+                             cnt          <= LATENCY -1;
 
-                             mul_bubble <= 1'b1;
-                             mul_stall  <= 1'b1;
+                             mul_bubble_o <= 1'b1;
+                             mul_stall_o  <= 1'b1;
                           end
                        end
 
           ST_WAIT: if (|cnt)
                      cnt <= cnt -1;
-                   else
+                   else if (!mem_stall_i)
                    begin
-                       state <= ST_IDLE;
-                       cnt   <= LATENCY;
+                       state        <= ST_IDLE;
+                       cnt          <= LATENCY;
 
-                       mul_bubble <= 1'b0;
-                       mul_stall  <= 1'b0;
+                       mul_bubble_o <= 1'b0;
+                       mul_stall_o  <= 1'b0;
                    end
         endcase
     end

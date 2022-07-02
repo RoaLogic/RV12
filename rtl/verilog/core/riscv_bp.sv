@@ -28,33 +28,35 @@
 /////////////////////////////////////////////////////////////////////
 
 module riscv_bp #(
-  parameter            XLEN              = 32,
-  parameter [XLEN-1:0] PC_INIT           = 'h200,
-  parameter            HAS_BPU           = 0,
+  parameter                       XLEN              = 32,
+  parameter  [XLEN          -1:0] PC_INIT           = 'h200,
+  parameter                       HAS_BPU           = 0,
+  parameter                       HAS_RVC           = 0,
 
-  parameter            BP_GLOBAL_BITS    = 2,
-  parameter            BP_LOCAL_BITS     = 10,
-  parameter            BP_LOCAL_BITS_LSB = 2,                //LSB of if_nxt_pc to use
+  parameter                       BP_GLOBAL_BITS    = 2,
+  parameter                       BP_LOCAL_BITS     = 10,
+  parameter                       BP_LOCAL_BITS_LSB = HAS_RVC !=0 ? 1 : 2,
 
-  parameter            TECHNOLOGY        = "GENERIC",
-  parameter            AVOID_X           = 0
+  parameter                       TECHNOLOGY        = "GENERIC",
+  parameter                       AVOID_X           = 0
 )
 (
-  input                       rst_ni,
-  input                       clk_i,
+  input                           rst_ni,
+  input                           clk_i,
  
   //Read side
-  input                       id_stall_i,
-  input  [XLEN          -1:0] if_parcel_pc_i,
-  output [               1:0] bp_bp_predict_o,
+  input                           id_stall_i,
+  input      [XLEN          -1:0] if_parcel_pc_i,
+  input      [BP_GLOBAL_BITS-1:0] if_parcel_bp_history_i,
+  output reg [               1:0] bp_bp_predict_o,
 
 
   //Write side
-  input  [XLEN          -1:0] ex_pc_i,
-  input  [BP_GLOBAL_BITS-1:0] bu_bp_history_i,      //branch history
-  input  [               1:0] bu_bp_predict_i,      //prediction bits for branch
-  input                       bu_bp_btaken_i,
-  input                       bu_bp_update_i
+  input      [XLEN          -1:0] ex_pc_i,
+  input      [BP_GLOBAL_BITS-1:0] bu_bp_history_i,      //branch history
+  input      [               1:0] bu_bp_predict_i,      //prediction bits for branch
+  input                           bu_bp_btaken_i,
+  input                           bu_bp_update_i
 );
 
 
@@ -71,7 +73,7 @@ module riscv_bp #(
   logic [XLEN    -1:0] if_parcel_pc_dly;
 
   logic [         1:0] new_prediction;
-  bit   [         1:0] old_prediction;
+  bit   [         1:0] current_prediction;
 
 
   //////////////////////////////////////////////////////////////////
@@ -84,9 +86,9 @@ module riscv_bp #(
     else if (!id_stall_i) if_parcel_pc_dly <= if_parcel_pc_i;
 
 
-  assign radr = id_stall_i ? {bu_bp_history_i, if_parcel_pc_dly[BP_LOCAL_BITS_LSB +: BP_LOCAL_BITS]}
-                           : {bu_bp_history_i, if_parcel_pc_i  [BP_LOCAL_BITS_LSB +: BP_LOCAL_BITS]};
-  assign wadr = {bu_bp_history_i, ex_pc_i[BP_LOCAL_BITS_LSB +: BP_LOCAL_BITS]};
+  assign radr = id_stall_i ? {if_parcel_bp_history_i, if_parcel_pc_dly[BP_LOCAL_BITS_LSB +: BP_LOCAL_BITS]}
+                           : {if_parcel_bp_history_i, if_parcel_pc_i  [BP_LOCAL_BITS_LSB +: BP_LOCAL_BITS]};
+  assign wadr =              {bu_bp_history_i,        ex_pc_i         [BP_LOCAL_BITS_LSB +: BP_LOCAL_BITS]};
 
 
   /*
@@ -101,33 +103,40 @@ module riscv_bp #(
    * Hookup 1R1W memory
    */
   rl_ram_1r1w #(
-    .ABITS      ( ADR_BITS   ),
-    .DBITS      ( 2          ),
-    .TECHNOLOGY ( TECHNOLOGY )
+    .ABITS         ( ADR_BITS    ),
+    .DBITS         ( 2           ),
+    .TECHNOLOGY    ( TECHNOLOGY  ),
+    .RW_CONTENTION ( "DONT_CARE" ) //it's a prediction anyways ...
   )
   bp_ram_inst(
-    .rst_ni  ( rst_ni         ),
-    .clk_i   ( clk_i          ),
+    .rst_ni  ( rst_ni             ),
+    .clk_i   ( clk_i              ),
  
     //Write side
-    .waddr_i ( wadr           ),
-    .din_i   ( new_prediction ),
-    .we_i    ( bu_bp_update_i ),
-    .be_i    ( 1'b1           ),
+    .waddr_i ( wadr               ),
+    .din_i   ( new_prediction     ),
+    .we_i    ( bu_bp_update_i     ),
+    .be_i    ( 1'b1               ),
 
     //Read side
-    .raddr_i ( radr           ),
-    .re_i    ( 1'b1           ),
-    .dout_o  ( old_prediction )
+    .raddr_i ( radr               ),
+    .re_i    ( 1'b1               ),
+    .dout_o  ( current_prediction )
   );
 
 generate
   //synopsys translate_off
   if (AVOID_X)
-     assign bp_bp_predict_o = (old_prediction == 2'bxx) ? $random : old_prediction;
+  begin
+      always @(posedge clk_i)
+        if (!id_stall_i) bp_bp_predict_o <= (current_prediction == 2'bxx) ? $random : current_prediction;
+  end
   else
   //synopsys translate_on
-     assign bp_bp_predict_o = old_prediction;
+  begin
+      always @(posedge clk_i)
+        if (!id_stall_i) bp_bp_predict_o <= current_prediction;
+  end
 endgenerate
 
 endmodule
