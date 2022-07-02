@@ -35,57 +35,58 @@ import biu_constants_pkg::*;
 import ahb3lite_pkg::*;
 
 module riscv_top_ahb3lite #(
-  parameter            XLEN               = 32,     //CPU data size
-  parameter            ALEN               = XLEN,   //CPU Address Space size
+  parameter int        XLEN               = 32,     //CPU data size
+  parameter int        ALEN               = XLEN,   //CPU Address Space size
   parameter [XLEN-1:0] PC_INIT            = 'h200,
-  parameter            HAS_USER           = 0,
-  parameter            HAS_SUPER          = 0,
-  parameter            HAS_HYPER          = 0,
-  parameter            HAS_BPU            = 1,
-  parameter            HAS_FPU            = 0,
-  parameter            HAS_MMU            = 0,
-  parameter            HAS_RVM            = 1,
-  parameter            HAS_RVA            = 0,
-  parameter            HAS_RVC            = 0,
-  parameter            IS_RV32E           = 0,
+  parameter int        HAS_USER           = 0,
+  parameter int        HAS_SUPER          = 0,
+  parameter int        HAS_HYPER          = 0,
+  parameter int        HAS_BPU            = 1,
+  parameter int        HAS_FPU            = 0,
+  parameter int        HAS_MMU            = 0,
+  parameter int        HAS_RVM            = 1,
+  parameter int        HAS_RVA            = 0,
+  parameter int        HAS_RVC            = 0,
+  parameter int        IS_RV32E           = 0,
 
-  parameter            MULT_LATENCY       = 0,
+  parameter int        MULT_LATENCY       = 0,
 
-  parameter            BREAKPOINTS        = 3,  //Number of hardware breakpoints
+  parameter int        BREAKPOINTS        = 3,  //Number of hardware breakpoints
 
-  parameter            PMA_CNT            = 1, //16,
-  parameter            PMP_CNT            = 0, //16, //Number of Physical Memory Protection entries
+  parameter int        PMA_CNT            = 1, //16,
+  parameter int        PMP_CNT            = 0, //16, //Number of Physical Memory Protection entries
 
-  parameter            BP_GLOBAL_BITS     = 2,
-  parameter            BP_LOCAL_BITS      = 10,
+  parameter int        BP_GLOBAL_BITS     = 2,
+  parameter int        BP_LOCAL_BITS      = 10,
 
-  parameter            ICACHE_SIZE        = 0,  //in KBytes
-  parameter            ICACHE_BLOCK_SIZE  = 32, //in Bytes
-  parameter            ICACHE_WAYS        = 2,  //'n'-way set associative
-  parameter            ICACHE_REPLACE_ALG = 0,
-  parameter            ITCM_SIZE          = 0,
+  parameter int        ICACHE_SIZE        = 0,  //in KBytes
+  parameter int        ICACHE_BLOCK_SIZE  = 32, //in Bytes
+  parameter int        ICACHE_WAYS        = 2,  //'n'-way set associative
+  parameter int        ICACHE_REPLACE_ALG = 0,
 
-  parameter            DCACHE_SIZE        = 0,  //in KBytes
-  parameter            DCACHE_BLOCK_SIZE  = 32, //in Bytes
-  parameter            DCACHE_WAYS        = 2,  //'n'-way set associative
-  parameter            DCACHE_REPLACE_ALG = 0,
-  parameter            DTCM_SIZE          = 0,
-  parameter            WRITEBUFFER_SIZE   = 8,
+  parameter int        DCACHE_SIZE        = 0,  //in KBytes
+  parameter int        DCACHE_BLOCK_SIZE  = 32, //in Bytes
+  parameter int        DCACHE_WAYS        = 2,  //'n'-way set associative
+  parameter int        DCACHE_REPLACE_ALG = 0,
+  parameter int        WRITEBUFFER_SIZE   = 8,
 
-  parameter            TECHNOLOGY         = "GENERIC",
+  parameter string     TECHNOLOGY         = "GENERIC",
 
-  parameter            MNMIVEC_DEFAULT    = PC_INIT -'h004,
-  parameter            MTVEC_DEFAULT      = PC_INIT -'h040,
-  parameter            HTVEC_DEFAULT      = PC_INIT -'h080,
-  parameter            STVEC_DEFAULT      = PC_INIT -'h0C0,
-  parameter            UTVEC_DEFAULT      = PC_INIT -'h100,
+  parameter [XLEN-1:0] MNMIVEC_DEFAULT    = PC_INIT -'h004,
+  parameter [XLEN-1:0] MTVEC_DEFAULT      = PC_INIT -'h040,
+  parameter [XLEN-1:0] HTVEC_DEFAULT      = PC_INIT -'h080,
+  parameter [XLEN-1:0] STVEC_DEFAULT      = PC_INIT -'h0C0,
+  parameter [XLEN-1:0] UTVEC_DEFAULT      = PC_INIT -'h100,
 
-  parameter            JEDEC_BANK            = 10,
-  parameter            JEDEC_MANUFACTURER_ID = 'h6e,
+  parameter int        JEDEC_BANK            = 10,
+  parameter int        JEDEC_MANUFACTURER_ID = 'h6e,
 
-  parameter            HARTID             = 0,
+  parameter int        HARTID             = 0,
 
-  parameter            PARCEL_SIZE        = 16 //16bits per parcel
+  parameter int        STRICT_AHB         = 1,
+
+  localparam int       PARCEL_SIZE        = 16, //16bits per parcel
+  localparam int       BIUTAG_SIZE        = $clog2(XLEN/PARCEL_SIZE)
 )
 (
   //AHB interfaces
@@ -137,6 +138,12 @@ module riscv_top_ahb3lite #(
   output                              dbg_ack,
   output                              dbg_bp
 );
+  ////////////////////////////////////////////////////////////////
+  //
+  // Constants
+  //
+  localparam PLEN = XLEN == 32 ? 34 : 56;
+
 
   ////////////////////////////////////////////////////////////////
   //
@@ -149,7 +156,7 @@ module riscv_top_ahb3lite #(
   logic          [XLEN            -1:0] imem_parcel;
   logic          [XLEN/PARCEL_SIZE-1:0] imem_parcel_valid;
   logic                                 imem_misaligned;
-  logic                                 imem_page_fault;
+  logic                                 imem_pagefault;
   logic                                 imem_error;
 
   logic                                 dmem_req;
@@ -160,24 +167,27 @@ module riscv_top_ahb3lite #(
                                         dmem_q;
   logic                                 dmem_ack,
                                         dmem_err;
-  logic                                 dmem_is_misaligned,
-                                        dmem_misaligned;
-  logic                                 dmem_page_fault;
+  logic                                 dmem_misaligned;
+  logic                                 dmem_pagefault;
 
   pmpcfg_t [15:0]                       st_pmpcfg;
   logic    [15:0][XLEN            -1:0] st_pmpaddr;
   logic          [                 1:0] st_prv;
 
-  logic                                 cacheflush,
-                                        dcflush_rdy;
+  logic                                 cm_ic_invalidate,
+                                        cm_dc_invalidate,
+                                        cm_dc_clean,
+                                        cm_dc_clean_rdy;
 
   /* Instruction Memory BIU connections
    */
   logic                                 ibiu_stb;
   logic                                 ibiu_stb_ack;
   logic                                 ibiu_d_ack;
-  logic          [ALEN            -1:0] ibiu_adri,
-                                        ibiu_adro;
+  logic          [PLEN            -1:0] ibiu_adri;
+  logic          [ALEN            -1:0] ibiu_adri_tmp;
+  logic          [ALEN            -1:0] ibiu_adro;
+  logic          [PLEN            -1:0] ibiu_adro_tmp;
   biu_size_t                            ibiu_size;
   biu_type_t                            ibiu_type;
   logic                                 ibiu_we;
@@ -187,13 +197,18 @@ module riscv_top_ahb3lite #(
   logic          [XLEN            -1:0] ibiu_q;
   logic                                 ibiu_ack,
                                         ibiu_err;
+  logic          [BIUTAG_SIZE     -1:0] ibiu_tago,
+                                        ibiu_tagi;
+
   /* Data Memory BIU connections
    */
   logic                                 dbiu_stb;
   logic                                 dbiu_stb_ack;
   logic                                 dbiu_d_ack;
-  logic          [ALEN            -1:0] dbiu_adri,
-                                        dbiu_adro;
+  logic          [PLEN            -1:0] dbiu_adri;
+  logic          [ALEN            -1:0] dbiu_adri_tmp;
+  logic          [ALEN            -1:0] dbiu_adro;
+  logic          [PLEN            -1:0] dbiu_adro_tmp;
   biu_size_t                            dbiu_size;
   biu_type_t                            dbiu_type;
   logic                                 dbiu_we;
@@ -203,6 +218,8 @@ module riscv_top_ahb3lite #(
   logic          [XLEN            -1:0] dbiu_q;
   logic                                 dbiu_ack,
                                         dbiu_err;
+  logic          [BIUTAG_SIZE     -1:0] dbiu_tago,
+                                        dbiu_tagi;
 
 
   ////////////////////////////////////////////////////////////////
@@ -260,7 +277,7 @@ module riscv_top_ahb3lite #(
     .imem_parcel_i            ( imem_parcel            ),
     .imem_parcel_valid_i      ( imem_parcel_valid      ),
     .imem_parcel_misaligned_i ( imem_misaligned        ),
-    .imem_parcel_page_fault_i ( imem_page_fault        ),
+    .imem_parcel_page_fault_i ( imem_pagefault         ),
     .imem_parcel_error_i      ( imem_error             ),
 
     //Data Memory Access bus
@@ -274,13 +291,15 @@ module riscv_top_ahb3lite #(
     .dmem_ack_i               ( dmem_ack               ),
     .dmem_err_i               ( dmem_err               ),
     .dmem_misaligned_i        ( dmem_misaligned        ),
-    .dmem_page_fault_i        ( 1'b0                   ),
+    .dmem_page_fault_i        ( dmem_pagefault         ),
 
     //cpu state
     .st_prv_o                 ( st_prv                 ),
     .st_pmpcfg_o              ( st_pmpcfg              ),
     .st_pmpaddr_o             ( st_pmpaddr             ),
-    .cacheflush_o             ( cacheflush             ),
+    .cm_ic_invalidate_o       ( cm_ic_invalidate       ),
+    .cm_dc_invalidate_o       ( cm_dc_invalidate       ),
+    .cm_dc_clean_o            ( cm_dc_clean            ),
 
 
     //Interrupts
@@ -303,10 +322,9 @@ module riscv_top_ahb3lite #(
   /*
    * Instantiate bus interfaces and optional caches
    */
-
   riscv_imem_ctrl #(
     .XLEN              ( XLEN              ),
-    .PLEN              ( XLEN              ),
+    .PLEN              ( PLEN              ),
     .PARCEL_SIZE       ( PARCEL_SIZE       ),
     .HAS_RVC           ( HAS_RVC           ),
     .PMA_CNT           ( PMA_CNT           ),
@@ -327,24 +345,26 @@ module riscv_top_ahb3lite #(
     .st_prv_i          ( st_prv            ),
 
     //CPU side
-    .imem_req_i        ( imem_req          ),
-    .imem_ack_o        ( imem_ack          ),
-    .imem_flush_i      ( imem_flush        ),
-    .imem_adr_i        ( imem_adr          ),
-    .imem_misaligned_o ( imem_misaligned   ),
-    .imem_page_fault_o ( imem_page_fault   ),
-    .imem_error_o      ( imem_error        ),
+    .mem_req_i         ( imem_req          ),
+    .mem_ack_o         ( imem_ack          ),
+    .mem_flush_i       ( imem_flush        ),
+    .mem_adr_i         ( imem_adr          ),
+    .mem_misaligned_o  ( imem_misaligned   ),
+    .mem_pagefault_o   ( imem_pagefault    ),
+    .mem_error_o       ( imem_error        ),
     .parcel_o          ( imem_parcel       ),
     .parcel_valid_o    ( imem_parcel_valid ),
-    .cache_flush_i     ( cacheflush        ),
-    .dcflush_rdy_i     ( dcflush_rdy       ),
+
+    //Cache management
+    .cm_invalidate_i   ( cm_ic_invalidate  ),
+    .cm_dc_clean_rdy_i ( cm_dc_clean_rdy   ),
 
      //BIU ports
     .biu_stb_o         ( ibiu_stb          ),
     .biu_stb_ack_i     ( ibiu_stb_ack      ),
     .biu_d_ack_i       ( ibiu_d_ack        ),
     .biu_adri_o        ( ibiu_adri         ),
-    .biu_adro_i        ( ibiu_adro         ),
+    .biu_adro_i        ( ibiu_adro_tmp     ),
     .biu_size_o        ( ibiu_size         ),
     .biu_type_o        ( ibiu_type         ),
     .biu_we_o          ( ibiu_we           ),
@@ -353,242 +373,87 @@ module riscv_top_ahb3lite #(
     .biu_d_o           ( ibiu_d            ),
     .biu_q_i           ( ibiu_q            ),
     .biu_ack_i         ( ibiu_ack          ),
-    .biu_err_i         ( ibiu_err          ) );
-
-
-/*  
-  assign imem_parcel_page_fault = 0; //No MMU
+    .biu_err_i         ( ibiu_err          ),
+    .biu_tagi_o        ( ibiu_tagi         ),
+    .biu_tago_i        ( ibiu_tago         ) );
 
 generate
-if (ICACHE_SIZE > 0)
-    /* Instruction Cache
-     */
-    /*
-    riscv_icache_core #(
-      .XLEN        ( XLEN              ),
-      .ALEN        ( ALEN              ),
-      .PARCEL_SIZE ( PARCEL_SIZE       ),
-
-      .SIZE        ( ICACHE_SIZE       ),
-      .BLOCK_SIZE  ( ICACHE_BLOCK_SIZE ),
-      .WAYS        ( 2 )) //ICACHE_WAYS       ) )
-    icache_inst (
-      .rst_ni           ( HRESETn           ),
-      .clk_i            ( HCLK              ),
-      .clr_i            (  ),
-
-      .mem_vreq_i       ( ),
-      .mem_preq_i       ( ),
-      .mem_vadr_i       ( ),
-      .mem_padr_i       ( ),
-      .size_i           ( ),
-      .lock_i           ( ),
-      .prot_i           ( ),
-      .mem_q_o          ( ),
-      .mem_ack_o        ( ),
-      .mem_err_o
-
-
-      .nxt_pc_i         ( imem_adr            ),
-      .stall_nxt_pc_o   ( if_stall_nxt_pc      ),
-      .stall_i          ( if_stall             ),
-      .flush_i          ( imem_flush             ),
-      .parcel_pc_o      ( if_parcel_pc         ),
-      .parcel_o         ( imem_parcel            ),
-      .parcel_valid_o   ( imem_parcel_valid      ),
-      .err_o            ( if_parcel_error      ),
-
-      .cache_flush_i    ( cacheflush       ),
-      .dcflush_rdy_i    ( dcflush_rdy      ),
-
-      .st_prv_i         ( st_prv           ),
-
-      .biu_stb_o        ( ibiu_stb         ),
-      .biu_stb_ack_i    ( ibiu_stb_ack     ),
-      .biu_d_ack_i      ( ibiu_d_ack       ),
-      .biu_adri_o       ( ibiu_adri        ),
-      .biu_adro_i       ( ibiu_adro        ),
-      .biu_size_o       ( ibiu_size        ),
-      .biu_type_o       ( ibiu_type        ),
-      .biu_we_o         ( ibiu_we          ),
-      .biu_lock_o       ( ibiu_lock        ),
-      .biu_prot_o       ( ibiu_prot        ),
-      .biu_d_o          ( ibiu_d           ),
-      .biu_q_i          ( ibiu_q           ),
-      .biu_ack_i        ( ibiu_ack         ),
-      .biu_err_i        ( ibiu_err         )
-    );
-    */
-/*
-
-   assign ibiu_stb = 1'b0;
-else
-   /*
-    * No Instruction Cache Core
-    * Control and glue logic only
-    */
-/*   
-   riscv_noicache_core #(
-     .XLEN                   ( XLEN                   ),
-     .ALEN                   ( ALEN                   ),
-     .HAS_RVC                ( HAS_RVC                ),
-     .PARCEL_SIZE            ( PARCEL_SIZE            ) )
-   noicache_core_inst (
-     //common signals
-     .rst_ni                 ( HRESETn                ),
-     .clk_i                  ( HCLK                   ),
-
-     //CPU
-     .if_req_i               ( imem_req               ),
-     .if_ack_o               ( imem_ack               ),
-     .if_flush_i             ( imem_flush             ),
-     .if_nxt_pc_i            ( imem_adr               ),
-     .if_parcel_pc_o         (   ),
-     .if_parcel_o            ( imem_parcel            ),
-     .if_parcel_valid_o      ( imem_parcel_valid      ),
-     .if_parcel_misaligned_o ( imem_parcel_misaligned ),
-     .if_parcel_error_o      ( imem_parcel_error      ),
-     .dcflush_rdy_i          ( dcflush_rdy            ),
-     .st_prv_i               ( st_prv                 ),
-
-     //BIU
-     .biu_stb_o              ( ibiu_stb               ),
-     .biu_stb_ack_i          ( ibiu_stb_ack           ),
-     .biu_d_ack_i            ( ibiu_d_ack             ),
-     .biu_adri_o             ( ibiu_adri              ),
-     .biu_adro_i             ( ibiu_adro              ),
-     .biu_size_o             ( ibiu_size              ),
-     .biu_type_o             ( ibiu_type              ),
-     .biu_we_o               ( ibiu_we                ),
-     .biu_lock_o             ( ibiu_lock              ),
-     .biu_prot_o             ( ibiu_prot              ),
-     .biu_d_o                ( ibiu_d                 ),
-     .biu_q_i                ( ibiu_q                 ),
-     .biu_ack_i              ( ibiu_ack               ),
-     .biu_err_i              ( ibiu_err               ) );
+  if (ALEN >= PLEN) assign ibiu_adro_tmp = ibiu_adro[PLEN-1:0];
+  else              assign ibiu_adro_tmp = { {PLEN-ALEN{1'b0}}, ibiu_adro};
 endgenerate
-*/
 
 
-  riscv_memmisaligned #(
-    .XLEN    ( XLEN    ),
-    .HAS_RVC ( HAS_RVC )
-  )
-  dmisaligned_inst (
-    .instruction_i ( 1'b0               ),
-    .req_i         ( dmem_req           ),
-    .adr_i         ( dmem_adr           ),
-    .size_i        ( dmem_size          ),
-    .misaligned_o  ( dmem_is_misaligned )
-  );
+  riscv_dmem_ctrl #(
+    .XLEN              ( XLEN              ),
+    .PLEN              ( PLEN              ),
+    .HAS_RVC           ( HAS_RVC           ),
+    .PMA_CNT           ( PMA_CNT           ),
+    .PMP_CNT           ( PMP_CNT           ),
+    .CACHE_SIZE        ( DCACHE_SIZE       ),
+    .CACHE_BLOCK_SIZE  ( DCACHE_BLOCK_SIZE ),
+    .CACHE_WAYS        ( DCACHE_WAYS       ),
+    .TECHNOLOGY        ( TECHNOLOGY        ),
+    .BIUTAG_SIZE       ( BIUTAG_SIZE       ) )
+  dmem_ctrl_inst (
+    .rst_ni            ( HRESETn           ),
+    .clk_i             ( HCLK              ),
+ 
+    //Configuration
+    .pma_cfg_i         ( pma_cfg_i         ),
+    .pma_adr_i         ( pma_adr_i         ),
+    .st_pmpcfg_i       ( st_pmpcfg         ),
+    .st_pmpaddr_i      ( st_pmpaddr        ),
+    .st_prv_i          ( st_prv            ),
 
-  assign dmem_page_fault = 1'b0; //No MMU
+    //CPU side
+    .mem_req_i         ( dmem_req          ),
+    .mem_size_i        ( dmem_size         ),
+    .mem_lock_i        ( dmem_lock         ),
+    .mem_adr_i         ( dmem_adr          ),
+    .mem_we_i          ( dmem_we           ),
+    .mem_d_i           ( dmem_d            ),
+    .mem_q_o           ( dmem_q            ),
+    .mem_ack_o         ( dmem_ack          ),
+    .mem_err_o         ( dmem_err          ),
+    .mem_misaligned_o  ( dmem_misaligned   ),
+    .mem_pagefault_o   ( dmem_pagefault    ),
+
+    //Cache management
+    .cm_invalidate_i   ( cm_dc_invalidate  ),
+    .cm_clean_i        ( cm_dc_clean       ),
+    .cm_clean_rdy_o    ( cm_dc_clean_rdy   ),
+
+     //BIU ports
+    .biu_stb_o         ( dbiu_stb          ),
+    .biu_stb_ack_i     ( dbiu_stb_ack      ),
+    .biu_d_ack_i       ( dbiu_d_ack        ),
+    .biu_adri_o        ( dbiu_adri         ),
+    .biu_adro_i        ( dbiu_adro_tmp     ),
+    .biu_size_o        ( dbiu_size         ),
+    .biu_type_o        ( dbiu_type         ),
+    .biu_we_o          ( dbiu_we           ),
+    .biu_lock_o        ( dbiu_lock         ),
+    .biu_prot_o        ( dbiu_prot         ),
+    .biu_d_o           ( dbiu_d            ),
+    .biu_q_i           ( dbiu_q            ),
+    .biu_ack_i         ( dbiu_ack          ),
+    .biu_err_i         ( dbiu_err          ),
+    .biu_tagi_o        ( dbiu_tagi         ),
+    .biu_tago_i        ( dbiu_tago         ) );
+
 generate
-if (DCACHE_SIZE > 0)
-    /* Data Cache
-     */
-    /*
-    riscv_icache_core #(
-      .XLEN        ( XLEN              ),
-      .ALEN        ( ALEN              ),
-      .PARCEL_SIZE ( PARCEL_SIZE       ),
-
-      .SIZE        ( ICACHE_SIZE       ),
-      .BLOCK_SIZE  ( ICACHE_BLOCK_SIZE ),
-      .WAYS        ( 2 )) //ICACHE_WAYS       ) )
-    icache_inst (
-      .rst_ni           ( HRESETn           ),
-      .clk_i            ( HCLK              ),
-
-      .nxt_pc_i         ( imem_adr            ),
-      .stall_nxt_pc_o   ( if_stall_nxt_pc      ),
-      .stall_i          ( if_stall             ),
-      .flush_i          ( imem_flush             ),
-      .parcel_pc_o      ( if_parcel_pc         ),
-      .parcel_o         ( imem_parcel            ),
-      .parcel_valid_o   ( imem_parcel_valid      ),
-      .err_o            ( if_parcel_error      ),
-
-      .cache_flush_i    ( cacheflush       ),
-      .dcflush_rdy_i    ( dcflush_rdy      ),
-
-      .st_prv_i         ( st_prv           ),
-
-      .biu_stb_o        ( ibiu_stb         ),
-      .biu_adri_o       ( ibiu_adri        ),
-      .biu_adro_i       (                  ),
-      .biu_size_o       ( ibiu_size        ),
-      .biu_type_o       ( ibiu_type        ),
-      .biu_we_o         ( ibiu_we          ),
-      .biu_lock_o       ( ibiu_lock        ),
-      .biu_prot_o       ( ibiu_prot        ),
-      .biu_d_o          ( ibiu_d           ),
-      .biu_q_i          ( ibiu_q           ),
-      .biu_stb_ack_i    ( ibiu_stb_ack_i   ),
-      .biu_d_ack_i      ( ibiu_d_ack_i     ),
-      .biu_ack_i        ( ibiu_ack         ),
-      .biu_err_i        ( ibiu_err         )
-    );
-    */
-   assign dcflush_rdy = 1'b1;
-else
-begin
-   /*
-    * No Data Cache Core
-    * Control and glue logic only
-    */
-   riscv_nodcache_core #(
-     .XLEN        ( XLEN        ),
-     .ALEN        ( ALEN        )//,
-//     .DEPTH       ( 2           )
-   )
-   nodcache_core_inst (
-     //common signals
-     .rst_ni           ( HRESETn            ),
-     .clk_i            ( HCLK               ),
-
-     //CPU
-     .mem_req_i        ( dmem_req           ),
-     .mem_size_i       ( dmem_size          ),
-     .mem_lock_i       ( dmem_lock          ),
-     .mem_adr_i        ( dmem_adr           ),
-     .mem_we_i         ( dmem_we            ),
-     .mem_d_i          ( dmem_d             ),
-     .mem_q_o          ( dmem_q             ),
-     .mem_ack_o        ( dmem_ack           ),
-     .mem_err_o        ( dmem_err           ),
-     .mem_misaligned_i ( dmem_is_misaligned ),
-     .mem_misaligned_o ( dmem_misaligned    ),
-     .st_prv_i         ( st_prv             ),
-
-     //BIU
-     .biu_stb_o        ( dbiu_stb           ),
-     .biu_stb_ack_i    ( dbiu_stb_ack       ),
-     .biu_d_ack_i      ( dbiu_d_ack         ),
-     .biu_adri_o       ( dbiu_adri          ),
-     .biu_adro_i       ( dbiu_adro          ),
-     .biu_size_o       ( dbiu_size          ),
-     .biu_type_o       ( dbiu_type          ),
-     .biu_we_o         ( dbiu_we            ),
-     .biu_lock_o       ( dbiu_lock          ),
-     .biu_prot_o       ( dbiu_prot          ),
-     .biu_d_o          ( dbiu_d             ),
-     .biu_q_i          ( dbiu_q             ),
-     .biu_ack_i        ( dbiu_ack           ),
-     .biu_err_i        ( dbiu_err           )
-   );
-
-   assign dcflush_rdy = 1'b1; //no data cache to flush. Always ready
-end
+  if (ALEN >= PLEN) assign dbiu_adro_tmp = dbiu_adro[PLEN-1:0];
+  else              assign dbiu_adro_tmp = { {PLEN-ALEN{1'b0}}, dbiu_adro};
 endgenerate
 
 
   /* Instantiate BIU
    */
   biu_ahb3lite #(
-    .DATA_SIZE ( XLEN ),
-    .ADDR_SIZE ( ALEN )
-  )
+    .DATA_SIZE     ( XLEN          ),
+    .ADDR_SIZE     ( ALEN          ),
+    .TAG_SIZE      ( BIUTAG_SIZE   ),
+    .STRICT_AHB    ( STRICT_AHB    ) )
   ibiu_inst (
     .HRESETn       ( HRESETn       ),
     .HCLK          ( HCLK          ),
@@ -608,7 +473,7 @@ endgenerate
     .biu_stb_i     ( ibiu_stb      ),
     .biu_stb_ack_o ( ibiu_stb_ack  ),
     .biu_d_ack_o   ( ibiu_d_ack    ),
-    .biu_adri_i    ( ibiu_adri     ),
+    .biu_adri_i    ( ibiu_adri_tmp ),
     .biu_adro_o    ( ibiu_adro     ),
     .biu_size_i    ( ibiu_size     ),
     .biu_type_i    ( ibiu_type     ),
@@ -618,13 +483,21 @@ endgenerate
     .biu_d_i       ( ibiu_d        ),
     .biu_q_o       ( ibiu_q        ),
     .biu_ack_o     ( ibiu_ack      ),
-    .biu_err_o     ( ibiu_err      )
-  );
+    .biu_err_o     ( ibiu_err      ),
+    .biu_tagi_i    ( ibiu_tagi     ),
+    .biu_tago_o    ( ibiu_tago     ) );
+
+generate
+  if (ALEN <= PLEN) assign ibiu_adri_tmp = ibiu_adri[ALEN-1:0];
+  else              assign ibiu_adri_tmp = { {ALEN-PLEN{1'b0}}, ibiu_adri};
+endgenerate
+
 
   biu_ahb3lite #(
-    .DATA_SIZE ( XLEN ),
-    .ADDR_SIZE ( ALEN )
-  )
+    .DATA_SIZE     ( XLEN          ),
+    .ADDR_SIZE     ( ALEN          ),
+    .TAG_SIZE      ( BIUTAG_SIZE   ),
+    .STRICT_AHB    ( STRICT_AHB    ) )
   dbiu_inst (
     .HRESETn       ( HRESETn       ),
     .HCLK          ( HCLK          ),
@@ -644,7 +517,7 @@ endgenerate
     .biu_stb_i     ( dbiu_stb      ),
     .biu_stb_ack_o ( dbiu_stb_ack  ),
     .biu_d_ack_o   ( dbiu_d_ack    ),
-    .biu_adri_i    ( dbiu_adri     ),
+    .biu_adri_i    ( dbiu_adri_tmp ),
     .biu_adro_o    ( dbiu_adro     ),
     .biu_size_i    ( dbiu_size     ),
     .biu_type_i    ( dbiu_type     ),
@@ -654,7 +527,13 @@ endgenerate
     .biu_d_i       ( dbiu_d        ),
     .biu_q_o       ( dbiu_q        ),
     .biu_ack_o     ( dbiu_ack      ),
-    .biu_err_o     ( dbiu_err      )
-  );
+    .biu_err_o     ( dbiu_err      ),
+    .biu_tagi_i    ( dbiu_tagi     ),
+    .biu_tago_o    ( dbiu_tago     ) );
+
+generate
+  if (ALEN <= PLEN) assign dbiu_adri_tmp = dbiu_adri[ALEN-1:0];
+  else              assign dbiu_adri_tmp = { {ALEN-PLEN{1'b0}}, dbiu_adri};
+endgenerate
 
 endmodule

@@ -56,7 +56,13 @@ simw: vlog
 	vsim $(SIM_OPTS) 							\
 	 -l $(LOG) $(TOP)							\
        	+access +r -wlf $(LOG).wlf						\
-	 -do "set WildcardFilter [lsearch -not -all -inline $$WildcardFilter Memory]; log -r -rec /$(TOP)/*; log /$(TOP)/dut/core/int_rf/rf; run -all; quit"				\
+	 -do "set WildcardFilter [lsearch -not -all -inline $$WildcardFilter Memory];	\
+	      log -r -rec /$(TOP)/*;							\
+	      log /$(TOP)/dut/core/int_rf/rf;						\
+	      log /$(TOP)/dut/dmem_ctrl_inst/cache_blk/dcache_inst/cache_memory_inst/tag_dirty;	\
+	      log /$(TOP)/dut/dmem_ctrl_inst/cache_blk/dcache_inst/cache_memory_inst/tag_valid;	\
+	      run -all;									\
+	      quit"									\
 	$(foreach p, $(PARAMS),-g`echo $p | sed -r 's/(\w+)=([^0-9].*)/\1="\2"/'`)
 	
 clean:

@@ -10,7 +10,7 @@
 //                                                                 //
 /////////////////////////////////////////////////////////////////////
 //                                                                 //
-//             Copyright (C) 2018 ROA Logic BV                     //
+//             Copyright (C) 2018-2022 ROA Logic BV                //
 //             www.roalogic.com                                    //
 //                                                                 //
 //     Unless specifically agreed in writing, this software is     //
@@ -37,20 +37,22 @@ module riscv_pmpchk #(
   parameter PMP_CNT = 16
 )
 (
+  input  logic                     clk_i,
+  input  logic                     stall_i,
+
   //From State
-  input pmpcfg_t [15:0]           st_pmpcfg_i,
-  input          [15:0][XLEN-1:0] st_pmpaddr_i,
-  input                [     1:0] st_prv_i,
+  input  pmpcfg_t [15:0]           st_pmpcfg_i,
+  input  logic    [15:0][XLEN-1:0] st_pmpaddr_i,
+  input  logic          [     1:0] st_prv_i,
 
   //Memory Access
-  input                           instruction_i,   //This is an instruction access
-  input                           req_i,           //Memory access requested
-  input                [PLEN-1:0] adr_i,           //Physical Memory address (i.e. after translation)
-  input  biu_size_t               size_i,          //Transfer size
-  input                           we_i,            //Read/Write enable
+  input  logic                     instruction_i,   //This is an instruction access
+  input  logic          [PLEN-1:0] adr_i,           //Physical Memory address (i.e. after translation)
+  input  biu_size_t                size_i,          //Transfer size
+  input  logic                     we_i,            //Read/Write enable
 
   //Output
-  output reg                      exception_o
+  output logic                     exception_o
 );
 
   //////////////////////////////////////////////////////////////////
@@ -75,73 +77,78 @@ module riscv_pmpchk #(
     endcase
   endfunction: size2bytes
 
-
   //Lower and Upper bounds for NA4/NAPOT
-  function automatic [PLEN-1:2] napot_lb;
-    input            na4; //special case na4
-    input [PLEN-1:2] pmaddr;
+  function int napot_boundary;
+    input na4; //special case na4
+    input [XLEN-1:0] pmaddr;
 
-    int n, i;
+    int n;
     bit true;
-    logic [PLEN-1:2] mask;
 
     //find 'n' boundary = 2^(n+2) bytes
-    n = 0;
+    n = 2;
     if (!na4)
     begin
 //        while ((n < $bits(pmaddr)) && (pmaddr[n+2])) n++; //Quartus doesn't like this
 		  
         true = 1'b1;
-        for (i=0; (i < $bits(pmaddr)) && true; i++)
-          if (pmaddr[i+2]) n++;
-          else             true = 1'b0;
-
+        for (int i=0; (i < $bits(pmaddr)) && true; i++)
+          if (pmaddr[i]) n++;
+          else           true = 1'b0;
+	 
         n++;
     end
 
+    return n;
+  endfunction: napot_boundary
+
+
+  function automatic [PLEN-1:0] napot_lb;
+    input            na4; //special case na4
+    input [XLEN-1:0] pmaddr;
+
+    int n;
+    logic [PLEN-1:0] mask;
+
+    //find 'n' boundary = 2^(n+2) bytes
+    n = napot_boundary(na4, pmaddr);
+
     //create mask
-    mask = {XLEN{1'b1}} << n;
+    mask = {$bits(mask){1'b1}} << n;
 
     //lower bound address
-    napot_lb = pmaddr & mask;
+    napot_lb = pmaddr;
+    napot_lb <<= 2;
+    napot_lb &= mask;
   endfunction: napot_lb
 
 
-  function automatic [PLEN-1:2] napot_ub;
+  function automatic [PLEN-1:0] napot_ub;
     input            na4; //special case na4
-    input [PLEN-1:2] pmaddr;
+    input [XLEN-1:0] pmaddr;
 
-    int n, i;
-    bit true;
-    logic [PLEN-1:2] mask,
-                     incr;
+    int n;
+    logic [PLEN-1:0] mask,
+                     range;
 
     //find 'n' boundary = 2^(n+2) bytes
-    n = 0;
-    if (!na4)
-    begin
-//        while ((n < $bits(pmaddr)) && pmaddr[n+2]) n++; //Quartus doesn't like this
-
-        true = 1;
-        for (i=0; (i < $bits(pmaddr)) && true; i++)
-          if (pmaddr[i+2]) n++;
-          else             true = 1'b0;
-
-        n++;
-    end
+    n = napot_boundary(na4, pmaddr);
 
     //create mask and increment
-    mask = {XLEN{1'b1}} << n;
-    incr = 1 << n;
+    mask = {$bits(mask){1'b1}} << n;
+    range = 1 << n;
 
     //upper bound address
-    napot_ub = (pmaddr + incr) & mask;
+    napot_ub = pmaddr;
+    napot_ub <<= 2;
+    napot_ub &= mask;
+    napot_ub += range;
   endfunction: napot_ub
 
 
   //Is ANY byte of 'access' in pmp range?
   function automatic match_any;
-    input [PLEN-1:2] access_lb, access_ub,
+    input [PLEN-1:0] access_lb, access_ub,
                      pmp_lb   , pmp_ub;
 
     /* Check if ANY byte of the access lies within the PMP range
@@ -150,16 +157,16 @@ module riscv_pmpchk #(
      *   match_none = (access_lb >= pmp_ub) OR (access_ub < pmp_lb)  (1)
      *   match_any  = !match_none                                    (2)
      */
-     match_any = (access_lb >= pmp_ub) || (access_ub <  pmp_lb) ? 1'b0 : 1'b1;
+     match_any = (access_lb[PLEN-1:2] >= pmp_ub[PLEN-1:2]) || (access_ub[PLEN-1:2] <  pmp_lb[PLEN-1:2]) ? 1'b0 : 1'b1;
   endfunction: match_any
 
 
   //Are ALL bytes of 'access' in pmp range?
   function automatic match_all;
-    input [PLEN-1:2] access_lb, access_ub,
+    input [PLEN-1:0] access_lb, access_ub,
                      pmp_lb   , pmp_ub;
 
-    match_all = (access_lb >= pmp_lb) && (access_ub < pmp_ub) ? 1'b1 : 1'b0;
+    match_all = (access_lb[PLEN-1:2] >= pmp_lb[PLEN-1:2]) && (access_ub[PLEN-1:2] < pmp_ub[PLEN-1:2]) ? 1'b1 : 1'b0;
   endfunction: match_all
 
 
@@ -182,12 +189,16 @@ module riscv_pmpchk #(
 
   logic [PLEN   -1:0] access_ub,
                       access_lb;
-  logic [PLEN   -1:2] pmp_ub [16],
+  logic [PLEN   -1:0] pmp_ub [16],
                       pmp_lb [16];
   logic [PMP_CNT-1:0] pmp_match,
                       pmp_match_all;
   int                 matched_pmp;
   pmpcfg_t            matched_pmpcfg;
+
+
+  logic               we;
+
 
 
   //////////////////////////////////////////////////////////////////
@@ -209,12 +220,7 @@ generate
       //lower bounds
       always_comb
       case (st_pmpcfg_i[i].a)
-        /* TOR after NAPOT ...
-         * email discussion suggested TOR after NAPOT is not a real-life configuration
-         * RoaLogic opts to implement this anyways for full flexibility
-         * RoaLogic's implementation uses pmp[i-1]'s upper bound address
-         */
-        TOR    : pmp_lb[i] = (i==0) ? 0 : st_pmpcfg_i[i-1].a != TOR ? pmp_ub[i-1] : st_pmpaddr_i[i-1][PLEN-2 -1:0];
+        TOR    : pmp_lb[i] = (i==0) ? {PLEN{1'b0}} : pmp_ub[i-1];
         NA4    : pmp_lb[i] = napot_lb(1'b1, st_pmpaddr_i[i]);
         NAPOT  : pmp_lb[i] = napot_lb(1'b0, st_pmpaddr_i[i]);
         default: pmp_lb[i] = 'hx;
@@ -223,20 +229,33 @@ generate
       //upper bounds
       always_comb
       case (st_pmpcfg_i[i].a)
-        TOR    : pmp_ub[i] = st_pmpaddr_i[i][PLEN-2 -1:0];
+        TOR    : pmp_ub[i] = st_pmpaddr_i[i];
         NA4    : pmp_ub[i] = napot_ub(1'b1, st_pmpaddr_i[i]);
         NAPOT  : pmp_ub[i] = napot_ub(1'b0, st_pmpaddr_i[i]);
         default: pmp_ub[i] = 'hx;
       endcase
 
       //match-any
-      assign pmp_match    [i] = match_any(access_lb[PLEN-1:2], access_ub[PLEN-1:2], pmp_lb[i], pmp_ub[i]) & (st_pmpcfg_i[i].a != OFF);
-      assign pmp_match_all[i] = match_all(access_lb[PLEN-1:2], access_ub[PLEN-1:2], pmp_lb[i], pmp_ub[i]);
+      assign pmp_match    [i] = match_any(access_lb, access_ub, pmp_lb[i], pmp_ub[i]) & (st_pmpcfg_i[i].a != OFF);
+//     assign pmp_match_all[i] = match_all(access_lb, access_ub, pmp_lb[i], pmp_ub[i]);
+
+      always @(posedge clk_i)
+        if (!stall_i) pmp_match_all[i] <= match_all(access_lb, access_ub, pmp_lb[i], pmp_ub[i]);
   end
 endgenerate
 
-  assign matched_pmp    = highest_priority_match(pmp_match);
+  //TODO: where to insert register stage
+  //for now pick matched_pmp
+//  assign matched_pmp    = highest_priority_match(pmp_match);
+  always @(posedge clk_i)
+    if (!stall_i) matched_pmp <= highest_priority_match(pmp_match);
+
   assign matched_pmpcfg = st_pmpcfg_i[ matched_pmp ];
+
+
+  //delay we; same delay as matched_pmpcfg and pmp_match_all;
+  always @(posedge clk_i)
+    if (!stall_i) we <= we_i;
 
 
   /* Access FAIL when:
@@ -244,14 +263,14 @@ endgenerate
    * 2. pmpcfg.l is set AND privilegel level is S or U AND pmpcfg.rwx tests fail OR
    * 3. privilegel level is S or U AND no PMPs matched AND PMPs are implemented
    */
-  assign exception_o = req_i & (~|pmp_match ? (st_prv_i != PRV_M) & (PMP_CNT > 0)          //Prv.Lvl != M-Mode, no PMP matched, but PMPs implemented -> FAIL
-                                            : ~pmp_match_all[ matched_pmp ]     |
-                                             (
-                                              ((st_prv_i != PRV_M) | matched_pmpcfg.l ) &  //pmpcfg.l set or privilege level != M-mode
-                                              ((~matched_pmpcfg.r & ~we_i           ) |    // read-access while not allowed          -> FAIL
-                                               (~matched_pmpcfg.w &  we_i           ) |    // write-access while not allowed         -> FAIL
-                                               (~matched_pmpcfg.x &  instruction_i  ) )    // instruction read, but not instruction  -> FAIL
-                                             )
-                               );
+  assign exception_o = (~|pmp_match ? (st_prv_i != PRV_M) & (PMP_CNT > 0)          //Prv.Lvl != M-Mode, no PMP matched, but PMPs implemented -> FAIL
+                                    : ~pmp_match_all[ matched_pmp ]     |
+                                     (
+                                      ((st_prv_i != PRV_M) | matched_pmpcfg.l ) &  //pmpcfg.l set or privilege level != M-mode
+                                      ((~matched_pmpcfg.r & ~we             ) |    // read-access while not allowed          -> FAIL
+                                       (~matched_pmpcfg.w &  we             ) |    // write-access while not allowed         -> FAIL
+                                       (~matched_pmpcfg.x &  instruction_i  ) )    // instruction read, but not instruction  -> FAIL
+                                     )
+                       );
 endmodule
 

@@ -80,6 +80,11 @@ module riscv_wb #(
 
   interrupts_exceptions_t exceptions;
 
+`ifdef RV_NO_X_ON_LOAD
+  bit   [XLEN       -1:0] dmem_q;
+`else
+  logic [XLEN       -1:0] dmem_q;
+`endif
   logic [            7:0] m_qb;
   logic [           15:0] m_qh;
   logic [           31:0] m_qw;
@@ -101,9 +106,14 @@ module riscv_wb #(
   /*
    * Instruction
    */
+  always @(posedge clk_i)
+    if (!wb_stall_o) wb_insn_o.instr <= mem_insn_i.instr;
+
+
   always @(posedge clk_i, negedge rst_ni)
-    if      (!rst_ni    ) wb_insn_o.instr <= INSTR_NOP;
-    else if (!wb_stall_o) wb_insn_o.instr <= mem_insn_i.instr;
+    if      (!rst_ni    ) wb_insn_o.dbg <= 1'b0;
+    else if (!wb_stall_o) wb_insn_o.dbg <= mem_insn_i.dbg;
+
 
   assign opcR = decode_opcR(mem_insn_i.instr);
   assign dst  = decode_rd(mem_insn_i.instr);
@@ -161,15 +171,17 @@ module riscv_wb #(
 
 
   // data from memory
+  assign dmem_q = dmem_q_i; //convert (or not) 'xz'
+
 generate
   if (XLEN==64)
   begin
       logic [XLEN-1:0] m_qd;
 
-      assign m_qb = dmem_q_i >> (8* mem_memadr_i[2:0]);
-      assign m_qh = dmem_q_i >> (8* mem_memadr_i[2:0]);
-      assign m_qw = dmem_q_i >> (8* mem_memadr_i[2:0]);
-      assign m_qd = dmem_q_i;
+      assign m_qb = dmem_q >> (8* mem_memadr_i[2:0]);
+      assign m_qh = dmem_q >> (8* mem_memadr_i[2:0]);
+      assign m_qw = dmem_q >> (8* mem_memadr_i[2:0]);
+      assign m_qd = dmem_q;
 
       always_comb
         casex ( opcR )
@@ -185,9 +197,9 @@ generate
   end
   else
   begin
-      assign m_qb = dmem_q_i >> (8* mem_memadr_i[1:0]);
-      assign m_qh = dmem_q_i >> (8* mem_memadr_i[1:0]);
-      assign m_qw = dmem_q_i;
+      assign m_qb = dmem_q >> (8* mem_memadr_i[1:0]);
+      assign m_qh = dmem_q >> (8* mem_memadr_i[1:0]);
+      assign m_qw = dmem_q;
 
       always_comb
         casex ( opcR )

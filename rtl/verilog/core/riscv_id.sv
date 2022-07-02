@@ -37,18 +37,20 @@ import riscv_opcodes_pkg::*;
 import riscv_state_pkg::*;
 
 module riscv_id #(
-  parameter                         XLEN           = 32,
+  parameter    int                  XLEN           = 32,
   parameter    [XLEN          -1:0] PC_INIT        = 'h200,
-  parameter                         HAS_HYPER      = 0,
-  parameter                         HAS_SUPER      = 0,
-  parameter                         HAS_USER       = 0,
-  parameter                         HAS_FPU        = 0,
-  parameter                         HAS_RVA        = 0,
-  parameter                         HAS_RVM        = 0,
-  parameter                         HAS_RVC        = 0,
-  parameter                         MULT_LATENCY   = 0,
-  parameter                         RF_REGOUT      = 1,
-  parameter                         BP_GLOBAL_BITS = 2
+  parameter    int                  HAS_HYPER      = 0,
+  parameter    int                  HAS_SUPER      = 0,
+  parameter    int                  HAS_USER       = 0,
+  parameter    int                  HAS_FPU        = 0,
+  parameter    int                  HAS_RVA        = 0,
+  parameter    int                  HAS_RVM        = 0,
+  parameter    int                  HAS_RVC        = 0,
+  parameter    int                  MULT_LATENCY   = 0,
+  parameter    int                  RF_REGOUT      = 1,
+  parameter    int                  BP_GLOBAL_BITS = 2,
+  parameter    int                  RSB_DEPTH      = 0,
+  parameter    int                  MEM_STAGES     = 1
 )
 (
   input                             rst_ni,
@@ -68,8 +70,10 @@ module riscv_id #(
 
   //Program counter
   input        [XLEN          -1:0] pd_pc_i,
+                                    pd_rsb_pc_i,
   input        [XLEN          -1:0] if_nxt_pc_i,
   output logic [XLEN          -1:0] id_pc_o,
+                                    id_rsb_pc_o,
 
   input        [BP_GLOBAL_BITS-1:0] pd_bp_history_i,
   output logic [BP_GLOBAL_BITS-1:0] id_bp_history_o,
@@ -81,7 +85,7 @@ module riscv_id #(
   input  instruction_t              pd_insn_i,
   output instruction_t              id_insn_o,
   input  instruction_t              ex_insn_i,
-                                    mem_insn_i,
+                                    mem_insn_i [MEM_STAGES],
                                     wb_insn_i,
                                     dwb_insn_i,
 
@@ -120,18 +124,72 @@ module riscv_id #(
 
   //from MEM/WB
   input        [XLEN         -1:0] ex_r_i,
-                                   mem_r_i,
+                                   mem_r_i [MEM_STAGES],
                                    wb_r_i,
                                    wb_memq_i,
                                    dwb_r_i
 );
+
+  //////////////////////////////////////////////////////////////////
+  //
+  // Functions
+  //
+
+  /* Use result from a stage?
+   * 'x0' is used as a black hole. It should always be zero, but may contain
+   *  other values in the pipeline; therefore we check if rd is non-zero
+   */
+  function logic use_result;
+    input rsd_t rs, rd;
+    input logic valid;
+
+    use_result = (rs == rd ) & |rd  & valid;
+  endfunction: use_result
+
+
+  //next operand value, from lowest to highest priority
+  function logic [XLEN-1:0] nxt_operand;
+    input logic                  use_exr;
+    input logic [MEM_STAGES-1:0] use_memr;
+    input logic                  use_wbr;
+    input logic [XLEN      -1:0] ex_r,
+                                 mem_r     [MEM_STAGES],
+                                 wb_memq,
+                                 wb_r,
+                                 dwb_r;
+     input opcode_t              mem_opcode[MEM_STAGES];
+
+     //default value (lowest priority)
+     nxt_operand = dwb_r;
+
+     //Write Back stage
+     if (use_wbr) nxt_operand = wb_r;
+
+     //upper MEM_STAGES
+     for (int n=MEM_STAGES-1; n >= 0; n--)
+       if (n == MEM_STAGES-1)
+       begin
+           //last MEM_STAGE; latch results from memory upon LOAD
+           if (use_memr[MEM_STAGES-1]) nxt_operand = mem_opcode[MEM_STAGES-1] == OPC_LOAD ? wb_memq : mem_r[MEM_STAGES-1];
+       end
+       else
+       begin
+           if (use_memr[n]) nxt_operand = mem_r[n];
+       end
+
+     //lastly EX (highest priority)
+     if (use_exr) nxt_operand = ex_r;
+  endfunction: nxt_operand
 
 
   //////////////////////////////////////////////////////////////////
   //
   // Variables
   //
-  logic                   has_rvc;
+  genvar                  n;
+
+  logic                   has_rvc,
+                          has_rsb;
 
   logic                   id_bubble_r;
   logic                   multi_cycle_instruction;
@@ -152,7 +210,7 @@ module riscv_id #(
 
   opcode_t                id_opcode,
                           ex_opcode,
-                          mem_opcode,
+                          mem_opcode  [MEM_STAGES],
                           wb_opcode,
                           dwb_opcode;
 	    
@@ -171,29 +229,30 @@ module riscv_id #(
                           pd_rs2,
                           id_rd,
                           ex_rd,
-                          mem_rd,
+                          mem_rd      [MEM_STAGES],
                           wb_rd,
                           dwb_rd;
 
   logic                   can_bypex,
                           can_use_exr,
-                          can_use_memr,
+                          can_use_memr[MEM_STAGES],
                           can_use_wbr,
 		          can_use_dwbr;
 
   logic                   use_rf_opA,
                           use_rf_opB,
                           use_exr_opA,
-                          use_exr_opB,
-                          use_memr_opA,
-                          use_memr_opB,
-		          use_wbr_opA,
+                          use_exr_opB;
+  logic [MEM_STAGES-1:0]  use_memr_opA,
+                          use_memr_opB;
+  logic                   use_wbr_opA,
                           use_wbr_opB,
                           use_dwbr_opA,
                           use_dwbr_opB;
 
   logic                   stall_ld_id,
                           stall_ld_ex;
+  logic [MEM_STAGES-1:0]  stall_ld_mem;
 
 
   logic [XLEN       -1:0] nxt_opA,
@@ -212,6 +271,8 @@ module riscv_id #(
   // Module Body
   //
   assign has_rvc = HAS_RVC != 0;
+  assign has_rsb = RSB_DEPTH > 0;
+  
 
   /*
    * Program Counter
@@ -223,6 +284,11 @@ module riscv_id #(
     else if ( du_flush_i 	       ) id_pc_o <= if_nxt_pc_i;
     else if (!stalls   && !id_stall_o  ) id_pc_o <= pd_pc_i;
 
+
+  always @(posedge clk_i)
+    if (!stalls && !id_stall_o) id_rsb_pc_o <= has_rsb ? pd_rsb_pc_i : {$bits(id_rsb_pc_o){1'b0}};
+
+
   /*
    * Instruction
    *
@@ -230,6 +296,11 @@ module riscv_id #(
    */
   always @(posedge clk_i)
     if (!stalls) id_insn_o.instr <= pd_insn_i.instr;
+
+
+  always @(posedge clk_i, negedge rst_ni)
+    if      (!rst_ni) id_insn_o.dbg <= 1'b0;
+    else if (!stalls) id_insn_o.dbg <= pd_insn_i.dbg;
 
 
   always @(posedge clk_i,negedge rst_ni)
@@ -251,12 +322,18 @@ module riscv_id #(
 
   assign id_opcode  = decode_opcode(id_insn_o.instr );
   assign ex_opcode  = decode_opcode(ex_insn_i.instr );
-  assign mem_opcode = decode_opcode(mem_insn_i.instr);
+generate
+  for (n=0; n < MEM_STAGES; n++)
+    assign mem_opcode[n] = decode_opcode(mem_insn_i[n].instr);
+endgenerate
   assign wb_opcode  = decode_opcode(wb_insn_i.instr );
   assign dwb_opcode = decode_opcode(dwb_insn_i.instr);
   assign id_rd      = decode_rd    (id_insn_o.instr );
   assign ex_rd      = decode_rd    (ex_insn_i.instr );
-  assign mem_rd     = decode_rd    (mem_insn_i.instr);
+generate
+  for (n=0; n < MEM_STAGES; n++)
+    assign mem_rd[n] = decode_rd   (mem_insn_i[n].instr);
+endgenerate
   assign wb_rd      = decode_rd    (wb_insn_i.instr );
   assign dwb_rd     = decode_rd    (dwb_insn_i.instr);
 
@@ -333,32 +410,12 @@ module riscv_id #(
    * Create ALU operands
    * Feedback pipeline results here
    */
-
-  always_comb
-    casex( {use_wbr_opA, use_memr_opA, use_exr_opA} )
-      3'b??1: nxt_opA = ex_r_i;
-      3'b?10: nxt_opA = mem_opcode == OPC_LOAD ? wb_memq_i : mem_r_i;
-      3'b100: nxt_opA = wb_r_i;
-      3'b000: nxt_opA = dwb_r_i;
-    endcase
-
-
-  always_comb
-    casex( {use_wbr_opB, use_memr_opB, use_exr_opB} )
-      3'b??1: nxt_opB = ex_r_i;
-      3'b?10: nxt_opB = mem_opcode == OPC_LOAD ? wb_memq_i : mem_r_i;
-      3'b100: nxt_opB = wb_r_i;
-      3'b000: nxt_opB = dwb_r_i;
-    endcase
-
-
-  assign use_rf_opA = ~(use_dwbr_opA | use_wbr_opA | use_memr_opA | use_exr_opA);
-  assign use_rf_opB = ~(use_dwbr_opB | use_wbr_opB | use_memr_opB | use_exr_opB);
+  assign use_rf_opA = ~(use_dwbr_opA | use_wbr_opA | |use_memr_opA | use_exr_opA);
+  assign use_rf_opB = ~(use_dwbr_opB | use_wbr_opB | |use_memr_opB | use_exr_opB);
  
 
   always @(posedge clk_i)
     if (!stalls)
-    begin
     casex (pd_opcR.opcode)
       OPC_OP_IMM  : begin
                         id_userf_opA_o <= use_rf_opA;
@@ -409,10 +466,46 @@ module riscv_id #(
                         id_userf_opB_o <= 'b1;
                     end
     endcase
-    end
 
 
-   always @(posedge clk_i)
+/*
+  always_comb
+    casex( {use_wbr_opA, use_memr_opA[n], use_exr_opA} )
+      3'b??1: nxt_opA = ex_r_i;
+      3'b?10: nxt_opA = mem_opcode[n] == OPC_LOAD ? wb_memq_i : mem_r_i[n]; //only last
+      3'b100: nxt_opA = wb_r_i;
+      3'b000: nxt_opA = dwb_r_i;
+    endcase
+
+
+  always_comb
+    casex( {use_wbr_opB, use_memr_opB[n], use_exr_opB} )
+      3'b??1: nxt_opB = ex_r_i;
+      3'b?10: nxt_opB = mem_opcode[n] == OPC_LOAD ? wb_memq_i : mem_r_i[n]; //only last
+      3'b100: nxt_opB = wb_r_i;
+      3'b000: nxt_opB = dwb_r_i;
+    endcase
+*/
+/*
+  function logic [XLEN-1:0] nxt_operand;
+    input logic            use_exr,
+                           use_memr  [MEM_STAGES],
+                           use_wbr;
+    input logic [XLEN-1:0] ex_r,
+                           mem_r     [MEM_STAGES],
+                           wb_memq,
+                           wb_r,
+                           dwb_r;
+     input opcode_t        mem_opcode[MEM_STAGES];
+*/
+  assign nxt_opA = nxt_operand(use_exr_opA, use_memr_opA, use_wbr_opA,
+                               ex_r_i, mem_r_i, wb_memq_i, wb_r_i, dwb_r_i,
+                               mem_opcode);
+  assign nxt_opB = nxt_operand(use_exr_opB, use_memr_opB, use_wbr_opB,
+                               ex_r_i, mem_r_i, wb_memq_i, wb_r_i, dwb_r_i,
+                               mem_opcode);
+
+  always @(posedge clk_i)
     if (!stalls)
     casex (pd_opcR.opcode)
       OPC_LOAD_FP : ;
@@ -536,20 +629,21 @@ module riscv_id #(
 
 
   always_comb
-    casex (mem_opcode)
-       OPC_LOAD    : can_use_memr = ~mem_insn_i.bubble;
-       OPC_OP_IMM  : can_use_memr = ~mem_insn_i.bubble;
-       OPC_AUIPC   : can_use_memr = ~mem_insn_i.bubble;
-       OPC_OP_IMM32: can_use_memr = ~mem_insn_i.bubble;
-       OPC_AMO     : can_use_memr = ~mem_insn_i.bubble;
-       OPC_OP      : can_use_memr = ~mem_insn_i.bubble;
-       OPC_LUI     : can_use_memr = ~mem_insn_i.bubble;
-       OPC_OP32    : can_use_memr = ~mem_insn_i.bubble;
-       OPC_JALR    : can_use_memr = ~mem_insn_i.bubble;
-       OPC_JAL     : can_use_memr = ~mem_insn_i.bubble;
-       OPC_SYSTEM  : can_use_memr = ~mem_insn_i.bubble; //TODO not ALL SYSTEM
-       default     : can_use_memr = 1'b0;
-    endcase
+    for (int n=0; n < MEM_STAGES; n++)
+        casex (mem_opcode[n])
+           OPC_LOAD    : can_use_memr[n] = ~mem_insn_i[n].bubble;
+           OPC_OP_IMM  : can_use_memr[n] = ~mem_insn_i[n].bubble;
+           OPC_AUIPC   : can_use_memr[n] = ~mem_insn_i[n].bubble;
+           OPC_OP_IMM32: can_use_memr[n] = ~mem_insn_i[n].bubble;
+           OPC_AMO     : can_use_memr[n] = ~mem_insn_i[n].bubble;
+           OPC_OP      : can_use_memr[n] = ~mem_insn_i[n].bubble;
+           OPC_LUI     : can_use_memr[n] = ~mem_insn_i[n].bubble;
+           OPC_OP32    : can_use_memr[n] = ~mem_insn_i[n].bubble;
+           OPC_JALR    : can_use_memr[n] = ~mem_insn_i[n].bubble;
+           OPC_JAL     : can_use_memr[n] = ~mem_insn_i[n].bubble;
+           OPC_SYSTEM  : can_use_memr[n] = ~mem_insn_i[n].bubble; //TODO not ALL SYSTEM
+           default     : can_use_memr[n] = 1'b0;
+        endcase
 
 
   always_comb
@@ -586,135 +680,163 @@ module riscv_id #(
 
 
   /*
-   set bypass switches.
-   'x0' is used as a black hole. It should always be zero, but may contain other values in the pipeline
-   therefore we check if dst is non-zero
+   set bypass switches
   */
    always_comb
     casex (pd_opcR.opcode)
       OPC_OP_IMM  : begin
-                        use_exr_opA  = (pd_rs1 == ex_rd ) & |ex_rd  & can_use_exr;
+                        use_exr_opA  = use_result(pd_rs1, ex_rd, can_use_exr);
                         use_exr_opB  = 1'b0;
 
-                        use_memr_opA = (pd_rs1 == mem_rd) & |mem_rd & can_use_memr;
-                        use_memr_opB = 1'b0;
+                        for (int n=0; n < MEM_STAGES; n++)
+                        begin
+                            use_memr_opA[n] = use_result(pd_rs1, mem_rd[n], can_use_memr[n]);
+                            use_memr_opB[n] = 1'b0;
+                        end
 
-                        use_wbr_opA  = (pd_rs1 == wb_rd)  & |wb_rd  & can_use_wbr;
+                        use_wbr_opA  = use_result(pd_rs1, wb_rd, can_use_wbr);
                         use_wbr_opB  = 1'b0;
 
-                        use_dwbr_opA = (pd_rs1 == dwb_rd) & |dwb_rd & can_use_dwbr;
+                        use_dwbr_opA = use_result(pd_rs1, dwb_rd, can_use_dwbr);
                         use_dwbr_opB = 1'b0;
                     end
       OPC_OP_IMM32: begin
-                        use_exr_opA  = (pd_rs1 == ex_rd ) & |ex_rd  & can_use_exr;
+                        use_exr_opA  = use_result(pd_rs1, ex_rd, can_use_exr);
                         use_exr_opB  = 1'b0;
 
-                        use_memr_opA = (pd_rs1 == mem_rd) & |mem_rd & can_use_memr;
-                        use_memr_opB = 1'b0;
+                        for (int n=0; n < MEM_STAGES; n++)
+                        begin
+                            use_memr_opA[n] = use_result(pd_rs1, mem_rd[n], can_use_memr[n]);
+                            use_memr_opB[n] = 1'b0;
+                        end
 
-                        use_wbr_opA  = (pd_rs1 == wb_rd)  & |wb_rd  & can_use_wbr;
+                        use_wbr_opA  = use_result(pd_rs1, wb_rd, can_use_wbr);
                         use_wbr_opB  = 1'b0;
 
-                        use_dwbr_opA = (pd_rs1 == dwb_rd) & |dwb_rd & can_use_dwbr;
+                        use_dwbr_opA = use_result(pd_rs1, dwb_rd, can_use_dwbr);
                         use_dwbr_opB = 1'b0;
                     end
       OPC_OP      : begin
-                        use_exr_opA  = (pd_rs1 == ex_rd ) & |ex_rd  & can_use_exr;
-                        use_exr_opB  = (pd_rs2 == ex_rd ) & |ex_rd  & can_use_exr;
+                        use_exr_opA  = use_result(pd_rs1, ex_rd, can_use_exr);
+                        use_exr_opB  = use_result(pd_rs2, ex_rd, can_use_exr);
 
-                        use_memr_opA = (pd_rs1 == mem_rd) & |mem_rd & can_use_memr;
-                        use_memr_opB = (pd_rs2 == mem_rd) & |mem_rd & can_use_memr;
+                        for (int n=0; n < MEM_STAGES; n++)
+                        begin
+                            use_memr_opA[n] = use_result(pd_rs1, mem_rd[n], can_use_memr[n]);
+                            use_memr_opB[n] = use_result(pd_rs2, mem_rd[n], can_use_memr[n]);
+                        end
 
-                        use_wbr_opA  = (pd_rs1 == wb_rd)  & |wb_rd  & can_use_wbr;
-                        use_wbr_opB  = (pd_rs2 == wb_rd)  & |wb_rd  & can_use_wbr;
+                        use_wbr_opA  = use_result(pd_rs1, wb_rd, can_use_wbr);
+                        use_wbr_opB  = use_result(pd_rs2, wb_rd, can_use_wbr);
 
-                        use_dwbr_opA = (pd_rs1 == dwb_rd) & |dwb_rd & can_use_dwbr;
-                        use_dwbr_opB = (pd_rs2 == dwb_rd) & |dwb_rd & can_use_dwbr;
+                        use_dwbr_opA = use_result(pd_rs1, dwb_rd, can_use_dwbr);
+                        use_dwbr_opB = use_result(pd_rs2, dwb_rd, can_use_dwbr);
                     end
       OPC_OP32    : begin
-                        use_exr_opA  = (pd_rs1 == ex_rd ) & |ex_rd  & can_use_exr;
-                        use_exr_opB  = (pd_rs2 == ex_rd ) & |ex_rd  & can_use_exr;
+                        use_exr_opA  = use_result(pd_rs1, ex_rd, can_use_exr);
+                        use_exr_opB  = use_result(pd_rs2, ex_rd, can_use_exr);
 
-                        use_memr_opA = (pd_rs1 == mem_rd) & |mem_rd & can_use_memr;
-                        use_memr_opB = (pd_rs2 == mem_rd) & |mem_rd & can_use_memr;
+                        for (int n=0; n < MEM_STAGES; n++)
+                        begin
+                            use_memr_opA[n] = use_result(pd_rs1, mem_rd[n], can_use_memr[n]);
+                            use_memr_opB[n] = use_result(pd_rs2, mem_rd[n], can_use_memr[n]);
+                        end
 
-                        use_wbr_opA  = (pd_rs1 == wb_rd)  & |wb_rd  & can_use_wbr;
-                        use_wbr_opB  = (pd_rs2 == wb_rd)  & |wb_rd  & can_use_wbr;
+                        use_wbr_opA  = use_result(pd_rs1, wb_rd, can_use_wbr);
+                        use_wbr_opB  = use_result(pd_rs2, wb_rd, can_use_wbr);
 
-                        use_dwbr_opA = (pd_rs1 == dwb_rd) & |dwb_rd & can_use_dwbr;
-                        use_dwbr_opB = (pd_rs2 == dwb_rd) & |dwb_rd & can_use_dwbr;
+                        use_dwbr_opA = use_result(pd_rs1, dwb_rd, can_use_dwbr);
+                        use_dwbr_opB = use_result(pd_rs2, dwb_rd, can_use_dwbr);
                     end
       OPC_BRANCH  : begin
-                        use_exr_opA  = (pd_rs1 == ex_rd ) & |ex_rd  & can_use_exr;
-                        use_exr_opB  = (pd_rs2 == ex_rd ) & |ex_rd  & can_use_exr;
+                        use_exr_opA  = use_result(pd_rs1, ex_rd, can_use_exr);
+                        use_exr_opB  = use_result(pd_rs2, ex_rd, can_use_exr);
 
-                        use_memr_opA = (pd_rs1 == mem_rd) & |mem_rd & can_use_memr;
-                        use_memr_opB = (pd_rs2 == mem_rd) & |mem_rd & can_use_memr;
+                        for (int n=0; n < MEM_STAGES; n++)
+                        begin
+                            use_memr_opA[n] = use_result(pd_rs1, mem_rd[n], can_use_memr[n]);
+                            use_memr_opB[n] = use_result(pd_rs2, mem_rd[n], can_use_memr[n]);
+                        end
 
-                        use_wbr_opA  = (pd_rs1 == wb_rd)  & |wb_rd  & can_use_wbr;
-                        use_wbr_opB  = (pd_rs2 == wb_rd)  & |wb_rd  & can_use_wbr;
+                        use_wbr_opA  = use_result(pd_rs1, wb_rd, can_use_wbr);
+                        use_wbr_opB  = use_result(pd_rs2, wb_rd, can_use_wbr);
 
-                        use_dwbr_opA = (pd_rs1 == dwb_rd) & |dwb_rd & can_use_dwbr;
-                        use_dwbr_opB = (pd_rs2 == dwb_rd) & |dwb_rd & can_use_dwbr;
+                        use_dwbr_opA = use_result(pd_rs1, dwb_rd, can_use_dwbr);
+                        use_dwbr_opB = use_result(pd_rs2, dwb_rd, can_use_dwbr);
                     end
       OPC_JALR    : begin
-                        use_exr_opA  = (pd_rs1 == ex_rd ) & |ex_rd  & can_use_exr;
+                        use_exr_opA  = use_result(pd_rs1, ex_rd, can_use_exr);
                         use_exr_opB  = 1'b0;
 
-                        use_memr_opA = (pd_rs1 == mem_rd) & |mem_rd & can_use_memr;
-                        use_memr_opB = 1'b0;
+                        for (int n=0; n < MEM_STAGES; n++)
+                        begin
+                            use_memr_opA[n] = use_result(pd_rs1, mem_rd[n], can_use_memr[n]);
+                            use_memr_opB[n] = 1'b0;
+                        end
 
-                        use_wbr_opA  = (pd_rs1 == wb_rd)  & |wb_rd  & can_use_wbr;
+                        use_wbr_opA  = use_result(pd_rs1, wb_rd, can_use_wbr);
                         use_wbr_opB  = 1'b0;
 
-                        use_dwbr_opA = (pd_rs1 == dwb_rd) & |dwb_rd & can_use_dwbr;
+                        use_dwbr_opA = use_result(pd_rs1, dwb_rd, can_use_dwbr);
                         use_dwbr_opB = 1'b0;
                     end
      OPC_LOAD     : begin
-                        use_exr_opA  = (pd_rs1 == ex_rd ) & |ex_rd  & can_use_exr;
+                        use_exr_opA  = use_result(pd_rs1, ex_rd, can_use_exr);
                         use_exr_opB  = 1'b0;
 
-                        use_memr_opA = (pd_rs1 == mem_rd) & |mem_rd & can_use_memr;
-                        use_memr_opB = 1'b0;
+                        for (int n=0; n < MEM_STAGES; n++)
+                        begin
+                            use_memr_opA[n] = use_result(pd_rs1, mem_rd[n], can_use_memr[n]);
+                            use_memr_opB[n] = 1'b0;
+                        end
 
-                        use_wbr_opA  = (pd_rs1 == wb_rd)  & |wb_rd  & can_use_wbr;
+                        use_wbr_opA  = use_result(pd_rs1, wb_rd, can_use_wbr);
                         use_wbr_opB  = 1'b0;
 
-                        use_dwbr_opA = (pd_rs1 == dwb_rd) & |dwb_rd & can_use_dwbr;
+                        use_dwbr_opA = use_result(pd_rs1, dwb_rd, can_use_dwbr);
                         use_dwbr_opB = 1'b0;
                     end
      OPC_STORE    : begin
-                        use_exr_opA  = (pd_rs1 == ex_rd ) & |ex_rd  & can_use_exr;
-                        use_exr_opB  = (pd_rs2 == ex_rd ) & |ex_rd  & can_use_exr;
+                        use_exr_opA  = use_result(pd_rs1, ex_rd, can_use_exr);
+                        use_exr_opB  = use_result(pd_rs2, ex_rd, can_use_exr);
 
-                        use_memr_opA = (pd_rs1 == mem_rd) & |mem_rd & can_use_memr;
-                        use_memr_opB = (pd_rs2 == mem_rd) & |mem_rd & can_use_memr;
+                        for (int n=0; n < MEM_STAGES; n++)
+                        begin
+                            use_memr_opA[n] = use_result(pd_rs1, mem_rd[n], can_use_memr[n]);
+                            use_memr_opB[n] = use_result(pd_rs2, mem_rd[n], can_use_memr[n]);
+                        end
 
-                        use_wbr_opA  = (pd_rs1 == wb_rd)  & |wb_rd  & can_use_wbr;
-                        use_wbr_opB  = (pd_rs2 == wb_rd)  & |wb_rd  & can_use_wbr;
+                        use_wbr_opA  = use_result(pd_rs1, wb_rd, can_use_wbr);
+                        use_wbr_opB  = use_result(pd_rs2, wb_rd, can_use_wbr);
 
-                        use_dwbr_opA = (pd_rs1 == dwb_rd) & |dwb_rd & can_use_dwbr;
-                        use_dwbr_opB = (pd_rs2 == dwb_rd) & |dwb_rd & can_use_dwbr;
+                        use_dwbr_opA = use_result(pd_rs1, dwb_rd, can_use_dwbr);
+                        use_dwbr_opB = use_result(pd_rs2, dwb_rd, can_use_dwbr);
                     end
      OPC_SYSTEM   : begin
-                        use_exr_opA  = (pd_rs1 == ex_rd ) & |ex_rd  & can_use_exr;
+                        use_exr_opA  = use_result(pd_rs1,  ex_rd, can_use_exr);
                         use_exr_opB  = 1'b0;
 
-                        use_memr_opA = (pd_rs1 == mem_rd) & |mem_rd & can_use_memr;
-                        use_memr_opB = 1'b0;
+                        for (int n=0; n < MEM_STAGES; n++)
+                        begin
+                            use_memr_opA[n] = use_result(pd_rs1, mem_rd[n], can_use_memr[n]);
+                            use_memr_opB[n] = 1'b0;
+                        end
 
-                        use_wbr_opA  = (pd_rs1 == wb_rd)  & |wb_rd  & can_use_wbr;
+                        use_wbr_opA  = use_result(pd_rs1, wb_rd, can_use_wbr);
                         use_wbr_opB  = 1'b0;
 
-                        use_dwbr_opA = (pd_rs1 == dwb_rd) & |dwb_rd & can_use_dwbr;
+                        use_dwbr_opA = use_result(pd_rs1, dwb_rd, can_use_dwbr);
                         use_dwbr_opB = 1'b0;
                     end
       default     : begin
                         use_exr_opA  = 1'b0;
                         use_exr_opB  = 1'b0;
 
-                        use_memr_opA = 1'b0;
-                        use_memr_opB = 1'b0;
+                        for (int n=0; n < MEM_STAGES; n++)
+                        begin
+                            use_memr_opA[n] = 1'b0;
+                            use_memr_opB[n] = 1'b0;
+                        end
 
                         use_wbr_opA  = 1'b0;
                         use_wbr_opB  = 1'b0;
@@ -732,39 +854,39 @@ module riscv_id #(
     if (!stalls)
     casex (pd_opcR.opcode)
       OPC_OP_IMM  : begin
-                        id_bypex_opA_o  <= (pd_rs1 == id_rd ) & |id_rd  & can_bypex;
+                        id_bypex_opA_o  <= use_result(pd_rs1, id_rd, can_bypex);
                         id_bypex_opB_o  <= 1'b0;
                     end
       OPC_OP_IMM32: begin
-                        id_bypex_opA_o  <= (pd_rs1 == id_rd)  & |id_rd  & can_bypex;
+                        id_bypex_opA_o  <= use_result(pd_rs1, id_rd, can_bypex);
                         id_bypex_opB_o  <= 1'b0;
                     end
       OPC_OP      : begin
-                        id_bypex_opA_o  <= (pd_rs1 == id_rd ) & |id_rd  & can_bypex;
-                        id_bypex_opB_o  <= (pd_rs2 == id_rd ) & |id_rd  & can_bypex;
+                        id_bypex_opA_o  <= use_result(pd_rs1, id_rd, can_bypex);
+                        id_bypex_opB_o  <= use_result(pd_rs2, id_rd, can_bypex);
                     end
       OPC_OP32    : begin
-                        id_bypex_opA_o  <= (pd_rs1 == id_rd ) & |id_rd  & can_bypex;
-                        id_bypex_opB_o  <= (pd_rs2 == id_rd ) & |id_rd  & can_bypex;
+                        id_bypex_opA_o  <= use_result(pd_rs1, id_rd, can_bypex);
+                        id_bypex_opB_o  <= use_result(pd_rs2, id_rd, can_bypex);
                     end
       OPC_BRANCH  : begin
-                        id_bypex_opA_o  <= (pd_rs1 == id_rd ) & |id_rd  & can_bypex;
-                        id_bypex_opB_o  <= (pd_rs2 == id_rd ) & |id_rd  & can_bypex;
+                        id_bypex_opA_o  <= use_result(pd_rs1, id_rd, can_bypex);
+                        id_bypex_opB_o  <= use_result(pd_rs2, id_rd, can_bypex);
                     end
       OPC_JALR    : begin
-                        id_bypex_opA_o  <= (pd_rs1 == id_rd ) & |id_rd  & can_bypex;
+                        id_bypex_opA_o  <= use_result(pd_rs1, id_rd, can_bypex);
                         id_bypex_opB_o  <= 1'b0;
                     end
      OPC_LOAD     : begin
-                        id_bypex_opA_o  <= (pd_rs1 == id_rd ) & |id_rd  & can_bypex;
+                        id_bypex_opA_o  <= use_result(pd_rs1, id_rd, can_bypex);
                         id_bypex_opB_o  <= 1'b0;
                     end
      OPC_STORE    : begin
-                        id_bypex_opA_o  <= (pd_rs1 == id_rd ) & |id_rd  & can_bypex;
-                        id_bypex_opB_o  <= (pd_rs2 == id_rd ) & |id_rd  & can_bypex;
+                        id_bypex_opA_o  <= use_result(pd_rs1, id_rd, can_bypex);
+                        id_bypex_opB_o  <= use_result(pd_rs2, id_rd, can_bypex);
                     end
      OPC_SYSTEM   : begin
-                        id_bypex_opA_o  <= (pd_rs1 == id_rd ) & |id_rd  & can_bypex;
+                        id_bypex_opA_o  <= use_result(pd_rs1, id_rd, can_bypex);
                         id_bypex_opB_o  <= 1'b0;
                     end
       default     : begin
@@ -777,7 +899,6 @@ module riscv_id #(
   /*
    * Generate STALL
    */
-//rih: todo
   always_comb
     if (id_opcode != OPC_LOAD || id_insn_o.bubble) stall_ld_id = 1'b0;
     else
@@ -813,32 +934,38 @@ module riscv_id #(
 
 
   always_comb
-    if      (bu_flush_i || st_flush_i || du_flush_i) id_stall_o = 'b0;        //flush overrules stall
-    else if (stalls                                ) id_stall_o = 'b1;
-    else                                             id_stall_o = stall_ld_id | stall_ld_ex;
+    if (MEM_STAGES == 1) stall_ld_mem[0] = 1'b0;
+    else
+    begin
+        for (int n=0; n < MEM_STAGES -1; n++)
+          if (mem_opcode[n] != OPC_LOAD || mem_insn_i[n].bubble) stall_ld_mem[n] = 1'b0;
+          else
+            casex (pd_opcR.opcode)
+              OPC_OP_IMM  : stall_ld_mem[n] = (pd_rs1 == mem_rd[n]);
+              OPC_OP_IMM32: stall_ld_mem[n] = (pd_rs1 == mem_rd[n]);
+              OPC_OP      : stall_ld_mem[n] = (pd_rs1 == mem_rd[n]) | (pd_rs2 == mem_rd[n]);
+              OPC_OP32    : stall_ld_mem[n] = (pd_rs1 == mem_rd[n]) | (pd_rs2 == mem_rd[n]);
+              OPC_BRANCH  : stall_ld_mem[n] = (pd_rs1 == mem_rd[n]) | (pd_rs2 == mem_rd[n]);
+              OPC_JALR    : stall_ld_mem[n] = (pd_rs1 == mem_rd[n]);
+              OPC_LOAD    : stall_ld_mem[n] = (pd_rs1 == mem_rd[n]);
+              OPC_STORE   : stall_ld_mem[n] = (pd_rs1 == mem_rd[n]) | (pd_rs2 == mem_rd[n]);
+              OPC_SYSTEM  : stall_ld_mem[n] = (pd_rs1 == mem_rd[n]);
+              default     : stall_ld_mem[n] = 'b0;
+            endcase
 
- /*
-    else if (mem_opcode == OPC_LOAD)
-      casex (pd_opcR.opcode)
-        OPC_OP_IMM  : id_stall_o = (pd_rs1 == mem_rd);
-        OPC_OP_IMM32: id_stall_o = (pd_rs1 == mem_rd);
-        OPC_OP      : id_stall_o = (pd_rs1 == mem_rd) | (pd_rs2 == mem_rd);
-        OPC_OP32    : id_stall_o = (pd_rs1 == mem_rd) | (pd_rs2 == mem_rd);
-        OPC_BRANCH  : id_stall_o = (pd_rs1 == mem_rd) | (pd_rs2 == mem_rd);
-        OPC_JALR    : id_stall_o = (pd_rs1 == mem_rd);
-        OPC_LOAD    : id_stall_o = (pd_rs1 == mem_rd);
-        OPC_STORE   : id_stall_o = (pd_rs1 == mem_rd) | (pd_rs2 == mem_rd);
-        OPC_SYSTEM  : id_stall_o = (pd_rs1 == mem_rd);
-        default     : id_stall_o = 'b0;
-      endcase
-*/
+        stall_ld_mem[MEM_STAGES -1] = 1'b0;
+    end
+
+
+  always_comb
+    if      (bu_flush_i || st_flush_i || du_flush_i) id_stall_o = 'b0;        //flush overrules stall
+    else if (stalls                                ) id_stall_o =1'b1;// ~pd_insn_i.bubble; //TODO
+    else                                             id_stall_o = stall_ld_id | stall_ld_ex | |stall_ld_mem;
 
 
   /*
    * Generate Illegal Instruction
    */
-
-  //TODO RVC Illegal Instructions
   always_comb
     casex (pd_opcR.opcode)
       OPC_LOAD  : illegal_instr = illegal_lsu_instr;

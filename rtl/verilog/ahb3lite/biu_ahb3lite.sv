@@ -38,7 +38,10 @@
  *
  * DATA_SIZE : size of data buses
  * ADDR_SIZE : size of address buses
+<<<<<<< HEAD
+=======
  * TAG_SIZE  : size of user tag buses
+>>>>>>> dev
  * STRICT_AHB: strictly adhere to the AHB spec.
  *             - do not allow crossing a 1kB address boundary
  */

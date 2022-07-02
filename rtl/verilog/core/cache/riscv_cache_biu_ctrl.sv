@@ -32,17 +32,18 @@ import riscv_cache_pkg::*;
 import biu_constants_pkg::*;
 
 module riscv_cache_biu_ctrl #(
-  parameter  XLEN           = 32,
-  parameter  PLEN           = XLEN,
+  parameter                        XLEN           = 32,
+  parameter                        PLEN           = XLEN,
 
-  parameter  SIZE           = 64,
-  parameter  BLOCK_SIZE     = XLEN,
-  parameter  WAYS           = 2,
+  parameter                        SIZE           = 64,
+  parameter                        BLOCK_SIZE     = XLEN,
+  parameter                        WAYS           = 2,
 
-  parameter  INFLIGHT_DEPTH = 2,
+  parameter                        INFLIGHT_DEPTH = 2,
+  parameter                        BIUTAG_SIZE    = 2,
 
-  localparam BLK_BITS      = no_of_block_bits(BLOCK_SIZE),
-  localparam INFLIGHT_BITS = $clog2(INFLIGHT_DEPTH+1)
+  localparam                       BLK_BITS      = no_of_block_bits(BLOCK_SIZE),
+  localparam                       INFLIGHT_BITS = $clog2(INFLIGHT_DEPTH+1)
 )
 (
   input  logic                     rst_ni,
@@ -52,8 +53,10 @@ module riscv_cache_biu_ctrl #(
 
   input  biucmd_t                  biucmd_i,
   output logic                     biucmd_ack_o,
+  output logic                     biucmd_busy_o,
   input  logic                     biucmd_noncacheable_req_i,
   output logic                     biucmd_noncacheable_ack_o,
+  input  logic [BIUTAG_SIZE  -1:0] biucmd_tag_i,
   output logic [INFLIGHT_BITS-1:0] inflight_cnt_o,
 
   input  logic                     req_i,
@@ -61,11 +64,16 @@ module riscv_cache_biu_ctrl #(
   input  biu_size_t                size_i,
   input  biu_prot_t                prot_i,
   input  logic                     lock_i,
+  input  logic                     we_i,
+  input  logic [XLEN/8       -1:0] be_i,
+  input  logic [XLEN         -1:0] d_i,
 
-  output logic                     biu_ack_o,
+  input  logic [PLEN         -1:0] evictbuffer_adr_i,
+  input  logic [BLK_BITS     -1:0] evictbuffer_d_i,
   output logic                     in_biubuffer_o,
-  output logic [BLK_BITS     -1:0] biubuffer_o,
-  output logic [BLK_BITS     -1:0] cachemem_dat_o,       //data to be written in DAT memory
+  output logic [BLK_BITS     -1:0] biubuffer_o,          //data to cache-ctrl
+  output logic [BLK_BITS     -1:0] biu_line_o,           //data to be written in DAT memory
+  output logic                     biu_line_dirty_o,     //data to be written into DAT memory is dirty
 
 
   //To BIU
@@ -82,7 +90,9 @@ module riscv_cache_biu_ctrl #(
   output logic [XLEN         -1:0] biu_d_o,              //write data
   input  logic [XLEN         -1:0] biu_q_i,              //read data
   input  logic                     biu_ack_i,            //transfer acknowledge
-  input  logic                     biu_err_i             //transfer error
+  input  logic                     biu_err_i,            //transfer error
+  output logic [BIUTAG_SIZE  -1:0] biu_tagi_o,
+  input  logic [BIUTAG_SIZE  -1:0] biu_tago_i
 );
 
   //////////////////////////////////////////////////////////////////
@@ -101,6 +111,41 @@ module riscv_cache_biu_ctrl #(
 
   //////////////////////////////////////////////////////////////////
   //
+  // Functions
+  //
+
+  //convert burst type to counter length (actually length -1)
+  function automatic [3:0] biu_type2cnt;
+    input biu_type_t biu_type;
+
+    case (biu_type)
+      SINGLE : biu_type2cnt =  0;
+      INCR   : biu_type2cnt =  0;
+      WRAP4  : biu_type2cnt =  3;
+      INCR4  : biu_type2cnt =  3;
+      WRAP8  : biu_type2cnt =  7;
+      INCR8  : biu_type2cnt =  7;
+      WRAP16 : biu_type2cnt = 15;
+      INCR16 : biu_type2cnt = 15;
+      default: biu_type2cnt = 4'hx; //OOPS
+    endcase
+  endfunction: biu_type2cnt
+
+
+  //Byte-Enable driven MUX
+  function automatic [XLEN-1:0] be_mux;
+    input [XLEN/8-1:0] be;
+    input [XLEN  -1:0] data_old; //old data
+    input [XLEN  -1:0] data_new; //new data
+
+    for (int i=0; i<XLEN/8;i++)
+      be_mux[i*8 +: 8] = be[i] ? data_new[i*8 +: 8] : data_old[i*8 +: 8];
+  endfunction: be_mux
+
+
+
+  //////////////////////////////////////////////////////////////////
+  //
   // Variables
   //
   genvar  way;
@@ -112,12 +157,15 @@ module riscv_cache_biu_ctrl #(
   enum logic [               1:0] {IDLE, WAIT4BIU, BURST} biufsm_state;
 
   logic      [BURST_SIZE    -1:0] biubuffer_valid;
+  logic                           biubuffer_dirty;
   logic      [DAT_OFFS_BITS -1:0] dat_offset;
 
-
+  logic                           biu_adro_eq_cache_adr;
+  logic      [XLEN          -1:0] biu_q;
 
   logic      [PLEN          -1:0] biu_adri_hold;
   logic      [XLEN          -1:0] biu_d_hold;
+  logic                           biu_we_hold;
 
   logic      [BURST_BITS    -1:0] burst_cnt;
 
@@ -135,15 +183,18 @@ module riscv_cache_biu_ctrl #(
     if (!rst_ni)
     begin
         biufsm_state <= IDLE;
+        biucmd_busy_o <= 1'b0;
     end
     else
     begin
         unique case (biufsm_state)
           IDLE    : unique case (biucmd_i)
-                      BIUCMD_NOP      : ; //do nothing
-                                   //non-cacheable transfers may be initiated
+                      BIUCMD_NOP     : ; //do nothing
+                                         //non-cacheable transfers may be initiated
 
                       BIUCMD_READWAY : begin
+                                           biucmd_busy_o <= 1'b1;
+
                                            //read a way from main memory
                                            if (biu_stb_ack_i)
                                            begin
@@ -157,6 +208,8 @@ module riscv_cache_biu_ctrl #(
                                        end
 
                       BIUCMD_WRITEWAY: begin
+                                           biucmd_busy_o <= 1'b1;
+
                                            //write way back to main memory
                                            if (biu_stb_ack_i)
                                            begin
@@ -178,26 +231,89 @@ module riscv_cache_biu_ctrl #(
 
           BURST    : if (biu_err_i || (~|burst_cnt && biu_ack_i))
                      begin
-                         //write complete
-                         biufsm_state <= IDLE; //TODO: detect if another BURST request is pending, skip IDLE
+/*
+                         unique case (biucmd_i)
+                           BIUCMD_NOP     : begin
+                                                biufsm_state  <= IDLE;
+                                                biucmd_busy_o <= 1'b0;
+                                            end
+
+
+                           BIUCMD_READWAY : begin
+                                                biucmd_busy_o <= 1'b1;
+
+                                                //read a way from main memory
+                                                if (biu_stb_ack_i)
+                                                begin
+                                                    biufsm_state <= BURST;
+                                                end
+                                                else
+                                                begin
+                                                    //BIU is not ready to start a new transfer
+                                                    biufsm_state <= WAIT4BIU;
+                                                end
+                                            end
+
+                           BIUCMD_WRITEWAY: begin
+                                                biucmd_busy_o <= 1'b1;
+
+                                                //write way back to main memory
+                                                if (biu_stb_ack_i)
+                                                begin
+                                                    biufsm_state <= BURST;
+                                                end
+                                                else
+                                                begin
+                                                    //BIU is not ready to start a new transfer
+                                                    biufsm_state <= WAIT4BIU;
+                                                end
+                                            end
+                            endcase
+*/
+                         biufsm_state  <= IDLE;
+                         biucmd_busy_o <= 1'b0;
+
                      end
         endcase
     end
 
 
+
+  //address check, used in a few places
+  assign biu_adro_eq_cache_adr = (biu_adro_i[PLEN-1:BURST_LSB] == adr_i[PLEN-1:BURST_LSB]);
+
+
+  //handle writing bits in read-cache-line
+  assign biu_q = we_i && biu_adro_eq_cache_adr ? be_mux(be_i, biu_q_i, d_i)
+                                               : biu_q_i;
+
   //BIU Buffer
   always @(posedge clk_i)
     unique case (biufsm_state)
      IDLE   : begin
-                  biubuffer_o     <=  'h0;
+                  if (biucmd_i == BIUCMD_WRITEWAY) biubuffer_o <= evictbuffer_d_i >> XLEN;
                   biubuffer_valid <=  'h0;
+		  biubuffer_dirty <= 1'b0;
               end
 
      BURST  : begin
-                  if (biu_ack_i)   //latch incoming data when transfer-acknowledged
+                  if (!biu_we_hold)
                   begin
-                      biubuffer_o    [ biu_adro_i[BLK_OFFS_BITS-1 -: DAT_OFFS_BITS] * XLEN +: XLEN ] <= biu_q_i;
-                      biubuffer_valid[ biu_adro_i[BLK_OFFS_BITS-1 -: DAT_OFFS_BITS] ]                <= 1'b1;
+                      if (biu_ack_i)   //latch incoming data when transfer-acknowledged
+                      begin
+                          biubuffer_o    [ biu_adro_i[BLK_OFFS_BITS-1 -: DAT_OFFS_BITS] * XLEN +: XLEN ] <= biu_q;
+                          biubuffer_valid[ biu_adro_i[BLK_OFFS_BITS-1 -: DAT_OFFS_BITS] ]                <= 1'b1;
+                          biubuffer_dirty                                                                <= biubuffer_dirty | we_i; //& biu_adro_eq_cache_adr_dly
+                      end
+                  end
+		  else
+                  begin
+                      if (biu_d_ack_i)
+                      begin
+                          biubuffer_o     <= biubuffer_o >> XLEN; //next data to transfer (to BIU)
+                          biubuffer_valid <=  'h0;
+                          biubuffer_dirty <= 1'b0;
+                      end
                   end
               end
       default: ;
@@ -216,9 +332,11 @@ module riscv_cache_biu_ctrl #(
   //Data is in biubuffer, except for last transaction
   always_comb
     begin
-        cachemem_dat_o = biubuffer_o;
-        cachemem_dat_o[ biu_adro_i[BLK_OFFS_BITS-1 -: DAT_OFFS_BITS] * XLEN +: XLEN] = biu_q_i;
+        biu_line_o = biubuffer_o;
+        biu_line_o[ biu_adro_i[BLK_OFFS_BITS-1 -: DAT_OFFS_BITS] * XLEN +: XLEN] = biu_q;
     end
+
+  assign biu_line_dirty_o = biubuffer_dirty | we_i;
 
 
   //Acknowledge burst to memfsm
@@ -231,12 +349,6 @@ module riscv_cache_biu_ctrl #(
 
   always @(posedge clk_i)
     unique case (biufsm_state)
-/*
-      IDLE  : case (biucmd_i)
-                BIUCMD_READWAY : burst_cnt <= {BURST_BITS{1'b1}};
-                BIUCMD_WRITEWAY: burst_cnt <= {BURST_BITS{1'b1}};
-              endcase
-*/
       IDLE  : burst_cnt <= {BURST_BITS{1'b1}};
       BURST : if (biu_ack_i) burst_cnt <= burst_cnt -1;
     endcase
@@ -248,7 +360,7 @@ module riscv_cache_biu_ctrl #(
     else
       unique case ({biu_stb_ack_i, biu_ack_i | biu_err_i})
         2'b01  : inflight_cnt_o <= inflight_cnt_o -1;
-        2'b10  : inflight_cnt_o <= inflight_cnt_o +1;
+        2'b10  : inflight_cnt_o <= inflight_cnt_o +1 + biu_type2cnt(biu_type_o);
         default: ; //do nothing
       endcase
 
@@ -267,37 +379,53 @@ module riscv_cache_biu_ctrl #(
 
 
   //output BIU signals asynchronously for speed reasons. BIU will synchronize ...
-  assign biu_d_o  = 'h0;
-  assign biu_we_o = 1'b0;
-
   always_comb
     unique case (biufsm_state)
       IDLE    : unique case (biucmd_i)
                   BIUCMD_NOP      : begin
                                         biu_stb_o  = biucmd_noncacheable_req_i;
-                                        biu_adri_o = adr_i[PLEN-1:0];
+                                        biu_adri_o = adr_i[0 +: PLEN];
+                                        biu_we_o   = we_i;
+                                        biu_d_o    = d_i;
                                     end
 
                   BIUCMD_READWAY  : begin
                                         biu_stb_o  = 1'b1;
                                         biu_adri_o = {adr_i[PLEN-1 : BURST_LSB],{BURST_LSB{1'b0}}};
+                                        biu_we_o   = 1'b0;
+                                        biu_d_o    =  'hx;
                                     end
+
+                  BIUCMD_WRITEWAY : begin
+                                        biu_stb_o  = 1'b1;
+                                        biu_adri_o = evictbuffer_adr_i;
+                                        biu_we_o   = 1'b1;
+                                        biu_d_o    = evictbuffer_d_i[0 +: XLEN];
+                                    end
+
                 endcase
 
       WAIT4BIU: begin
                     //stretch biu_*_o signals until BIU acknowledges strobe
                     biu_stb_o  = 1'b1;
                     biu_adri_o = biu_adri_hold;
+                    biu_we_o   = biu_we_hold;
+                    biu_d_o    = biu_d_hold;
                 end
 
       BURST   : begin
-                    biu_stb_o  = 1'b0;
-                    biu_adri_o =  'hx; //don't care
+                    //continue burst operation
+                    biu_stb_o  = 1'b0;                    //don't start new (burst) transaction
+                    biu_adri_o =  'hx;                    //don't care
+                    biu_we_o   = 1'bx;                    //don't care
+                    biu_d_o    = biubuffer_o[0 +: XLEN];  //next data to transfer
                 end
 
       default : begin
-                    biu_stb_o  = 1'b0;
+                    biu_stb_o  = 1'b0; //don't start a transaction
                     biu_adri_o =  'hx; //don't care
+                    biu_we_o   = 1'bx; //don't care
+                    biu_d_o    =  'hx; //don't care
                 end
     endcase
 
@@ -307,24 +435,30 @@ module riscv_cache_biu_ctrl #(
     if (biufsm_state == IDLE)
     begin
         biu_adri_hold <= biu_adri_o;
+        biu_we_hold   <= biu_we_o;
         biu_d_hold    <= biu_d_o;
     end
 
 
+  //BIU TAG
+  assign biu_tagi_o = biucmd_tag_i;
+
+
   //transfer size
-  assign biu_size_o = size_i;
+  assign biu_size_o = biucmd_noncacheable_req_i
+                    ? size_i
+                    : XLEN==64 ? DWORD : WORD;
 
-
+ 
   //Protection bits
-  assign biu_prot_o = prot_i;
+  assign biu_prot_o = biu_prot_t'(prot_i | (biucmd_noncacheable_req_i ? PROT_NONCACHEABLE : PROT_CACHEABLE));
   assign biu_lock_o = lock_i;
   
 
   //burst length
   always_comb
     if ( (biufsm_state == IDLE) && (biucmd_i == BIUCMD_NOP) )
-      biu_type_o = (XLEN==64 && |adr_i[2:0]) ||
-                   (XLEN==32 && |adr_i[1:0]) ? SINGLE : INCR;
+      biu_type_o = INCR;
     else
     unique case(BURST_SIZE)
        16     : biu_type_o = WRAP16;

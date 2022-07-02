@@ -438,8 +438,7 @@ module riscv_state1_10 #(
 
   //output CSR read value; bypass a write
   always @(posedge clk_i)
-    if (!id_stall_i) st_csr_rval_o <= csr_raddr == ex_csr_reg_i && ex_csr_we_i ? ex_csr_wval_i : csr_rval;
-
+    if (!id_stall_i) st_csr_rval_o <= csr_rval;
 
   always @(posedge clk_i)
     du_csr_rval_o <= csr_rval;
@@ -679,7 +678,7 @@ $display ("NMI");
         end
         else if (take_interrupt && !du_stall_i && !du_flush_i)
         begin
-$display ("take_interrupt");
+$display ("take_interrupt %x @%0t", wb_exceptions_i.interrupts, $time);
             st_flush_o  <= 1'b1;
 
             //Check if interrupts are delegated
@@ -1083,6 +1082,8 @@ endgenerate
 
   //decode interrupts
   //priority external, software, timer
+  //st_int_o goes into ID, where the interrupts are synchronized
+  //with the CPU pipeline
   assign st_int_o.external[PRV_M] = ( ((st_prv_o < PRV_M) | (st_prv_o == PRV_M & csr.mstatus.mie)) & (csr.mip.meip & csr.mie.meie) );
   assign st_int_o.external[PRV_H] = ( ((st_prv_o < PRV_H) | (st_prv_o == PRV_H & csr.mstatus.hie)) & (csr.mip.heip & csr.mie.heie) );
   assign st_int_o.external[PRV_S] = ( ((st_prv_o < PRV_S) | (st_prv_o == PRV_S & csr.mstatus.sie)) & (csr.mip.seip & csr.mie.seie) );

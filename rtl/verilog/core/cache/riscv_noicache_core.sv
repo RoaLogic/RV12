@@ -32,10 +32,11 @@ import riscv_state_pkg::*;
 
 module riscv_noicache_core #(
   parameter XLEN        = 32,
-  parameter ALEN        = XLEN,
+  parameter PLEN        = XLEN,
   parameter PARCEL_SIZE = 16,
   parameter HAS_RVC     = 0,
-  parameter DEPTH       = 2         //number of transactions in flight
+  parameter DEPTH       = 2,        //number of transactions in flight
+  parameter BIUTAG_SIZE = $clog2(XLEN/PARCEL_SIZE)
 )
 (
   input                             rst_ni,
@@ -52,15 +53,15 @@ module riscv_noicache_core #(
   output     [XLEN/PARCEL_SIZE-1:0] if_parcel_valid_o,
   output                            if_parcel_misaligned_o,
   output                            if_parcel_error_o,
-  input                             dcflush_rdy_i,
+  input                             cm_dc_clean_rdy_i,
   input      [                 1:0] st_prv_i,
 
   //To BIU
   output                            biu_stb_o,
   input                             biu_stb_ack_i,
   input                             biu_d_ack_i,
-  output     [ALEN            -1:0] biu_adri_o,
-  input      [ALEN            -1:0] biu_adro_i,
+  output     [PLEN            -1:0] biu_adri_o,
+  input      [PLEN            -1:0] biu_adro_i,
   output biu_size_t                 biu_size_o,     //transfer size
   output biu_type_t                 biu_type_o,     //burst type -AHB style
   output                            biu_lock_o,
@@ -69,7 +70,9 @@ module riscv_noicache_core #(
   output     [XLEN            -1:0] biu_d_o,
   input      [XLEN            -1:0] biu_q_i,
   input                             biu_ack_i,      //data acknowledge, 1 per data
-  input                             biu_err_i       //data error
+  input                             biu_err_i,      //data error
+  output     [BIUTAG_SIZE     -1:0] biu_tagi_o,
+  input      [BIUTAG_SIZE     -1:0] biu_tago_i
 );
 
   //////////////////////////////////////////////////////////////////
@@ -116,32 +119,31 @@ module riscv_noicache_core #(
   /*
    * To CPU
    */
-  assign if_ack_o               = dcflush_rdy_i & biu_stb_ack_i;  //get next parcel address
+  assign if_ack_o               = cm_dc_clean_rdy_i & biu_stb_ack_i;  //get next parcel address
   assign if_parcel_misaligned_o = (HAS_RVC != 0) ? if_parcel_pc_o[0] : |if_parcel_pc_o[1:0];
   assign if_parcel_error_o      = biu_err_i;
-  assign if_parcel_valid_o      = dcflush_rdy_i & ~(if_flush_i | if_flush_dly) & biu_ack_i & ~|discard       ?
-                                   {XLEN/PARCEL_SIZE{1'b1}} << if_parcel_pc_o[1 +: $clog2(XLEN/PARCEL_SIZE)] :
-				   {XLEN/PARCEL_SIZE{1'b0}};
-  assign if_parcel_pc_o         = { {XLEN-ALEN{1'b0}},biu_adro_i};
+  assign if_parcel_valid_o      = cm_dc_clean_rdy_i & ~(if_flush_i | if_flush_dly) & biu_ack_i & ~|discard
+                                ? {XLEN/PARCEL_SIZE{1'b1}} << biu_tago_i
+                                : {XLEN/PARCEL_SIZE{1'b0}};
+  assign if_parcel_pc_o         = { {PLEN - (BIUTAG_SIZE+1) - $bits(biu_tago_i) -1{1'b0}},biu_adro_i[PLEN -1 : BIUTAG_SIZE+1], biu_tago_i, 1'b0};
   assign if_parcel_o            = biu_q_i;
-
 
 
   /*
    * External Interface
    */
-  assign biu_stb_o   = dcflush_rdy_i & ~if_flush_i & if_req_i;
-  assign biu_adri_o  = if_nxt_pc_i[ALEN -1:0];
+  assign biu_stb_o   = cm_dc_clean_rdy_i & ~if_flush_i & if_req_i;
+generate  
+  if (PLEN <= XLEN) assign biu_adri_o = if_nxt_pc_i[PLEN -1:0]           & (XLEN==64 ? ~'h7 : ~'h3); //Always start at aligned address
+  else              assign biu_adri_o = {{PLEN-XLEN{1'b0}}, if_nxt_pc_i} & (XLEN==64 ? ~'h7 : ~'h3);
+endgenerate
+  assign biu_tagi_o  = if_nxt_pc_i[1 +: BIUTAG_SIZE];                     //Use TAG to remember offset (actual address LSBs)
   assign biu_size_o  = XLEN==64 ? DWORD : WORD;
   assign biu_lock_o  = 1'b0;
   assign biu_prot_o  = if_prot_i;
-//  assign biu_prot_o  = biu_prot_t'(PROT_INSTRUCTION |
-//                                   st_prv_i == PRV_U ? PROT_USER : PROT_PRIVILEGED);
   assign biu_we_o    = 1'b0;   //no writes
   assign biu_d_o     =  'h0;
-  assign biu_type_o  = (XLEN==64 && |if_nxt_pc_i[2:0]) ||
-                       (XLEN==32 && |if_nxt_pc_i[1:0]) ? SINGLE : INCR;   //incrementing burst access
-
+  assign biu_type_o  = INCR;
 endmodule
 
 

@@ -40,6 +40,9 @@
 
 import riscv_pma_pkg::*;
 import riscv_state_pkg::*;
+import ahb3lite_pkg::*;
+import biu_constants_pkg::*;
+
 
 module testbench_top; 
 
@@ -78,9 +81,6 @@ parameter PMA_CNT          = 4;
 //
 // Constants
 //
-import riscv_pma_pkg::*;
-import ahb3lite_pkg::*;
-
 localparam MULLAT = MULT_LATENCY > 4 ? 4 : MULT_LATENCY;
 
 
@@ -179,7 +179,7 @@ assign pma_cfg[0].amo_type = AMO_TYPE_NONE;
 assign pma_cfg[0].a        = TOR;
 
 //TOHOST region
-assign pma_adr[1]          = ((TOHOST >> 2) & ~'hf) | 'h7;
+assign pma_adr[1]          = (TOHOST | ('h7 >>1)) >> 2;
 assign pma_cfg[1].mem_type = MEM_TYPE_IO;
 assign pma_cfg[1].r        = 1'b0;
 assign pma_cfg[1].w        = 1'b1;
@@ -207,18 +207,18 @@ assign pma_cfg[2].amo_type = AMO_TYPE_NONE;
 assign pma_cfg[2].a        = NA4;
 
 //RAM region
-assign pma_adr[3]          = 1 << 31;
+assign pma_adr[3]          = (1 << 31 | ({32{1'b1}} >> 1)) >> 2;
 assign pma_cfg[3].mem_type = MEM_TYPE_MAIN;
 assign pma_cfg[3].r        = 1'b1;
 assign pma_cfg[3].w        = 1'b1;
 assign pma_cfg[3].x        = 1'b1;
-assign pma_cfg[3].c        = 1'b1;
+assign pma_cfg[3].c        = 1'b1; //1'b1;
 assign pma_cfg[3].cc       = 1'b0;
 assign pma_cfg[3].ri       = 1'b0;
 assign pma_cfg[3].wi       = 1'b0;
 assign pma_cfg[3].m        = 1'b0;
 assign pma_cfg[3].amo_type = AMO_TYPE_NONE;
-assign pma_cfg[3].a        = TOR;
+assign pma_cfg[3].a        = NAPOT;
 
 
 //Hookup Device Under Test
@@ -236,9 +236,9 @@ riscv_top_ahb3lite #(
 
   .PMA_CNT          ( PMA_CNT          ),
   .ICACHE_SIZE      ( ICACHE_SIZE      ),
-  .ICACHE_WAYS      ( 1                ),
+  .ICACHE_WAYS      ( 2                ),
   .DCACHE_SIZE      ( DCACHE_SIZE      ),
-  .DTCM_SIZE        ( 0                ),
+  .DCACHE_WAYS      ( 2                ),
   .WRITEBUFFER_SIZE ( WRITEBUFFER_SIZE ),
 
   .MTVEC_DEFAULT    ( 32'h80000004     )
@@ -356,6 +356,27 @@ generate
   end
 endgenerate
 
+
+//Hookup Data Memory Access Validator
+`define RV_CORE dut.core
+dmav #(
+  .XLEN          ( XLEN      ),
+  .INIT_FILE     ( INIT_FILE )
+//  ,.CHECK_CREATE ( 0         )
+)
+dmav_inst (
+  .clk_i        ( HCLK                       ),
+  .req_i        ( `RV_CORE.dmem_req_o        ),
+  .adr_i        ( `RV_CORE.dmem_adr_o        ),
+  .d_i          ( `RV_CORE.dmem_d_o          ),
+  .q_i          ( `RV_CORE.dmem_q_i          ),
+  .we_i         ( `RV_CORE.dmem_we_o         ),
+  .size_i       ( `RV_CORE.dmem_size_o       ),
+  .lock_i       ( `RV_CORE.dmem_lock_o       ),
+  .ack_i        ( `RV_CORE.dmem_ack_i        ),
+  .err_i        ( `RV_CORE.dmem_err_i        ),
+  .misaligned_i ( `RV_CORE.dmem_misaligned_i ),
+  .page_fault_i ( `RV_CORE.dmem_page_fault_i ) );
 
 //Generate clock
 always #1 HCLK = ~HCLK;
@@ -493,8 +514,6 @@ module mmio_if #(
   //
   // Module body
   //
-  import ahb3lite_pkg::*;
-
 
   //Generate watchdog counter
   integer watchdog_cnt;
@@ -556,7 +575,7 @@ module mmio_if #(
           $display("\n\n");
           $display("-------------------------------------------------------------");
           $display("* RISC-V test bench finished");
-          if (data_reg[0] == 1'b1)
+          if (data_reg[0])
           begin
               if (~|data_reg[HDATA_SIZE-1:1])
                 $display("* PASSED %0d", data_reg);
@@ -568,6 +587,7 @@ module mmio_if #(
             $display("-------------------------------------------------------------");
           $display("\n");
 
+	  $root.testbench_top.dmav_inst.golden_finish();
           $finish();
       end
   end
@@ -626,6 +646,7 @@ module htif #(
           $display("*****************************************************");
           $display("\n");
 
+	  $root.testbench_top.dmav_inst.golden_finish();
           $finish();
       end
   end
@@ -633,5 +654,202 @@ endmodule
 
 
 
+
+/*
+ * Data Memory Access Validation
+ */
+module dmav #(
+  parameter XLEN         = 32,
+  parameter INIT_FILE    = "inifile",
+  parameter CHECK_CREATE = 1
+)
+(
+  input            clk_i,
+  input            req_i,
+  input [XLEN-1:0] adr_i,
+  input [XLEN-1:0] d_i,
+  input [XLEN-1:0] q_i,
+  input            we_i,
+  input biu_size_t size_i,
+  input            lock_i,
+  input            ack_i,
+                   err_i,
+                   misaligned_i,
+                   page_fault_i
+);
+
+ /////////////////////////////////////////////////////////////////
+ //
+ // Typedef
+ //
+ typedef struct {
+   logic [XLEN-1:0] adr;
+   logic [XLEN-1:0] data;
+   logic            we;
+   biu_size_t       size;
+   logic            lock;
+   logic            ack,
+                    err,
+                    misaligned,
+                    page_fault;
+   string           comment;
+ } data_t;
+
+
+  /////////////////////////////////////////////////////////////////
+  //
+  // Functions/Tasks
+  //
+
+  //Open golden file, either for reading or writing
+  function int golden_open (input string filename, input bit rw);
+    golden_open = $fopen(filename, rw ? "r" : "w");
+
+    if (!golden_open) $warning("Failed to open: %s", filename);
+    else              $info   ("Opened %s (%0d)", filename, golden_open);
+  endfunction: golden_open
+
+  //Close golden file
+  //TODO: fd should be argument
+  //      call when closing simulator (callback?)
+  task golden_close();
+    $fclose(fd);
+  endtask: golden_close
+
+  //Write datablob to golden file
+  //TODO: why doesn't $fwrite work?
+  //      why can't a typedef be written at once with %z?
+  task golden_write (input int fd, input data_t blob);
+//    $display ("fwrite %0t %z", $realtime, blob);
+//    $fdisplay (fd, "%z", blob);
+    $fdisplay (fd, "%h %h %b %h %b %h %s",
+                   blob.adr,
+                   blob.data,
+                   blob.we,
+                   blob.size,
+                   blob.lock,
+                   {blob.ack, blob.err, blob.misaligned, blob.page_fault},
+                   "-" );
+  endtask: golden_write
+
+  //Read golden file
+  //TODO: ideally would want to read a type_def with %z
+  function data_t golden_read(input int fd);
+    int err;
+    data_t tmp;
+    err = $fscanf (fd, "%h %h %b %h %b %h %s",
+                       tmp.adr,
+                       tmp.data,
+                       tmp.we,
+                       tmp.size,
+                       tmp.lock,
+                       {tmp.ack, tmp.err, tmp.misaligned, tmp.page_fault},
+                       tmp.comment );
+
+    if (err != 7)
+    begin
+        $error ("golden_read");
+        return data_t'(-1);
+    end
+    else
+    begin
+        return tmp;
+    end
+  endfunction: golden_read
+
+
+  //Compare results
+  //g=golden
+  //r=reference
+  function int golden_compare(input data_t g, r);
+    r.comment = "-";
+    if (r !== g && g.comment[0] !== "+")
+    begin
+        $display ("ERROR  : golden_compare error @%0t %s", $realtime, g.comment);
+        $display ("        | golden %s| reference", {XLEN/4-6{" "}} );
+        $display ("adr     | %h | %h",   g.adr,  r.adr);
+        $display ("data    | %h | %h",   g.data, r.data);
+        $display ("size    | %h  %s| %h",   g.size, {XLEN/4-2{" "}}, r.size);
+        $display ("we/lock | %b%b %s| %b%b", g.we, g.lock, {XLEN/4-2{" "}}, r.we, r.lock);
+        $display ("aemp    | %b%b%b%b %s| %b%b%b%b", g.ack, g.err, g.misaligned, g.page_fault, {XLEN/4-4{" "}},
+                                                   r.ack, r.err, r.misaligned, r.page_fault);
+        return -1;
+    end
+    else
+        return 0;
+  endfunction: golden_compare
+
+
+  task golden_finish();
+    //close file
+    golden_close();
+
+    //display notice
+    $info ("dmav errors: %0d", golden_errors);
+  endtask: golden_finish
+
+  /////////////////////////////////////////////////////////////////
+  //
+  // Variables
+  //
+  int fd;
+  
+  data_t queue[$],
+	 queue_d,
+         queue_q;
+
+  int golden_errors=0;
+
+  /////////////////////////////////////////////////////////////////
+  //
+  // Module body
+  //
+
+  //open file
+  initial fd = golden_open({INIT_FILE, ".golden"}, CHECK_CREATE);
+
+
+  //store access request
+  assign queue_d.adr  = adr_i;
+  assign queue_d.we   = we_i;
+  assign queue_d.size = size_i;
+  assign queue_d.lock = lock_i;
+  assign queue_d.data = d_i; //gets overwritten for a read
+
+
+  //push access request into queue
+  always @(posedge clk_i)
+    if (req_i) queue.push_front(queue_d);
+
+
+  //wait for acknowledge and write to file
+  always @(posedge clk_i)
+    if (ack_i || err_i || page_fault_i)
+    begin
+        //pop request from queue
+        queue_q = queue.pop_back();
+
+        //store response
+        queue_q.ack        = ack_i;
+        queue_q.err        = err_i;
+        queue_q.misaligned = misaligned_i;
+        queue_q.page_fault = page_fault_i;
+
+        if (!queue_q.we) queue_q.data = q_i;
+
+        if (CHECK_CREATE)
+        begin
+            //read from file and compare
+            //if (golden_compare(golden_read(fd), queue_q) ) golden_errors++;
+        end
+        else
+        begin
+            //write to file
+            golden_write(fd, queue_q);
+        end
+    end
+
+
+endmodule
 
 

@@ -57,9 +57,11 @@ module riscv_du #(
   output                          du_stall_o,
                                   du_stall_if_o,
 
-  output reg                      du_latch_nxt_pc_o,
-  output reg                      du_flush_o,
+  output                          du_latch_nxt_pc_o,
+  output                          du_flush_o,
+  output                          du_flush_cache_o,
   output reg                      du_we_rf_o,
+  output reg                      du_re_rf_o,
   output reg                      du_we_frf_o,
   output reg                      du_we_csr_o,
   output reg                      du_re_csr_o,
@@ -84,6 +86,7 @@ module riscv_du #(
                                   if_insn_i,
                                   pd_insn_i,
                                   mem_insn_i,
+                                  wb_insn_i, //only for 'dbg' signal
 
   input  interrupts_exceptions_t  mem_exceptions_i,
   input      [XLEN          -1:0] mem_memadr_i,
@@ -134,7 +137,8 @@ module riscv_du #(
   // Variables
   //
   logic                                dbg_strb_i_dly,
-                                       du_stall_dly;
+                                       du_stall_dly,
+                                       wb_dbg_dly;
 				       
   logic [DBG_ADDR_SIZE-1:DU_ADDR_SIZE] du_bank_addr;
   logic                                du_sel_internal,
@@ -217,24 +221,30 @@ module riscv_du #(
     else         du_stall_dly <= dbg_stall_i;
 
 
-  assign du_latch_nxt_pc_o =  dbg_stall_i & ~du_stall_dly; //Latch nxt-pc address while entering debug
-  assign du_flush_o        = ~dbg_stall_i &  du_stall_dly; // & |du_exceptions_i; //flush upon debug exit. Maybe program memory contents changed
+  always @(posedge clk_i,negedge rst_ni)
+    if (!rst_ni) wb_dbg_dly <= 1'b0;
+    else         wb_dbg_dly <= wb_insn_i.dbg;
 
-  
+
+  assign du_latch_nxt_pc_o =  dbg_stall_i   & ~du_stall_dly; //Latch nxt-pc address while entering debug
+  assign du_flush_cache_o  =  wb_insn_i.dbg & ~wb_dbg_dly;   //flush cache when stall exits CPU pipeline (i.e. all pending instructions executed)
+  assign du_flush_o        = ~dbg_stall_i   &  du_stall_dly; // & |du_exceptions_i; //flush upon debug exit. Maybe program memory contents changed
+
+
   always @(posedge clk_i)
   begin
-      du_addr_o      <= dbg_addr_i[DU_ADDR_SIZE-1:0];
-      du_d_o         <= dbg_d_i;
+      du_addr_o      <=  dbg_addr_i[DU_ADDR_SIZE-1:0];
+      du_d_o         <=  dbg_d_i;
 
-      du_we_rf_o     <= du_we & du_sel_gprs & (dbg_addr_i[11:8] == 4'h0); //(dbg_addr_i[DU_ADDR_SIZE-1:0] == DBG_GPR);
-      du_we_frf_o    <= du_we & du_sel_gprs & (dbg_addr_i[11:8] == 4'h1); //(dbg_addr_i[DU_ADDR_SIZE-1:0] == DBG_FPR);
-      du_we_internal <= du_we & du_sel_internal;
-      du_we_csr_o    <= du_we & du_sel_csrs;
-      du_we_pc_o     <= du_we & du_sel_gprs & (dbg_addr_i[DU_ADDR_SIZE-1:0] == DBG_NPC);
+      du_we_rf_o     <=  du_we & du_sel_gprs & (dbg_addr_i[11:8] == 4'h0); //(dbg_addr_i[DU_ADDR_SIZE-1:0] == DBG_GPR);
+      du_we_frf_o    <=  du_we & du_sel_gprs & (dbg_addr_i[11:8] == 4'h1); //(dbg_addr_i[DU_ADDR_SIZE-1:0] == DBG_FPR);
+      du_we_internal <=  du_we & du_sel_internal;
+      du_we_csr_o    <=  du_we & du_sel_csrs;
+      du_we_pc_o     <=  du_we & du_sel_gprs & (dbg_addr_i[DU_ADDR_SIZE-1:0] == DBG_NPC);
   end
 
   assign du_re_csr_o = dbg_strb_i & du_sel_csrs;
-
+  assign du_re_rf_o  = dbg_strb_i & du_sel_gprs & (dbg_addr_i[11:8] == 4'h0);
   
 
   // Return signals

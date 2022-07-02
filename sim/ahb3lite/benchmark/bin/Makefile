@@ -54,7 +54,7 @@ POSTFIX     = .riscv$(XLEN).hex
 #
 #####################################################################
 XLEN              = 64
-DCACHE_SIZE       = 0
+DCACHE_SIZE       = 1
 ICACHE_SIZE       = 4
 WRITEBUFFER_SIZE  = 0
 HAS_U             = 1

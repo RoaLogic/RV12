@@ -72,9 +72,9 @@ package riscv_cache_pkg;
   endfunction : no_of_block_bits
 
 
-  //Number of bits in a tag, based on xlen, no_of_index_bits, and block_offset_bits
-  function automatic integer no_of_tag_bits (input integer xlen, no_of_index_bits, no_of_block_offset_bits);
-    no_of_tag_bits = xlen - no_of_index_bits - no_of_block_offset_bits;
+  //Number of bits in a tag, based on plen, no_of_index_bits, and block_offset_bits
+  function automatic integer no_of_tag_bits (input integer plen, no_of_index_bits, no_of_block_offset_bits);
+    no_of_tag_bits =plen - no_of_index_bits - no_of_block_offset_bits;
   endfunction : no_of_tag_bits
 
 
@@ -85,10 +85,9 @@ package riscv_cache_pkg;
 
 
 
-  //Statemachine (commands)
+  //BIU Commands
   typedef enum logic [1:0] {BIUCMD_NOP=0, BIUCMD_READWAY=1, BIUCMD_WRITEWAY=2} biucmd_t;
 
-  
 endpackage
 
 

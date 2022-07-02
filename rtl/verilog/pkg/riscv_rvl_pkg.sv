@@ -30,14 +30,14 @@
 
 package riscv_rvl_pkg;
   //Architecture ID
-  parameter ARCHID       = 20;
+  localparam ARCHID       = 20;
 
   //Privileged version
-  parameter REVPRV_MAJOR = 1;
-  parameter REVPRV_MINOR = 10;
+  localparam REVPRV_MAJOR = 1;
+  localparam REVPRV_MINOR = 10;
 
   //User version
-  parameter REVUSR_MAJOR = 2;
-  parameter REVUSR_MINOR = 2;
+  localparam REVUSR_MAJOR = 2;
+  localparam REVUSR_MINOR = 2;
 endpackage
 

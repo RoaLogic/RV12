@@ -32,13 +32,14 @@ import riscv_state_pkg::*;
 import biu_constants_pkg::*;
 
 module riscv_ex #(
-  parameter            XLEN           = 32,
+  parameter int        XLEN           = 32,
   parameter [XLEN-1:0] PC_INIT        = 'h200,
-  parameter            BP_GLOBAL_BITS = 2,
-  parameter            HAS_RVC        = 0,
-  parameter            HAS_RVA        = 0,
-  parameter            HAS_RVM        = 0,
-  parameter            MULT_LATENCY   = 0
+  parameter int        BP_GLOBAL_BITS = 2,
+  parameter int        HAS_RVC        = 0,
+  parameter int        HAS_RVA        = 0,
+  parameter int        HAS_RVM        = 0,
+  parameter int        MULT_LATENCY   = 0,
+  parameter int        RSB_DEPTH      = 0
 )
 (
   input                           rst_ni,
@@ -49,10 +50,13 @@ module riscv_ex #(
 
   //Program counter
   input      [XLEN          -1:0] id_pc_i,
+                                  id_rsb_pc_i,
   output reg [XLEN          -1:0] ex_pc_o,
                                   bu_nxt_pc_o,
   output                          bu_flush_o,
-                                  bu_cacheflush_o,
+                                  cm_ic_invalidate_o,
+                                  cm_dc_invalidate_o,
+                                  cm_dc_clean_o,
   input      [               1:0] id_bp_predict_i,
   output     [               1:0] bu_bp_predict_o,
   input      [BP_GLOBAL_BITS-1:0] id_bp_history_i,
@@ -115,8 +119,7 @@ module riscv_ex #(
   //
 
   //Operand generation
-  logic [XLEN          -1:0] opA,opB,
-                             hold_opA, hold_opB;
+  logic [XLEN          -1:0] opA,opB;
 
   logic [XLEN          -1:0] alu_r,
                              lsu_r,
@@ -158,6 +161,10 @@ module riscv_ex #(
   always @(posedge clk_i)
     if (!ex_stall_o) ex_insn_o.instr <= id_insn_i.instr;
 
+  always @(posedge clk_i, negedge rst_ni)
+    if      (!rst_ni    ) ex_insn_o.dbg <= 1'b0;
+    else if (!ex_stall_o) ex_insn_o.dbg <= id_insn_i.dbg;
+    
 
   /*
    * Bypasses
@@ -251,39 +258,43 @@ module riscv_ex #(
 
   // Branch Unit
   riscv_bu #(
-    .XLEN             ( XLEN             ),
-    .HAS_RVC          ( HAS_RVC          ),
-    .PC_INIT          ( PC_INIT          ),
-    .BP_GLOBAL_BITS   ( BP_GLOBAL_BITS   ) )
+    .XLEN                   ( XLEN                   ),
+    .HAS_RVC                ( HAS_RVC                ),
+    .PC_INIT                ( PC_INIT                ),
+    .BP_GLOBAL_BITS         ( BP_GLOBAL_BITS         ),
+    .RSB_DEPTH              ( RSB_DEPTH              ) )
   bu (
-    .rst_ni           ( rst_ni           ),
-    .clk_i            ( clk_i            ),
+    .rst_ni                 ( rst_ni                 ),
+    .clk_i                  ( clk_i                  ),
 
-    .ex_stall_i       ( ex_stall_o       ),
-    .st_flush_i       ( st_flush_i       ),
+    .ex_stall_i             ( ex_stall_o             ),
+    .st_flush_i             ( st_flush_i             ),
 
-    .id_pc_i          ( id_pc_i          ),
-    .id_insn_i        ( id_insn_i        ),
-    .bu_nxt_pc_o      ( bu_nxt_pc_o      ),
-    .bu_flush_o       ( bu_flush_o       ),
-    .bu_cacheflush_o  ( bu_cacheflush_o  ),
+    .id_pc_i                ( id_pc_i                ),
+    .id_insn_i              ( id_insn_i              ),
+    .id_rsb_pc_i            ( id_rsb_pc_i            ),
+    .bu_nxt_pc_o            ( bu_nxt_pc_o            ),
+    .bu_flush_o             ( bu_flush_o             ),
+    .cm_ic_invalidate_o     ( cm_ic_invalidate_o     ),
+    .cm_dc_invalidate_o     ( cm_dc_invalidate_o     ),
+    .cm_dc_clean_o          ( cm_dc_clean_o          ),
 
-    .id_bp_predict_i  ( id_bp_predict_i  ),
-    .bu_bp_predict_o  ( bu_bp_predict_o  ),
-    .id_bp_history_i  ( id_bp_history_i  ),
+    .id_bp_predict_i        ( id_bp_predict_i        ),
+    .bu_bp_predict_o        ( bu_bp_predict_o        ),
+    .id_bp_history_i        ( id_bp_history_i        ),
     .bu_bp_history_update_o ( bu_bp_history_update_o ),
-    .bu_bp_history_o  ( bu_bp_history_o  ),
-    .bu_bp_btaken_o   ( bu_bp_btaken_o   ),
-    .bu_bp_update_o   ( bu_bp_update_o   ),
+    .bu_bp_history_o        ( bu_bp_history_o        ),
+    .bu_bp_btaken_o         ( bu_bp_btaken_o         ),
+    .bu_bp_update_o         ( bu_bp_update_o         ),
 
-    .id_exceptions_i  ( id_exceptions_i  ),
-    .ex_exceptions_i  ( ex_exceptions_o  ),
-    .mem_exceptions_i ( mem_exceptions_i ),
-    .wb_exceptions_i  ( wb_exceptions_i  ),
-    .bu_exceptions_o  ( ex_exceptions_o  ),
+    .id_exceptions_i        ( id_exceptions_i        ),
+    .ex_exceptions_i        ( ex_exceptions_o        ),
+    .mem_exceptions_i       ( mem_exceptions_i       ),
+    .wb_exceptions_i        ( wb_exceptions_i        ),
+    .bu_exceptions_o        ( ex_exceptions_o        ),
 
-    .opA_i            ( opA              ),
-    .opB_i            ( opB              ) );
+    .opA_i                  ( opA                    ),
+    .opB_i                  ( opB                    ) );
 
 
 generate
@@ -296,6 +307,7 @@ generate
         .rst_ni       ( rst_ni       ),
         .clk_i        ( clk_i        ),
 
+        .mem_stall_i  ( mem_stall_i  ),
         .ex_stall_i   ( ex_stall_o   ),
         .mul_stall_o  ( mul_stall    ),
 
@@ -311,23 +323,24 @@ generate
 
 
       riscv_div #(
-        .XLEN         ( XLEN       ) )
+        .XLEN         ( XLEN        ) )
       div (
-        .rst_ni       ( rst_ni     ),
-        .clk_i        ( clk_i      ),
+        .rst_ni       ( rst_ni      ),
+        .clk_i        ( clk_i       ),
 
-        .ex_stall_i   ( ex_stall_o ),
-        .div_stall_o  ( div_stall  ),
+	.mem_stall_i  ( mem_stall_i ),
+        .ex_stall_i   ( ex_stall_o  ),
+        .div_stall_o  ( div_stall   ),
 
-        .id_insn_i    (id_insn_i   ),
+        .id_insn_i    (id_insn_i    ),
 
-        .opA_i        ( opA        ),
-        .opB_i        ( opB        ),
+        .opA_i        ( opA         ),
+        .opB_i        ( opB         ),
 
-        .st_xlen_i    ( st_xlen_i  ),
+        .st_xlen_i    ( st_xlen_i   ),
 
-        .div_bubble_o ( div_bubble ),
-        .div_r_o      ( div_r      ) );
+        .div_bubble_o ( div_bubble  ),
+        .div_r_o      ( div_r       ) );
   end
   else
   begin

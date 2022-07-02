@@ -51,7 +51,7 @@ module riscv_rf #(
                              id_stall_i,
 
   //Debug Interface
-  input                      du_stall_i,
+  input                      du_re_rf_i,
                              du_we_rf_i,
   input        [XLEN   -1:0] du_d_i,   //output from debug unit
   output logic [XLEN   -1:0] du_rf_q_o,
@@ -82,7 +82,7 @@ logic            src1_is_x0,
 logic [XLEN-1:0] dout1,
                  dout2;
 
- logic           du_stall_dly;
+ logic           du_re_rf_dly;
 
 
 /////////////////////////////////////////////////////////////////
@@ -92,16 +92,16 @@ logic [XLEN-1:0] dout1,
 
   //delay du_stall signal, to ensure src1 reaches RF before du_stall takes over
   always @(posedge clk_i)
-    du_stall_dly <= du_stall_i;
+    du_re_rf_dly <= du_re_rf_i;
 
 
   //Use traditional registered memory description to ensure that writes to RF
   //during a stall are handled
 
   //register read port
-  always @(posedge clk_i) if      ( du_stall_dly) src1 <= rsd_t'(du_addr_i[4:0]);
-                          else if (!pd_stall_i  ) src1 <= rf_src1_i;
-  always @(posedge clk_i) if      (!pd_stall_i  ) src2 <= rf_src2_i;
+  always @(posedge clk_i) if      ( du_re_rf_i) src1 <= rsd_t'(du_addr_i[4:0]);
+                          else if (!pd_stall_i) src1 <= rf_src1_i;
+  always @(posedge clk_i) if      (!pd_stall_i) src2 <= rf_src2_i;
 
 
   //RW contention
@@ -145,7 +145,7 @@ logic [XLEN-1:0] dout1,
 
 //Debug Unit output
 always @(posedge clk_i)
-  du_rf_q_o <= ~|src1 ? 'h0 : rfout1;
+  if (du_re_rf_dly) du_rf_q_o <= ~|src1 ? 'h0 : rfout1;
 
 
 

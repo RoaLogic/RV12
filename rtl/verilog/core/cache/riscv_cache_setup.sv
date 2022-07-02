@@ -31,50 +31,43 @@ import riscv_cache_pkg::*;
 import biu_constants_pkg::*;
 
 module riscv_cache_setup #(
-  parameter  XLEN          = 32,
-  parameter  SIZE          = 64, 
-  parameter  BLOCK_SIZE    = XLEN,
-  parameter  WAYS          = 2,
+  parameter                    XLEN          = 32,
+  parameter                    SIZE          = 64,
+  parameter                    BLOCK_SIZE    = XLEN,
+  parameter                    WAYS          = 2,
 
-  localparam SETS          = no_of_sets(SIZE, BLOCK_SIZE, WAYS),
-  localparam BLK_OFFS_BITS = no_of_block_offset_bits(BLOCK_SIZE),
-  localparam IDX_BITS      = no_of_index_bits(SETS),
-  localparam TAG_BITS      = no_of_tag_bits(XLEN, IDX_BITS, BLK_OFFS_BITS)
+  localparam                   SETS          = no_of_sets             (SIZE, BLOCK_SIZE, WAYS       ),
+  localparam                   BLK_OFFS_BITS = no_of_block_offset_bits(BLOCK_SIZE                   ),
+  localparam                   IDX_BITS      = no_of_index_bits       (SETS                         )
 )
 (
-  input  logic                rst_ni,
-  input  logic                clk_i,
+  input  logic                 rst_ni,
+  input  logic                 clk_i,
 
-  input  logic                stall_i,
+  input  logic                 stall_i,
   
-  input  logic                flush_i,
-  input  logic                req_i,
-  input  logic [XLEN    -1:0] adr_i,   //virtualy index, physically tagged
-  input  biu_size_t           size_i,
-  input                       lock_i,
-  input  biu_prot_t           prot_i,
-  input  logic                we_i,
-  input  logic [XLEN/8  -1:0] be_i,
-  input  logic [XLEN    -1:0] d_i,
-  input  logic                is_cacheable_i,
-  input  logic                is_misaligned_i,
+  input  logic                 flush_i,
+  input  logic                 req_i,
+  input  logic [XLEN     -1:0] adr_i,   //virtualy index, physically tagged
+  input  biu_size_t            size_i,
+  input  logic                 lock_i,
+  input  biu_prot_t            prot_i,
+  input  logic                 we_i,
+  input  logic [XLEN     -1:0] d_i,
+  input  logic                 invalidate_i,
+                               clean_i,
 
-  output logic                req_o,
-  output logic [XLEN    -1:0] adr_o,
-  output biu_size_t           size_o,
-  output logic                lock_o,
-  output biu_prot_t           prot_o,
-  output logic                is_cacheable_o,
-  output logic                is_misaligned_o,
+  output logic                 req_o,
+  output logic                 rreq_o,
+  output biu_size_t            size_o,
+  output logic                 lock_o,
+  output biu_prot_t            prot_o,
+  output logic                 we_o,
+  output logic [XLEN     -1:0] q_o,
+  output logic                 invalidate_o,
+                               clean_o,
 
-  output logic [IDX_BITS-1:0] tag_idx_o,
-                              dat_idx_o,
-  output logic [TAG_BITS-1:0] core_tag_o,
-
-  output logic                writebuffer_we_o,
-  output logic [IDX_BITS-1:0] writebuffer_idx_o,
-  output logic [XLEN    -1:0] writebuffer_data_o,
-  output logic [XLEN/8  -1:0] writebuffer_be_o  
+  output logic [IDX_BITS -1:0] idx_o
 );
 
   //////////////////////////////////////////////////////////////////
@@ -86,6 +79,8 @@ module riscv_cache_setup #(
   logic [IDX_BITS-1:0] adr_idx,
                        adr_idx_dly;
 
+  logic                invalidate_hold,
+                       clean_hold;
 
   //////////////////////////////////////////////////////////////////
   //
@@ -99,6 +94,20 @@ module riscv_cache_setup #(
     flush_dly <= flush_i;
 
 
+  /* Hold invalidate/clean signals
+   */
+  always @(posedge clk_i, negedge rst_ni)
+    if      (!rst_ni ) invalidate_hold <= 1'b0;
+    else if (!stall_i) invalidate_hold <= 1'b0;
+    else               invalidate_hold <= invalidate_i | invalidate_hold;
+
+
+  always @(posedge clk_i, negedge rst_ni)
+    if      (!rst_ni ) clean_hold <= 1'b0;
+    else if (!stall_i) clean_hold <= 1'b0;
+    else               clean_hold <= clean_i | clean_hold;
+
+
   /*feed input signals to next stage
    */
   always @(posedge clk_i, negedge rst_ni)
@@ -107,16 +116,37 @@ module riscv_cache_setup #(
     else if (!stall_i) req_o <= req_i;
 
 
+  /* Latch signals
+   */
   always @(posedge clk_i)
     if (!stall_i)
     begin
-        adr_o           <= adr_i;
-        size_o          <= size_i;
-        lock_o          <= lock_i;
-        prot_o          <= prot_i;
-        is_cacheable_o  <= is_cacheable_i;
-        is_misaligned_o <= is_misaligned_i;
+        size_o       <= size_i;
+        lock_o       <= lock_i;
+        prot_o       <= prot_i;
+        we_o         <= we_i;
+        q_o          <= d_i;
     end
+
+
+  always @(posedge clk_i, negedge rst_ni)
+    if (!rst_ni)
+    begin
+        invalidate_o <= 1'b0;
+        clean_o      <= 1'b0;
+    end
+    else if (!stall_i)
+    begin
+        invalidate_o <= invalidate_i | invalidate_hold;
+        clean_o      <= clean_i      | clean_hold;
+    end
+
+
+  /* Read-Request
+   * Used to push writebuffer into Cache-memory
+   * Same delay as adr_idx
+   */
+  assign rreq_o = req_i & ~we_i;
 
 
   /* TAG and DATA index
@@ -127,28 +157,7 @@ module riscv_cache_setup #(
   always @(posedge clk_i)
     if (!stall_i || flush_dly) adr_idx_dly <= adr_idx;
 
-  assign tag_idx_o = stall_i && !flush_dly ? adr_idx_dly : adr_idx;
-  assign dat_idx_o = stall_i && !flush_dly ? adr_idx_dly : adr_idx;
-//  assign tag_idx_o = adr_idx;
-//  assign dat_idx_o = adr_idx;
-
-  /* Core Tag
-   */
-  always @(posedge clk_i)
-    if (!stall_i) core_tag_o <= adr_i[XLEN-1 -: TAG_BITS];
-
-
-  /* Write Buffer
-   */
-  always @(posedge clk_i)
-    if (!stall_i)
-    begin
-        writebuffer_we_o   = req_i & we_i;
-        writebuffer_idx_o  = adr_idx;
-        writebuffer_data_o = d_i;
-        writebuffer_be_o   = be_i;
-    end
-
+  assign idx_o = stall_i /*&& !flush_dly*/ ? adr_idx_dly : adr_idx;
 endmodule
 
 

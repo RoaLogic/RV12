@@ -27,103 +27,104 @@
 //                                                                 //
 /////////////////////////////////////////////////////////////////////
 
-/*
-  Changelog: 2017-12-15: Added MEM stage to improve memory access performance
-*/
-
 import riscv_du_pkg::*;
 import riscv_state_pkg::*;
 import riscv_opcodes_pkg::*;
 import biu_constants_pkg::*;
 
 module riscv_core #(
-  parameter            XLEN                  = 32,
+  parameter int        XLEN                  = 32,
   parameter [XLEN-1:0] PC_INIT               = 'h200,
-  parameter            HAS_USER              = 0,
-  parameter            HAS_SUPER             = 0,
-  parameter            HAS_HYPER             = 0,
-  parameter            HAS_BPU               = 1,
-  parameter            HAS_FPU               = 0,
-  parameter            HAS_MMU               = 0,
-  parameter            HAS_RVA               = 0,
-  parameter            HAS_RVM               = 0,
-  parameter            HAS_RVC               = 0,
-  parameter            IS_RV32E              = 0,
+  parameter int        HAS_USER              = 0,
+  parameter int        HAS_SUPER             = 0,
+  parameter int        HAS_HYPER             = 0,
+  parameter int        HAS_BPU               = 1,
+  parameter int        HAS_FPU               = 0,
+  parameter int        HAS_MMU               = 0,
+  parameter int        HAS_RVA               = 0,
+  parameter int        HAS_RVM               = 0,
+  parameter int        HAS_RVC               = 0,
+  parameter int        IS_RV32E              = 0,
 
-  parameter            RF_REGOUT             = 1,
-  parameter            MULT_LATENCY          = 1,
+  parameter int        RF_REGOUT             = 1,
+  parameter int        MULT_LATENCY          = 1,
 
-  parameter            BREAKPOINTS           = 3,
-  parameter            PMP_CNT               = 16,
+  parameter int        BREAKPOINTS           = 3,
+  parameter int        PMP_CNT               = 16,
 
-  parameter            BP_GLOBAL_BITS        = 2,
-  parameter            BP_LOCAL_BITS         = 10,
+  parameter int        BP_GLOBAL_BITS        = 2,
+  parameter int        BP_LOCAL_BITS         = 10,
+  parameter int        RSB_DEPTH             = 0,
 
-  parameter            TECHNOLOGY            = "GENERIC",
+  parameter string     TECHNOLOGY            = "GENERIC",
 
-  parameter            MNMIVEC_DEFAULT       = PC_INIT -'h004,
-  parameter            MTVEC_DEFAULT         = PC_INIT -'h040,
-  parameter            HTVEC_DEFAULT         = PC_INIT -'h080,
-  parameter            STVEC_DEFAULT         = PC_INIT -'h0C0,
-  parameter            UTVEC_DEFAULT         = PC_INIT -'h100,
+  parameter [XLEN-1:0] MNMIVEC_DEFAULT       = PC_INIT -'h004,
+  parameter [XLEN-1:0] MTVEC_DEFAULT         = PC_INIT -'h040,
+  parameter [XLEN-1:0] HTVEC_DEFAULT         = PC_INIT -'h080,
+  parameter [XLEN-1:0] STVEC_DEFAULT         = PC_INIT -'h0C0,
+  parameter [XLEN-1:0] UTVEC_DEFAULT         = PC_INIT -'h100,
 
-  parameter            JEDEC_BANK            = 10,
-  parameter            JEDEC_MANUFACTURER_ID = 'h6e,
+  parameter int        JEDEC_BANK            = 10,
+  parameter int        JEDEC_MANUFACTURER_ID = 'h6e,
 
-  parameter            HARTID                = 0,
+  parameter int        HARTID                = 0,
 
-  parameter            PARCEL_SIZE           = 16
+  parameter int        PARCEL_SIZE           = 16,
+  parameter int        MEM_STAGES            = 1    //Minimal 1, causes wb_stall
+                                                    //no data cache: max 2: optimal, no wb_stall
 )
 (
-  input                                  rst_ni,   //Reset
-  input                                  clk_i,    //Clock
+  input  logic                                 rst_ni,   //Reset
+  input  logic                                 clk_i,    //Clock
 
   //Instruction Memory Access bus
-  output          [XLEN            -1:0] imem_adr_o,
-  output                                 imem_req_o,
-  input                                  imem_ack_i,
-  output                                 imem_flush_o,
-  input           [XLEN            -1:0] imem_parcel_i,
-  input           [XLEN/PARCEL_SIZE-1:0] imem_parcel_valid_i,
-  input                                  imem_parcel_misaligned_i,
-  input                                  imem_parcel_page_fault_i,
-  input                                  imem_parcel_error_i,
+  output logic          [XLEN            -1:0] imem_adr_o,
+  output logic                                 imem_req_o,
+  input  logic                                 imem_ack_i,
+  output logic                                 imem_flush_o,
+  input  logic          [XLEN            -1:0] imem_parcel_i,
+  input  logic          [XLEN/PARCEL_SIZE-1:0] imem_parcel_valid_i,
+  input  logic                                 imem_parcel_misaligned_i,
+  input  logic                                 imem_parcel_page_fault_i,
+  input  logic                                 imem_parcel_error_i,
 
   //Data memory Access  bus
-  output          [XLEN            -1:0] dmem_adr_o,
-                                         dmem_d_o,
-  input           [XLEN            -1:0] dmem_q_i,
-  output                                 dmem_we_o,
-  output biu_size_t                      dmem_size_o,
-  output                                 dmem_lock_o,
-  output                                 dmem_req_o,
-  input                                  dmem_ack_i,
-                                         dmem_err_i,
-                                         dmem_misaligned_i,
-                                         dmem_page_fault_i,
+  output logic          [XLEN            -1:0] dmem_adr_o,
+                                               dmem_d_o,
+  input  logic          [XLEN            -1:0] dmem_q_i,
+  output logic                                 dmem_we_o,
+  output biu_size_t                            dmem_size_o,
+  output logic                                 dmem_lock_o,
+  output logic                                 dmem_req_o,
+  input  logic                                 dmem_ack_i,
+                                               dmem_err_i,
+                                               dmem_misaligned_i,
+                                               dmem_page_fault_i,
 
   //cpu state
-  output          [                 1:0] st_prv_o,
-  output pmpcfg_t [                15:0] st_pmpcfg_o,
-  output [   15:0][XLEN            -1:0] st_pmpaddr_o,
+  output logic          [                 1:0] st_prv_o,
+  output pmpcfg_t       [                15:0] st_pmpcfg_o,
+  output logic [   15:0][XLEN            -1:0] st_pmpaddr_o,
 
-  output                                 cacheflush_o,
+  output logic                                 cm_ic_invalidate_o,
+  output logic                                 cm_dc_invalidate_o,
+  output logic                                 cm_dc_clean_o,
 
   //Interrupts
-  input                                  int_nmi_i,
-                                         int_timer_i,
-                                         int_software_i,
-  input           [                 3:0] int_external_i,
+  input  logic                                 int_nmi_i,
+                                               int_timer_i,
+                                               int_software_i,
+  input  logic          [                 3:0] int_external_i,
 
   //Debug Interface
-  input                                  dbg_stall_i,
-  input                                  dbg_strb_i,
-  input                                  dbg_we_i,
-  input           [DBG_ADDR_SIZE   -1:0] dbg_addr_i,
-  input           [XLEN            -1:0] dbg_dati_i,
-  output          [XLEN            -1:0] dbg_dato_o,
-  output                                 dbg_ack_o,
-  output                                 dbg_bp_o
+  input  logic                                 dbg_stall_i,
+  input  logic                                 dbg_strb_i,
+  input  logic                                 dbg_we_i,
+  input  logic          [DBG_ADDR_SIZE   -1:0] dbg_addr_i,
+  input  logic          [XLEN            -1:0] dbg_dati_i,
+  output logic          [XLEN            -1:0] dbg_dato_o,
+  output logic                                 dbg_ack_o,
+  output logic                                 dbg_bp_o
 );
 
 
@@ -138,9 +139,11 @@ module riscv_core #(
                              if_nxt_pc,
 			     if_pc,
                              pd_pc,
+                             pd_rsb_pc,
                              id_pc,
+                             id_rsb_pc,
                              ex_pc,
-                             mem_pc,
+                             mem_pc [MEM_STAGES],
                              wb_pc;
 
   instruction_t              if_nxt_insn,
@@ -148,7 +151,7 @@ module riscv_core #(
                              pd_insn,
                              id_insn,
                              ex_insn,
-                             mem_insn,
+                             mem_insn [MEM_STAGES],
                              wb_insn,
                              dwb_insn;
 
@@ -157,10 +160,15 @@ module riscv_core #(
                              du_flush,
                              bu_cacheflush;
 
+  logic                      cm_ic_invalidate,
+                             cm_dc_invalidate,
+                             cm_dc_clean,
+                             du_flush_cache;
+
   logic                      id_stall,
                              pd_stall,
                              ex_stall,
-                             mem_stall,
+                             mem_stall [MEM_STAGES +1],
                              wb_stall,
                              du_stall,
                              du_stall_if;
@@ -188,7 +196,8 @@ module riscv_core #(
                              pd_exceptions,
 	                     id_exceptions,
 			     ex_exceptions,
-			     mem_exceptions,
+			     mem_exceptions_dn [MEM_STAGES],
+                             mem_exceptions_up [MEM_STAGES +1],
 			     wb_exceptions;
 
   //RF access
@@ -206,8 +215,8 @@ module riscv_core #(
   logic [XLEN          -1:0] id_opA,
                              id_opB,
                              ex_r,
-                             mem_r,
-                             mem_memadr,
+                             mem_r      [MEM_STAGES],
+                             mem_memadr [MEM_STAGES],
                              wb_r,
 			     wb_memq,
                              dwb_r;
@@ -238,7 +247,8 @@ module riscv_core #(
 
   //Debug
   logic                      du_latch_nxt_pc;
-  logic                      du_we_rf,
+  logic                      du_re_rf,
+                             du_we_rf,
                              du_we_frf,
                              du_re_csr,
                              du_we_csr,
@@ -256,7 +266,11 @@ module riscv_core #(
   // Module Body
   //
 
-  assign cacheflush_o = du_flush | bu_cacheflush;
+  //cache management
+  //flush = clean + invalidate
+  assign cm_ic_invalidate_o = cm_ic_invalidate | du_flush_cache;
+  assign cm_dc_invalidate_o = cm_dc_invalidate | du_flush_cache;
+  assign cm_dc_clean_o      = cm_dc_clean      | du_flush_cache;
 
 
   /*
@@ -305,7 +319,7 @@ module riscv_core #(
     .pd_exceptions_i          ( pd_exceptions            ),
     .id_exceptions_i          ( id_exceptions            ),
     .ex_exceptions_i          ( ex_exceptions            ),
-    .mem_exceptions_i         ( mem_exceptions           ),
+    .mem_exceptions_i         ( mem_exceptions_up[0]     ),
     .wb_exceptions_i          ( wb_exceptions            ),
 
     .pd_pc_i                  ( pd_pc                    ),
@@ -332,51 +346,53 @@ module riscv_core #(
    * Pre-Decoder
    */
   riscv_pd #(
-    .XLEN              ( XLEN            ),
-    .PC_INIT           ( PC_INIT         ),
-    .HAS_RVC           ( HAS_RVC         ),
-    .HAS_BPU           ( HAS_BPU         ),
-    .BP_GLOBAL_BITS    ( BP_GLOBAL_BITS  ) )
+    .XLEN              ( XLEN                 ),
+    .PC_INIT           ( PC_INIT              ),
+    .HAS_RVC           ( HAS_RVC              ),
+    .HAS_BPU           ( HAS_BPU              ),
+    .BP_GLOBAL_BITS    ( BP_GLOBAL_BITS       ),
+    .RSB_DEPTH         ( RSB_DEPTH            ) )
   pd_unit (
-    .rst_ni            ( rst_ni          ),
-    .clk_i             ( clk_i           ),
+    .rst_ni            ( rst_ni               ),
+    .clk_i             ( clk_i                ),
     
-    .id_stall_i        ( id_stall        ),
-    .pd_stall_o        ( pd_stall        ),
-    .du_mode_i         ( du_stall_if     ),
+    .id_stall_i        ( id_stall             ),
+    .pd_stall_o        ( pd_stall             ),
+    .du_mode_i         ( du_stall_if          ),
     
-    .bu_flush_i        ( bu_flush        ),
-    .st_flush_i        ( st_flush        ),
-    .pd_flush_o        ( pd_flush        ),
+    .bu_flush_i        ( bu_flush             ),
+    .st_flush_i        ( st_flush             ),
+    .pd_flush_o        ( pd_flush             ),
 
-    .pd_rs1_o          ( pd_rs1          ),
-    .pd_rs2_o          ( pd_rs2          ),
+    .pd_rs1_o          ( pd_rs1               ),
+    .pd_rs2_o          ( pd_rs2               ),
 
-    .pd_csr_reg_o      ( pd_csr_reg      ),
+    .pd_csr_reg_o      ( pd_csr_reg           ),
   
-    .if_bp_history_i   ( if_bp_history   ),
-    .pd_bp_history_o   ( pd_bp_history   ),
-    .bp_bp_predict_i   ( bp_bp_predict   ),
-    .pd_bp_predict_o   ( pd_bp_predict   ),
-    .pd_latch_nxt_pc_o ( pd_latch_nxt_pc ),
+    .if_bp_history_i   ( if_bp_history        ),
+    .pd_bp_history_o   ( pd_bp_history        ),
+    .bp_bp_predict_i   ( bp_bp_predict        ),
+    .pd_bp_predict_o   ( pd_bp_predict        ),
+    .pd_latch_nxt_pc_o ( pd_latch_nxt_pc      ),
 
-    .bu_nxt_pc_i       ( bu_nxt_pc       ),
-    .st_nxt_pc_i       ( st_nxt_pc       ),
-    .pd_nxt_pc_o       ( pd_nxt_pc       ),
+    .bu_nxt_pc_i       ( bu_nxt_pc            ),
+    .st_nxt_pc_i       ( st_nxt_pc            ),
+    .pd_nxt_pc_o       ( pd_nxt_pc            ),
+    .pd_rsb_pc_o       ( pd_rsb_pc            ),
 
-    .if_pc_i           ( if_pc           ),
-    .if_insn_i         ( if_insn         ),
-    .id_insn_i         ( id_insn         ),
+    .if_pc_i           ( if_pc                ),
+    .if_insn_i         ( if_insn              ),
+    .id_insn_i         ( id_insn              ),
 
-    .pd_pc_o           ( pd_pc           ),
-    .pd_insn_o         ( pd_insn         ),
+    .pd_pc_o           ( pd_pc                ),
+    .pd_insn_o         ( pd_insn              ),
 
-    .if_exceptions_i   ( if_exceptions   ),
-    .pd_exceptions_o   ( pd_exceptions   ),
-    .id_exceptions_i   ( id_exceptions   ),
-    .ex_exceptions_i   ( ex_exceptions   ),
-    .mem_exceptions_i  ( mem_exceptions  ),
-    .wb_exceptions_i   ( wb_exceptions   ) );
+    .if_exceptions_i   ( if_exceptions        ),
+    .pd_exceptions_o   ( pd_exceptions        ),
+    .id_exceptions_i   ( id_exceptions        ),
+    .ex_exceptions_i   ( ex_exceptions        ),
+    .mem_exceptions_i  ( mem_exceptions_up[0] ),
+    .wb_exceptions_i   ( wb_exceptions        ) );
  
 
   /*
@@ -385,81 +401,85 @@ module riscv_core #(
    * Data from RF/ROB is available here
    */
   riscv_id #(
-    .XLEN             ( XLEN            ),
-    .PC_INIT          ( PC_INIT         ),
-    .HAS_USER         ( HAS_USER        ),
-    .HAS_SUPER        ( HAS_SUPER       ),
-    .HAS_HYPER        ( HAS_HYPER       ),
-    .HAS_RVA          ( HAS_RVA         ),
-    .HAS_RVM          ( HAS_RVM         ),
-    .HAS_RVC          ( HAS_RVC         ),
-    .MULT_LATENCY     ( MULT_LATENCY    ),
-    .RF_REGOUT        ( RF_REGOUT       ),
-    .BP_GLOBAL_BITS   ( BP_GLOBAL_BITS  ) )
+    .XLEN             ( XLEN                 ),
+    .PC_INIT          ( PC_INIT              ),
+    .HAS_USER         ( HAS_USER             ),
+    .HAS_SUPER        ( HAS_SUPER            ),
+    .HAS_HYPER        ( HAS_HYPER            ),
+    .HAS_RVA          ( HAS_RVA              ),
+    .HAS_RVM          ( HAS_RVM              ),
+    .HAS_RVC          ( HAS_RVC              ),
+    .MULT_LATENCY     ( MULT_LATENCY         ),
+    .RF_REGOUT        ( RF_REGOUT            ),
+    .BP_GLOBAL_BITS   ( BP_GLOBAL_BITS       ),
+    .RSB_DEPTH        ( RSB_DEPTH            ),
+    .MEM_STAGES       ( MEM_STAGES           ) )
   id_unit (
-    .rst_ni           ( rst_ni          ),
-    .clk_i            ( clk_i           ),
+    .rst_ni           ( rst_ni               ),
+    .clk_i            ( clk_i                ),
 
-    .id_stall_o       ( id_stall        ),
-    .ex_stall_i       ( ex_stall        ),
-    .du_stall_i       ( du_stall        ),
+    .id_stall_o       ( id_stall             ),
+    .ex_stall_i       ( ex_stall             ),
+    .du_stall_i       ( du_stall             ),
 
-    .bu_flush_i       ( bu_flush        ),
-    .st_flush_i       ( st_flush        ),
-    .du_flush_i       ( du_flush        ),
+    .bu_flush_i       ( bu_flush             ),
+    .st_flush_i       ( st_flush             ),
+    .du_flush_i       ( du_flush             ),
 
-    .bu_nxt_pc_i      ( bu_nxt_pc       ),
-    .if_nxt_pc_i      ( if_nxt_pc       ), 
-    .st_nxt_pc_i      ( st_nxt_pc       ),
-
-
-    .pd_pc_i          ( pd_pc           ),
-    .id_pc_o          ( id_pc           ),
-
-    .pd_bp_history_i  ( pd_bp_history   ),
-    .id_bp_history_o  ( id_bp_history   ),
-    .pd_bp_predict_i  ( pd_bp_predict   ),
-    .id_bp_predict_o  ( id_bp_predict   ),
+    .bu_nxt_pc_i      ( bu_nxt_pc            ),
+    .if_nxt_pc_i      ( if_nxt_pc            ), 
+    .st_nxt_pc_i      ( st_nxt_pc            ),
 
 
-    .pd_insn_i        ( pd_insn         ),
-    .id_insn_o        ( id_insn         ),
-    .ex_insn_i        ( ex_insn         ),
-    .mem_insn_i       ( mem_insn        ),
-    .wb_insn_i        ( wb_insn         ),
-    .dwb_insn_i       ( dwb_insn        ),
+    .pd_pc_i          ( pd_pc                ),
+    .id_pc_o          ( id_pc                ),
+    .pd_rsb_pc_i      ( pd_rsb_pc            ),
+    .id_rsb_pc_o      ( id_rsb_pc            ),
 
-    .st_interrupts_i  ( st_interrupts   ),
-    .int_nmi_i        ( int_nmi_i       ),
-    .pd_exceptions_i  ( pd_exceptions   ),
-    .id_exceptions_o  ( id_exceptions   ),
-    .ex_exceptions_i  ( ex_exceptions   ),
-    .mem_exceptions_i ( mem_exceptions  ),
-    .wb_exceptions_i  ( wb_exceptions   ),
+    .pd_bp_history_i  ( pd_bp_history        ),
+    .id_bp_history_o  ( id_bp_history        ),
+    .pd_bp_predict_i  ( pd_bp_predict        ),
+    .id_bp_predict_o  ( id_bp_predict        ),
 
-    .st_prv_i         ( st_prv_o        ),
-    .st_xlen_i        ( st_xlen         ),
-    .st_tvm_i         ( st_tvm          ),
-    .st_tw_i          ( st_tw           ),
-    .st_tsr_i         ( st_tsr          ),
-    .st_mcounteren_i  ( st_mcounteren   ),
-    .st_scounteren_i  ( st_scounteren   ),
 
-    .id_rs1_o         ( id_rs1          ),
-    .id_rs2_o         ( id_rs2          ),
+    .pd_insn_i        ( pd_insn              ),
+    .id_insn_o        ( id_insn              ),
+    .ex_insn_i        ( ex_insn              ),
+    .mem_insn_i       ( mem_insn             ),
+    .wb_insn_i        ( wb_insn              ),
+    .dwb_insn_i       ( dwb_insn             ),
 
-    .id_opA_o         ( id_opA          ),
-    .id_opB_o         ( id_opB          ),
-    .id_userf_opA_o   ( id_userf_opA    ),
-    .id_userf_opB_o   ( id_userf_opB    ),
-    .id_bypex_opA_o   ( id_bypex_opA    ),
-    .id_bypex_opB_o   ( id_bypex_opB    ),
+    .st_interrupts_i  ( st_interrupts        ),
+    .int_nmi_i        ( int_nmi_i            ),
+    .pd_exceptions_i  ( pd_exceptions        ),
+    .id_exceptions_o  ( id_exceptions        ),
+    .ex_exceptions_i  ( ex_exceptions        ),
+    .mem_exceptions_i ( mem_exceptions_up[0] ),
+    .wb_exceptions_i  ( wb_exceptions        ),
 
-    .ex_r_i           ( ex_r            ),
-    .mem_r_i          ( mem_r           ),
-    .wb_r_i           ( wb_r            ),
-    .wb_memq_i        ( wb_memq         ),
-    .dwb_r_i          ( dwb_r           ) );
+    .st_prv_i         ( st_prv_o             ),
+    .st_xlen_i        ( st_xlen              ),
+    .st_tvm_i         ( st_tvm               ),
+    .st_tw_i          ( st_tw                ),
+    .st_tsr_i         ( st_tsr               ),
+    .st_mcounteren_i  ( st_mcounteren        ),
+    .st_scounteren_i  ( st_scounteren        ),
+
+    .id_rs1_o         ( id_rs1               ),
+    .id_rs2_o         ( id_rs2               ),
+
+    .id_opA_o         ( id_opA               ),
+    .id_opB_o         ( id_opB               ),
+    .id_userf_opA_o   ( id_userf_opA         ),
+    .id_userf_opB_o   ( id_userf_opB         ),
+    .id_bypex_opA_o   ( id_bypex_opA         ),
+    .id_bypex_opB_o   ( id_bypex_opB         ),
+
+    .ex_r_i           ( ex_r                 ),
+    .mem_r_i          ( mem_r                ),
+    .wb_r_i           ( wb_r                 ),
+    .wb_memq_i        ( wb_memq              ),
+    .dwb_r_i          ( dwb_r                ) );
 
 
   /*
@@ -472,19 +492,27 @@ module riscv_core #(
     .HAS_RVA                ( HAS_RVA              ),
     .HAS_RVM                ( HAS_RVM              ),
     .MULT_LATENCY           ( MULT_LATENCY         ),
-    .BP_GLOBAL_BITS         ( BP_GLOBAL_BITS       ) )
+    .BP_GLOBAL_BITS         ( BP_GLOBAL_BITS       ),
+    .RSB_DEPTH              ( RSB_DEPTH            ) )
   ex_units (
     .rst_ni                 ( rst_ni               ),
     .clk_i                  ( clk_i                ),
 
-    .mem_stall_i            ( mem_stall            ),
+    .mem_stall_i            ( mem_stall [0]        ),
     .ex_stall_o             ( ex_stall             ),
 
     .id_pc_i                ( id_pc                ),
     .ex_pc_o                ( ex_pc                ),
     .bu_nxt_pc_o            ( bu_nxt_pc            ),
     .bu_flush_o             ( bu_flush             ),
-    .bu_cacheflush_o        ( bu_cacheflush        ),
+    .id_rsb_pc_i            ( id_rsb_pc            ),
+
+    //cache management
+    .cm_ic_invalidate_o     ( cm_ic_invalidate     ),
+    .cm_dc_invalidate_o     ( cm_dc_invalidate     ),
+    .cm_dc_clean_o          ( cm_dc_clean          ),
+
+    //branch (prediction)
     .id_bp_predict_i        ( id_bp_predict        ),
     .bu_bp_predict_o        ( bu_bp_predict        ),
     .id_bp_history_i        ( id_bp_history        ),
@@ -498,7 +526,7 @@ module riscv_core #(
 
     .id_exceptions_i        ( id_exceptions        ),
     .ex_exceptions_o        ( ex_exceptions        ),
-    .mem_exceptions_i       ( mem_exceptions       ),
+    .mem_exceptions_i       ( mem_exceptions_up[0] ),
     .wb_exceptions_i        ( wb_exceptions        ),
 
     .id_userf_opA_i         ( id_userf_opA         ),
@@ -535,59 +563,98 @@ module riscv_core #(
   /*
    * Memory access
    */
-  riscv_mem #(
-    .XLEN             ( XLEN           ),
-    .PC_INIT          ( PC_INIT        ) )
-  mem_unit   (
-    .rst_ni           ( rst_ni         ),
-    .clk_i            ( clk_i          ),
+generate
+  genvar n;
 
-    .wb_stall_i       ( wb_stall       ),
-    .mem_stall_o      ( mem_stall      ),
+  assign mem_stall        [MEM_STAGES] = wb_stall;
+  assign mem_exceptions_up[MEM_STAGES] = wb_exceptions; //exceptions up the pipe
 
-    .ex_pc_i          ( ex_pc          ),
-    .mem_pc_o         ( mem_pc         ),
-    .ex_insn_i        ( ex_insn        ),
-    .mem_insn_o       ( mem_insn       ),
+  for (n=0; n < MEM_STAGES; n++)
+    if (n==0)
+    begin
+        riscv_mem #(
+          .XLEN                ( XLEN                   ),
+          .PC_INIT             ( PC_INIT                ) )
+        mem_unit   (
+          .rst_ni              ( rst_ni                 ),
+          .clk_i               ( clk_i                  ),
 
-    .ex_exceptions_i  ( ex_exceptions  ),
-    .mem_exceptions_o ( mem_exceptions ),
-    .wb_exceptions_i  ( wb_exceptions  ),
+          .mem_stall_i         ( mem_stall        [n+1] ), //this goes up the pipeline
+          .mem_stall_o         ( mem_stall        [n  ] ),
 
-    .ex_r_i           ( ex_r           ),
-    .dmem_adr_i       ( dmem_adr_o     ),
-    .mem_r_o          ( mem_r          ),
-    .mem_memadr_o     ( mem_memadr     ) );
+          .mem_pc_i            ( ex_pc                  ),
+          .mem_pc_o            ( mem_pc           [n  ] ),
+          .mem_insn_i          ( ex_insn                ),
+          .mem_insn_o          ( mem_insn         [n  ] ),
+
+          .mem_exceptions_dn_i ( ex_exceptions          ),
+          .mem_exceptions_dn_o ( mem_exceptions_dn[n  ] ),
+	  .mem_exceptions_up_i ( mem_exceptions_up[n+1] ), //this goes up the pipeline
+	  .mem_exceptions_up_o ( mem_exceptions_up[n  ] ),
+
+          .mem_r_i             ( ex_r                   ),
+          .mem_r_o             ( mem_r            [n  ] ),
+          .mem_memadr_i        ( dmem_adr_o             ),
+          .mem_memadr_o        ( mem_memadr       [n  ] ) );
+    end
+    else
+    begin
+       riscv_mem #(
+          .XLEN                ( XLEN                   ),
+          .PC_INIT             ( PC_INIT                ) )
+        mem_unit   (
+          .rst_ni              ( rst_ni                 ),
+          .clk_i               ( clk_i                  ),
+
+          .mem_stall_i         ( mem_stall        [n+1] ), //this goes up the pipeline
+          .mem_stall_o         ( mem_stall        [n  ] ),
+
+          .mem_pc_i            ( mem_pc           [n-1] ),
+          .mem_pc_o            ( mem_pc           [n  ] ),
+          .mem_insn_i          ( mem_insn         [n-1] ),
+          .mem_insn_o          ( mem_insn         [n  ] ),
+
+          .mem_exceptions_dn_i ( mem_exceptions_dn[n-1] ),
+          .mem_exceptions_dn_o ( mem_exceptions_dn[n  ] ),
+	  .mem_exceptions_up_i ( mem_exceptions_up[n+1] ), //this goes up the pipeline
+	  .mem_exceptions_up_o ( mem_exceptions_up[n  ] ),
+
+          .mem_r_i             ( mem_r            [n-1] ),
+          .mem_r_o             ( mem_r            [n  ] ),
+          .mem_memadr_i        ( mem_memadr       [n-1] ),
+          .mem_memadr_o        ( mem_memadr       [n  ] ) );
+    end
+endgenerate
 
 
   /*
    * Memory acknowledge + Write Back unit
    */
   riscv_wb #(
-    .XLEN              ( XLEN              ),
-    .PC_INIT           ( PC_INIT           ) )
+    .XLEN              ( XLEN                             ),
+    .PC_INIT           ( PC_INIT                          ) )
   wb_unit   (
-    .rst_ni            ( rst_ni            ),
-    .clk_i             ( clk_i             ),
-    .mem_pc_i          ( mem_pc            ),
-    .mem_insn_i        ( mem_insn          ),
-    .mem_r_i           ( mem_r             ),
-    .mem_exceptions_i  ( mem_exceptions    ),
-    .mem_memadr_i      ( mem_memadr        ),
-    .wb_pc_o           ( wb_pc             ),
-    .wb_stall_o        ( wb_stall          ),
-    .wb_insn_o         ( wb_insn           ),
-    .wb_exceptions_o   ( wb_exceptions     ),
-    .wb_badaddr_o      ( wb_badaddr        ),
-    .dmem_ack_i        ( dmem_ack_i        ),
-    .dmem_q_i          ( dmem_q_i          ),
-    .dmem_misaligned_i ( dmem_misaligned_i ),
-    .dmem_page_fault_i ( dmem_page_fault_i ),
-    .dmem_err_i        ( dmem_err_i        ),
-    .wb_dst_o          ( wb_dst            ),
-    .wb_r_o            ( wb_r              ),
-    .wb_memq_o         ( wb_memq           ),
-    .wb_we_o           ( wb_we             ) );
+    .rst_ni            ( rst_ni                           ),
+    .clk_i             ( clk_i                            ),
+    .mem_pc_i          ( mem_pc           [MEM_STAGES -1] ),
+    .mem_insn_i        ( mem_insn         [MEM_STAGES -1] ),
+    .mem_r_i           ( mem_r            [MEM_STAGES -1] ),
+    .mem_exceptions_i  ( mem_exceptions_dn[MEM_STAGES -1] ),
+    .mem_memadr_i      ( mem_memadr       [MEM_STAGES -1] ),
+    .wb_pc_o           ( wb_pc                            ),
+    .wb_stall_o        ( wb_stall                         ),
+    .wb_insn_o         ( wb_insn                          ),
+    .wb_exceptions_o   ( wb_exceptions                    ),
+    .wb_badaddr_o      ( wb_badaddr                       ),
+    .dmem_ack_i        ( dmem_ack_i                       ),
+    .dmem_q_i          ( dmem_q_i                         ),
+    .dmem_misaligned_i ( dmem_misaligned_i                ),
+    .dmem_page_fault_i ( dmem_page_fault_i                ),
+    .dmem_err_i        ( dmem_err_i                       ),
+    .wb_dst_o          ( wb_dst                           ),
+    .wb_r_o            ( wb_r                             ),
+    .wb_memq_o         ( wb_memq                          ),
+    .wb_we_o           ( wb_we                            ) );
 
 
   /*
@@ -705,7 +772,7 @@ module riscv_core #(
     .pd_stall_i  ( pd_stall   ),
     .id_stall_i  ( id_stall   ),
 
-    .du_stall_i  ( du_stall   ),
+    .du_re_rf_i  ( du_re_rf   ),
     .du_we_rf_i  ( du_we_rf   ),
     .du_d_i      ( du_dato    ),
     .du_rf_q_o   ( du_dati_rf ),
@@ -754,58 +821,61 @@ endgenerate
    * Debug Unit
    */
   riscv_du #(
-    .XLEN              ( XLEN            ),
-    .BREAKPOINTS       ( BREAKPOINTS     ) )
+    .XLEN              ( XLEN                            ),
+    .BREAKPOINTS       ( BREAKPOINTS                     ) )
   du_unit (
-    .rst_ni            ( rst_ni          ),
-    .clk_i             ( clk_i           ),
+    .rst_ni            ( rst_ni                          ),
+    .clk_i             ( clk_i                           ),
 
-    .dbg_stall_i       ( dbg_stall_i     ),
-    .dbg_strb_i        ( dbg_strb_i      ),
-    .dbg_we_i          ( dbg_we_i        ),
-    .dbg_addr_i        ( dbg_addr_i      ),
-    .dbg_d_i           ( dbg_dati_i      ),
-    .dbg_q_o           ( dbg_dato_o      ),
-    .dbg_ack_o         ( dbg_ack_o       ),
-    .dbg_bp_o          ( dbg_bp_o        ),
+    .dbg_stall_i       ( dbg_stall_i                     ),
+    .dbg_strb_i        ( dbg_strb_i                      ),
+    .dbg_we_i          ( dbg_we_i                        ),
+    .dbg_addr_i        ( dbg_addr_i                      ),
+    .dbg_d_i           ( dbg_dati_i                      ),
+    .dbg_q_o           ( dbg_dato_o                      ),
+    .dbg_ack_o         ( dbg_ack_o                       ),
+    .dbg_bp_o          ( dbg_bp_o                        ),
 
     .du_dbg_mode_o     (),  
-    .du_stall_o        ( du_stall        ),
-    .du_stall_if_o     ( du_stall_if     ),
+    .du_stall_o        ( du_stall                        ),
+    .du_stall_if_o     ( du_stall_if                     ),
 
-    .du_latch_nxt_pc_o ( du_latch_nxt_pc ),
-    .du_flush_o        ( du_flush        ),
-    .du_we_rf_o        ( du_we_rf        ),
-    .du_we_frf_o       ( du_we_frf       ),
-    .du_re_csr_o       ( du_re_csr       ),
-    .du_we_csr_o       ( du_we_csr       ),
-    .du_we_pc_o        ( du_we_pc        ),
-    .du_addr_o         ( du_addr         ),
-    .du_d_o            ( du_dato         ),
-    .du_ie_o           ( du_ie           ),
-    .du_rf_q_i         ( du_dati_rf      ),
-    .du_frf_q_i        ( {XLEN{1'b0}}    ), //du_dati_frf     ),
-    .st_csr_q_i        ( du_csr_rval     ),
-    .if_nxt_pc_i       ( if_nxt_pc       ),
-    .bu_nxt_pc_i       ( bu_nxt_pc       ),
-    .if_pc_i           ( if_pc           ),
-    .pd_pc_i           ( pd_pc           ),
-    .id_pc_i           ( id_pc           ),
-    .ex_pc_i           ( ex_pc           ),
-    .wb_pc_i           ( wb_pc           ),
-    .bu_flush_i        ( bu_flush        ),
-    .st_flush_i        ( st_flush        ),
+    .du_latch_nxt_pc_o ( du_latch_nxt_pc                 ),
+    .du_flush_o        ( du_flush                        ),
+    .du_flush_cache_o  ( du_flush_cache                  ),
+    .du_re_rf_o        ( du_re_rf                        ),
+    .du_we_rf_o        ( du_we_rf                        ),
+    .du_we_frf_o       ( du_we_frf                       ),
+    .du_re_csr_o       ( du_re_csr                       ),
+    .du_we_csr_o       ( du_we_csr                       ),
+    .du_we_pc_o        ( du_we_pc                        ),
+    .du_addr_o         ( du_addr                         ),
+    .du_d_o            ( du_dato                         ),
+    .du_ie_o           ( du_ie                           ),
+    .du_rf_q_i         ( du_dati_rf                      ),
+    .du_frf_q_i        ( {XLEN{1'b0}}                    ), //du_dati_frf     ),
+    .st_csr_q_i        ( du_csr_rval                     ),
+    .if_nxt_pc_i       ( if_nxt_pc                       ),
+    .bu_nxt_pc_i       ( bu_nxt_pc                       ),
+    .if_pc_i           ( if_pc                           ),
+    .pd_pc_i           ( pd_pc                           ),
+    .id_pc_i           ( id_pc                           ),
+    .ex_pc_i           ( ex_pc                           ),
+    .wb_pc_i           ( wb_pc                           ),
+    .bu_flush_i        ( bu_flush                        ),
+    .st_flush_i        ( st_flush                        ),
 
-    .if_nxt_insn_i     ( if_nxt_insn     ),
-    .if_insn_i         ( if_insn         ),
-    .pd_insn_i         ( pd_insn         ),
-    .mem_insn_i        ( mem_insn        ),
-    .mem_exceptions_i  ( mem_exceptions  ),
-    .mem_memadr_i      ( mem_memadr      ),
-    .dmem_ack_i        ( dmem_ack_i      ),
-    .ex_stall_i        ( ex_stall        ),
+    .if_nxt_insn_i     ( if_nxt_insn                     ),
+    .if_insn_i         ( if_insn                         ),
+    .pd_insn_i         ( pd_insn                         ),
+    .mem_insn_i        ( mem_insn         [MEM_STAGES-1] ),
+    .mem_exceptions_i  ( mem_exceptions_dn[MEM_STAGES-1] ),
+    .mem_memadr_i      ( mem_memadr       [MEM_STAGES-1] ),
+    .wb_insn_i         ( wb_insn                         ),
+    .dmem_ack_i        ( dmem_ack_i                      ),
+    .ex_stall_i        ( ex_stall                        ),
 
-    .du_exceptions_i   ( du_exceptions   ) );
+    .du_exceptions_i   ( du_exceptions                   ) );
 
 endmodule
 

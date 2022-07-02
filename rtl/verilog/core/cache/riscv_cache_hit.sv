@@ -34,7 +34,7 @@ import biu_constants_pkg::*;
 
 module riscv_cache_hit #(
   parameter XLEN           = 32,
-  parameter PLEN           = XLEN,
+  parameter PLEN           = XLEN == 32 ? 34 : 56,
   parameter PARCEL_SIZE    = XLEN,
   parameter HAS_RVC        = 0,
 
@@ -43,12 +43,13 @@ module riscv_cache_hit #(
   parameter WAYS           = 2,
 
   parameter INFLIGHT_DEPTH = 2,
-
+  parameter BIUTAG_SIZE    = $clog2(XLEN/PARCEL_SIZE),
+ 
   localparam BLK_BITS      = no_of_block_bits(BLOCK_SIZE),
   localparam SETS          = no_of_sets(SIZE, BLOCK_SIZE, WAYS),
   localparam BLK_OFFS_BITS = no_of_block_offset_bits(BLOCK_SIZE),
   localparam IDX_BITS      = no_of_index_bits(SETS),
-  localparam TAG_BITS      = no_of_tag_bits(XLEN, IDX_BITS, BLK_OFFS_BITS),
+  localparam TAG_BITS      = no_of_tag_bits(PLEN, IDX_BITS, BLK_OFFS_BITS),
   localparam INFLIGHT_BITS = $clog2(INFLIGHT_DEPTH+1)
 )
 (
@@ -56,31 +57,39 @@ module riscv_cache_hit #(
   input  logic                        clk_i,
 
   output logic                        stall_o,
-  input  logic                        flush_i,          //flush pipe
+  input  logic                        flush_i,                 //flush pipe
 
-  input  logic                        cacheflush_req_i, //flush cache
-  input  logic                        dcflush_rdy_i,    //data cache flush ready
+  input  logic                        invalidate_i,            //invalidate cache
+  input  logic                        dc_clean_rdy_i,          //data cache clean ready
+
   output logic                        armed_o,
-  output logic                        flushing_o,
+  output logic                        invalidate_all_blocks_o, //invalidate all cache valid bits
   output logic                        filling_o,
+  input  logic [WAYS            -1:0] fill_way_i,
+  output logic [WAYS            -1:0] fill_way_o,
 
-  input  logic                        req_i,            //from previous-stage
+  input  logic                        req_i,                   //from previous-stage
   input  logic [PLEN            -1:0] adr_i,
   input  biu_size_t                   size_i,
   input  logic                        lock_i,
   input  biu_prot_t                   prot_i,
-  input  logic                        is_cacheable_i,
+  input  logic                        cacheable_i,
+  input  logic                        misaligned_i,
+  input  logic                        pma_exception_i,
+  input  logic                        pmp_exception_i,
+  input  logic                        pagefault_i,
 
-  input  logic                        cache_hit_i,      //from cache-memory
+  input  logic                        cache_hit_i,             //from cache-memory
   input  logic [BLK_BITS        -1:0] cache_line_i,
-  output logic [IDX_BITS        -1:0] tag_idx_o,
-                                      dat_idx_o,
+  output logic [IDX_BITS        -1:0] idx_o,
   output logic [TAG_BITS        -1:0] core_tag_o,
 
   output biucmd_t                     biucmd_o,
   input  logic                        biucmd_ack_i,
   output logic                        biucmd_noncacheable_req_o,
   input  logic                        biucmd_noncacheable_ack_i,
+  output logic [PLEN            -1:0] biucmd_adri_o,
+  output logic [BIUTAG_SIZE     -1:0] biucmd_tagi_o,
   input  logic [INFLIGHT_BITS   -1:0] inflight_cnt_i,
 
 
@@ -89,44 +98,21 @@ module riscv_cache_hit #(
                                       biu_ack_i,
                                       biu_err_i,
   input  logic [PLEN            -1:0] biu_adro_i,
+  input  logic [BIUTAG_SIZE     -1:0] biu_tago_i,
   input  logic                        in_biubuffer_i,
   input  logic [BLK_BITS        -1:0] biubuffer_i,
 
-  output logic [XLEN            -1:0] parcel_pc_o,
   output logic [XLEN            -1:0] parcel_o,
   output logic [XLEN/PARCEL_SIZE-1:0] parcel_valid_o,
   output logic                        parcel_error_o,
-  output logic                        parcel_misaligned_o
+  output logic                        parcel_misaligned_o,
+  output logic                        parcel_pagefault_o
 );
 
   //////////////////////////////////////////////////////////////////
   //
   // Constants
   //
-  
-  //----------------------------------------------------------------
-  // Cache
-  //----------------------------------------------------------------
-/*
-  localparam PAGE_SIZE       = 4*1024;                             //4KB pages
-  localparam MAX_IDX_BITS    = $clog2(PAGE_SIZE) - $clog2(BLOCK_SIZE); //Maximum IDX_BITS
-  
-
-  localparam SETS            = (SIZE*1024) / BLOCK_SIZE / WAYS;    //Number of sets TODO:SETS=1 doesn't work
-  localparam BLK_OFF_BITS    = $clog2(BLOCK_SIZE);                 //Number of BlockOffset bits
-  localparam IDX_BITS        = $clog2(SETS);                       //Number of Index-bits
-  localparam TAG_BITS        = XLEN - IDX_BITS - BLK_OFF_BITS;     //Number of TAG-bits
-  localparam BLK_BITS        = 8*BLOCK_SIZE;                       //Total number of bits in a Block
-  localparam BURST_SIZE      = BLK_BITS / XLEN;                    //Number of transfers to load 1 Block
-  localparam BURST_BITS      = $clog2(BURST_SIZE);
-  localparam BURST_OFF       = XLEN/8;
-  localparam BURST_LSB       = $clog2(BURST_OFF);
-
-  //BLOCK decoding
-  localparam DAT_OFF_BITS    = $clog2(BLK_BITS / XLEN);            //Offset in block
-  localparam PARCEL_OFF_BITS = $clog2(XLEN / PARCEL_SIZE);
-*/
-
   localparam DAT_OFFS_BITS = no_of_data_offset_bits (XLEN, BLK_BITS);   //Offset in block
   localparam BURST_OFF     = XLEN/8;
   localparam BURST_LSB     = $clog2(BURST_OFF);
@@ -187,152 +173,181 @@ module riscv_cache_hit #(
   //
   // Variables
   //
-
-
-  /* Memory Interface State Machine Section
-   */
-  logic [XLEN         -1:0] cache_q;
-  logic                     cache_ack,
-                            biu_cacheable_ack;
-
-  logic                     biu_cache_we_unstall;
-
+  logic [XLEN          -1:0] cache_q;
+  logic                      cache_ack;
+  logic                      biu_cacheable_ack;
+  logic                      invalidate_hold;
+  logic                      pma_pmp_exception;
+  logic                      valid_req;
 
   enum logic [2:0] {ARMED=0,
-                    FLUSH,
+                    INVALIDATE,
                     NONCACHEABLE,
-                    WAIT4BIUCMD0,
-                    RECOVER} memfsm_state;
+                    READ,
+                    RECOVER0,
+                    RECOVER1 } memfsm_state;
 
-
+  logic [PLEN          -1:0] biu_adro;
   logic                      biu_adro_eq_cache_adr_dly;
   logic [DAT_OFFS_BITS -1:0] dat_offset;
+
 
   //////////////////////////////////////////////////////////////////
   //
   // Module Body
   //
 
+  assign pma_pmp_exception = pma_exception_i | pmp_exception_i;
+  assign valid_req         = req_i & ~pma_pmp_exception & ~misaligned_i & ~pagefault_i & ~flush_i;
+
+
+  //hold flush until ready to be serviced
+  always @(posedge clk_i, negedge rst_ni)
+    if (!rst_ni) invalidate_hold <= 1'b0;
+    else         invalidate_hold <= invalidate_i | (invalidate_hold & ~invalidate_all_blocks_o);
+
+
   //State Machine
   always @(posedge clk_i, negedge rst_ni)
     if (!rst_ni)
     begin
-        memfsm_state <= ARMED;
-        armed_o      <= 1'b1;
-        flushing_o   <= 1'b0;
-        filling_o    <= 1'b0;
-        biucmd_o     <= BIUCMD_NOP;
+        memfsm_state            <= ARMED;
+        armed_o                 <= 1'b1;
+        invalidate_all_blocks_o <= 1'b0;
+        filling_o               <= 1'b0;
+        fill_way_o              <=  'hx;
+        biucmd_o                <= BIUCMD_NOP;
     end
     else
     unique case (memfsm_state)
-       ARMED        : if (cacheflush_req_i)
+       ARMED        : if (invalidate_i | invalidate_hold)
                       begin
-                          memfsm_state <= FLUSH;
-                          armed_o      <= 1'b0;
-                          flushing_o   <= 1'b1;
+                          memfsm_state            <= INVALIDATE;
+                          armed_o                 <= 1'b0;
+                          invalidate_all_blocks_o <= 1'b1;
                       end
-		      else if (req_i && !is_cacheable_i && !flush_i)
+		      else if (valid_req && !cacheable_i)
                       begin
                           memfsm_state <= NONCACHEABLE;
                           armed_o      <= 1'b0;
                       end
-                      else if (req_i && is_cacheable_i && !cache_hit_i && !flush_i)
+                      else if (valid_req && cacheable_i && !cache_hit_i)
                       begin
                           //Load way
-                          memfsm_state <= WAIT4BIUCMD0;
+                          memfsm_state <= READ;
                           biucmd_o     <= BIUCMD_READWAY;
                           armed_o      <= 1'b0;
                           filling_o    <= 1'b1;
+                          fill_way_o   <= fill_way_i;
                       end
                       else
                       begin
                           biucmd_o <= BIUCMD_NOP;
                       end
 
-       FLUSH        : if (dcflush_rdy_i) //wait for data-cache to complete flushing
+       INVALIDATE   : if (dc_clean_rdy_i) //wait for data-cache to complete cleaning
                       begin
-                          memfsm_state <= RECOVER; //allow to read new tag_idx
-                          flushing_o   <= 1'b0;
+                          memfsm_state            <= RECOVER0; //allow to read new tag_idx
+                          invalidate_all_blocks_o <= 1'b0;
                       end
 
-        NONCACHEABLE: if ( flush_i                                   ||  //flushed pipe, no biu_ack's will come
-	                  (!req_i && inflight_cnt_i==1 && biu_ack_i) ||  //no new request, wait for BIU to finish transfer
-                          ( req_i && is_cacheable_i    && biu_ack_i) )   //new cacheable request, wait for non-cacheable transfer to finish
+        NONCACHEABLE: if ( flush_i                                       ||  //flush pipe, no biu_ack's will come
+	                  (!valid_req && inflight_cnt_i==1 && biu_ack_i) ||  //no new request, wait for BIU to finish transfer
+                          ( valid_req && cacheable_i       && biu_ack_i) )   //new cacheable request, wait for non-cacheable transfer to finish
                       begin
                           memfsm_state <= ARMED;
                           armed_o      <= 1'b1;
                       end
 
-        WAIT4BIUCMD0: if (biucmd_ack_i || biu_err_i)
-                      begin
-                          memfsm_state <= RECOVER;
-                          biucmd_o     <= BIUCMD_NOP;
-                          filling_o    <= 1'b0;
+        READ        : begin
+                          biucmd_o <= BIUCMD_NOP;
+
+                          if (biucmd_ack_i || biu_err_i)
+                          begin
+                              memfsm_state <= RECOVER0;
+                              filling_o    <= 1'b0;
+                          end
                       end
 
-        RECOVER     : begin
+        RECOVER0    : begin
+                          //Setup TAG and DATA IDX after writing/filling
+			  memfsm_state <= RECOVER1;
+			  biucmd_o     <= BIUCMD_NOP;
+                      end
+
+        RECOVER1    : begin
                           //Read TAG and DATA memory after writing/filling
                           memfsm_state <= ARMED;
                           biucmd_o     <= BIUCMD_NOP;
                           armed_o      <= 1'b1;
                       end
+
     endcase
 
 
 
   //Tag/Dat-index (for writing)
-  assign tag_idx_o = adr_i[BLK_OFFS_BITS +: IDX_BITS];
-  assign dat_idx_o = adr_i[BLK_OFFS_BITS +: IDX_BITS];
+  assign idx_o = adr_i[BLK_OFFS_BITS +: IDX_BITS];
 
 
   //core-tag (for writing)
-  assign core_tag_o = adr_i[XLEN-1 -: TAG_BITS];
+  assign core_tag_o = adr_i[PLEN-1 -: TAG_BITS];
 
 
 
   //non-cacheable access
   always_comb
     unique case (memfsm_state)
-      FLUSH       : biucmd_noncacheable_req_o = 1'b0;
-      WAIT4BIUCMD0: biucmd_noncacheable_req_o = 1'b0;
-      RECOVER     : biucmd_noncacheable_req_o = 1'b0;
-      default     : biucmd_noncacheable_req_o = req_i & ~is_cacheable_i & ~flush_i;
+      INVALIDATE: biucmd_noncacheable_req_o = 1'b0;
+      READ      : biucmd_noncacheable_req_o = 1'b0;
+      RECOVER0  : biucmd_noncacheable_req_o = 1'b0;
+      RECOVER1  : biucmd_noncacheable_req_o = 1'b0;
+      default   : biucmd_noncacheable_req_o = valid_req & ~cacheable_i & ~(invalidate_i | invalidate_hold);
     endcase
 
+
+  //Instruction fetch address
+  assign biucmd_adri_o = ~cacheable_i
+                       ? adr_i & (XLEN==64 ? ~'h7 : ~'h3)
+                       : adr_i;
+  assign biucmd_tagi_o = adr_i[1 +: BIUTAG_SIZE];
+
+
+  //re-assemble biu_adro
+  assign biu_adro = {biu_adro_i[PLEN-1:BIUTAG_SIZE+1], biu_tago_i, 1'b0};
+
   //address check, used in a few places
-  assign biu_adro_eq_cache_adr_dly = (biu_adro_i[PLEN-1:BURST_LSB] == adr_i[PLEN-1:BURST_LSB]);
+  assign biu_adro_eq_cache_adr_dly = (biu_adro[PLEN-1:BURST_LSB] == adr_i[PLEN-1:BURST_LSB]);
 
 
-  //signal downstream that data is ready
+  //Cache core halt signal
   always_comb
     unique case (memfsm_state)
-      ARMED       : stall_o =  req_i & (is_cacheable_i ? ~cache_hit_i : ~biu_stb_ack_i);
+      ARMED       : stall_o = (invalidate_i | invalidate_hold) |
+                              (valid_req & (cacheable_i ? ~cache_hit_i : ~biu_stb_ack_i));
 
       //req_i == 0 ? stall=|inflight_cnt
       //else is_cacheable ? stall=!biu_ack_i (wait for noncacheable transfer to finish)
       //else                stall=!biu_stb_ack_i
-      NONCACHEABLE: stall_o = ~req_i ? |inflight_cnt_i
-	                             : is_cacheable_i ? ~biu_ack_i : ~biu_stb_ack_i;
+      NONCACHEABLE: stall_o = ~valid_req ? |inflight_cnt_i
+	                                 : cacheable_i ? ~biu_ack_i : ~biu_stb_ack_i;
 
       //TODO: Add in_biubuffer
-      WAIT4BIUCMD0: stall_o = ~( (req_i & biu_ack_i & biu_adro_eq_cache_adr_dly & ~biucmd_ack_i) |
-                                 (req_i & cache_hit_i)
-	                       );
-
-      RECOVER     : stall_o = ~( biu_cache_we_unstall |
-	                         (req_i & cache_hit_i)
+      READ        : stall_o = ~( (valid_req & biu_ack_i & biu_adro_eq_cache_adr_dly) |
+                                 (valid_req & cache_hit_i)
                                );
+
+      RECOVER0    : stall_o = 1'b1;
+
+      RECOVER1    : stall_o = 1'b1;
+
+      INVALIDATE  : stall_o = 1'b1;
+
       default     : stall_o = 1'b0;
     endcase
 
 
-  //signal downstream the BIU reported an error
-  assign parcel_error_o = biu_err_i;
-
-
-  //Assign parcel_pc
-  assign parcel_pc_o = { {XLEN-PLEN{1'b0}}, biu_adro_i };
-
+ 
 
   //Shift amount for data
   assign dat_offset = adr_i[BLK_OFFS_BITS-1 -: DAT_OFFS_BITS];
@@ -342,44 +357,37 @@ module riscv_cache_hit #(
 
   always_comb
     unique case (memfsm_state)
-      WAIT4BIUCMD0: parcel_o = cache_hit_i    ? cache_q : biu_q_i;
-      default     : parcel_o = is_cacheable_i ? cache_q : biu_q_i;
+      READ   : parcel_o = cache_hit_i ? cache_q : biu_q_i;
+      default: parcel_o = cacheable_i ? cache_q : biu_q_i;
     endcase
 
 
   //acknowledge cache hit
-  assign cache_ack         =  req_i & is_cacheable_i & cache_hit_i & ~flush_i;
-  assign biu_cacheable_ack = (req_i & biu_ack_i & biu_adro_eq_cache_adr_dly & ~flush_i) |
-                              cache_ack; //(req_i & is_cacheable_i & cache_hit_i & ~flush_i);
+  assign cache_ack         =  valid_req & cacheable_i & cache_hit_i & ~(invalidate_i | invalidate_hold);
+  assign biu_cacheable_ack = (valid_req & biu_ack_i & biu_adro_eq_cache_adr_dly) |
+                              cache_ack;
 
 
   //Assign parcel_valid
   always_comb
     unique case (memfsm_state)
-/*    
-      ARMED       : parcel_valid_o = is_cacheable_i ? {$bits(parcel_valid_o){cache_ack            }} << adr_i      [1 +: $clog2(XLEN/PARCEL_SIZE)]
-                                                    : {$bits(parcel_valid_o){biu_ack_i}} << parcel_pc_o[1 +: $clog2(XLEN/PARCEL_SIZE)];
-*/
-      ARMED       : parcel_valid_o = {$bits(parcel_valid_o){cache_ack                }} << adr_i      [1 +: $clog2(XLEN/PARCEL_SIZE)]; 
-      NONCACHEABLE: parcel_valid_o = {$bits(parcel_valid_o){biucmd_noncacheable_ack_i}} << parcel_pc_o[1 +: $clog2(XLEN/PARCEL_SIZE)];
-      WAIT4BIUCMD0: parcel_valid_o = {$bits(parcel_valid_o){biu_cacheable_ack        }} << adr_i      [1 +: $clog2(XLEN/PARCEL_SIZE)];
-      RECOVER     : parcel_valid_o = {$bits(parcel_valid_o){cache_ack                }} << adr_i      [1 +: $clog2(XLEN/PARCEL_SIZE)];
+      ARMED       : parcel_valid_o = {$bits(parcel_valid_o){cache_ack                }} << adr_i   [1 +: $clog2(XLEN/PARCEL_SIZE)]; 
+      NONCACHEABLE: parcel_valid_o = {$bits(parcel_valid_o){biucmd_noncacheable_ack_i}} << biu_adro[1 +: $clog2(XLEN/PARCEL_SIZE)];
+      READ        : parcel_valid_o = {$bits(parcel_valid_o){biu_cacheable_ack        }} << adr_i   [1 +: $clog2(XLEN/PARCEL_SIZE)];
       default     : parcel_valid_o = {$bits(parcel_valid_o){1'b0}};
     endcase    
 
 
-  //unstall when parcel was valid during Cache Memory write
-  always @(posedge clk_i)
-    biu_cache_we_unstall = req_i & biu_adro_eq_cache_adr_dly & biucmd_ack_i & |parcel_valid_o;
+ //signal downstream the BIU reported an error
+  assign parcel_error_o = biu_err_i | (req_i & pma_pmp_exception);
 
 
-  always_comb
-    unique case (memfsm_state)
-      WAIT4BIUCMD0: parcel_misaligned_o = (HAS_RVC != 0) ? adr_i[0] : |adr_i[1:0];
-      default     : parcel_misaligned_o = is_cacheable_i ? (HAS_RVC != 0) ? adr_i[0]       : |adr_i[1:0]
-	                                                 : (HAS_RVC != 0) ? parcel_pc_o[0] : |parcel_pc_o[1:0]; 
-    endcase
+  //generate misaligned
+  assign parcel_misaligned_o = req_i & misaligned_i;
 
+
+  //generate pagefault
+  assign parcel_pagefault_o = req_i & pagefault_i;
 
 endmodule
 

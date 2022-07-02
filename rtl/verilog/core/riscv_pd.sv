@@ -35,7 +35,8 @@ module riscv_pd #(
   parameter  [XLEN          -1:0] PC_INIT        = 'h200,
   parameter                       HAS_RVC        = 0,
   parameter                       HAS_BPU        = 0,
-  parameter                       BP_GLOBAL_BITS = 2
+  parameter                       BP_GLOBAL_BITS = 2,
+  parameter                       RSB_DEPTH      = 4
 )
 (
   input                           rst_ni,          //Reset
@@ -68,6 +69,7 @@ module riscv_pd #(
 
   input      [XLEN          -1:0] if_pc_i,
   output reg [XLEN          -1:0] pd_pc_o,
+                                  pd_rsb_pc_o,
 
   input  instruction_t            if_insn_i,
   output instruction_t            pd_insn_o,
@@ -95,18 +97,37 @@ module riscv_pd #(
   // Variables
   //
 
+  //RSB
+  logic             is_16bit_instruction;
+  logic             has_rsb;
+  logic [XLEN -1:0] rsb_nxt_pc,
+                    rsb_predict_pc;
+  logic             rsb_push,
+                    rsb_pop,
+                    rsb_empty;
+
+  rsd_t             rs1,
+                    rd;
+  logic             link_rs1,
+                    link_rd,
+                    decode_rsb_push,
+                    decode_rsb_pop;
+
+
   //Immediates for branches and jumps
   immUJ_t           immUJ;
   immSB_t           immSB;
   logic [XLEN -1:0] ext_immUJ,
                     ext_immSB;
 
+
   logic [      1:0] branch_predicted;
 
   logic             branch_taken,
                     stalled_branch;
 
-  logic             local_stall;
+  logic             assert_local_stall;
+  logic [      1:0] local_stall;
 
 
   ////////////////////////////////////////////////////////////////
@@ -114,28 +135,45 @@ module riscv_pd #(
   // Module Body
   //
 
+  //for RSB
+  assign is_16bit_instruction = ~&if_insn_i.instr[1:0];
+  assign rsb_nxt_pc           = if_pc_i + (is_16bit_instruction ? 'h2 : 'h4);
+  assign has_rsb              = RSB_DEPTH > 0;
+  assign rs1                  = decode_rs1(if_insn_i.instr);
+  assign rd                   = decode_rd (if_insn_i.instr);
+  assign link_rs1             = (rs1 == 1) | (rs1 == 5); //x1/ra or x5/t0/ra2
+  assign link_rd              = (rd  == 1) | (rd  == 5);
+
+  
   //All flush signals
   assign pd_flush_o = bu_flush_i | st_flush_i;
 
 
   //Stall when write-CSR
   //This can be more advanced, but who cares ... this is not critical
+  //Two cycle stall to ensure data is written into CSR before it can be read
+  always_comb
+    casex ( decode_opcR(if_insn_i.instr) )
+      CSRRW  : assert_local_stall <= ~if_insn_i.bubble;
+      CSRRWI : assert_local_stall <= ~if_insn_i.bubble;
+      CSRRS  : assert_local_stall <= ~if_insn_i.bubble & |decode_rs1 (if_insn_i.instr);
+      CSRRSI : assert_local_stall <= ~if_insn_i.bubble & |decode_immI(if_insn_i.instr);
+      CSRRC  : assert_local_stall <= ~if_insn_i.bubble & |decode_rs1 (if_insn_i.instr);
+      CSRRCI : assert_local_stall <= ~if_insn_i.bubble & |decode_immI(if_insn_i.instr);
+      default: assert_local_stall <= 1'b0;
+    endcase
+
+
   always @(posedge clk_i, negedge rst_ni)
-    if      (!rst_ni     ) local_stall <= 1'b0;
-    else if ( local_stall) local_stall <= 1'b0;
-    else if (!id_stall_i )
-      casex ( decode_opcR(if_insn_i.instr) )
-          CSRRW  : local_stall <= ~if_insn_i.bubble;
-          CSRRWI : local_stall <= ~if_insn_i.bubble;
-          CSRRS  : local_stall <= ~if_insn_i.bubble & |decode_rs1 (if_insn_i.instr);
-          CSRRSI : local_stall <= ~if_insn_i.bubble & |decode_immI(if_insn_i.instr);
-          CSRRC  : local_stall <= ~if_insn_i.bubble & |decode_rs1 (if_insn_i.instr);
-          CSRRCI : local_stall <= ~if_insn_i.bubble & |decode_immI(if_insn_i.instr);
-          default: local_stall <= 1'b0;
-      endcase
+    if      (!rst_ni        ) local_stall <= 2'h0;
+    else if ( local_stall[1]) local_stall <= 2'h0;
+    else if (!id_stall_i    )
+    begin
+        local_stall[0] <= assert_local_stall | local_stall[0];
+        local_stall[1] <= local_stall[0];
+    end
 
-
-  assign pd_stall_o = id_stall_i | local_stall;
+  assign pd_stall_o = id_stall_i | local_stall[0];
 
 
   /*
@@ -166,6 +204,11 @@ module riscv_pd #(
     else if (!id_stall_i) pd_insn_o.instr <= if_insn_i.instr;
 
 
+  always @(posedge clk_i, negedge rst_ni)
+    if      (!rst_ni    ) pd_insn_o.dbg <= 1'b0;
+    else if (!id_stall_i) pd_insn_o.dbg <= if_insn_i.dbg;
+    
+
   //Bubble
   always @(posedge clk_i, negedge rst_ni)
     if      (!rst_ni              ) pd_insn_o.bubble <= 1'b1;
@@ -195,6 +238,40 @@ module riscv_pd #(
   /*
    * Branches & Jump
    */
+
+  //Instantiate RSB
+generate
+  if (RSB_DEPTH > 0)
+  begin: gen_rsb
+
+      riscv_rsb #(
+        .XLEN    ( XLEN           ),
+        .DEPTH   ( RSB_DEPTH      ) )
+      rsb_inst (
+        .rst_ni  ( rst_ni         ),
+        .clk_i   ( clk_i          ),
+	.ena_i   (!pd_stall_o     ),
+        .d_i     ( rsb_nxt_pc     ),
+        .q_o     ( rsb_predict_pc ),
+        .push_i  ( rsb_push       ), //push stack, JAL(R) rd !=x0
+        .pop_i   ( rsb_pop        ), //pop stack, RET
+        .empty_o ( rsb_empty      ) );
+  end
+endgenerate
+
+
+  //decode rbs_push/pop
+  always_comb
+    unique casex ({link_rd, link_rs1, rs1==rd})
+      3'b00? :{decode_rsb_push, decode_rsb_pop} = 2'b00;
+      3'b01? :{decode_rsb_push, decode_rsb_pop} = 2'b01;
+      3'b10? :{decode_rsb_push, decode_rsb_pop} = 2'b10;
+      3'b110 :{decode_rsb_push, decode_rsb_pop} = 2'b11;
+      3'b111 :{decode_rsb_push, decode_rsb_pop} = 2'b10;
+    endcase
+
+
+  //Immediates
   assign immUJ = decode_immUJ(if_insn_i.instr);
   assign immSB = decode_immSB(if_insn_i.instr);
   assign ext_immUJ = { {XLEN-$bits(immUJ){immUJ[$left(immUJ,1)]}}, immUJ};
@@ -204,29 +281,49 @@ module riscv_pd #(
   // Branch and Jump prediction
   always_comb
     casex ( {du_mode_i, if_insn_i.bubble, decode_opcode(if_insn_i.instr)} )
-      {1'b0, 1'b0,OPC_JAL   } : begin
-                                    branch_taken     = 1'b1;
-                                    branch_predicted = 2'b10;
-                                    pd_nxt_pc_o      = if_pc_i + ext_immUJ;
-                                end
-      {1'b0, 1'b0,OPC_BRANCH} : begin
+      {1'b0,1'b0,OPC_JAL   } : begin
+                                   branch_taken     = 1'b1;
+                                   branch_predicted = 2'b10;
+                                   rsb_push         = decode_rsb_push;
+                                   rsb_pop          = decode_rsb_pop;
+                                   pd_nxt_pc_o      = if_pc_i + ext_immUJ;
+                               end
+
+      {1'b0,1'b0,OPC_JALR  } : begin
+                                   branch_taken     = has_rsb ? decode_rsb_pop : 1'b0;
+                                   branch_predicted = 2'b00;
+                                   rsb_push         = decode_rsb_push;
+                                   rsb_pop          = decode_rsb_pop;
+                                   pd_nxt_pc_o      = rsb_predict_pc;
+                               end
+
+      {1'b0,1'b0,OPC_BRANCH} : begin
                                    //if this CPU has a Branch Predict Unit, then use it's prediction
                                    //otherwise assume backwards jumps taken, forward jumps not taken
                                    branch_taken     = (HAS_BPU != 0) ? bp_bp_predict_i[1] : ext_immSB[31];
                                    branch_predicted = (HAS_BPU != 0) ? bp_bp_predict_i    : {ext_immSB[31], 1'b0};
+                                   rsb_push         = 1'b0;
+                                   rsb_pop          = 1'b0;
                                    pd_nxt_pc_o      = if_pc_i + ext_immSB;
-                                end
-      default                 : begin
-                                    branch_taken     = 1'b0;
-                                    branch_predicted = 2'b00;
-                                    pd_nxt_pc_o      = 'hx;
-                                end
+                               end
+
+      default                : begin
+                                   branch_taken     = 1'b0;
+                                   branch_predicted = 2'b00;
+                                   rsb_push         = 1'b0;
+                                   rsb_pop          = 1'b0;
+                                   pd_nxt_pc_o      = 'hx;
+                               end
     endcase
 
+
+  always @(posedge clk_i)
+    if (!pd_stall_o) pd_rsb_pc_o <= has_rsb ? rsb_predict_pc : {$bits(pd_rsb_pc_o){1'b0}};
 
 
   always @(posedge clk_i)
     stalled_branch <= branch_taken & id_stall_i;
+
 
   //generate latch strobe
   assign pd_latch_nxt_pc_o = branch_taken & ~stalled_branch;
