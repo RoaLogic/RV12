@@ -53,7 +53,7 @@ parameter PC_INIT          = 'h8000_0000;  //Start here after reset
 parameter BASE             = PC_INIT;      //offset where to load program in memory
 parameter INIT_FILE        = "test.hex";
 parameter MEM_LATENCY      = 1;
-parameter WRITEBUFFER_SIZE = 4;
+parameter RSB_DEPTH        = 4;
 parameter HAS_U            = 1;
 parameter HAS_S            = 1;
 parameter HAS_H            = 0;
@@ -239,7 +239,7 @@ riscv_top_ahb3lite #(
   .ICACHE_WAYS      ( 2                ),
   .DCACHE_SIZE      ( DCACHE_SIZE      ),
   .DCACHE_WAYS      ( 2                ),
-  .WRITEBUFFER_SIZE ( WRITEBUFFER_SIZE ),
+  .RSB_DEPTH        ( RSB_DEPTH        ),
 
   .MTVEC_DEFAULT    ( 32'h80000004     )
 )

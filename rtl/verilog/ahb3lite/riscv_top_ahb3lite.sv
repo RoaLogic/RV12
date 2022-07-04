@@ -58,6 +58,7 @@ module riscv_top_ahb3lite #(
 
   parameter int        BP_GLOBAL_BITS     = 2,
   parameter int        BP_LOCAL_BITS      = 10,
+  parameter int        RSB_DEPTH          = 4,
 
   parameter int        ICACHE_SIZE        = 0,  //in KBytes
   parameter int        ICACHE_BLOCK_SIZE  = 32, //in Bytes
@@ -68,7 +69,6 @@ module riscv_top_ahb3lite #(
   parameter int        DCACHE_BLOCK_SIZE  = 32, //in Bytes
   parameter int        DCACHE_WAYS        = 2,  //'n'-way set associative
   parameter int        DCACHE_REPLACE_ALG = 0,
-  parameter int        WRITEBUFFER_SIZE   = 8,
 
   parameter string     TECHNOLOGY         = "GENERIC",
 

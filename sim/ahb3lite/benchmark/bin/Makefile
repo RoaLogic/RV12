@@ -54,9 +54,9 @@ POSTFIX     = .riscv$(XLEN).hex
 #
 #####################################################################
 XLEN              = 64
-DCACHE_SIZE       = 1
-ICACHE_SIZE       = 4
-WRITEBUFFER_SIZE  = 0
+DCACHE_SIZE       = 0
+ICACHE_SIZE       = 0
+RSB_DEPTH         = 4
 HAS_U             = 1
 HAS_S             = 0
 HAS_H             = 0
@@ -88,7 +88,7 @@ $(bmarks):
 	  PARAMS="DCACHE_SIZE=$(DCACHE_SIZE)					\
 	          ICACHE_SIZE=$(ICACHE_SIZE)					\
 	          MEM_LATENCY=$(MEM_LATENCY)					\
-	          WRITEBUFFER_SIZE=$(WRITEBUFFER_SIZE)				\
+	          RSB_DEPTH=$(RSB_DEPTH)					\
 	          XLEN=$(XLEN)							\
 	          MULT_LATENCY=$(MULT_LATENCY)					\
 	          HAS_U=$(HAS_U) HAS_S=$(HAS_S) HAS_H=$(HAS_H)			\
