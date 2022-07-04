@@ -104,7 +104,7 @@ RTL_VLOG = $(DUT_SRC_DIR)/pkg/riscv_rv12_pkg.sv					\
 	   $(MEM_SRC_DIR)/rl_queue.sv						\
 	   $(DUT_SRC_DIR)/pkg/riscv_cache_pkg.sv				\
 	   $(DUT_SRC_DIR)/core/cache/riscv_cache_setup.sv			\
-	   $(DUT_SRC_DIR)/core/cache/riscv_cache_tag.sv				\	
+	   $(DUT_SRC_DIR)/core/cache/riscv_cache_tag.sv				\
 	   $(DUT_SRC_DIR)/core/cache/riscv_cache_hit.sv				\
 	   $(DUT_SRC_DIR)/core/cache/riscv_cache_biu_ctrl.sv			\
 	   $(DUT_SRC_DIR)/core/cache/riscv_cache_memory.sv			\
