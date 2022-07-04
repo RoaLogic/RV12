@@ -380,45 +380,45 @@ endgenerate
     else if (|du_exceptions_i[15:0]) //traps
     begin
         casex (du_exceptions_i[15:0])
-          16'h???1 : dbg.cause <=  0;
-          16'h???2 : dbg.cause <=  1;
-          16'h???4 : dbg.cause <=  2;
-          16'h???8 : dbg.cause <=  3;
-          16'h??10 : dbg.cause <=  4;
-          16'h??20 : dbg.cause <=  5;
-          16'h??40 : dbg.cause <=  6;
-          16'h??80 : dbg.cause <=  7;
-          16'h?100 : dbg.cause <=  8;
-          16'h?200 : dbg.cause <=  9;
-          16'h?400 : dbg.cause <= 10;
-          16'h?800 : dbg.cause <= 11;
-          16'h1000 : dbg.cause <= 12;
-          16'h2000 : dbg.cause <= 13;
-          16'h4000 : dbg.cause <= 14;
-          16'h8000 : dbg.cause <= 15;
-          default  : dbg.cause <=  0;
+          16'b????_????_????_???1 : dbg.cause <=  0;
+          16'b????_????_????_??10 : dbg.cause <=  1;
+          16'b????_????_????_?100 : dbg.cause <=  2;
+          16'b????_????_????_1000 : dbg.cause <=  3;
+          16'b????_????_???1_0000 : dbg.cause <=  4;
+          16'b????_????_??10_0000 : dbg.cause <=  5;
+          16'b????_????_?100_0000 : dbg.cause <=  6;
+          16'b????_????_1000_0000 : dbg.cause <=  7;
+          16'b????_???1_0000_0000 : dbg.cause <=  8;
+          16'b????_??10_0000_0000 : dbg.cause <=  9;
+          16'b????_?100_0000_0000 : dbg.cause <= 10;
+          16'b????_1000_0000_0000 : dbg.cause <= 11;
+          16'b???1_0000_0000_0000 : dbg.cause <= 12;
+          16'b??10_0000_0000_0000 : dbg.cause <= 13;
+          16'b?100_0000_0000_0000 : dbg.cause <= 14;
+          16'b1000_0000_0000_0000 : dbg.cause <= 15;
+          default                 : dbg.cause <=  0;
         endcase
     end
     else if (|du_exceptions_i[31:16]) //Interrupts
     begin
         casex ( du_exceptions_i[31:16])
-          16'h???1 : dbg.cause <= ('h1 << (XLEN-1)) |  0;
-          16'h???2 : dbg.cause <= ('h1 << (XLEN-1)) |  1;
-          16'h???4 : dbg.cause <= ('h1 << (XLEN-1)) |  2;
-          16'h???8 : dbg.cause <= ('h1 << (XLEN-1)) |  3;
-          16'h??10 : dbg.cause <= ('h1 << (XLEN-1)) |  4;
-          16'h??20 : dbg.cause <= ('h1 << (XLEN-1)) |  5;
-          16'h??40 : dbg.cause <= ('h1 << (XLEN-1)) |  6;
-          16'h??80 : dbg.cause <= ('h1 << (XLEN-1)) |  7;
-          16'h?100 : dbg.cause <= ('h1 << (XLEN-1)) |  8;
-          16'h?200 : dbg.cause <= ('h1 << (XLEN-1)) |  9;
-          16'h?400 : dbg.cause <= ('h1 << (XLEN-1)) | 10;
-          16'h?800 : dbg.cause <= ('h1 << (XLEN-1)) | 11;
-          16'h1000 : dbg.cause <= ('h1 << (XLEN-1)) | 12;
-          16'h2000 : dbg.cause <= ('h1 << (XLEN-1)) | 13;
-          16'h4000 : dbg.cause <= ('h1 << (XLEN-1)) | 14;
-          16'h8000 : dbg.cause <= ('h1 << (XLEN-1)) | 15;
-          default  : dbg.cause <= ('h1 << (XLEN-1)) |  0;
+          16'b????_????_????_???1 : dbg.cause <= ('h1 << (XLEN-1)) |  0;
+          16'b????_????_????_??10 : dbg.cause <= ('h1 << (XLEN-1)) |  1;
+          16'b????_????_????_?100 : dbg.cause <= ('h1 << (XLEN-1)) |  2;
+          16'b????_????_????_1000 : dbg.cause <= ('h1 << (XLEN-1)) |  3;
+          16'b????_????_???1_0000 : dbg.cause <= ('h1 << (XLEN-1)) |  4;
+          16'b????_????_??10_0000 : dbg.cause <= ('h1 << (XLEN-1)) |  5;
+          16'b????_????_?100_0000 : dbg.cause <= ('h1 << (XLEN-1)) |  6;
+          16'b????_????_1000_0000 : dbg.cause <= ('h1 << (XLEN-1)) |  7;
+          16'b????_???1_0000_0000 : dbg.cause <= ('h1 << (XLEN-1)) |  8;
+          16'b????_??10_0000_0000 : dbg.cause <= ('h1 << (XLEN-1)) |  9;
+          16'b????_?100_0000_0000 : dbg.cause <= ('h1 << (XLEN-1)) | 10;
+          16'b????_1000_0000_0000 : dbg.cause <= ('h1 << (XLEN-1)) | 11;
+          16'b???1_0000_0000_0000 : dbg.cause <= ('h1 << (XLEN-1)) | 12;
+          16'b??10_0000_0000_0000 : dbg.cause <= ('h1 << (XLEN-1)) | 13;
+          16'b?100_0000_0000_0000 : dbg.cause <= ('h1 << (XLEN-1)) | 14;
+          16'b1000_0000_0000_0000 : dbg.cause <= ('h1 << (XLEN-1)) | 15;
+          default                 : dbg.cause <= ('h1 << (XLEN-1)) |  0;
         endcase
     end
    

@@ -1110,19 +1110,19 @@ endgenerate
   //interrupt cause priority
   always_comb
     casex (wb_exceptions_i.interrupts & ~du_ie_i[31:16])
-       12'h??1 : interrupt_cause = 0;
-       12'h??2 : interrupt_cause = 1;
-       12'h??4 : interrupt_cause = 2;
-       12'h??8 : interrupt_cause = 3;
-       12'h?10 : interrupt_cause = 4;
-       12'h?20 : interrupt_cause = 5;
-       12'h?40 : interrupt_cause = 6;
-       12'h?80 : interrupt_cause = 7;
-       12'h100 : interrupt_cause = 8;
-       12'h200 : interrupt_cause = 9;
-       12'h400 : interrupt_cause =10;
-       12'h800 : interrupt_cause =11;
-       default : interrupt_cause = 0;
+       12'b????_????_???1 : interrupt_cause = 0;
+       12'b????_????_??10 : interrupt_cause = 1;
+       12'b????_????_?100 : interrupt_cause = 2;
+       12'b????_????_1000 : interrupt_cause = 3;
+       12'b????_???1_0000 : interrupt_cause = 4;
+       12'b????_??10_0000 : interrupt_cause = 5;
+       12'b????_?100_0000 : interrupt_cause = 6;
+       12'b????_1000_0000 : interrupt_cause = 7;
+       12'b???1_0000_0000 : interrupt_cause = 8;
+       12'b??10_0000_0000 : interrupt_cause = 9;
+       12'b?100_0000_0000 : interrupt_cause =10;
+       12'b1000_0000_0000 : interrupt_cause =11;
+       default            : interrupt_cause = 0;
     endcase
 
   assign take_interrupt = |(wb_exceptions_i.interrupts & ~du_ie_i[31:16]);
