@@ -140,7 +140,6 @@ module riscv_dcache_core #(
   input  logic                    biu_err_i,            //transfer error
   output logic [BIUTAG_SIZE -1:0] biu_tagi_o,
   input  logic [BIUTAG_SIZE -1:0] biu_tago_i
->>>>>>> rvlmain
 );
 
   //////////////////////////////////////////////////////////////////
