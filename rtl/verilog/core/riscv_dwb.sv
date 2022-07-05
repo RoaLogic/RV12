@@ -65,6 +65,12 @@ module riscv_dwb #(
     else         dwb_insn_o.bubble <= ~wb_we_i;
 
 
+  //DBG
+  always @(posedge clk_i, negedge rst_ni)
+    if   (!rst_ni) dwb_insn_o.dbg <= 1'b0;
+    else           dwb_insn_o.dbg <= wb_insn_i.dbg;
+
+
   //Result
   //Latch with wb_we_i to handle stalls
   always @(posedge clk_i)
