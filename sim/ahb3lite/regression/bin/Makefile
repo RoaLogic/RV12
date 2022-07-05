@@ -59,7 +59,7 @@ TST_SRC_DIR=$(ROOT_DIR)/../bench/tests/regression
 REGRESSION_MEM_LATENCY  = 0 1 2 3 8
 #REGRESSION_XLEN        = 32 64
 REGRESSION_XLEN         = 64
-REGRESSION_RBS_DEPTH    = 0
+REGRESSION_RSB_DEPTH    = 0
 REGRESSION_ICACHE_SIZE  = 0 4
 REGRESSION_DCACHE_SIZE  = 0 4
 REGRESSION_MULT_LATENCY = 3 2 1 0
@@ -164,7 +164,7 @@ add_regression_if = $(if $(filter $(2), $(subst -, , $(1))), $(call add_regressi
 logs = $(call add_regression,DCACHE_SIZE,				\
        $(call add_regression,ICACHE_SIZE,				\
        $(call add_regression,MEM_LATENCY,				\
-       $(call add_regression,RBS_DEPTH,					\
+       $(call add_regression,RSB_DEPTH,					\
        $(call add_regression,XLEN,					\
        $(foreach t,$(tests),						\
          $(call add_regression_if,$t,$(U_MUL_TESTS),MULT_LATENCY,	\
@@ -185,7 +185,7 @@ regression: $(logs)
 	  PARAMS="DCACHE_SIZE=$(subst DCACHE_SIZE,,$(word 1,$(subst @, ,$*)))		\
 	          ICACHE_SIZE=$(subst ICACHE_SIZE,,$(word 2,$(subst @, ,$*)))		\
 	          MEM_LATENCY=$(subst MEM_LATENCY,,$(word 3,$(subst @, ,$*))) 		\
-	          WRITEBUFFER_SIZE=$(subst RBS_DEPTH,,$(word 4,$(subst @, ,$*)))	\
+	          WRITEBUFFER_SIZE=$(subst RSB_DEPTH,,$(word 4,$(subst @, ,$*)))	\
 	          XLEN=$(subst XLEN,,$(word 5,$(subst @, ,$*)))				\
 	          MULT_LATENCY=$(subst MULT_LATENCY,,$(word 6,$(subst @, ,$*)))		\
 	          HAS_U=$(HAS_U) HAS_S=$(HAS_S) HAS_H=$(HAS_H)				\
