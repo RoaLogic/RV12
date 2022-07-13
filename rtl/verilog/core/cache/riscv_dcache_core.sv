@@ -120,7 +120,8 @@ module riscv_dcache_core #(
   //Cache Block Management, per CMO spec
   //Flush = Invalidate + Clean
   input  logic                    invalidate_i,         //Invalidate blocks
-                                  clean_i,              //Write back dirty blocks
+  input  logic                    clean_i,              //Write back dirty blocks
+  input  logic                    clean_rdy_clr_i,      //Clear data-cache-ready signal
   output logic                    clean_rdy_o,          //Data cache ready cleaning
 
   //To BIU
@@ -376,6 +377,7 @@ endgenerate
     //flush in-order with CPU pipeline
     .invalidate_i              ( tag_invalidate          ),
     .clean_i                   ( tag_clean               ),
+    .clean_rdy_clr_i           ( clean_rdy_clr_i         ),
     .clean_rdy_o               ( clean_rdy_o             ),
     .armed_o                   ( armed                   ),
     .cleaning_o                ( cleaning                ),

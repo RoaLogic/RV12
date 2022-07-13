@@ -60,6 +60,7 @@ module riscv_dcache_hit #(
 
   input  logic                        invalidate_i,
   input  logic                        clean_i,                                       //clean cache
+  input  logic                        clean_rdy_clr_i,                               //clear cache-clean-ready signal
   output logic                        clean_rdy_o,                                   //cache clean ready
   output logic                        armed_o,
   output logic                        cleaning_o,
@@ -267,7 +268,8 @@ module riscv_dcache_hit #(
       nxt_memfsm_state      = memfsm_state;
       nxt_biucmd            = biucmd_o;
       fill_way              = fill_way_o;
-      clean_rdy             = 1'b1;
+//      clean_rdy             = 1'b1;
+      clean_rdy             = 1'b0;
       invalidate_all_blocks = 1'b0;
       invalidate_block      = 1'b0;
       clean_block           = 1'b0;
@@ -450,7 +452,7 @@ module riscv_dcache_hit #(
         biucmd_o                <= nxt_biucmd;
         fill_way_o              <= fill_way;
         clean_hold_clr          <= 1'b0;
-        clean_rdy_o             <= clean_rdy;
+        clean_rdy_o             <= (clean_rdy | clean_rdy_o) & ~clean_rdy_clr_i;
         invalidate_all_blocks_o <= invalidate_all_blocks;
         invalidate_block_o      <= invalidate_block;
         evict_read_o            <= evict_read;

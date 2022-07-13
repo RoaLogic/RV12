@@ -390,6 +390,7 @@ generate
 	//Cache Block Management
 	.invalidate_i      ( mmu_cm_invalidate ),
         .clean_i           ( mmu_cm_clean      ),
+	.clean_rdy_clr_i   ( cm_clean_i        ), //immediately clear clean_rdy
         .clean_rdy_o       ( cm_clean_rdy_o    ),
 
         //To BIU
