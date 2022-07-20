@@ -105,12 +105,12 @@ RTL_VLOG = $(DUT_SRC_DIR)/pkg/riscv_rv12_pkg.sv					\
 	   $(DUT_SRC_DIR)/pkg/riscv_cache_pkg.sv				\
 	   $(DUT_SRC_DIR)/core/cache/riscv_cache_setup.sv			\
 	   $(DUT_SRC_DIR)/core/cache/riscv_cache_tag.sv				\
-	   $(DUT_SRC_DIR)/core/cache/riscv_cache_hit.sv				\
 	   $(DUT_SRC_DIR)/core/cache/riscv_cache_biu_ctrl.sv			\
 	   $(DUT_SRC_DIR)/core/cache/riscv_cache_memory.sv			\
+	   $(DUT_SRC_DIR)/core/cache/riscv_icache_fsm.sv			\
 	   $(DUT_SRC_DIR)/core/cache/riscv_icache_core.sv			\
 	   $(DUT_SRC_DIR)/core/cache/riscv_noicache_core.sv			\
-	   $(DUT_SRC_DIR)/core/cache/riscv_dcache_hit.sv			\
+	   $(DUT_SRC_DIR)/core/cache/riscv_dcache_fsm.sv			\
 	   $(DUT_SRC_DIR)/core/cache/riscv_dcache_core.sv			\
 	   $(DUT_SRC_DIR)/core/cache/riscv_nodcache_core.sv			\
 	   $(DUT_SRC_DIR)/core/mmu/riscv_nommu.sv				\

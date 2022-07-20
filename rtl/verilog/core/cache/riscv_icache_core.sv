@@ -319,11 +319,10 @@ endgenerate
     .core_tag_o                ( tag_core_tag            ) );
 
   
-  /* Hit stage
+  /* Hit stage / Cache Controller
    * Takes hit, cache-line and biu signals and generates parcel-output
-   * Contains front-end statemachine
    */
-  riscv_cache_hit #(
+  riscv_icache_fsm #(
     .XLEN                      ( XLEN                    ),
     .PLEN                      ( PLEN                    ),
     .PARCEL_SIZE               ( PARCEL_SIZE             ),
@@ -333,7 +332,7 @@ endgenerate
     .WAYS                      ( WAYS                    ),
     .INFLIGHT_DEPTH            ( INFLIGHT_DEPTH          ),
     .BIUTAG_SIZE               ( BIUTAG_SIZE             ) )
-  cache_hit_inst (
+  cache_fsm_inst (
     .rst_ni                    ( rst_ni                  ),
     .clk_i                     ( clk_i                   ),
 

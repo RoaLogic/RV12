@@ -32,7 +32,7 @@ import riscv_cache_pkg::*;
 import biu_constants_pkg::*;
 
 
-module riscv_cache_hit #(
+module riscv_icache_fsm #(
   parameter XLEN           = 32,
   parameter PLEN           = XLEN == 32 ? 34 : 56,
   parameter PARCEL_SIZE    = XLEN,

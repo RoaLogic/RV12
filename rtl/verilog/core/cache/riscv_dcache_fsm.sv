@@ -6,7 +6,7 @@
 //   `--' '--' `---'  `--`--'    `-----' `---' `-   /`--' `---'    //
 //                                             `---'               //
 //    RISC-V                                                       //
-//    Data Cache Hit Stage                                         //
+//    Data Cache Statemachine/Controller                           //
 //                                                                 //
 /////////////////////////////////////////////////////////////////////
 //                                                                 //
@@ -32,7 +32,7 @@ import riscv_cache_pkg::*;
 import biu_constants_pkg::*;
 
 
-module riscv_dcache_hit #(
+module riscv_dcache_fsm #(
   parameter XLEN           = 32,
   parameter PLEN           = XLEN,
 
