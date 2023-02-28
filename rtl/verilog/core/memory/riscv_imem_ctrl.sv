@@ -28,11 +28,11 @@
 /////////////////////////////////////////////////////////////////////
 
 
+module riscv_imem_ctrl
 import riscv_state_pkg::*;
 import riscv_pma_pkg::*;
 import biu_constants_pkg::*;
-
-module riscv_imem_ctrl #(
+#(
   parameter int    XLEN             = 32,
   parameter int    PLEN             = XLEN==32 ? 34 : 56,
   parameter int    PARCEL_SIZE      = 32,

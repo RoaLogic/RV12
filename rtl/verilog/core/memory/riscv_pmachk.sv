@@ -28,11 +28,11 @@
 ////////////////////////////////////////////////////////////////////
 
 
+module riscv_pmachk
 import riscv_pma_pkg::*;
 import riscv_state_pkg::*; //pmpcfg_a_t; //Quartus doesn't like this
 import biu_constants_pkg::*;
-
-module riscv_pmachk #(
+#(
   parameter XLEN    = 32,
   parameter PLEN    = XLEN == 32 ? 34 : 56,
   parameter HAS_RVC = 0,

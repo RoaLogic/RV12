@@ -27,9 +27,10 @@
 //                                                                 //
 ////////////////////////////////////////////////////////////////////
 
-import biu_constants_pkg::*;
 
-module riscv_memmisaligned #(
+module riscv_memmisaligned
+import biu_constants_pkg::*;
+#(
   parameter PLEN    = 32,
   parameter HAS_RVC = 0
 )
