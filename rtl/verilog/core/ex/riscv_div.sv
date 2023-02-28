@@ -29,10 +29,11 @@
 //                                                                 //
 /////////////////////////////////////////////////////////////////////
 
+
+module riscv_div
 import riscv_opcodes_pkg::*;
 import riscv_state_pkg::*;
-
-module riscv_div #(
+#(
   parameter XLEN = 32
 )
 (

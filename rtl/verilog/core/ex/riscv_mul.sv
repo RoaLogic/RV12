@@ -27,10 +27,11 @@
 //                                                                 //
 /////////////////////////////////////////////////////////////////////
 
+
+module riscv_mul
 import riscv_opcodes_pkg::*;
 import riscv_state_pkg::*;
-
-module riscv_mul #(
+#(
   parameter XLEN         = 32,
   parameter MULT_LATENCY = 0
 )

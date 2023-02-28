@@ -27,10 +27,11 @@
 //                                                                 //
 /////////////////////////////////////////////////////////////////////
 
+
+module riscv_bu
 import riscv_opcodes_pkg::*;
 import riscv_state_pkg::*;
-
-module riscv_bu #(
+#(
   parameter int        XLEN           = 32,
   parameter [XLEN-1:0] PC_INIT        = 'h200,
   parameter int        BP_GLOBAL_BITS = 2,

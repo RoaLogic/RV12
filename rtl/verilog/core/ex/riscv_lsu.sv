@@ -27,11 +27,12 @@
 //                                                                 //
 /////////////////////////////////////////////////////////////////////
 
+
+module riscv_lsu
 import riscv_opcodes_pkg::*;
 import riscv_state_pkg::*;
 import biu_constants_pkg::*;
-
-module riscv_lsu #(
+#(
   parameter XLEN           = 32,
   parameter HAS_A          = 0
 )
