@@ -28,11 +28,11 @@
 /////////////////////////////////////////////////////////////////////
 
 
+module riscv_du
 import riscv_opcodes_pkg::*;
 import riscv_state_pkg::*;
 import riscv_du_pkg::*;
-
-module riscv_du #(
+#(
   parameter XLEN           = 32,
   parameter BREAKPOINTS    = 3
 )

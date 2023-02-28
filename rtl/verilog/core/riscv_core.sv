@@ -27,12 +27,12 @@
 //                                                                 //
 /////////////////////////////////////////////////////////////////////
 
+module riscv_core
 import riscv_du_pkg::*;
 import riscv_state_pkg::*;
 import riscv_opcodes_pkg::*;
 import biu_constants_pkg::*;
-
-module riscv_core #(
+#(
   parameter int        XLEN                  = 32,
   parameter [XLEN-1:0] PC_INIT               = 'h200,
   parameter int        HAS_USER              = 0,

@@ -44,9 +44,9 @@
  * ATTENTION: All output signals must be validated with empty_o
  */
 
+module riscv_parcel_queue
 import riscv_opcodes_pkg::*;
-
-module riscv_parcel_queue #(
+#(
   parameter DEPTH                   = 2,    //number of parcels
   parameter WR_PARCELS              = 2,    //push max <n> parcels onto queue
   parameter RD_PARCELS              = 2,    //pull max <n> parcels from queue

@@ -28,10 +28,10 @@
 /////////////////////////////////////////////////////////////////////
 
 
+module riscv_mem
 import riscv_opcodes_pkg::*;
 import riscv_state_pkg::*;
-
-module riscv_mem #(
+#(
   parameter              XLEN    = 32,
   parameter  [XLEN -1:0] PC_INIT = 'h200
 )

@@ -27,9 +27,9 @@
 //                                                                 //
 /////////////////////////////////////////////////////////////////////
 
+module riscv_rf
 import riscv_opcodes_pkg::*;
-
-module riscv_rf #(
+#(
   parameter XLEN      = 32,
   parameter REGOUT    = 0
 )

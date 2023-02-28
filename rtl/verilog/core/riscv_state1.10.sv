@@ -27,11 +27,12 @@
 //                                                                 //
 /////////////////////////////////////////////////////////////////////
 
+
+module riscv_state1_10
 import riscv_rv12_pkg::*;
 import riscv_opcodes_pkg::*;
 import riscv_state_pkg::*;
-
-module riscv_state1_10 #(
+#(
   parameter            XLEN            = 32,
   parameter            FLEN            = 64,    // Floating Point Data length
   parameter [XLEN-1:0] PC_INIT         = 'h200,
