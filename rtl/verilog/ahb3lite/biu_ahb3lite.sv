@@ -44,10 +44,10 @@
  */
 
 
+module biu_ahb3lite
 import ahb3lite_pkg::*;
 import biu_constants_pkg::*;
-
-module biu_ahb3lite #(
+#(
   parameter DATA_SIZE  = 32,
   parameter ADDR_SIZE  = DATA_SIZE,
   parameter TAG_SIZE   = DATA_SIZE,

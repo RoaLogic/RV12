@@ -200,6 +200,7 @@ module riscv_icache_core #(
   logic [INFLIGHT_BITS-1:0] inflight_cnt;
 
   biucmd_t                  biucmd;
+  logic                     biucmd_ack;
   logic                     biucmd_noncacheable_req,
                             biucmd_noncacheable_ack;
   logic [PLEN         -1:0] biucmd_adr;

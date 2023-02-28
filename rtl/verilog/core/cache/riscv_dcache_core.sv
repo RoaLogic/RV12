@@ -220,6 +220,7 @@ module riscv_dcache_core #(
   logic [BLK_BITS     -1:0] cache_line;
 
 
+  logic                     evict_read;
   logic [PLEN         -1:0] evict_adr;
   logic [BLK_BITS     -1:0] evict_line;
 

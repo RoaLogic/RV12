@@ -231,6 +231,9 @@ module riscv_if #(
 
 
   //Parcel queue signals
+  logic                   parcel_misaligned;
+  logic                   parcel_page_fault;
+  logic                   parcel_error;
   logic                   parcel_queue_full;
   logic                   parcel_queue_empty;
 

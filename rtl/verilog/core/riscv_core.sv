@@ -155,7 +155,8 @@ module riscv_core #(
                              wb_insn,
                              dwb_insn;
 
-  logic                      bu_flush,
+  logic                      pd_flush,
+                             bu_flush,
                              st_flush,
                              du_flush,
                              bu_cacheflush;
