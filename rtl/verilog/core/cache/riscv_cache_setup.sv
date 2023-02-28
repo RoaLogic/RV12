@@ -27,10 +27,11 @@
 //                                                                 //
 /////////////////////////////////////////////////////////////////////
 
+
+module riscv_cache_setup
 import riscv_cache_pkg::*;
 import biu_constants_pkg::*;
-
-module riscv_cache_setup #(
+#(
   parameter                    XLEN          = 32,
   parameter                    SIZE          = 64,
   parameter                    BLOCK_SIZE    = XLEN,

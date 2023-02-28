@@ -27,10 +27,11 @@
 //                                                                 //
 /////////////////////////////////////////////////////////////////////
 
+
+module riscv_noicache_core
 import biu_constants_pkg::*;
 import riscv_state_pkg::*;
-
-module riscv_noicache_core #(
+#(
   parameter XLEN        = 32,
   parameter PLEN        = XLEN,
   parameter PARCEL_SIZE = 16,

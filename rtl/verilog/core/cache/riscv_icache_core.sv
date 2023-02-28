@@ -62,10 +62,11 @@
     64KB: 16
  */
 
+
+module riscv_icache_core
 import riscv_cache_pkg::*;
 import biu_constants_pkg::*;
-
-module riscv_icache_core #(
+#(
   parameter int    XLEN        = 32,
   parameter int    PLEN        = XLEN,
   parameter int    PARCEL_SIZE = XLEN,

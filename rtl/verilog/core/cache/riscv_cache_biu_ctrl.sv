@@ -28,10 +28,10 @@
 /////////////////////////////////////////////////////////////////////
 
 
+module riscv_cache_biu_ctrl
 import riscv_cache_pkg::*;
 import biu_constants_pkg::*;
-
-module riscv_cache_biu_ctrl #(
+#(
   parameter                        XLEN           = 32,
   parameter                        PLEN           = XLEN,
 
