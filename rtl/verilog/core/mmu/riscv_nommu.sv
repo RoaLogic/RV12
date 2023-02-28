@@ -27,9 +27,10 @@
 //                                                                 //
 /////////////////////////////////////////////////////////////////////
 
-import biu_constants_pkg::*;
 
-module riscv_nommu #(
+module riscv_nommu
+import biu_constants_pkg::*;
+#(
   parameter XLEN    = 32,
   parameter PLEN    = XLEN == 32 ? 34 : 56
 )
