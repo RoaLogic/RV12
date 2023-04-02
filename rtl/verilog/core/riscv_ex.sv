@@ -299,7 +299,7 @@ import biu_constants_pkg::*;
 
 
 generate
-  if (HAS_RVM)
+  if (HAS_RVM != 0)
   begin
       riscv_mul #(
         .XLEN         ( XLEN         ),
