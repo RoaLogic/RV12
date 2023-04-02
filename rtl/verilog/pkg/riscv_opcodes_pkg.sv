@@ -370,7 +370,7 @@ package riscv_opcodes_pkg;
 
   //decode CL-format immediate for C.LD/C.FLD
   function immI_t rvc_decode_immCLD(input rvc_instr_t instr);
-    rvc_decode_immCLD = {4'h0, instr.CL.pos6_5, instr.CL.pos12_10,3'h0};
+    rvc_decode_immCLD = {4'h0, instr.CL.pos6_5, instr.CL.pos12_10, 3'h0};
   endfunction
 
   //decode CL-format immediate for C.LQ
@@ -410,17 +410,17 @@ package riscv_opcodes_pkg;
 
   //decode CI-format immediate for C.LWSP/C.FLWSP
   function immI_t rvc_decode_immCIWSP(input rvc_instr_t instr);
-    rvc_decode_immCIWSP = {6'h0, instr.CI.pos6_2[3:2], instr.CI.pos12, instr.CI.pos6_2[6:4], 2'h0};
+    rvc_decode_immCIWSP = {4'h0, instr.CI.pos6_2[3:2], instr.CI.pos12, instr.CI.pos6_2[6:4], 2'h0};
   endfunction
 
   //decode CI-format immediate for C.LDSP/C.FLDSP
   function immI_t rvc_decode_immCIDSP(input rvc_instr_t instr);
-    rvc_decode_immCIDSP = {5'h0, instr.CI.pos6_2[4:2],instr.CI.pos12, instr.CI.pos6_2[6:5], 3'h0};
+    rvc_decode_immCIDSP = {3'h0, instr.CI.pos6_2[4:2],instr.CI.pos12, instr.CI.pos6_2[6:5], 3'h0};
   endfunction
 
   //decode CI-format immediate for C.LQSP
   function immI_t rvc_decode_immCIQSP(input rvc_instr_t instr);
-    rvc_decode_immCIQSP = {4'h0, instr.CI.pos6_2[5:2], instr.CI.pos12, instr.CI.pos6_2[2], 4'h0};
+    rvc_decode_immCIQSP = {2'h0, instr.CI.pos6_2[5:2], instr.CI.pos12, instr.CI.pos6_2[2], 4'h0};
   endfunction
 
   //decode CI-format sign-extended immediate
@@ -440,8 +440,8 @@ package riscv_opcodes_pkg;
 
   //decode CJ-format immediate
   function immUJ_t rvc_decode_immCJ(input rvc_instr_t instr);
-    rvc_decode_immCJ = {{10{instr.CJ.imm11}},instr.CJ.imm11, instr.CJ.imm10, instr.CJ.imm9_8, instr.CJ.imm7,
-                                             instr.CJ.imm6, instr.CJ.imm5, instr.CJ.imm4, instr.CJ.imm3_1, 1'b0};
+    rvc_decode_immCJ = {{9{instr.CJ.imm11}},instr.CJ.imm11, instr.CJ.imm10, instr.CJ.imm9_8, instr.CJ.imm7,
+                                            instr.CJ.imm6, instr.CJ.imm5, instr.CJ.imm4, instr.CJ.imm3_1, 1'b0};
   endfunction
 
   //decode CB-format immediate
@@ -451,7 +451,7 @@ package riscv_opcodes_pkg;
 
   //decode CIB-format immediate
   function immI_t rvc_decode_immCIB(input rvc_instr_t instr);
-    rvc_decode_immCIB = { {7{instr.CIB.imm5}}, instr.CIB.imm5, instr.CIB.imm4_0};
+    rvc_decode_immCIB = { {6{instr.CIB.imm5}}, instr.CIB.imm5, instr.CIB.imm4_0};
   endfunction
 
 
