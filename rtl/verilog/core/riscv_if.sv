@@ -27,10 +27,11 @@
 //                                                                 //
 /////////////////////////////////////////////////////////////////////
 
+
+module riscv_if
 import riscv_opcodes_pkg::*;
 import riscv_state_pkg::*;
-
-module riscv_if #(
+#(
   parameter                           XLEN           = 32,
   parameter    [XLEN            -1:0] PC_INIT        = 'h200,
   parameter                           HAS_RVC        = 0,
@@ -231,6 +232,9 @@ module riscv_if #(
 
 
   //Parcel queue signals
+  logic                   parcel_misaligned;
+  logic                   parcel_page_fault;
+  logic                   parcel_error;
   logic                   parcel_queue_full;
   logic                   parcel_queue_empty;
 

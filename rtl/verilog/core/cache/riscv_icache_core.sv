@@ -62,10 +62,11 @@
     64KB: 16
  */
 
+
+module riscv_icache_core
 import riscv_cache_pkg::*;
 import biu_constants_pkg::*;
-
-module riscv_icache_core #(
+#(
   parameter int    XLEN        = 32,
   parameter int    PLEN        = XLEN,
   parameter int    PARCEL_SIZE = XLEN,
@@ -200,6 +201,7 @@ module riscv_icache_core #(
   logic [INFLIGHT_BITS-1:0] inflight_cnt;
 
   biucmd_t                  biucmd;
+  logic                     biucmd_ack;
   logic                     biucmd_noncacheable_req,
                             biucmd_noncacheable_ack;
   logic [PLEN         -1:0] biucmd_adr;

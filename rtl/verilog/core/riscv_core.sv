@@ -27,12 +27,12 @@
 //                                                                 //
 /////////////////////////////////////////////////////////////////////
 
+module riscv_core
 import riscv_du_pkg::*;
 import riscv_state_pkg::*;
 import riscv_opcodes_pkg::*;
 import biu_constants_pkg::*;
-
-module riscv_core #(
+#(
   parameter int        XLEN                  = 32,
   parameter [XLEN-1:0] PC_INIT               = 'h200,
   parameter int        HAS_USER              = 0,
@@ -42,8 +42,12 @@ module riscv_core #(
   parameter int        HAS_FPU               = 0,
   parameter int        HAS_MMU               = 0,
   parameter int        HAS_RVA               = 0,
-  parameter int        HAS_RVM               = 0,
+  parameter int        HAS_RVB               = 0,
   parameter int        HAS_RVC               = 0,
+  parameter int        HAS_RVM               = 0,
+  parameter int        HAS_RVN               = 0,
+  parameter int        HAS_RVP               = 0,
+  parameter int        HAS_RVT               = 0,
   parameter int        IS_RV32E              = 0,
 
   parameter int        RF_REGOUT             = 1,
@@ -155,7 +159,8 @@ module riscv_core #(
                              wb_insn,
                              dwb_insn;
 
-  logic                      bu_flush,
+  logic                      pd_flush,
+                             bu_flush,
                              st_flush,
                              du_flush,
                              bu_cacheflush;
@@ -680,8 +685,16 @@ endgenerate
   riscv_state1_10 #(
     .XLEN                  ( XLEN                  ),
     .PC_INIT               ( PC_INIT               ),
+    .IS_RV32E              ( IS_RV32E              ),
+
+    .HAS_RVA               ( HAS_RVA               ),
+    .HAS_RVB               ( HAS_RVB               ),
+    .HAS_RVC               ( HAS_RVC               ),
     .HAS_FPU               ( HAS_FPU               ),
     .HAS_MMU               ( HAS_MMU               ),
+    .HAS_RVN               ( HAS_RVN               ),
+    .HAS_RVP               ( HAS_RVP               ),
+    .HAS_RVT               ( HAS_RVT               ),
     .HAS_USER              ( HAS_USER              ),
     .HAS_SUPER             ( HAS_SUPER             ),
     .HAS_HYPER             ( HAS_HYPER             ),

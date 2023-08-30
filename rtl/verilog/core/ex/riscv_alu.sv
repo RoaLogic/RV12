@@ -27,10 +27,11 @@
 //                                                                 //
 /////////////////////////////////////////////////////////////////////
 
+
+module riscv_alu
 import riscv_opcodes_pkg::*;
 import riscv_state_pkg::*;
-
-module riscv_alu #(
+#(
   parameter             XLEN    = 32,
   parameter             HAS_RVC = 0
 )

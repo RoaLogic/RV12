@@ -35,9 +35,9 @@
  */
 
 
+module riscv_cache_memory
 import riscv_cache_pkg::*;
-
-module riscv_cache_memory #(
+#(
   parameter XLEN          = 32,
   parameter PLEN          = XLEN == 32 ? 34 : 56,
   parameter SIZE          = 4,

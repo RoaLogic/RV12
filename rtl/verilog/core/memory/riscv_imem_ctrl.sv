@@ -28,11 +28,11 @@
 /////////////////////////////////////////////////////////////////////
 
 
+module riscv_imem_ctrl
 import riscv_state_pkg::*;
 import riscv_pma_pkg::*;
 import biu_constants_pkg::*;
-
-module riscv_imem_ctrl #(
+#(
   parameter int    XLEN             = 32,
   parameter int    PLEN             = XLEN==32 ? 34 : 56,
   parameter int    PARCEL_SIZE      = 32,
@@ -198,7 +198,7 @@ generate
         .clk_i         ( clk_i      ),
         .stall_i       ( stall      ),
         .instruction_i ( 1'b1       ), //instruction access
-        .adr_i         ( mmu_adr    ),
+        .adr_i         ( mmu_adr    ), //physical address (i.e. after translation)
         .size_i        ( mmu_size   ),
         .misaligned_o  ( misaligned ) );
 
@@ -264,7 +264,7 @@ generate
         .st_prv_i      ( st_prv_i      ),
 
         .instruction_i ( 1'b1          ),  //Instruction access
-        .adr_i         ( mmu_adr_i     ),  //Physical Memory address (i.e. after translation)
+        .adr_i         ( mmu_adr       ),  //Physical Memory address (i.e. after translation)
         .size_i        ( size          ),  //Transfer size
         .we_i          ( 1'b0          ),  //Read/Write enable
 

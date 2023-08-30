@@ -28,13 +28,13 @@
 /////////////////////////////////////////////////////////////////////
 
 
+module riscv_top_ahb3lite
 import riscv_state_pkg::*;
 import riscv_pma_pkg::*;
 import riscv_du_pkg::*;
 import biu_constants_pkg::*;
 import ahb3lite_pkg::*;
-
-module riscv_top_ahb3lite #(
+#(
   parameter int        XLEN               = 32,     //CPU data size
   parameter int        ALEN               = XLEN,   //CPU Address Space size
   parameter [XLEN-1:0] PC_INIT            = 'h200,
@@ -162,6 +162,7 @@ module riscv_top_ahb3lite #(
   logic                                 dmem_req;
   logic          [XLEN            -1:0] dmem_adr;
   biu_size_t                            dmem_size;
+  logic                                 dmem_lock;
   logic                                 dmem_we;
   logic          [XLEN            -1:0] dmem_d,
                                         dmem_q;

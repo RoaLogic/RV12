@@ -27,11 +27,11 @@
 //                                                                 //
 /////////////////////////////////////////////////////////////////////
 
+
+module riscv_nodcache_core
 import biu_constants_pkg::*;
 import riscv_state_pkg::*;
-
-
-module riscv_nodcache_core #(
+#(
   parameter XLEN        = 32,
   parameter ALEN        = XLEN,
   parameter DEPTH       = 2 

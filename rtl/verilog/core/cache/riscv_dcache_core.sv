@@ -62,10 +62,11 @@
     64KB: 16
  */
 
+
+module riscv_dcache_core
 import riscv_cache_pkg::*;
 import biu_constants_pkg::*;
-
-module riscv_dcache_core #(
+#(
   parameter                       XLEN        = 32,
   parameter                       PLEN        = XLEN,
 
@@ -220,6 +221,7 @@ module riscv_dcache_core #(
   logic [BLK_BITS     -1:0] cache_line;
 
 
+  logic                     evict_read;
   logic [PLEN         -1:0] evict_adr;
   logic [BLK_BITS     -1:0] evict_line;
 

@@ -27,11 +27,12 @@
 //                                                                 //
 /////////////////////////////////////////////////////////////////////
 
-import riscv_opcodes_pkg::*;
-import riscv_state_pkg::*;
 
 //Simply delay WriteBack output for Bypass purposes
-module riscv_dwb #(
+module riscv_dwb
+import riscv_opcodes_pkg::*;
+import riscv_state_pkg::*;
+#(
   parameter            XLEN    = 32,
   parameter [XLEN-1:0] PC_INIT = 'h200
 )

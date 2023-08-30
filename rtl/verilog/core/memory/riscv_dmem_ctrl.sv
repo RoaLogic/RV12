@@ -28,11 +28,11 @@
 /////////////////////////////////////////////////////////////////////
 
 
+module riscv_dmem_ctrl
 import riscv_state_pkg::*;
 import riscv_pma_pkg::*;
 import biu_constants_pkg::*;
-
-module riscv_dmem_ctrl #(
+#(
   parameter XLEN              = 32,
   parameter PLEN              = XLEN==32 ? 34 : 56,
 

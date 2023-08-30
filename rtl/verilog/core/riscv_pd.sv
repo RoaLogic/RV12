@@ -27,10 +27,10 @@
 //                                                                 //
 /////////////////////////////////////////////////////////////////////
 
+module riscv_pd
 import riscv_opcodes_pkg::*;
 import riscv_state_pkg::*;
-
-module riscv_pd #(
+#(
   parameter                       XLEN           = 32,
   parameter  [XLEN          -1:0] PC_INIT        = 'h200,
   parameter                       HAS_RVC        = 0,

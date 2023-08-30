@@ -27,25 +27,26 @@
 //                                                                 //
 /////////////////////////////////////////////////////////////////////
 
+
+module riscv_state1_10
 import riscv_rv12_pkg::*;
 import riscv_opcodes_pkg::*;
 import riscv_state_pkg::*;
-
-module riscv_state1_10 #(
+#(
   parameter            XLEN            = 32,
   parameter            FLEN            = 64,    // Floating Point Data length
   parameter [XLEN-1:0] PC_INIT         = 'h200,
 
   parameter            IS_RV32E        = 0,
-  parameter            HAS_RVN         = 0,
-  parameter            HAS_RVC         = 0,
   parameter            HAS_FPU         = 0,
   parameter            HAS_MMU         = 0,
-  parameter            HAS_RVM         = 0,
   parameter            HAS_RVA         = 0,
   parameter            HAS_RVB         = 0,
-  parameter            HAS_RVT         = 0,
+  parameter            HAS_RVC         = 0,
+  parameter            HAS_RVM         = 0,
+  parameter            HAS_RVN         = 0,
   parameter            HAS_RVP         = 0,
+  parameter            HAS_RVT         = 0,
   parameter            HAS_EXT         = 0,
 
   parameter            HAS_USER        = 1,
