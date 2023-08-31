@@ -192,7 +192,7 @@ import riscv_state_pkg::*;
                                           ? 1'b1
                                           : 1'b0;
 
-      {3'b???,C_ADDI4SPN}: rvc_is_illegal = (parcel == 16'h0)                          //All zeros is defined illegal
+      {3'b???,C_ADDI4SPN}: rvc_is_illegal = (parcel[12:5] == 5'h0)                     //nzuimm=0 is illegal
                                           ? 1'b1
                                           : 1'b0;
 
