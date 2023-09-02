@@ -143,10 +143,12 @@ package riscv_opcodes_pkg;
   
   //Instruction type = bubble + joined instruction formats
   typedef struct packed {
-    logic   dbg;
+    logic       dbg;     //CPU debug in progress
 
-    logic   bubble;
-    instr_t instr;
+    logic       bubble;  //pipeline bubble
+    logic       retired; //number of retired instrucions
+                         //[1:0] for macro-fusion
+    instr_t     instr;   //instruction
   } instruction_t;
 
 
