@@ -130,6 +130,7 @@ import biu_constants_pkg::*;
   //Pipeline Bubbles
   logic                      alu_bubble,
                              lsu_bubble,
+                             bu_bubble,
                              mul_bubble,
                              div_bubble;
 
@@ -271,6 +272,8 @@ import biu_constants_pkg::*;
     .ex_stall_i             ( ex_stall_o             ),
     .st_flush_i             ( st_flush_i             ),
 
+    .bu_bubble_o            ( bu_bubble              ),
+
     .id_pc_i                ( id_pc_i                ),
     .id_insn_i              ( id_insn_i              ),
     .id_rsb_pc_i            ( id_rsb_pc_i            ),
@@ -360,8 +363,10 @@ endgenerate
    * Combine outputs into 1 single EX output
    */
 
-  assign ex_insn_o.bubble = alu_bubble & lsu_bubble & mul_bubble & div_bubble;
-  assign ex_stall_o       = mem_stall_i | lsu_stall | mul_stall | div_stall;
+  assign ex_insn_o.bubble  =   alu_bubble & lsu_bubble & mul_bubble & div_bubble;
+  assign ex_insn_o.retired = ~(alu_bubble & lsu_bubble & bu_bubble & mul_bubble & div_bubble);
+  assign ex_stall_o        =   mem_stall_i | lsu_stall | mul_stall | div_stall;
+
 
   //result
   always_comb
