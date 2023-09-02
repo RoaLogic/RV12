@@ -115,6 +115,18 @@ import riscv_state_pkg::*;
     else if (!wb_stall_o) wb_insn_o.dbg <= mem_insn_i.dbg;
 
 
+  always @(posedge clk_i, negedge rst_ni)
+    if      (!rst_ni             ) wb_insn_o.bubble <= 1'b1;
+    else if ( wb_exceptions_o.any) wb_insn_o.bubble <= 1'b1;
+    else if (!wb_stall_o         ) wb_insn_o.bubble <= mem_insn_i.bubble;
+
+
+  always @(posedge clk_i, negedge rst_ni)
+    if      (!rst_ni    ) wb_insn_o.retired <= 'h0;
+    else if ( wb_stall_o) wb_insn_o.retired <= 'h0;
+    else                  wb_insn_o.retired <= mem_insn_i.retired;
+
+
   assign opcR = decode_opcR(mem_insn_i.instr);
   assign dst  = decode_rd(mem_insn_i.instr);
 
@@ -244,13 +256,6 @@ endgenerate
 //      OPC_SYSTEM  : wb_we <= 'b0;
       default     : wb_we_o <= ~mem_insn_i.bubble & |dst;
     endcase
-
-
-  // Write Back Bubble
-  always @(posedge clk_i, negedge rst_ni)
-    if      (!rst_ni             ) wb_insn_o.bubble <= 1'b1;
-    else if ( wb_exceptions_o.any) wb_insn_o.bubble <= 1'b1;
-    else if (!wb_stall_o         ) wb_insn_o.bubble <= mem_insn_i.bubble;
 
 endmodule
 
