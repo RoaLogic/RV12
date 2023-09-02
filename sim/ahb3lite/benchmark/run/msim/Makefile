@@ -61,9 +61,9 @@ simw: vlog
 	echo "--- Running sim with waveform dump"
 	vsim $(SIM_OPTS) 										\
 	  -l $(LOG) $(TOP)										\
-	  +access +r -wlf $(TOP).wlf									\
+	  -voptargs=+acc +access +r -wlf $(TOP).wlf									\
 	  -do "set WildcardFilter [lsearch -not -all -inline $$WildcardFilter Memory];			\
-               log -r /$(TOP)/*;									\
+               log -r -rec /$(TOP)/*;									\
 	       log /$(TOP)/dut/core/mem_pc;								\
 	       log /$(TOP)/dut/core/mem_insn;								\
 	       log /$(TOP)/dut/core/mem_exceptions;							\
