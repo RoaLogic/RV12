@@ -122,9 +122,10 @@ import riscv_state_pkg::*;
 
 
   always @(posedge clk_i, negedge rst_ni)
-    if      (!rst_ni    ) wb_insn_o.retired <= 'h0;
-    else if ( wb_stall_o) wb_insn_o.retired <= 'h0;
-    else                  wb_insn_o.retired <= mem_insn_i.retired;
+    if      (!rst_ni             ) wb_insn_o.retired <= 'h0;
+    else if ( wb_exceptions_o.any) wb_insn_o.retired <= 'h0;
+    else if ( wb_stall_o         ) wb_insn_o.retired <= 'h0;
+    else                           wb_insn_o.retired <= mem_insn_i.retired;
 
 
   assign opcR = decode_opcR(mem_insn_i.instr);
