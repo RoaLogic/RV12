@@ -312,10 +312,16 @@ import riscv_state_pkg::*;
    * Program Counter modifications (Branches/JALR)
    */
   always @(posedge clk_i, negedge rst_ni)
+    if      (!rst_ni                ) bu_bubble_o <= 1'b1;
+    else if ( ex_exceptions_i.any  ||
+              mem_exceptions_i.any ||
+              wb_exceptions_i.any   ) bu_bubble_o <= 1'b1;
+    else if (!ex_stall_i            ) bu_bubble_o <= bu_bubble;
+
+
+  always @(posedge clk_i, negedge rst_ni)
     if (!rst_ni)
     begin
-        bu_bubble_o               <= 1'b1;
-
         bu_flush_o                <= 1'b1;
 	cm_ic_invalidate_o        <= 1'b0;
 	cm_dc_invalidate_o        <= 1'b0;
@@ -329,8 +335,6 @@ import riscv_state_pkg::*;
     end
     else
     begin
-        bu_bubble_o               <= bu_bubble;
-
         bu_flush_o                <= (pipeflush === 1'b1);
         cm_ic_invalidate_o        <= ic_invalidate;
         cm_dc_invalidate_o        <= dc_invalidate;
