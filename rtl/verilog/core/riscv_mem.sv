@@ -103,8 +103,7 @@ import riscv_state_pkg::*;
   always @(posedge clk_i, negedge rst_ni)
     if      (!rst_ni                 ) mem_insn_o.retired <= 'h0;
     else if ( mem_exceptions_up_i.any) mem_insn_o.retired <= 'h0;
-    else if ( mem_stall_i            ) mem_insn_o.retired <= 'h0;
-    else                               mem_insn_o.retired <= mem_insn_i.retired;
+    else if (!mem_stall_i            ) mem_insn_o.retired <= mem_insn_i.retired;
 
 
   /*
