@@ -31,16 +31,13 @@
 module riscv_memmisaligned
 import biu_constants_pkg::*;
 #(
-  parameter PLEN    = 32,
+  parameter XLEN    = 32,
   parameter HAS_RVC = 0
 )
 (
-  input  logic              clk_i,
-  input  logic              stall_i,
-
   //CPU side
   input  logic              instruction_i,
-  input  logic [PLEN  -1:0] adr_i,
+  input  logic [XLEN  -1:0] adr_i,
   input  biu_size_t         size_i,
 
   //To memory subsystem
@@ -50,17 +47,16 @@ import biu_constants_pkg::*;
   //
   // Module Body
   //
-  always @(posedge clk_i)
-    if (!stall_i)
-      if (instruction_i)
-        misaligned_o = (HAS_RVC != 0) ? adr_i[0] : |adr_i[1:0];
-      else
-        unique case (size_i)
-          BYTE   : misaligned_o = 1'b0;
-          HWORD  : misaligned_o =  adr_i[  0];
-          WORD   : misaligned_o = |adr_i[1:0];
-          DWORD  : misaligned_o = |adr_i[2:0];
-          default: misaligned_o = 1'b1;
-        endcase
+  always_comb
+    if (instruction_i)
+      misaligned_o = (HAS_RVC != 0) ? adr_i[0] : |adr_i[1:0];
+    else
+      unique case (size_i)
+        BYTE   : misaligned_o = 1'b0;
+        HWORD  : misaligned_o =  adr_i[  0];
+        WORD   : misaligned_o = |adr_i[1:0];
+        DWORD  : misaligned_o = |adr_i[2:0];
+        default: misaligned_o = 1'b1;
+      endcase
 endmodule
 
