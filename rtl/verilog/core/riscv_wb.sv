@@ -167,7 +167,7 @@ import riscv_state_pkg::*;
              exceptions.exceptions.breakpoint         )
       wb_badaddr_o <= mem_memadr_i;
     else if (exceptions.exceptions.illegal_instruction)
-      wb_badaddr_o <= mem_insn_i.instr[0 +: XLEN];
+      wb_badaddr_o <= { {XLEN-$bits(mem_insn_i.instr){1'b0}}, mem_insn_i.instr};
     else
       wb_badaddr_o <= {XLEN{1'b0}}; //mem_pc_i;
 
