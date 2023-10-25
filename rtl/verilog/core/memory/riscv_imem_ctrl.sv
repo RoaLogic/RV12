@@ -112,31 +112,29 @@ import biu_constants_pkg::*;
 
   logic            stall;
 
- 
   //Transfer parameters
   biu_size_t       size;
   biu_prot_t       prot;
   logic            lock;
 
- 
   //MMU
   logic            mmu_req;
   logic [PLEN-1:0] mmu_adr;
   biu_size_t       mmu_size;
   logic            mmu_lock;
   logic            mmu_we;
+  logic            mmu_misaligned;
   logic            mmu_pagefault;
 
+  logic            mmu_cm_invalidate;
 
   //Misalignment check
-  logic            misaligned;
- 
+  logic            mem_misaligned;
 
   //from PMA check
   logic            pma_exception,
                    pma_misaligned;
   logic            pma_cacheable;
-
 
   //from PMP check
   logic            pmp_exception;
@@ -151,7 +149,18 @@ import biu_constants_pkg::*;
 	                                (st_prv_i == PRV_U ? PROT_USER : PROT_PRIVILEGED) );
   assign lock            = 1'b0; //no locked instruction accesses
 
-  
+  /* Hookup misalinged block
+   */
+  riscv_memmisaligned #(
+    .XLEN          ( XLEN           ),
+    .HAS_RVC       ( HAS_RVC        ) )
+  misaligned_inst (
+    .instruction_i ( 1'b1           ), //instruction access
+    .adr_i         ( mem_adr_i      ), //virtual address
+    .size_i        ( size           ),
+    .misaligned_o  ( mem_misaligned ) );
+
+
   /* Hookup Cache
    */
 generate
@@ -165,42 +174,36 @@ generate
       else
       begin : nommu_blk
           riscv_nommu #(
-            .XLEN        ( XLEN          ),
-            .PLEN        ( PLEN          ) )
+            .XLEN            ( XLEN              ),
+            .PLEN            ( PLEN              ) )
           mmu_inst (
-            .rst_ni      ( rst_ni        ),
-            .clk_i       ( clk_i         ),
-            .stall_i     ( stall         ),
+            .rst_ni          ( rst_ni            ),
+            .clk_i           ( clk_i             ),
+            .stall_i         ( stall             ),
 
-            .flush_i     ( mem_flush_i   ),
-            .req_i       ( mem_req_i     ),
-            .adr_i       ( mem_adr_i     ), //virtual address
-            .size_i      ( size          ),
-            .lock_i      ( lock          ),
-            .we_i        ( 1'b0          ),
+            .flush_i         ( mem_flush_i       ),
+            .req_i           ( mem_req_i         ),
+            .adr_i           ( mem_adr_i         ), //virtual address
+            .size_i          ( size              ),
+            .lock_i          ( lock              ),
+            .we_i            ( 1'b0              ),
+            .misaligned_i    ( mem_misaligned    ),
 
-            .req_o       ( mmu_req       ),
-            .adr_o       ( mmu_adr       ), //physical address
-            .size_o      ( mmu_size      ),
-            .lock_o      ( mmu_lock      ),
-            .we_o        (               ),
+            .cm_clean_i      ( 1'b0              ),
+            .cm_invalidate_i ( cm_invalidate_i   ),
 
-            .pagefault_o ( mmu_pagefault ) );
+            .req_o           ( mmu_req           ),
+            .adr_o           ( mmu_adr           ), //physical address
+            .size_o          ( mmu_size          ),
+            .lock_o          ( mmu_lock          ),
+            .we_o            (                   ),
+            .misaligned_o    ( mmu_misaligned    ),
+
+            .cm_clean_o      (                   ),
+            .cm_invalidate_o ( mmu_cm_invalidate ),
+
+            .pagefault_o     ( mmu_pagefault     ) );
       end
-
-
-      /* Hookup misalignment check
-       */
-      riscv_memmisaligned #(
-        .PLEN          ( PLEN       ),
-        .HAS_RVC       ( HAS_RVC    ) )
-      misaligned_inst (
-        .clk_i         ( clk_i      ),
-        .stall_i       ( stall      ),
-        .instruction_i ( 1'b1       ), //instruction access
-        .adr_i         ( mmu_adr    ), //physical address (i.e. after translation)
-        .size_i        ( mmu_size   ),
-        .misaligned_o  ( misaligned ) );
 
 
       /* Hookup Physical Memory Attributes Unit
@@ -221,7 +224,7 @@ generate
             .pma_adr_i      ( pma_adr_i      ),
 
             //misaligned
-            .misaligned_i   ( misaligned     ),
+            .misaligned_i   ( mmu_misaligned ),
 
             //Memory Access
             .instruction_i  ( 1'b1           ), //Instruction access
@@ -243,7 +246,7 @@ generate
 
           // pma_misaligned is registered
           always @(posedge clk_i)
-            if (!stall) pma_misaligned <= misaligned;
+            if (!stall) pma_misaligned <= mmu_misaligned;
       end
 
 

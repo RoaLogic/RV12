@@ -123,6 +123,7 @@ import biu_constants_pkg::*;
   biu_prot_t       queue_prot;
   logic            queue_we;
   logic [XLEN-1:0] queue_d;
+  logic            queue_misaligned;
 
   logic            queue_cm_clean;
   logic            queue_cm_invalidate;
@@ -134,14 +135,14 @@ import biu_constants_pkg::*;
   biu_size_t       mmu_size;
   logic            mmu_lock;
   logic            mmu_we;
+  logic            mmu_misaligned;
   logic            mmu_pagefault;
 
   logic            mmu_cm_clean;
   logic            mmu_cm_invalidate;
 
   //Misalignment check
-  logic            misaligned;
-  
+  logic            mem_misaligned;
 
   //from PMA check
   logic            pma_exception,
@@ -165,9 +166,19 @@ import biu_constants_pkg::*;
   assign prot             = biu_prot_t'( PROT_DATA                                        |
 	                                (st_prv_i == PRV_U ? PROT_USER : PROT_PRIVILEGED) );
 
+  /* Hookup misaligned check
+   */
+  riscv_memmisaligned #(
+    .XLEN          ( XLEN           ),
+    .HAS_RVC       ( HAS_RVC        ) )
+  misaligned_inst (
+    .instruction_i ( 1'b0           ), //data access
+    .adr_i         ( mem_adr_i      ), //virtual address
+    .size_i        ( mem_size_i     ),
+    .misaligned_o  ( mem_misaligned ) );
+
 
   /* Hookup buffer
-   * Is this necessary in case of nodcache?
    */
   riscv_membuf #(
     .DEPTH           ( 2                   ),
@@ -186,6 +197,7 @@ import biu_constants_pkg::*;
     .prot_i          ( prot                ),
     .we_i            ( mem_we_i            ),
     .d_i             ( mem_d_i             ),
+    .misaligned_i    ( mem_misaligned      ),
 
     .cm_clean_i      ( cm_clean_i          ),
     .cm_invalidate_i ( cm_invalidate_i     ),
@@ -202,6 +214,7 @@ import biu_constants_pkg::*;
     .prot_o          ( queue_prot          ),
     .we_o            ( queue_we            ),
     .q_o             ( queue_d             ),
+    .misaligned_o    ( queue_misaligned    ),
 
     .cm_clean_o      ( queue_cm_clean      ),
     .cm_invalidate_o ( queue_cm_invalidate ),
@@ -237,6 +250,7 @@ generate
             .size_i          ( queue_size          ),
             .lock_i          ( queue_lock          ),
             .we_i            ( queue_we            ),
+            .misaligned_i    ( queue_misaligned    ),
 
             .cm_clean_i      ( queue_cm_clean      ),
             .cm_invalidate_i ( queue_cm_invalidate ),
@@ -246,26 +260,13 @@ generate
             .size_o          ( mmu_size            ),
             .lock_o          ( mmu_lock            ),
             .we_o            ( mmu_we              ),
+            .misaligned_o    ( mmu_misaligned      ),
 
             .cm_clean_o      ( mmu_cm_clean        ),
             .cm_invalidate_o ( mmu_cm_invalidate   ),
 
             .pagefault_o     ( mmu_pagefault       ) );
       end
-
-
-      /* Hookup misalignment check
-       */
-      riscv_memmisaligned #(
-        .PLEN          ( PLEN       ),
-        .HAS_RVC       ( HAS_RVC    ) )
-      misaligned_inst (
-        .clk_i         ( clk_i      ),
-        .stall_i       ( stall      ),
-        .instruction_i ( 1'b0       ), //data access
-        .adr_i         ( mmu_adr    ), //virtual address
-        .size_i        ( mmu_size   ),
-        .misaligned_o  ( misaligned ) );
 
 
       /* Hookup Physical Memory Attribute Unit
@@ -285,15 +286,13 @@ generate
             .pma_cfg_i     ( pma_cfg_i      ),
             .pma_adr_i     ( pma_adr_i      ),
 
-            //misaligned
-            .misaligned_i  ( misaligned     ),
-
             //Memory Access
             .instruction_i ( 1'b0           ), //data access
             .adr_i         ( mmu_adr        ), //physical address
             .size_i        ( mmu_size       ),
             .lock_i        ( mmu_lock       ),
             .we_i          ( mmu_we         ),
+            .misaligned_i  ( mmu_misaligned ),
 
             //Output
             .exception_o   ( pma_exception  ),
@@ -306,9 +305,9 @@ generate
           assign pma_cacheable = 1'b1; //Afterall, we do have a cache ...
           assign pma_exception = 1'b0;
 
-          // pma_misaligned is registered
+          // pma_misaligned is delayed 1 cycle
           always @(posedge clk_i)
-            if (!stall) pma_misaligned <= misaligned;
+            if (!stall) pma_misaligned <= mmu_misaligned;
       end
 
 
@@ -343,7 +342,7 @@ generate
       end
 
 
-      /* Instantiate Instruction Cache Core
+      /* Instantiate Data Cache Core
        */
       riscv_dcache_core #(
         .XLEN              ( XLEN              ),
@@ -361,7 +360,7 @@ generate
 	.stall_o           ( stall             ),
 
         //from MMU
-        .phys_adr_i        ( mmu_adr           ),
+        .phys_adr_i        ( mmu_adr           ), //physical address
         .pagefault_i       ( mmu_pagefault     ),
 
         //from PMA
@@ -419,7 +418,8 @@ generate
        */
       riscv_nodcache_core #(
         .XLEN             ( XLEN             ),
-        .ALEN             ( PLEN             ) )
+        .ALEN             ( PLEN             ),
+        .DEPTH            ( 2                ) )
       nodcache_core_inst (
         //common signals
         .rst_ni           ( rst_ni           ),
@@ -429,6 +429,7 @@ generate
         .mem_req_i        ( mem_req_i        ),
         .mem_size_i       ( mem_size_i       ),
         .mem_lock_i       ( mem_lock_i       ),
+        .mem_misaligned_i ( mem_misaligned   ),
         .mem_adr_i        ( mem_adr_i        ),
         .mem_we_i         ( mem_we_i         ),
         .mem_d_i          ( mem_d_i          ),
