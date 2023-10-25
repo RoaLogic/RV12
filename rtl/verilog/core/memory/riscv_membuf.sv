@@ -52,6 +52,7 @@ import biu_constants_pkg::*;
   input  biu_prot_t        prot_i,
   input  logic             we_i,
   input  logic [XLEN -1:0] d_i,
+  input  logic             misaligned_i,
 
   input  logic             cm_clean_i,
   input  logic             cm_invalidate_i,
@@ -65,6 +66,7 @@ import biu_constants_pkg::*;
   output biu_prot_t        prot_o,
   output logic             we_o,
   output logic [XLEN -1:0] q_o,
+  output logic             misaligned_o,
 
   output logic             cm_clean_o,
   output logic             cm_invalidate_o,
@@ -85,6 +87,7 @@ import biu_constants_pkg::*;
     biu_prot_t        prot;
     logic             we;
     logic [XLEN -1:0] d;
+    logic             misaligned;
 
     logic             cm_clean;
     logic             cm_invalidate;
@@ -116,6 +119,7 @@ import biu_constants_pkg::*;
   assign queue_d.prot          = prot_i;
   assign queue_d.we            = we_i;
   assign queue_d.d             = d_i;
+  assign queue_d.misaligned    = misaligned_i;
   assign queue_d.cm_clean      = cm_clean_i;
   assign queue_d.cm_invalidate = cm_invalidate_i;
 
@@ -166,6 +170,7 @@ import biu_constants_pkg::*;
   assign prot_o          = empty_o ? prot_i          : queue_q.prot;
   assign we_o            = empty_o ? we_i            : queue_q.we;
   assign q_o             = empty_o ? d_i             : queue_q.d;
+  assign misaligned_o    = empty_o ? misaligned_i    : queue_q.misaligned;
   assign cm_clean_o      = empty_o ? cm_clean_i      : queue_q.cm_clean;
   assign cm_invalidate_o = empty_o ? cm_invalidate_i : queue_q.cm_invalidate;
 endmodule
