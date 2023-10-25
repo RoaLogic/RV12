@@ -46,6 +46,7 @@ import biu_constants_pkg::*;
   input  biu_size_t       size_i,
   input                   lock_i,
   input  logic            we_i,
+  input  logic            misaligned_i,
 
   input  logic            cm_clean_i,
   input  logic            cm_invalidate_i,
@@ -56,6 +57,7 @@ import biu_constants_pkg::*;
   output biu_size_t       size_o,
   output logic            lock_o,
   output logic            we_o,
+  output logic            misaligned_o,
 
   output logic            cm_clean_o,
   output logic            cm_invalidate_o,
@@ -94,6 +96,7 @@ import biu_constants_pkg::*;
         size_o          <= size_i;
         lock_o          <= lock_i;
         we_o            <= we_i;
+        misaligned_o    <= misaligned_i;
 
 	cm_clean_o      <= cm_clean_i;
 	cm_invalidate_o <= cm_invalidate_i;
