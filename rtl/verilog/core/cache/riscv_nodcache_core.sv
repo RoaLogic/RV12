@@ -44,6 +44,7 @@ import riscv_state_pkg::*;
   input                  mem_req_i,
   input  biu_size_t      mem_size_i,
   input                  mem_lock_i,
+  input                  mem_misaligned_i,
   input      [XLEN -1:0] mem_adr_i,
   input                  mem_we_i,
   input      [XLEN -1:0] mem_d_i,
@@ -77,9 +78,8 @@ import riscv_state_pkg::*;
   //
   genvar                  n;
 
-  logic [DEPTH      -1:0] misaligned;
-
   logic                   hold_mem_req;
+  logic                   hold_mem_misaligned;
   logic [XLEN       -1:0] hold_mem_adr;
   logic [XLEN       -1:0] hold_mem_d;
   biu_size_t              hold_mem_size;
@@ -97,45 +97,24 @@ import riscv_state_pkg::*;
   //
 
 
-  /* Misaligned
-   */
-  always_comb
-    unique case (mem_size_i)
-      BYTE   : misaligned[0] = mem_req_i & 1'b0;
-      HWORD  : misaligned[0] = mem_req_i &  mem_adr_i[  0];
-      WORD   : misaligned[0] = mem_req_i & |mem_adr_i[1:0];
-      DWORD  : misaligned[0] = mem_req_i & |mem_adr_i[2:0];
-      default: misaligned[0] = mem_req_i & 1'b1;
-    endcase
-
-generate
-  for (n=1; n < DEPTH; n++)
-    always @(posedge clk_i, negedge rst_ni)
-      if (!rst_ni) misaligned[n] <= 1'b0;
-      else         misaligned[n] <= misaligned[n-1];
-endgenerate
-
-  always @(posedge clk_i)
-    mem_misaligned_o <= misaligned[DEPTH-1];
-
-
   /* Statemachine
    */
   always @(posedge clk_i)
     if (mem_req_i)
     begin
-        hold_mem_adr  <= mem_adr_i;
-        hold_mem_size <= mem_size_i;
-        hold_mem_lock <= mem_lock_i;
-        hold_mem_we   <= mem_we_i;
-        hold_mem_d    <= mem_d_i;
+        hold_mem_misaligned <= mem_misaligned_i;
+        hold_mem_adr        <= mem_adr_i;
+        hold_mem_size       <= mem_size_i;
+        hold_mem_lock       <= mem_lock_i;
+        hold_mem_we         <= mem_we_i;
+        hold_mem_d          <= mem_d_i;
     end
 
 
   always @(posedge clk_i)
-    if      (!rst_ni                    ) hold_mem_req <= 1'b0;
-    else if ( misaligned[0] || mem_err_o) hold_mem_req <= 1'b0;
-    else                                  hold_mem_req <= (mem_req_i | hold_mem_req) & ~biu_stb_ack_i;
+    if      (!rst_ni                       ) hold_mem_req <= 1'b0;
+    else if ( mem_misaligned_o || mem_err_o) hold_mem_req <= 1'b0;
+    else                                     hold_mem_req <= (mem_req_i | hold_mem_req) & ~biu_stb_ack_i;
 
 
   always @(posedge clk_i, negedge rst_ni)
@@ -150,7 +129,7 @@ endgenerate
 
   always @(posedge clk_i, negedge rst_ni)
     if (!rst_ni) discard <= 'h0;
-    else if (misaligned[0] || mem_err_o)
+    else if (mem_misaligned_o || mem_err_o)
     begin
         if (|inflight && (biu_ack_i | biu_err_i)) discard <= inflight -1;
         else                                      discard <= inflight;
@@ -160,25 +139,24 @@ endgenerate
 
   /* External Interface
    */
-  assign biu_stb_o     = (mem_req_i | hold_mem_req) & ~misaligned[0];
-  assign biu_adri_o    = hold_mem_req ? hold_mem_adr  : mem_adr_i;
-  assign biu_size_o    = hold_mem_req ? hold_mem_size : mem_size_i;
-  assign biu_lock_o    = hold_mem_req ? hold_mem_lock : mem_lock_i;
-  assign biu_prot_o    = biu_prot_t'(PROT_DATA |
-                                     st_prv_i == PRV_U ? PROT_USER : PROT_PRIVILEGED);
-  assign biu_we_o      = hold_mem_req ? hold_mem_we   : mem_we_i;
-  assign biu_d_o       = hold_mem_req ? hold_mem_d    : mem_d_i;
-  assign biu_type_o    = SINGLE;
+  assign biu_stb_o        = (mem_req_i | hold_mem_req) & ~mem_misaligned_o;
+  assign biu_adri_o       = hold_mem_req ? hold_mem_adr  : mem_adr_i;
+  assign biu_size_o       = hold_mem_req ? hold_mem_size : mem_size_i;
+  assign biu_lock_o       = hold_mem_req ? hold_mem_lock : mem_lock_i;
+  assign biu_prot_o       = biu_prot_t'(PROT_DATA |
+                                        st_prv_i == PRV_U ? PROT_USER : PROT_PRIVILEGED);
+  assign biu_we_o         = hold_mem_req ? hold_mem_we   : mem_we_i;
+  assign biu_d_o          = hold_mem_req ? hold_mem_d    : mem_d_i;
+  assign biu_type_o       = SINGLE;
 
-//  assign mem_adr_ack_o = biu_stb_ack_i;
-//  assign mem_adr_o     = biu_adro_i;
-  assign mem_q_o       = biu_q_i;
-  assign mem_ack_o     = |discard ? 1'b0
-                                  : |inflight ? biu_ack_i //& ~misaligned[0]
-                                              : biu_ack_i &  biu_stb_o;
-  assign mem_err_o     = |discard ? 1'b0
-                                  : |inflight ? biu_err_i //& ~misaligned[0]
-                                              : biu_err_i & biu_stb_o;
+  assign mem_misaligned_o = hold_mem_req ? hold_mem_misaligned : mem_misaligned_i;
+  assign mem_q_o          = biu_q_i;
+  assign mem_ack_o        = |discard ? 1'b0
+                                     : |inflight ? biu_ack_i //& ~misaligned[0]
+                                                 : biu_ack_i &  biu_stb_o;
+  assign mem_err_o        = |discard ? 1'b0
+                                     : |inflight ? biu_err_i //& ~misaligned[0]
+                                                 : biu_err_i & biu_stb_o;
 
 endmodule
 
