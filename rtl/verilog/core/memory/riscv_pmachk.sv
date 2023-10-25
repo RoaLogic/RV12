@@ -206,6 +206,7 @@ import biu_constants_pkg::*;
                          matched_pma;
 
   logic                  we;
+  logic                  misaligned;
 
 
 
@@ -281,9 +282,13 @@ endgenerate
   assign matched_pma     = pmacfg[ matched_pma_idx ];
 
 
-  //delay we; align with matched_pma
+  //delay we/misaligned; align with matched_pma
   always @(posedge clk_i)
-    if (!stall_i) we <= we_i;
+    if (!stall_i)
+      begin
+          we         <= we_i;
+          misaligned <= misaligned_i;
+      end
 
 
   /* Access/Misaligned Exception
@@ -294,7 +299,7 @@ endgenerate
                         (~we            & ~matched_pma.r) ); // not readable
 
 
-  assign misaligned_o = misaligned_i & ~matched_pma.m;
+  assign misaligned_o = misaligned & ~matched_pma.m;
 
 
   /* Access Types
