@@ -185,7 +185,6 @@ regression: $(logs)
 	  PARAMS="DCACHE_SIZE=$(subst DCACHE_SIZE,,$(word 1,$(subst @, ,$*)))		\
 	          ICACHE_SIZE=$(subst ICACHE_SIZE,,$(word 2,$(subst @, ,$*)))		\
 	          MEM_LATENCY=$(subst MEM_LATENCY,,$(word 3,$(subst @, ,$*))) 		\
-	          WRITEBUFFER_SIZE=$(subst RSB_DEPTH,,$(word 4,$(subst @, ,$*)))	\
 	          XLEN=$(subst XLEN,,$(word 5,$(subst @, ,$*)))				\
 	          MULT_LATENCY=$(subst MULT_LATENCY,,$(word 6,$(subst @, ,$*)))		\
 	          HAS_U=$(HAS_U) HAS_S=$(HAS_S) HAS_H=$(HAS_H)				\
