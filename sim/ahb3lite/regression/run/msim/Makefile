@@ -55,7 +55,7 @@ simw: vlog
 	echo "--- Running sim (waves)"
 	vsim $(SIM_OPTS) 							\
 	 -l $(LOG) $(TOP)							\
-       	+access +r -wlf $(LOG).wlf						\
+	 -voptargs=+acc +access +r -wlf $(LOG).wlf						\
 	 -do "set WildcardFilter [lsearch -not -all -inline $$WildcardFilter Memory];	\
 	      log -r -rec /$(TOP)/*;							\
 	      log /$(TOP)/dut/core/int_rf/rf;						\
