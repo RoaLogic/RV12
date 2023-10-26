@@ -256,11 +256,37 @@ generate
         .push_i  ( rsb_push       ), //push stack, JAL(R) rd !=x0
         .pop_i   ( rsb_pop        ), //pop stack, RET
         .empty_o ( rsb_empty      ) );
+
+      /* RSB logger
+       */
+//synopsys translate_off
+      int fd;
+      initial fd=$fopen("rsb.log", "w");
+
+      always @(posedge clk_i)
+        if (!pd_stall_o)
+        begin
+            if (rsb_pop ) $fdisplay(fd, "pop  %4s %2d %h %d %b", rs1.name(), rs1, rsb_predict_pc, rsb_inst.cnt, rsb_empty);
+            if (rsb_push) $fdisplay(fd, "push %4s %2d %h %d"   , rd.name(),  rd,  rsb_nxt_pc,     rsb_inst.cnt           );
+        end
+//synopsys translate_on
   end
 endgenerate
 
 
-  //decode rbs_push/pop
+  /* decode rbs_push/pop
+   * Hint are encoded in the 'rd' field; only push/pop RBS when rd=x1/x5
+   *
+   * +-------+-------+--------+----------------+
+   * |  rd   |  rs1  | rs1=rd | action         |
+   * +-------+-------+--------+----------------+
+   * | !link | !link |    -   | none           |
+   * | !link |  link |    -   | pop            |
+   * |  link | !link |    -   | push           |
+   * |  link |  link |    0   | pop, then push |
+   * |  link |  link |    1   | push           |
+   * +-------+-------+--------+----------------+
+   */
   always_comb
     unique casex ({link_rd, link_rs1, rs1==rd})
       3'b00? :{decode_rsb_push, decode_rsb_pop} = 2'b00;
