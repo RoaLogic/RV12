@@ -62,9 +62,9 @@ module riscv_rsb #(
   //
   // Variables
   //
-  logic [XLEN         -1:0] stack [DEPTH];
-  logic [XLEN         -1:0] last_value;
-  logic [$clog2(DEPTH)-1:0] cnt;
+  logic [XLEN           -1:0] stack [DEPTH];
+  logic [XLEN           -1:0] last_value;
+  logic [$clog2(DEPTH+1)-1:0] cnt;
 
 
   ////////////////////////////////////////////////////////////////
@@ -95,7 +95,7 @@ module riscv_rsb #(
                  for (int n=1; n < DEPTH; n++) stack[n] <= stack[n-1];
              end
       2'b11: stack[0] <= d_i;
-      2'b00:                ; //do nothing
+      2'b00: ; //do nothing
     endcase
 
 
@@ -110,9 +110,9 @@ module riscv_rsb #(
     if (!rst_ni) cnt <= 'h0;
     else if (ena_i)
     unique case ({push_i, pop_i})
-      2'b01  :            cnt--;
-      2'b10  : if (~&cnt) cnt++;
-      default:                 ; //do nothing
+      2'b01  : if (!empty_o    ) cnt <= cnt -1;
+      2'b10  : if (cnt != DEPTH) cnt <= cnt +1;
+      default: ; //do nothing
     endcase
 
 
@@ -120,9 +120,9 @@ module riscv_rsb #(
     if (!rst_ni) empty_o <= 1'b1;
     else if (ena_i)
     unique case ({push_i, pop_i})
-      2'b01  : empty_o <= |cnt[$bits(cnt)-1:1] & cnt[0]; //==1
+      2'b01  : empty_o <= cnt==1;
       2'b10  : empty_o <= 1'b0;
-      default:                ; //do nothing
+      default: ; //do nothing
     endcase
 
 
