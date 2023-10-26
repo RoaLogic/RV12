@@ -88,6 +88,10 @@ import riscv_state_pkg::*;
   logic                   hold_mem_lock;
   logic                   hold_mem_we;
 
+  logic                   misaligned;
+  logic [DEPTH      -1:0] misaligned_queue;
+  logic                   misaligned_in_pipe;
+
   logic [$clog2(DEPTH):0] inflight,
 	                  discard;
 
@@ -112,9 +116,19 @@ import riscv_state_pkg::*;
 
 
   always @(posedge clk_i)
-    if      (!rst_ni                       ) hold_mem_req <= 1'b0;
-    else if ( mem_misaligned_o || mem_err_o) hold_mem_req <= 1'b0;
-    else                                     hold_mem_req <= (mem_req_i | hold_mem_req) & ~biu_stb_ack_i;
+    if      (!rst_ni                ) hold_mem_req <= 1'b0;
+    else if ( misaligned_in_pipe ||
+              mem_err_o             ) hold_mem_req <= 1'b0;
+    else                              hold_mem_req <= (mem_req_i | hold_mem_req) & ~biu_stb_ack_i;
+
+
+  assign misaligned = hold_mem_req ? hold_mem_misaligned : mem_misaligned_i & mem_req_i;
+
+  always @(posedge clk_i)
+    misaligned_queue <= {misaligned_queue[0 +: DEPTH-1], misaligned};
+
+  assign misaligned_in_pipe = misaligned | |misaligned_queue;
+  assign mem_misaligned_o   = misaligned_queue[DEPTH-1];
 
 
   always @(posedge clk_i, negedge rst_ni)
@@ -129,7 +143,7 @@ import riscv_state_pkg::*;
 
   always @(posedge clk_i, negedge rst_ni)
     if (!rst_ni) discard <= 'h0;
-    else if (mem_misaligned_o || mem_err_o)
+    else if (misaligned || mem_err_o)
     begin
         if (|inflight && (biu_ack_i | biu_err_i)) discard <= inflight -1;
         else                                      discard <= inflight;
@@ -139,7 +153,7 @@ import riscv_state_pkg::*;
 
   /* External Interface
    */
-  assign biu_stb_o        = (mem_req_i | hold_mem_req) & ~mem_misaligned_o;
+  assign biu_stb_o        = (mem_req_i | hold_mem_req) & ~misaligned_in_pipe;
   assign biu_adri_o       = hold_mem_req ? hold_mem_adr  : mem_adr_i;
   assign biu_size_o       = hold_mem_req ? hold_mem_size : mem_size_i;
   assign biu_lock_o       = hold_mem_req ? hold_mem_lock : mem_lock_i;
@@ -149,7 +163,6 @@ import riscv_state_pkg::*;
   assign biu_d_o          = hold_mem_req ? hold_mem_d    : mem_d_i;
   assign biu_type_o       = SINGLE;
 
-  assign mem_misaligned_o = hold_mem_req ? hold_mem_misaligned : mem_misaligned_i;
   assign mem_q_o          = biu_q_i;
   assign mem_ack_o        = |discard ? 1'b0
                                      : |inflight ? biu_ack_i //& ~misaligned[0]
