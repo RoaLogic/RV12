@@ -257,11 +257,12 @@ generate
         .pop_i   ( rsb_pop        ), //pop stack, RET
         .empty_o ( rsb_empty      ) );
 
+`ifdef RV12_RSB_LOGGER
       /* RSB logger
        */
 //synopsys translate_off
       int fd;
-      initial fd=$fopen("rsb.log", "w");
+      initial fd=$fopen($sformatf("%m_rsb.log"), "w");
 
       always @(posedge clk_i)
         if (!pd_stall_o)
@@ -270,6 +271,8 @@ generate
             if (rsb_push) $fdisplay(fd, "push %4s %2d %h %d"   , rd.name(),  rd,  rsb_nxt_pc,     rsb_inst.cnt           );
         end
 //synopsys translate_on
+`endif
+
   end
 endgenerate
 
