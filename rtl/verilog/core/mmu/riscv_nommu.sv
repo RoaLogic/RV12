@@ -92,7 +92,7 @@ import biu_constants_pkg::*;
   always @(posedge clk_i)
     if (!stall_i)
     begin
-        adr_o           <= XLEN == 32 ? {2'h0,adr_i} : adr_i[PLEN-1:0];
+        adr_o           <= XLEN == 32 ? { {PLEN-$bits(adr_i){1'b0}} ,adr_i} : adr_i[PLEN-1:0];
         size_o          <= size_i;
         lock_o          <= lock_i;
         we_o            <= we_i;
