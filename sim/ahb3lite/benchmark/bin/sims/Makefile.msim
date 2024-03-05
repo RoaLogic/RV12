@@ -61,7 +61,7 @@ simw: vlog
 	echo "--- Running sim with waveform dump"
 	vsim $(SIM_OPTS) 							\
 	  -l $(LOG) $(TOP)							\
-	  +access +r -wlf $(TOP).wlf						\
+	  -voptargs=+acc +access +r -wlf $(TOP).wlf				\
 	  -do "log -r /$(TOP)/*; run -all; quit"				\
 	$(foreach p, $(PARAMS),-g`echo $p | sed -r 's/(\w+)=([^0-9].*)/\1="\2"/'`)
 	
