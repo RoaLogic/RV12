@@ -665,7 +665,7 @@ endgenerate
         //push privilege stack
         if (wb_exceptions_i.nmi)
         begin
-$display ("NMI");
+//$display ("NMI");
             //NMI always at Machine-mode
             st_prv_o    <= PRV_M;
             st_nxt_pc_o <= csr.mnmivec;
@@ -678,7 +678,7 @@ $display ("NMI");
         end
         else if (take_interrupt && !du_stall_i && !du_flush_i)
         begin
-$display ("take_interrupt %x @%0t", wb_exceptions_i.interrupts, $time);
+//$display ("take_interrupt %x @%0t", wb_exceptions_i.interrupts, $time);
             st_flush_o  <= 1'b1;
 
             //Check if interrupts are delegated
