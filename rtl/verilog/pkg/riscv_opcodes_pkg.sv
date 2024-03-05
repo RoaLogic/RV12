@@ -48,12 +48,12 @@ package riscv_opcodes_pkg;
                              sp,     //x2
                              gp,     //x3
                              tp,     //x4
-                             t[0:2], //x5-7
+                             t0[0:2], //x5-7
                              s0fp,   //x8
                              s1,     //x9
                              a[0:7], //x10-17
                              s[2:11],//x18-27
-                             t[3:6]  //x28-31
+                             t1[3:6]  //x28-31
                             } rsd_t;
 
   typedef logic [ 4:0] opcode_t;
