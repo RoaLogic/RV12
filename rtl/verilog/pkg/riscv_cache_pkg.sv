@@ -86,7 +86,7 @@ package riscv_cache_pkg;
 
 
   //BIU Commands
-  typedef enum logic [1:0] {BIUCMD_NOP=0, BIUCMD_READWAY=1, BIUCMD_WRITEWAY=2} biucmd_t;
+  typedef enum logic [1:0] {BIUCMD_NOP=2'h0, BIUCMD_READWAY=2'h1, BIUCMD_WRITEWAY=2'h2} biucmd_t;
 
 endpackage
 
