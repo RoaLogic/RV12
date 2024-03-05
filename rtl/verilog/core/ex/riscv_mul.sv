@@ -72,11 +72,13 @@ import riscv_state_pkg::*;
   //
   // Checks (assertions)
   //
+  //synopsys translate_off
   initial
   begin
       a1: assert (MULT_LATENCY <= MAX_LATENCY)
           else $warning("MULT_LATENCY=%0d larger than allowed. Changed to %0d", MULT_LATENCY, MAX_LATENCY);
   end
+  //synopsys translate_on
 
 
   ////////////////////////////////////////////////////////////////
