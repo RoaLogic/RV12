@@ -196,7 +196,7 @@ import riscv_opcodes_pkg::*;
   always @(posedge clk_i)
     if (flush_i)
       for (int n = 0; n < DEPTH; n = n +2)
-        parcel_sr[n +: 2] <= INSTR_NOP;
+        parcel_sr[n +: 2] <= NOP;
     else  parcel_sr <= nxt_parcel_sr;
 
 

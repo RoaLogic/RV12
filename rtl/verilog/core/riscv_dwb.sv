@@ -56,7 +56,7 @@ import riscv_state_pkg::*;
 
   //Instruction	
   always @(posedge clk_i, negedge rst_ni)
-    if (!rst_ni) dwb_insn_o.instr <= INSTR_NOP;
+    if (!rst_ni) dwb_insn_o.instr <= NOP;
     else         dwb_insn_o.instr <= wb_insn_i.instr;
 
 
