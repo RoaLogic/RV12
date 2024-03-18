@@ -137,7 +137,7 @@ import riscv_state_pkg::*;
 
   //for RSB
   assign is_16bit_instruction = ~&if_insn_i.instr[1:0];
-  assign rsb_nxt_pc           = if_pc_i + (is_16bit_instruction ? 'h2 : 'h4);
+  assign rsb_nxt_pc           = if_pc_i + ('h2 << if_insn_i.instr.SB.size);
   assign has_rsb              = RSB_DEPTH > 0;
   assign rs1                  = decode_rs1(if_insn_i.instr);
   assign rd                   = decode_rd (if_insn_i.instr);
@@ -198,9 +198,12 @@ import riscv_state_pkg::*;
     else if (!pd_stall_o ) pd_pc_o <= if_pc_i     & ADR_MASK;
 
 
-  //Instruction	
+  //Instruction
+  assign pd_insn_o.retired = 1'b0;
+
+
   always @(posedge clk_i, negedge rst_ni)
-    if      (!rst_ni    ) pd_insn_o.instr <= INSTR_NOP;
+    if      (!rst_ni    ) pd_insn_o.instr <= NOP;
     else if (!id_stall_i) pd_insn_o.instr <= if_insn_i.instr;
 
 

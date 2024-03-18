@@ -133,8 +133,8 @@ import riscv_state_pkg::*;
       casex ( {xlen32, opcR} )
         {1'b?,LUI   }: alu_r_o <= opA_i + opB_i; //actually just opB_i, but simplify encoding
         {1'b?,AUIPC }: alu_r_o <= opA_i + opB_i;
-        {1'b?,JAL   }: alu_r_o <= id_pc_i + (&id_insn_i.instr[1:0] || !has_rvc ? 'h4 : 'h2);
-        {1'b?,JALR  }: alu_r_o <= id_pc_i + (&id_insn_i.instr[1:0] || !has_rvc ? 'h4 : 'h2);
+        {1'b?,JAL   }: alu_r_o <= id_pc_i + ('h2 << id_insn_i.instr[1:0]);
+        {1'b?,JALR  }: alu_r_o <= id_pc_i + ('h2 << id_insn_i.instr[1:0]);
 
         //logical operators
         {1'b?,ADDI  }: alu_r_o <= opA_i + opB_i;

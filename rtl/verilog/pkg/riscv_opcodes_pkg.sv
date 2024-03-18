@@ -36,7 +36,7 @@
 
 package riscv_opcodes_pkg;
   localparam            ILEN      = 32;
-  localparam [ILEN-1:0] INSTR_NOP = 'h13;
+//  localparam [ILEN-1:0] INSTR_NOP = NOP;
 
   /*
    * 32bit instructions
@@ -48,12 +48,33 @@ package riscv_opcodes_pkg;
                              sp,     //x2
                              gp,     //x3
                              tp,     //x4
-                             t0[0:2], //x5-7
+                             t0,     //x5
+                             t1,     //x6
+                             t2,     //x7
                              s0fp,   //x8
                              s1,     //x9
-                             a[0:7], //x10-17
-                             s[2:11],//x18-27
-                             t1[3:6]  //x28-31
+                             a0,     //x10
+                             a1,     //x11
+                             a2,     //x12
+                             a3,     //x13
+                             a4,     //x14
+                             a5,     //x15
+                             a6,     //x16
+                             a7,     //x17
+                             s2,     //x18
+                             s3,     //x19
+                             s4,     //x20
+                             s5,     //x21
+                             s6,     //x22
+                             s7,     //x23
+                             s8,     //x24
+                             s9,     //x25
+                             s10,    //x26
+                             s11,    //x27
+                             t3,     //x28
+                             t4,     //x29
+                             t5,     //x30
+                             t6      //x31
                             } rsd_t;
 
   typedef logic [ 4:0] opcode_t;
@@ -655,22 +676,24 @@ package riscv_opcodes_pkg;
   /*
    * SYSTEM/MISC_MEM opcodes
    */
-  localparam [31:0] FENCE      = 32'b0000????????_00000_000_00000_0001111,
-                    SFENCE_VM  = 32'b000100000100_?????_000_00000_1110011,
-                    FENCE_I    = 32'b000000000000_00000_001_00000_0001111,
-                    ECALL      = 32'b000000000000_00000_000_00000_1110011,
-                    EBREAK     = 32'b000000000001_00000_000_00000_1110011,
-                    MRET       = 32'b001100000010_00000_000_00000_1110011,
-                    HRET       = 32'b001000000010_00000_000_00000_1110011,
-                    SRET       = 32'b000100000010_00000_000_00000_1110011,
-                    URET       = 32'b000000000010_00000_000_00000_1110011,
+  localparam [31:0] FENCE      = 32'b0000????????_00000_000_00000_0001101, //encode LSBs as 01 instead of 11
+                    SFENCE_VM  = 32'b000100000100_?????_000_00000_1110001, //encode LSBs as 01 instead of 11
+                    FENCE_I    = 32'b000000000000_00000_001_00000_0001101, //encode LSBs as 01 instead of 11
+                    ECALL      = 32'b000000000000_00000_000_00000_1110001, //encode LSBs as 01 instead of 11
+                    EBREAK     = 32'b000000000001_00000_000_00000_1110001, //encode LSBs as 01 instead of 11
+		    EBREAKC    = 32'b000000000001_00000_000_00000_1110000, //16bit verions of EBREAK
+                    MRET       = 32'b001100000010_00000_000_00000_1110001, //encode LSBs as 01 instead of 11
+                    HRET       = 32'b001000000010_00000_000_00000_1110001, //encode LSBs as 01 instead of 11
+                    SRET       = 32'b000100000010_00000_000_00000_1110001, //encode LSBs as 01 instead of 11
+                    URET       = 32'b000000000010_00000_000_00000_1110001, //encode LSBs as 01 instead of 11
 //                    MRTS       = 32'b001100000101_00000_000_00000_1110011,
 //                    MRTH       = 32'b001100000110_00000_000_00000_1110011,
 //                    HRTS       = 32'b001000000101_00000_000_00000_1110011,
                     WFI        = 32'b000100000101_00000_000_00000_1110011,
 
                     //Special instructions
-		    NOP        = 32'h13,
+		    NOP        = 32'h11, //encode LSBs as 01 instead of 11
+		    NOPC       = 32'h10, //16bit version of NOP
 		    ILLEGAL    = {32{1'b1}};
 
   //                                f7      f3  opcode

@@ -413,99 +413,6 @@ import riscv_state_pkg::*;
     else
       rvc_illegal = rvc_is_illegal(xlen128, xlen64, xlen32, rvc_parcel1);
 
-/*	    
-    casex ( {xlen128, xlen64, xlen32, decode_rvc_opcA(rvc_parcel1)} )
-
-      {3'b???,C_LWSP}    : rvc_illegal = rvc_parcel1.CI.rd == 0
-                                       ? 1'b1                                          //reserved ILLEGAL
-                                       : 1'b0;
-
-      {3'b??0,C_LDSP}    : rvc_illegal = rvc_parcel1.CI.rd == 0
-                                       ? 1'b1                                          //reserved ILLEGAL
-                                       : 1'b0;
-
-    //{3'b1??,C_LQSP}
-    //{3'b??1,C_FLWSP} F-only
-    //{3'0b??,C_FLDSP} D-only
-
-      {3'b???,C_SWSP}    : rvc_illegal = 1'b0;
-
-      {3'b??0,C_SDSP}    : rvc_illegal = 1'b0;
-
-    //{3'b1??,C_SQSP}
-    //{3'b??1,C_FSWSP}  F-only
-    //{3'b0??,C_FSDSP}  D-only
-
-      {3'b???,C_LW}      : rvc_illegal = 1'b0;
-
-      {3'b??0,C_LD}      : rvc_illegal = 1'b0;
-
-    //{3'b1??,C_LQ}
-    //{3'b??1,C_FLW} F-only
-    //{3'b0??,C_FLD} D-only
-
-      {3'b???,C_SW}      : rvc_illegal = 1'b0;
-
-      {3'b??0,C_SD}      : rvc_illegal = 1'b0;
-
-    //{3'b1??,C_SQ}
-    //{3'b??1,C_FSW} F-only
-    //{3'b0??,C_FSD} D-only
- 
-      {3'b???,C_J}       : rvc_illegal = 1'b0;
-
-      {3'b??1,C_JAL}     : rvc_illegal = 1'b0;
-
-      //C.JR and C.MV
-      {3'b???,C_JR}      : rvc_illegal = rvc_parcel1.CR.rs2 != 0
-				       ? 1'b0
-                                       : rvc_parcel1.CR.rd == 0
-				       ? 1'b1
-                                       : 1'b0;
-
-      //C.JALR and and C.ADD and C.EBREAK
-      {3'b???,C_JALR}    : rvc_illegal = 1'b0;
-
-      {3'b???,C_BEQZ}    : rvc_illegal = 1'b0;
-
-      {3'b???,C_BNEZ}    : rvc_illegal = 1'b0;
-
-      {3'b???,C_LI}      : rvc_illegal = 1'b0;
-
-      //C.LUI and C.ADDI16SP
-      {3'b???,C_ADDI16SP}: rvc_illegal = {rvc_parcel1.CI.pos12,rvc_parcel1.CI.pos6_2} == 0
-                                       ? 1'b1
-                                       : 1'b0;
-
-      //C.NOP and C.ADDI
-      {3'b???,C_ADDI}    : rvc_illegal = 1'b0;
-
-      {3'b??0,C_ADDIW}   : rvc_illegal = rvc_parcel1.CI.rd == 0
-                                       ? 1'b1
-                                       : 1'b0;
-
-      {3'b???,C_ADDI4SPN}: rvc_illegal = (rvc_parcel1 == 16'h0)                         //All zeros is defined illegal
-                                       ? 1'b1
-                                       : 1'b0;
-
-      {3'b???,C_SLLI}    : rvc_illegal = 1'b0;
-
-      {3'b???,C_SRLI}    : rvc_illegal = 1'b0;
-
-      {3'b???,C_SRAI}    : rvc_illegal = 1'b0;
-
-      {3'b???,C_ANDI}    : rvc_illegal = 1'b0;
-      {3'b???,C_AND}     : rvc_illegal = 1'b0;
-      {3'b???,C_OR}      : rvc_illegal = 1'b0;
-      {3'b???,C_XOR}     : rvc_illegal = 1'b0;
-      {3'b???,C_SUB}     : rvc_illegal = 1'b0;
-      {3'b??0,C_ADDW}    : rvc_illegal = 1'b0;
-      {3'b??0,C_SUBW}    : rvc_illegal = 1'b0;
-
-      default            : rvc_illegal = 1'b1;
-    endcase
-*/
-
 
   //Instruction conversion RVC-->RV
   always_comb
@@ -518,7 +425,7 @@ import riscv_state_pkg::*;
                                                 rvc_parcel1.CI.rd,
                                                 rsd_t'             ( 5'h2      ),      //x2
                                                 rvc_decode_immCIWSP(rvc_parcel1),
-                                                rvc_parcel1.CI.size
+                                                2'b00
                                                );
 
 
@@ -528,7 +435,7 @@ import riscv_state_pkg::*;
                                                 rvc_parcel1.CI.rd,
                                                 rsd_t'             ( 5'h2      ),
                                                 rvc_decode_immCIDSP(rvc_parcel1),      //x2
-                                                rvc_parcel1.CI.size
+                                                2'b00
                                                );
 
 
@@ -540,7 +447,7 @@ import riscv_state_pkg::*;
                                                 rsd_t'              ( 5'h2      ),     //x2
                                                 rvc_parcel1.CSS.rs2,
                                                 rvc_decode_immCSSWSP(rvc_parcel1),
-                                                rvc_parcel1.CSS.size
+                                                2'b00
                                                );
 
 
@@ -548,7 +455,7 @@ import riscv_state_pkg::*;
                                                rsd_t'              ( 5'h2      ),      //x2
                                                rvc_parcel1.CSS.rs2,
                                                rvc_decode_immCSSDSP(rvc_parcel1),
-                                               rvc_parcel1.CSS.size
+                                               2'b00
                                               );
 
 
@@ -560,7 +467,7 @@ import riscv_state_pkg::*;
                                                 rvc_rsdp2rsd     (rvc_parcel1.CL.rd ),
                                                 rvc_rsdp2rsd     (rvc_parcel1.CL.rs1),
 					        rvc_decode_immCLW(rvc_parcel1       ),
-                                                rvc_parcel1.CL.size
+                                                2'b00
                                                );
 
 
@@ -568,7 +475,7 @@ import riscv_state_pkg::*;
                                                 rvc_rsdp2rsd     (rvc_parcel1.CL.rd ),
                                                 rvc_rsdp2rsd     (rvc_parcel1.CL.rs1),
 					        rvc_decode_immCLD(rvc_parcel1       ),
-                                                rvc_parcel1.CL.size
+                                                2'b00
                                                );
 
 
@@ -580,7 +487,7 @@ import riscv_state_pkg::*;
                                                 rvc_rsdp2rsd     (rvc_parcel1.CS.rs1),
                                                 rvc_rsdp2rsd     (rvc_parcel1.CS.rs2),
                                                 rvc_decode_immCSW(rvc_parcel1       ),
-                                                rvc_parcel1.CS.size
+                                                2'b00
                                                );
 
 
@@ -588,7 +495,7 @@ import riscv_state_pkg::*;
                                                 rvc_rsdp2rsd     (rvc_parcel1.CS.rs1),
                                                 rvc_rsdp2rsd     (rvc_parcel1.CS.rs2),
                                                 rvc_decode_immCSD(rvc_parcel1       ),
-					        rvc_parcel1.CS.size
+					        2'b00
                                                );
 
 
@@ -599,14 +506,14 @@ import riscv_state_pkg::*;
       {3'b???,C_J}       : rv_instr = encode_UJ(JAL,                                   //C.J=jal x0,imm
                                                 rsd_t'          ( 5'h0      ),         //x0
                                                 rvc_decode_immCJ(rvc_parcel1),
-                                                rvc_parcel1.CJ.size
+                                                2'b00
                                                );
 
 
       {3'b??1,C_JAL}     : rv_instr = encode_UJ(JAL,                                   //C.JAL=jal x1,imm
                                                 rsd_t'          ( 5'h1      ),         //x1
                                                 rvc_decode_immCJ(rvc_parcel1),
-                                                rvc_parcel1.CJ.size
+                                                2'b00
                                                );
 
       //C.JR and C.MV
@@ -615,7 +522,7 @@ import riscv_state_pkg::*;
                                                rvc_parcel1.CR.rd,                      //rd=x0-->hints
                                                rsd_t' (5'h0),                          //x0
                                                rvc_parcel1.CR.rs2,
-                                               rvc_parcel1.CR.size
+                                               2'b00
                                               )
                                     : rvc_parcel1.CR.rd == 0
 				    ? {{XLEN-16{1'b0}},rvc_parcel1}                    //reserved ILLEGAL
@@ -623,7 +530,7 @@ import riscv_state_pkg::*;
                                                 rsd_t'(0),                             //x0
 						rvc_parcel1.CR.rd,
 						immI_t'(0),                            //imm=0
-                                                rvc_parcel1.CR.size
+                                                2'b00
                                                );
 
 
@@ -633,23 +540,23 @@ import riscv_state_pkg::*;
                                                rvc_parcel1.CR.rd,                      //rd=x0-->hints
                                                rvc_parcel1.CR.rd,
                                                rvc_parcel1.CR.rs2,
-                                               rvc_parcel1.CR.size
+                                               2'b00
                                               )
                                     : rvc_parcel1.CR.rd != 0
                                     ? encode_I (JALR,                                  //C.JALR=jalr x1,0(rd)
                                                 rsd_t'(5'h1),                          //x1
                                                 rvc_parcel1.CR.rd,
                                                 immI_t'(0),                            //imm=0
-                                                rvc_parcel1.CJ.size
+                                                2'b00
                                                )
-                                    : EBREAK;                                          //C.EBREAK
+                                    : EBREAKC;                                         //C.EBREAK
 
 
       {3'b???,C_BEQZ}    : rv_instr = encode_SB(BEQ,                                   //C.BEQZ=beq rs1',x0,imm
                                                 rvc_rsdp2rsd    ( rvc_parcel1.CB.rs1),
                                                 rsd_t'          ( 5'h0              ), //x0
                                                 rvc_decode_immCB(rvc_parcel1        ),
-                                                rvc_parcel1.CB.size
+                                                2'b00
                                                );
 
 
@@ -657,7 +564,7 @@ import riscv_state_pkg::*;
                                                 rvc_rsdp2rsd    ( rvc_parcel1.CB.rs1),
                                                 rsd_t'          ( 5'h0              ), //x0
                                                 rvc_decode_immCB(rvc_parcel1        ),
-                                                rvc_parcel1.CB.size
+                                                2'b00
                                                );
 
 
@@ -665,7 +572,7 @@ import riscv_state_pkg::*;
                                                 rvc_parcel1.CI.rd,
                                                 rsd_t'          (5'h0        ),        //x0
                                                 rvc_decode_immCI(rvc_parcel1 ),
-                                                rvc_parcel1.CI.size
+                                                2'b00
                                                );
 
       //C.LUI and C.ADDI16SP
@@ -676,23 +583,23 @@ import riscv_state_pkg::*;
                                                 rsd_t'           (5'h2        ),       //x2
                                                 rsd_t'           (5'h2        ),       //x2
                                                 rvc_decode_immCI4(rvc_parcel1 ),
-                                                rvc_parcel1.CI.size
+                                                2'b00
                                                )
                                     : encode_U (LUI,                                   //C.LUI=lui rd,imm
                                                 rvc_parcel1.CI.rd,                     //rd=x0-->hints
                                                 rvc_decode_immCI12(rvc_parcel1),
-                                                rvc_parcel1.CI.size
+                                                2'b00
                                                );
 
 
       //C.NOP and C.ADDI
       {3'b???,C_ADDI}    : rv_instr = rvc_parcel1.CI.rd == 0
-                                    ? NOP                                              //NOP
+                                    ? NOPC                                             //NOP
                                     : encode_I (ADDI,                                  //C.ADDI=addi rd,rd,imm
                                                 rvc_parcel1.CI.rd,
                                                 rvc_parcel1.CI.rd,
                                                 rvc_decode_immCI(rvc_parcel1  ),       //imm=0-->hint
-                                                rvc_parcel1.CI.size
+                                                2'b00
                                                );
 
 
@@ -702,7 +609,7 @@ import riscv_state_pkg::*;
                                                 rvc_parcel1.CI.rd,
                                                 rvc_parcel1.CI.rd,
                                                 rvc_decode_immCI(rvc_parcel1 ),
-                                                rvc_parcel1.CI.size
+                                                2'b00
                                                );
 
 
@@ -710,9 +617,9 @@ import riscv_state_pkg::*;
                                     ? {{XLEN-16{1'b0}},rvc_parcel1}                    //illegal instruction (definition)
                                     : encode_I (ADDI,
                                                 rvc_rsdp2rsd     (rvc_parcel1.CIW.rd),
-                                                rsd_t'           (5'h2             ),  //x2
+                                                rsd_t'           (5'h2              ),  //x2
                                                 rvc_decode_immCIW(rvc_parcel1       ),
-                                                rvc_parcel1.CIW.size
+                                                2'b00
                                                );
 
 
@@ -720,7 +627,7 @@ import riscv_state_pkg::*;
                                                rvc_parcel1.CI.rd,
                                                rvc_parcel1.CI.rd,
                                                rvc_decode_immCI(rvc_parcel1 ),         //imm=0-->hint (RV32/64)
-                                               rvc_parcel1.CI.size
+                                               2'b00
                                               );
 
 
@@ -728,7 +635,7 @@ import riscv_state_pkg::*;
                                                rvc_rsdp2rsd     (rvc_parcel1.CIB.rd),
                                                rvc_rsdp2rsd     (rvc_parcel1.CIB.rd),
                                                rvc_decode_immCIB(rvc_parcel1       ),
-                                               rvc_parcel1.CIB.size
+                                               2'b00
                                               );
 
 
@@ -736,7 +643,7 @@ import riscv_state_pkg::*;
                                                rvc_rsdp2rsd     (rvc_parcel1.CIB.rd),
                                                rvc_rsdp2rsd     (rvc_parcel1.CIB.rd),
                                                rvc_decode_immCIB(rvc_parcel1       ),
-                                               rvc_parcel1.CIB.size
+                                               2'b00
                                               );
 
 
@@ -744,7 +651,7 @@ import riscv_state_pkg::*;
                                                rvc_rsdp2rsd     (rvc_parcel1.CIB.rd ),
                                                rvc_rsdp2rsd     (rvc_parcel1.CIB.rd ),
                                                rvc_decode_immCIB(rvc_parcel1        ),
-                                               rvc_parcel1.CIB.size
+                                               2'b00
                                               );
 
 
@@ -752,7 +659,7 @@ import riscv_state_pkg::*;
                                                rvc_rsdp2rsd (rvc_parcel1.CR.rd ),
                                                rvc_rsdp2rsd (rvc_parcel1.CR.rd ),
                                                rvc_rsdp2rsd (rvc_parcel1.CR.rs2),
-                                               rvc_parcel1.CR.size
+                                               2'b00
                                               );
 
 
@@ -760,7 +667,7 @@ import riscv_state_pkg::*;
                                                rvc_rsdp2rsd (rvc_parcel1.CR.rd ),
                                                rvc_rsdp2rsd (rvc_parcel1.CR.rd ),
                                                rvc_rsdp2rsd (rvc_parcel1.CR.rs2),
-                                               rvc_parcel1.CR.size
+                                               2'b00
                                               );
 
 
@@ -768,7 +675,7 @@ import riscv_state_pkg::*;
                                                rvc_rsdp2rsd (rvc_parcel1.CR.rd ),
                                                rvc_rsdp2rsd (rvc_parcel1.CR.rd ),
                                                rvc_rsdp2rsd (rvc_parcel1.CR.rs2),
-                                               rvc_parcel1.CR.size
+                                               2'b00
                                               );
 
 
@@ -776,7 +683,7 @@ import riscv_state_pkg::*;
                                                rvc_rsdp2rsd (rvc_parcel1.CR.rd ),
                                                rvc_rsdp2rsd (rvc_parcel1.CR.rd ),
                                                rvc_rsdp2rsd (rvc_parcel1.CR.rs2),
-                                               rvc_parcel1.CR.size
+                                               2'b00
                                               );
 
 
@@ -784,7 +691,7 @@ import riscv_state_pkg::*;
                                                rvc_rsdp2rsd (rvc_parcel1.CR.rd ),
                                                rvc_rsdp2rsd (rvc_parcel1.CR.rd ),
                                                rvc_rsdp2rsd (rvc_parcel1.CR.rs2),
-                                               rvc_parcel1.CR.size
+                                               2'b00
                                               );
 
 
@@ -792,7 +699,7 @@ import riscv_state_pkg::*;
                                                rvc_rsdp2rsd (rvc_parcel1.CR.rd ),
                                                rvc_rsdp2rsd (rvc_parcel1.CR.rd ),
                                                rvc_rsdp2rsd (rvc_parcel1.CR.rs2),
-                                               rvc_parcel1.CR.size
+                                               2'b00
                                               );
 
 
@@ -801,11 +708,12 @@ import riscv_state_pkg::*;
     else    //32bit instructions
     case(parcel12)
       WFI    : rv_instr = NOP;            //Implement WFI as a nop 
-      default: rv_instr = parcel12;
+      default: rv_instr = {parcel12[$bits(rv_instr)-1 : 2], 2'b01};
     endcase
 
 
-    assign if_nxt_insn_o.instr = rv_instr;
+    assign if_nxt_insn_o.instr   = rv_instr;
+    assign if_nxt_insn_o.retired = 1'b0;
 
 
   /*
@@ -849,11 +757,13 @@ import riscv_state_pkg::*;
 
 
   //Instruction
+  assign if_insn_o.retired = 1'b0;
+
   always @(posedge clk_i, negedge rst_ni)
     if      (!rst_ni    ) if_insn_o.instr  <= NOP;
     else if (!pd_stall_i) if_insn_o.instr  <= if_nxt_insn_o.instr;
 
-
+    
   always @(posedge clk_i, negedge rst_ni)
     if      (!rst_ni               ) if_insn_o.bubble <= 1'b1;
     else if ( pd_flush_i           ) if_insn_o.bubble <= 1'b1;

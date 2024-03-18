@@ -213,7 +213,7 @@ import riscv_state_pkg::*;
                           ic_invalidate = 1'b0;
                           dc_invalidate = 1'b0;
                           dc_clean      = 1'b0;
-                          nxt_pc        = btaken ? id_pc_i + ext_immSB : id_pc_i +(is_16bit_instruction ? 'h2 : 'h4);
+                          nxt_pc        = btaken ? id_pc_i + ext_immSB : id_pc_i + ('h2 << id_insn_i.instr.SB.size);
                       end
       {1'b0,BNE    }: begin
                           bu_bubble     = 1'b0;
@@ -224,7 +224,7 @@ import riscv_state_pkg::*;
                           ic_invalidate = 1'b0;
                           dc_invalidate = 1'b0;
                           dc_clean      = 1'b0;
-                          nxt_pc        = btaken ? id_pc_i + ext_immSB : id_pc_i + (is_16bit_instruction ? 'h2 : 'h4);
+                          nxt_pc        = btaken ? id_pc_i + ext_immSB : id_pc_i + ('h2 << id_insn_i.instr.SB.size);
                        end
       {1'b0,BLTU   }: begin
                           bu_bubble     = 1'b0;
@@ -235,7 +235,7 @@ import riscv_state_pkg::*;
                           ic_invalidate = 1'b0;
                           dc_invalidate = 1'b0;
                           dc_clean      = 1'b0;
-                          nxt_pc        = btaken ? id_pc_i + ext_immSB : id_pc_i + 'h4;
+                          nxt_pc        = btaken ? id_pc_i + ext_immSB : id_pc_i + ('h2 << id_insn_i.instr.SB.size);
                       end
       {1'b0,BGEU   }: begin
                           bu_bubble     = 1'b0;
@@ -246,7 +246,7 @@ import riscv_state_pkg::*;
                           ic_invalidate = 1'b0;
                           dc_invalidate = 1'b0;
                           dc_clean      = 1'b0;
-                          nxt_pc        = btaken ? id_pc_i + ext_immSB : id_pc_i +'h4;
+                          nxt_pc        = btaken ? id_pc_i + ext_immSB : id_pc_i + ('h2 << id_insn_i.instr.SB.size);
                       end
       {1'b0,BLT    }: begin
                           bu_bubble     = 1'b0;
@@ -257,7 +257,7 @@ import riscv_state_pkg::*;
                           ic_invalidate = 1'b0;
                           dc_invalidate = 1'b0;
                           dc_clean      = 1'b0;
-                          nxt_pc        = btaken ? id_pc_i + ext_immSB : id_pc_i + 'h4;
+                          nxt_pc        = btaken ? id_pc_i + ext_immSB : id_pc_i + ('h2 << id_insn_i.instr.SB.size);
                       end
       {1'b0,BGE    }: begin
                           bu_bubble     = 1'b0;
@@ -268,7 +268,7 @@ import riscv_state_pkg::*;
                           ic_invalidate = 1'b0;
                           dc_invalidate = 1'b0;
                           dc_clean      = 1'b0;
-                          nxt_pc        = btaken ? id_pc_i + ext_immSB : id_pc_i + 'h4;
+                          nxt_pc        = btaken ? id_pc_i + ext_immSB : id_pc_i + ('h2 << id_insn_i.instr.SB.size);
                       end
       {1'b0,MISCMEM}: case (id_insn_i.instr)
                          FENCE_I: begin
@@ -280,7 +280,7 @@ import riscv_state_pkg::*;
                                       ic_invalidate = 1'b1;
                                       dc_invalidate = 1'b0;
                                       dc_clean      = 1'b1;
-                                      nxt_pc        = id_pc_i +'h4;
+                                      nxt_pc        = id_pc_i + ('h2 << id_insn_i.instr.SB.size);
                                   end
                          default: begin
                                       bu_bubble     = 1'b1;
@@ -291,7 +291,7 @@ import riscv_state_pkg::*;
                                       ic_invalidate = 1'b0;
                                       dc_invalidate = 1'b0;
                                       dc_clean      = 1'b0;
-                                      nxt_pc        = id_pc_i + 'h4;
+                                      nxt_pc        = id_pc_i + ('h2 << id_insn_i.instr.SB.size);
                                    end
                       endcase
       default       : begin
@@ -303,7 +303,7 @@ import riscv_state_pkg::*;
                           ic_invalidate = 1'b0;
                           dc_invalidate = 1'b0;
                           dc_clean      = 1'b0;
-                          nxt_pc        = id_pc_i + (is_16bit_instruction ? 'h2 : 'h4);
+                          nxt_pc        = id_pc_i + ('h2 << id_insn_i.instr.SB.size);
                       end
     endcase
 

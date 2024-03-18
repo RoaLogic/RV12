@@ -295,6 +295,9 @@ import riscv_state_pkg::*;
    *
    * TODO: push if-instr upon illegal-instruction
    */
+  assign id_insn_o.retired = 1'b0;
+
+
   always @(posedge clk_i)
     if (!stalls) id_insn_o.instr <= pd_insn_i.instr;
 
@@ -309,7 +312,7 @@ import riscv_state_pkg::*;
     else if ( bu_flush_i || st_flush_i) id_bubble_r <= 1'b1;
     else if (!stalls                  ) id_bubble_r <= pd_insn_i.bubble | id_stall_o | my_exceptions.any;
 
-    
+
   //local stall
   assign stalls           = ex_stall_i;
   assign flushes          = bu_flush_i | st_flush_i;
@@ -317,7 +320,9 @@ import riscv_state_pkg::*;
   assign id_insn_o.bubble = stalls | flushes | exceptions | id_bubble_r;
 
 
-  assign is_32bit_instruction = ~&pd_insn_i.instr[4:2] & &pd_insn_i.instr[1:0];
+//This is the correct decoder for a 32bit instruction. But we change this in IF
+//  assign is_32bit_instruction = ~&pd_insn_i.instr[4:2] & &pd_insn_i.instr[1:0];
+  assign is_32bit_instruction = ~&pd_insn_i.instr[4:1] & pd_insn_i.instr[0];
 
   assign pd_opcR    = decode_opcR(pd_insn_i.instr);
 
@@ -947,13 +952,14 @@ endgenerate
   //ALU
   always_comb
     casex (pd_insn_i.instr)
-       FENCE  : illegal_alu_instr = ~is_32bit_instruction;
-       FENCE_I: illegal_alu_instr = ~is_32bit_instruction;
-       ECALL  : illegal_alu_instr = ~is_32bit_instruction;
-       EBREAK : illegal_alu_instr = ~is_32bit_instruction & ~has_rvc;
-       URET   : illegal_alu_instr = ~is_32bit_instruction | ~has_u;
-       SRET   : illegal_alu_instr = ~is_32bit_instruction | ~has_s | (st_prv_i <  PRV_S) | (st_prv_i == PRV_S && st_tsr_i);
-       MRET   : illegal_alu_instr = ~is_32bit_instruction |          (st_prv_i != PRV_M);
+       FENCE  : illegal_alu_instr = 1'b0;
+       FENCE_I: illegal_alu_instr = 1'b0;
+       ECALL  : illegal_alu_instr = 1'b0;
+       EBREAK : illegal_alu_instr = 1'b0;
+       EBREAKC: illegal_alu_instr = ~has_rvc;
+       URET   : illegal_alu_instr = ~has_u;
+       SRET   : illegal_alu_instr = ~has_s | (st_prv_i <  PRV_S) | (st_prv_i == PRV_S && st_tsr_i);
+       MRET   : illegal_alu_instr =          (st_prv_i != PRV_M);
        default:
             casex ( {xlen32,pd_opcR} )
               {1'b?,LUI   }: illegal_alu_instr = ~is_32bit_instruction & ~has_rvc;
@@ -997,11 +1003,11 @@ endgenerate
   
               //system
               {1'b?,CSRRW }: illegal_alu_instr = ~is_32bit_instruction | illegal_csr_rd |            illegal_csr_wr;
-              {1'b?,CSRRS }: illegal_alu_instr = ~is_32bit_instruction | illegal_csr_rd | (|pd_rs1 & illegal_csr_wr) | ~is_32bit_instruction;
-              {1'b?,CSRRC }: illegal_alu_instr = ~is_32bit_instruction | illegal_csr_rd | (|pd_rs1 & illegal_csr_wr) | ~is_32bit_instruction;
-              {1'b?,CSRRWI}: illegal_alu_instr = ~is_32bit_instruction | illegal_csr_rd | (|pd_rs1 & illegal_csr_wr) | ~is_32bit_instruction;
-              {1'b?,CSRRSI}: illegal_alu_instr = ~is_32bit_instruction | illegal_csr_rd | (|pd_rs1 & illegal_csr_wr) | ~is_32bit_instruction;
-              {1'b?,CSRRCI}: illegal_alu_instr = ~is_32bit_instruction | illegal_csr_rd | (|pd_rs1 & illegal_csr_wr) | ~is_32bit_instruction;
+              {1'b?,CSRRS }: illegal_alu_instr = ~is_32bit_instruction | illegal_csr_rd | (|pd_rs1 & illegal_csr_wr);
+              {1'b?,CSRRC }: illegal_alu_instr = ~is_32bit_instruction | illegal_csr_rd | (|pd_rs1 & illegal_csr_wr);
+              {1'b?,CSRRWI}: illegal_alu_instr = ~is_32bit_instruction | illegal_csr_rd | (|pd_rs1 & illegal_csr_wr);
+              {1'b?,CSRRSI}: illegal_alu_instr = ~is_32bit_instruction | illegal_csr_rd | (|pd_rs1 & illegal_csr_wr);
+              {1'b?,CSRRCI}: illegal_alu_instr = ~is_32bit_instruction | illegal_csr_rd | (|pd_rs1 & illegal_csr_wr);
 
               default: illegal_alu_instr = 1'b1;
             endcase
