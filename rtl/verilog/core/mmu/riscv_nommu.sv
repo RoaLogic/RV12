@@ -89,10 +89,14 @@ import biu_constants_pkg::*;
 
   /* Latch signals
    */
+generate
   always @(posedge clk_i)
     if (!stall_i)
     begin
-        adr_o           <= XLEN == 32 ? { {PLEN-$bits(adr_i){1'b0}} ,adr_i} : adr_i[PLEN-1:0];
+        if (XLEN == 32)
+		adr_o   <= { {PLEN-$bits(adr_i){1'b0}} ,adr_i};
+	else
+                adr_o   <= adr_i[PLEN-1:0];
         size_o          <= size_i;
         lock_o          <= lock_i;
         we_o            <= we_i;
@@ -101,6 +105,7 @@ import biu_constants_pkg::*;
 	cm_clean_o      <= cm_clean_i;
 	cm_invalidate_o <= cm_invalidate_i;
     end
+endgenerate
 
   assign pagefault_o = 1'b0;
 endmodule
