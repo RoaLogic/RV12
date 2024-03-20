@@ -282,6 +282,17 @@ import riscv_state_pkg::*;
                                       dc_clean      = 1'b1;
                                       nxt_pc        = id_pc_i + ('h2 << id_insn_i.instr.SB.size);
                                   end
+                         FENCE: begin //FENCE is treated as a NOP, simply set 'retired'
+				  bu_bubble     = 1'b0;
+				  btaken        = 1'b0;
+				  bp_update     = 1'b0;
+				  pipeflush     = 1'b0;
+				  cacheflush    = 1'b0;
+				  ic_invalidate = 1'b0;
+				  dc_invalidate = 1'b0;
+				  dc_clean      = 1'b0;
+				  nxt_pc        = id_pc_i + ('h2 << id_insn_i.instr.SB.size);
+			      end
                          default: begin
                                       bu_bubble     = 1'b1;
                                       btaken        = 1'b0;
