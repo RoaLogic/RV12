@@ -35,58 +35,57 @@ import riscv_du_pkg::*;
 import biu_constants_pkg::*;
 import ahb3lite_pkg::*;
 #(
-  parameter int        XLEN               = 32,     //CPU data size
-  parameter int        ALEN               = XLEN,   //CPU Address Space size
-  parameter [XLEN-1:0] PC_INIT            = 'h200,
-  parameter int        HAS_USER           = 0,
-  parameter int        HAS_SUPER          = 0,
-  parameter int        HAS_HYPER          = 0,
-  parameter int        HAS_BPU            = 1,
-  parameter int        HAS_FPU            = 0,
-  parameter int        HAS_MMU            = 0,
-  parameter int        HAS_RVM            = 1,
-  parameter int        HAS_RVA            = 0,
-  parameter int        HAS_RVC            = 0,
-  parameter int        IS_RV32E           = 0,
+  parameter int         MXLEN               = 32,     //CPU data size
+  parameter int         ALEN               = MXLEN,   //CPU Address Space size
+  parameter [MXLEN-1:0] PC_INIT            = 'h200,
+  parameter bit         HAS_USER           = 0,
+  parameter bit         HAS_SUPER          = 0,
+  parameter bit         HAS_HYPER          = 0,
+  parameter bit         HAS_BPU            = 1,
+  parameter bit         HAS_FPU            = 0,
+  parameter bit         HAS_MMU            = 0,
+  parameter bit         HAS_RVM            = 1,
+  parameter bit         HAS_RVA            = 0,
+  parameter bit         HAS_RVC            = 0,
+  parameter bit         IS_RV32E           = 0,
 
-  parameter int        MULT_LATENCY       = 0,
+  parameter int         MULT_LATENCY       = 0,
 
-  parameter int        BREAKPOINTS        = 3,  //Number of hardware breakpoints
+  parameter int         BREAKPOINTS        = 3,  //Number of hardware breakpoints
 
-  parameter int        PMA_CNT            = 1, //16,
-  parameter int        PMP_CNT            = 0, //16, //Number of Physical Memory Protection entries
+  parameter int         PMA_CNT            = 1, //16,
+  parameter int         PMP_CNT            = 0, //16, //Number of Physical Memory Protection entries
 
-  parameter int        BP_GLOBAL_BITS     = 2,
-  parameter int        BP_LOCAL_BITS      = 10,
-  parameter int        RSB_DEPTH          = 4,
+  parameter int         BP_GLOBAL_BITS     = 2,
+  parameter int         BP_LOCAL_BITS      = 10,
+  parameter int         RSB_DEPTH          = 4,
 
-  parameter int        ICACHE_SIZE        = 0,  //in KBytes
-  parameter int        ICACHE_BLOCK_SIZE  = 32, //in Bytes
-  parameter int        ICACHE_WAYS        = 2,  //'n'-way set associative
-  parameter int        ICACHE_REPLACE_ALG = 0,
+  parameter int         ICACHE_SIZE        = 0,  //in KBytes
+  parameter int         ICACHE_BLOCK_SIZE  = 32, //in Bytes
+  parameter int         ICACHE_WAYS        = 2,  //'n'-way set associative
+  parameter int         ICACHE_REPLACE_ALG = 0,
 
-  parameter int        DCACHE_SIZE        = 0,  //in KBytes
-  parameter int        DCACHE_BLOCK_SIZE  = 32, //in Bytes
-  parameter int        DCACHE_WAYS        = 2,  //'n'-way set associative
-  parameter int        DCACHE_REPLACE_ALG = 0,
+  parameter int         DCACHE_SIZE        = 0,  //in KBytes
+  parameter int         DCACHE_BLOCK_SIZE  = 32, //in Bytes
+  parameter int         DCACHE_WAYS        = 2,  //'n'-way set associative
+  parameter int         DCACHE_REPLACE_ALG = 0,
 
-  parameter string     TECHNOLOGY         = "GENERIC",
+  parameter string      TECHNOLOGY         = "GENERIC",
 
-  parameter [XLEN-1:0] MNMIVEC_DEFAULT    = PC_INIT -'h004,
-  parameter [XLEN-1:0] MTVEC_DEFAULT      = PC_INIT -'h040,
-  parameter [XLEN-1:0] HTVEC_DEFAULT      = PC_INIT -'h080,
-  parameter [XLEN-1:0] STVEC_DEFAULT      = PC_INIT -'h0C0,
-  parameter [XLEN-1:0] UTVEC_DEFAULT      = PC_INIT -'h100,
+  parameter [MXLEN-1:0] MNMIVEC_DEFAULT    = PC_INIT -'h004,
+  parameter [MXLEN-1:0] MTVEC_DEFAULT      = PC_INIT -'h040,
+  parameter [MXLEN-1:0] HTVEC_DEFAULT      = PC_INIT -'h080,
+  parameter [MXLEN-1:0] STVEC_DEFAULT      = PC_INIT -'h0C0,
 
-  parameter int        JEDEC_BANK            = 10,
-  parameter int        JEDEC_MANUFACTURER_ID = 'h6e,
+  parameter [      7:0] JEDEC_BANK            = 10,
+  parameter [      6:0] JEDEC_MANUFACTURER_ID = 'h6e,
 
-  parameter int        HARTID             = 0,
+  parameter [MXLEN-1:0] HARTID             = 0,
 
-  parameter int        STRICT_AHB         = 1,
+  parameter int         STRICT_AHB         = 1,
 
-  localparam int       PARCEL_SIZE        = 16, //16bits per parcel
-  localparam int       BIUTAG_SIZE        = $clog2(XLEN/PARCEL_SIZE)
+  localparam int        PARCEL_SIZE        = 16, //16bits per parcel
+  localparam int        BIUTAG_SIZE        = $clog2(MXLEN/PARCEL_SIZE)
 )
 (
   //AHB interfaces
@@ -94,12 +93,12 @@ import ahb3lite_pkg::*;
                                       HCLK,
 				
   input  pmacfg_t                     pma_cfg_i [PMA_CNT],
-  input  logic    [XLEN         -1:0] pma_adr_i [PMA_CNT],
+  input  logic    [MXLEN        -1:0] pma_adr_i [PMA_CNT],
  
   output                              ins_HSEL,
   output          [ALEN         -1:0] ins_HADDR,
-  output          [XLEN         -1:0] ins_HWDATA,
-  input           [XLEN         -1:0] ins_HRDATA,
+  output          [MXLEN        -1:0] ins_HWDATA,
+  input           [MXLEN        -1:0] ins_HRDATA,
   output                              ins_HWRITE,
   output          [HSIZE_SIZE   -1:0] ins_HSIZE,
   output          [HBURST_SIZE  -1:0] ins_HBURST,
@@ -111,8 +110,8 @@ import ahb3lite_pkg::*;
   
   output                              dat_HSEL,
   output          [ALEN         -1:0] dat_HADDR,
-  output          [XLEN         -1:0] dat_HWDATA,
-  input           [XLEN         -1:0] dat_HRDATA,
+  output          [MXLEN        -1:0] dat_HWDATA,
+  input           [MXLEN        -1:0] dat_HRDATA,
   output                              dat_HWRITE,
   output          [HSIZE_SIZE   -1:0] dat_HSIZE,
   output          [HBURST_SIZE  -1:0] dat_HBURST,
@@ -133,8 +132,8 @@ import ahb3lite_pkg::*;
   input                               dbg_strb,
   input                               dbg_we,
   input           [DBG_ADDR_SIZE-1:0] dbg_addr,
-  input           [XLEN         -1:0] dbg_dati,
-  output          [XLEN         -1:0] dbg_dato,
+  input           [MXLEN        -1:0] dbg_dati,
+  output          [MXLEN        -1:0] dbg_dato,
   output                              dbg_ack,
   output                              dbg_bp
 );
@@ -142,85 +141,85 @@ import ahb3lite_pkg::*;
   //
   // Constants
   //
-  localparam PLEN = XLEN == 32 ? 34 : 56;
+  localparam PLEN = MXLEN == 32 ? 34 : 56;
 
 
   ////////////////////////////////////////////////////////////////
   //
   // Variables
   //
-  logic          [XLEN            -1:0] imem_adr;
-  logic                                 imem_req;
-  logic                                 imem_ack;
-  logic                                 imem_flush;
-  logic          [XLEN            -1:0] imem_parcel;
-  logic          [XLEN/PARCEL_SIZE-1:0] imem_parcel_valid;
-  logic                                 imem_misaligned;
-  logic                                 imem_pagefault;
-  logic                                 imem_error;
+  logic          [MXLEN            -1:0] imem_adr;
+  logic                                  imem_req;
+  logic                                  imem_ack;
+  logic                                  imem_flush;
+  logic          [MXLEN            -1:0] imem_parcel;
+  logic          [MXLEN/PARCEL_SIZE-1:0] imem_parcel_valid;
+  logic                                  imem_misaligned;
+  logic                                  imem_pagefault;
+  logic                                  imem_error;
 
-  logic                                 dmem_req;
-  logic          [XLEN            -1:0] dmem_adr;
-  biu_size_t                            dmem_size;
-  logic                                 dmem_lock;
-  logic                                 dmem_we;
-  logic          [XLEN            -1:0] dmem_d,
-                                        dmem_q;
-  logic                                 dmem_ack,
-                                        dmem_err;
-  logic                                 dmem_misaligned;
-  logic                                 dmem_pagefault;
+  logic                                  dmem_req;
+  logic          [MXLEN            -1:0] dmem_adr;
+  biu_size_t                             dmem_size;
+  logic                                  dmem_lock;
+  logic                                  dmem_we;
+  logic          [MXLEN            -1:0] dmem_d,
+                                         dmem_q;
+  logic                                  dmem_ack,
+                                         dmem_err;
+  logic                                  dmem_misaligned;
+  logic                                  dmem_pagefault;
 
-  pmpcfg_t [15:0]                       st_pmpcfg;
-  logic    [15:0][XLEN            -1:0] st_pmpaddr;
-  logic          [                 1:0] st_prv;
+  pmpcfg_t [15:0]                        st_pmpcfg;
+  logic    [15:0][MXLEN            -1:0] st_pmpaddr;
+  logic          [                  1:0] st_prv;
 
-  logic                                 cm_ic_invalidate,
-                                        cm_dc_invalidate,
-                                        cm_dc_clean,
-                                        cm_dc_clean_rdy;
+  logic                                  cm_ic_invalidate,
+                                         cm_dc_invalidate,
+                                         cm_dc_clean,
+                                         cm_dc_clean_rdy;
 
   /* Instruction Memory BIU connections
    */
-  logic                                 ibiu_stb;
-  logic                                 ibiu_stb_ack;
-  logic                                 ibiu_d_ack;
-  logic          [PLEN            -1:0] ibiu_adri;
-  logic          [ALEN            -1:0] ibiu_adri_tmp;
-  logic          [ALEN            -1:0] ibiu_adro;
-  logic          [PLEN            -1:0] ibiu_adro_tmp;
-  biu_size_t                            ibiu_size;
-  biu_type_t                            ibiu_type;
-  logic                                 ibiu_we;
-  logic                                 ibiu_lock;
-  biu_prot_t                            ibiu_prot;
-  logic          [XLEN            -1:0] ibiu_d;
-  logic          [XLEN            -1:0] ibiu_q;
-  logic                                 ibiu_ack,
-                                        ibiu_err;
-  logic          [BIUTAG_SIZE     -1:0] ibiu_tago,
-                                        ibiu_tagi;
+  logic                                  ibiu_stb;
+  logic                                  ibiu_stb_ack;
+  logic                                  ibiu_d_ack;
+  logic          [PLEN             -1:0] ibiu_adri;
+  logic          [ALEN             -1:0] ibiu_adri_tmp;
+  logic          [ALEN             -1:0] ibiu_adro;
+  logic          [PLEN             -1:0] ibiu_adro_tmp;
+  biu_size_t                             ibiu_size;
+  biu_type_t                             ibiu_type;
+  logic                                  ibiu_we;
+  logic                                  ibiu_lock;
+  biu_prot_t                             ibiu_prot;
+  logic          [MXLEN            -1:0] ibiu_d;
+  logic          [MXLEN            -1:0] ibiu_q;
+  logic                                  ibiu_ack,
+                                         ibiu_err;
+  logic          [BIUTAG_SIZE      -1:0] ibiu_tago,
+                                         ibiu_tagi;
 
   /* Data Memory BIU connections
    */
-  logic                                 dbiu_stb;
-  logic                                 dbiu_stb_ack;
-  logic                                 dbiu_d_ack;
-  logic          [PLEN            -1:0] dbiu_adri;
-  logic          [ALEN            -1:0] dbiu_adri_tmp;
-  logic          [ALEN            -1:0] dbiu_adro;
-  logic          [PLEN            -1:0] dbiu_adro_tmp;
-  biu_size_t                            dbiu_size;
-  biu_type_t                            dbiu_type;
-  logic                                 dbiu_we;
-  logic                                 dbiu_lock;
-  biu_prot_t                            dbiu_prot;
-  logic          [XLEN            -1:0] dbiu_d;
-  logic          [XLEN            -1:0] dbiu_q;
-  logic                                 dbiu_ack,
-                                        dbiu_err;
-  logic          [BIUTAG_SIZE     -1:0] dbiu_tago,
-                                        dbiu_tagi;
+  logic                                  dbiu_stb;
+  logic                                  dbiu_stb_ack;
+  logic                                  dbiu_d_ack;
+  logic          [PLEN             -1:0] dbiu_adri;
+  logic          [ALEN             -1:0] dbiu_adri_tmp;
+  logic          [ALEN             -1:0] dbiu_adro;
+  logic          [PLEN             -1:0] dbiu_adro_tmp;
+  biu_size_t                             dbiu_size;
+  biu_type_t                             dbiu_type;
+  logic                                  dbiu_we;
+  logic                                  dbiu_lock;
+  biu_prot_t                             dbiu_prot;
+  logic          [MXLEN            -1:0] dbiu_d;
+  logic          [MXLEN            -1:0] dbiu_q;
+  logic                                  dbiu_ack,
+                                         dbiu_err;
+  logic          [BIUTAG_SIZE      -1:0] dbiu_tago,
+                                         dbiu_tagi;
 
 
   ////////////////////////////////////////////////////////////////
@@ -232,7 +231,7 @@ import ahb3lite_pkg::*;
    * Instantiate RISC-V core
    */
   riscv_core #(
-    .XLEN                     ( XLEN                   ),
+    .MXLEN                    ( MXLEN                  ),
     .HAS_USER                 ( HAS_USER               ),
     .HAS_SUPER                ( HAS_SUPER              ),
     .HAS_HYPER                ( HAS_HYPER              ),
@@ -258,7 +257,6 @@ import ahb3lite_pkg::*;
     .MTVEC_DEFAULT            ( MTVEC_DEFAULT          ),
     .HTVEC_DEFAULT            ( HTVEC_DEFAULT          ),
     .STVEC_DEFAULT            ( STVEC_DEFAULT          ),
-    .UTVEC_DEFAULT            ( UTVEC_DEFAULT          ),
 
     .JEDEC_BANK               ( JEDEC_BANK             ),
     .JEDEC_MANUFACTURER_ID    ( JEDEC_MANUFACTURER_ID  ),
@@ -324,7 +322,7 @@ import ahb3lite_pkg::*;
    * Instantiate bus interfaces and optional caches
    */
   riscv_imem_ctrl #(
-    .XLEN              ( XLEN              ),
+    .XLEN              ( MXLEN             ),
     .PLEN              ( PLEN              ),
     .PARCEL_SIZE       ( PARCEL_SIZE       ),
     .HAS_RVC           ( HAS_RVC           ),
@@ -385,7 +383,7 @@ endgenerate
 
 
   riscv_dmem_ctrl #(
-    .XLEN              ( XLEN              ),
+    .XLEN              ( MXLEN             ),
     .PLEN              ( PLEN              ),
     .HAS_RVC           ( HAS_RVC           ),
     .PMA_CNT           ( PMA_CNT           ),
@@ -451,7 +449,7 @@ endgenerate
   /* Instantiate BIU
    */
   biu_ahb3lite #(
-    .DATA_SIZE     ( XLEN          ),
+    .DATA_SIZE     ( MXLEN         ),
     .ADDR_SIZE     ( ALEN          ),
     .TAG_SIZE      ( BIUTAG_SIZE   ),
     .STRICT_AHB    ( STRICT_AHB    ) )
@@ -495,7 +493,7 @@ endgenerate
 
 
   biu_ahb3lite #(
-    .DATA_SIZE     ( XLEN          ),
+    .DATA_SIZE     ( MXLEN         ),
     .ADDR_SIZE     ( ALEN          ),
     .TAG_SIZE      ( BIUTAG_SIZE   ),
     .STRICT_AHB    ( STRICT_AHB    ) )

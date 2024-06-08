@@ -33,7 +33,7 @@ import riscv_opcodes_pkg::*;
 import riscv_state_pkg::*;
 import riscv_du_pkg::*;
 #(
-  parameter XLEN           = 32,
+  parameter MXLEN          = 32,
   parameter BREAKPOINTS    = 3
 )
 (
@@ -46,8 +46,8 @@ import riscv_du_pkg::*;
   input                           dbg_strb_i,
   input                           dbg_we_i,
   input      [DBG_ADDR_SIZE -1:0] dbg_addr_i,
-  input      [XLEN          -1:0] dbg_d_i,
-  output reg [XLEN          -1:0] dbg_q_o,
+  input      [MXLEN         -1:0] dbg_d_i,
+  output reg [MXLEN         -1:0] dbg_q_o,
   output reg                      dbg_ack_o,
   output reg                      dbg_bp_o,
   
@@ -67,9 +67,10 @@ import riscv_du_pkg::*;
   output reg                      du_re_csr_o,
   output reg                      du_we_pc_o,
   output reg [DU_ADDR_SIZE  -1:0] du_addr_o,
-  output reg [XLEN          -1:0] du_d_o,
-  output     [              31:0] du_ie_o,
-  input      [XLEN          -1:0] du_rf_q_i,
+  output reg [MXLEN         -1:0] du_d_o,
+  output     [MXLEN         -1:0] du_ie_o,
+  output reg [              63:0] du_ee_o,
+  input      [MXLEN         -1:0] du_rf_q_i,
                                   du_frf_q_i,
                                   st_csr_q_i,
                                   if_nxt_pc_i,
@@ -89,11 +90,12 @@ import riscv_du_pkg::*;
                                   wb_insn_i, //only for 'dbg' signal
 
   input  interrupts_exceptions_t  mem_exceptions_i,
-  input      [XLEN          -1:0] mem_memadr_i,
+  input      [MXLEN         -1:0] mem_memadr_i,
   input                           dmem_ack_i,
                                   ex_stall_i,
   //From state
-  input      [              31:0] du_exceptions_i
+  input      [              63:0] du_exceptions_i,
+  input      [MXLEN         -1:0] du_interrupts_i
 );
 
   //////////////////////////////////////////////////////////////////
@@ -119,14 +121,15 @@ import riscv_du_pkg::*;
   } bp_ctrl_struct;
 
   typedef struct packed {
-    bp_ctrl_struct   ctrl;
-    logic [XLEN-1:0] data;
+    bp_ctrl_struct    ctrl;
+    logic [MXLEN-1:0] data;
   } bp_struct;
 
   typedef struct packed {
     dbg_ctrl_struct  ctrl;
-    logic     [               31:0] ie;
-    logic     [XLEN           -1:0] cause;
+    logic     [               63:0] ee;
+    logic     [MXLEN          -1:0] ie;
+    logic     [MXLEN          -1:0] cause;
     dbg_hit_struct                  hit;
     bp_struct [MAX_BREAKPOINTS-1:0] bp;
   } dbg_struct;
@@ -151,7 +154,7 @@ import riscv_du_pkg::*;
   logic [                         2:0] du_ack;
 
   logic                                du_we_internal;
-  logic [XLEN                    -1:0] du_internal_regs;
+  logic [MXLEN                   -1:0] du_internal_regs;
 
   dbg_struct                           dbg;
   logic                                bp_instr_hit,
@@ -162,17 +165,30 @@ import riscv_du_pkg::*;
                                        mem_write;
 
 
-  logic [XLEN                    -1:0] dpc; //debug program counter
+  logic [MXLEN                   -1:0] dpc; //debug program counter
 
 
   genvar n;
+
+  //////////////////////////////////////////////////////////////////
+  //
+  // Functions
+  //
+
+  //find first one, starting at lsb(!!)
+  function automatic [MXLEN-1:0] find_first_one(input [MXLEN-1:0] a);
+    find_first_one = 0;
+
+    for (int n=0; n < MXLEN; n++)
+      if (a[n]) return n;
+  endfunction : find_first_one
+
 
 
   //////////////////////////////////////////////////////////////////
   //
   // Module Body
   //
-  import riscv_state_pkg::*;
 
   /*
    * Debugger Interface
@@ -205,7 +221,7 @@ import riscv_du_pkg::*;
   //actual BreakPoint signal
   always @(posedge clk_i,negedge rst_ni)
     if (!rst_ni) dbg_bp_o <= 'b0;
-    else         dbg_bp_o <= ~ex_stall_i & ~du_flush_o & ~st_flush_i & (|du_exceptions_i | |dbg.hit);
+    else         dbg_bp_o <= ~ex_stall_i & ~du_flush_o & ~st_flush_i & (|du_exceptions_i | |du_interrupts_i | |dbg.hit);
 
 
   /*
@@ -228,7 +244,7 @@ import riscv_du_pkg::*;
 
   assign du_latch_nxt_pc_o =  dbg_stall_i   & ~du_stall_dly; //Latch nxt-pc address while entering debug
   assign du_flush_cache_o  =  wb_insn_i.dbg & ~wb_dbg_dly;   //flush cache when stall exits CPU pipeline (i.e. all pending instructions executed)
-  assign du_flush_o        = ~dbg_stall_i   &  du_stall_dly; // & |du_exceptions_i; //flush upon debug exit. Maybe program memory contents changed
+  assign du_flush_o        = ~dbg_stall_i   &  du_stall_dly; //flush upon debug exit. Maybe program memory contents changed
 
 
   always @(posedge clk_i)
@@ -251,33 +267,35 @@ import riscv_du_pkg::*;
 
   always_comb
     case (du_addr_o)
-      DBG_CTRL   : du_internal_regs = { {XLEN- 2{1'b0}}, dbg.ctrl };
-      DBG_HIT    : du_internal_regs = { {XLEN-16{1'b0}}, dbg.hit.bp_hit, 6'h0, dbg.hit.branch_break_hit, dbg.hit.instr_break_hit};
-      DBG_IE     : du_internal_regs = { {XLEN-32{1'b0}}, dbg.ie};
-      DBG_CAUSE  : du_internal_regs = { {XLEN-32{1'b0}}, dbg.cause};
+      DBG_CTRL   : du_internal_regs = { {MXLEN- 2{1'b0}}, dbg.ctrl };
+      DBG_HIT    : du_internal_regs = { {MXLEN-16{1'b0}}, dbg.hit.bp_hit, 6'h0, dbg.hit.branch_break_hit, dbg.hit.instr_break_hit};
+      DBG_IE     : du_internal_regs = dbg.ie;
+      DBG_EE     : du_internal_regs = dbg.ee[MXLEN-1:0];
+      DBG_EEH    : du_internal_regs = MXLEN == 32 ? dbg.ee[63:32] : {MXLEN{1'b0}};
+      DBG_CAUSE  : du_internal_regs = { {MXLEN-32{1'b0}}, dbg.cause};
 
-      DBG_BPCTRL0: du_internal_regs = { {XLEN- 7{1'b0}}, dbg.bp[0].ctrl.cc, 2'h0, dbg.bp[0].ctrl.enabled, dbg.bp[0].ctrl.implemented};
+      DBG_BPCTRL0: du_internal_regs = { {MXLEN- 7{1'b0}}, dbg.bp[0].ctrl.cc, 2'h0, dbg.bp[0].ctrl.enabled, dbg.bp[0].ctrl.implemented};
       DBG_BPDATA0: du_internal_regs = dbg.bp[0].data;
 
-      DBG_BPCTRL1: du_internal_regs = { {XLEN- 7{1'b0}}, dbg.bp[1].ctrl.cc, 2'h0, dbg.bp[1].ctrl.enabled, dbg.bp[1].ctrl.implemented};
+      DBG_BPCTRL1: du_internal_regs = { {MXLEN- 7{1'b0}}, dbg.bp[1].ctrl.cc, 2'h0, dbg.bp[1].ctrl.enabled, dbg.bp[1].ctrl.implemented};
       DBG_BPDATA1: du_internal_regs = dbg.bp[1].data;
 
-      DBG_BPCTRL2: du_internal_regs = { {XLEN- 7{1'b0}}, dbg.bp[2].ctrl.cc, 2'h0, dbg.bp[2].ctrl.enabled, dbg.bp[2].ctrl.implemented};
+      DBG_BPCTRL2: du_internal_regs = { {MXLEN- 7{1'b0}}, dbg.bp[2].ctrl.cc, 2'h0, dbg.bp[2].ctrl.enabled, dbg.bp[2].ctrl.implemented};
       DBG_BPDATA2: du_internal_regs = dbg.bp[2].data;
 
-      DBG_BPCTRL3: du_internal_regs = { {XLEN- 7{1'b0}}, dbg.bp[3].ctrl.cc, 2'h0, dbg.bp[3].ctrl.enabled, dbg.bp[3].ctrl.implemented};
+      DBG_BPCTRL3: du_internal_regs = { {MXLEN- 7{1'b0}}, dbg.bp[3].ctrl.cc, 2'h0, dbg.bp[3].ctrl.enabled, dbg.bp[3].ctrl.implemented};
       DBG_BPDATA3: du_internal_regs = dbg.bp[3].data;
 
-      DBG_BPCTRL4: du_internal_regs = { {XLEN- 7{1'b0}}, dbg.bp[4].ctrl.cc, 2'h0, dbg.bp[4].ctrl.enabled, dbg.bp[4].ctrl.implemented};
+      DBG_BPCTRL4: du_internal_regs = { {MXLEN- 7{1'b0}}, dbg.bp[4].ctrl.cc, 2'h0, dbg.bp[4].ctrl.enabled, dbg.bp[4].ctrl.implemented};
       DBG_BPDATA4: du_internal_regs = dbg.bp[4].data;
 
-      DBG_BPCTRL5: du_internal_regs = { {XLEN- 7{1'b0}}, dbg.bp[5].ctrl.cc, 2'h0, dbg.bp[5].ctrl.enabled, dbg.bp[5].ctrl.implemented};
+      DBG_BPCTRL5: du_internal_regs = { {MXLEN- 7{1'b0}}, dbg.bp[5].ctrl.cc, 2'h0, dbg.bp[5].ctrl.enabled, dbg.bp[5].ctrl.implemented};
       DBG_BPDATA5: du_internal_regs = dbg.bp[5].data;
 
-      DBG_BPCTRL6: du_internal_regs = { {XLEN- 7{1'b0}}, dbg.bp[6].ctrl.cc, 2'h0, dbg.bp[6].ctrl.enabled, dbg.bp[6].ctrl.implemented};
+      DBG_BPCTRL6: du_internal_regs = { {MXLEN- 7{1'b0}}, dbg.bp[6].ctrl.cc, 2'h0, dbg.bp[6].ctrl.enabled, dbg.bp[6].ctrl.implemented};
       DBG_BPDATA6: du_internal_regs = dbg.bp[6].data;
 
-      DBG_BPCTRL7: du_internal_regs = { {XLEN- 7{1'b0}}, dbg.bp[7].ctrl.cc, 2'h0, dbg.bp[7].ctrl.enabled, dbg.bp[7].ctrl.implemented};
+      DBG_BPCTRL7: du_internal_regs = { {MXLEN- 7{1'b0}}, dbg.bp[7].ctrl.cc, 2'h0, dbg.bp[7].ctrl.enabled, dbg.bp[7].ctrl.implemented};
       DBG_BPDATA7: du_internal_regs = dbg.bp[7].data;
 
       default    : du_internal_regs = 'h0;
@@ -354,12 +372,13 @@ endgenerate
   //Debug Triggers are caught at different stages of the pipeline, thus need to
   //latch PC from different levels of the pipeline
   always @(posedge clk_i)
-    if      (|du_exceptions_i) dpc <= wb_pc_i;
+    if      (|du_exceptions_i ||
+             |du_interrupts_i) dpc <= wb_pc_i;
     else if ( bu_flush_i     ) dpc <= bu_nxt_pc_i; //when branch/jal(r) during single step
     else if ( bp_instr_hit   ) dpc <= if_nxt_pc_i;
     else if (|bp_hit         ) dpc <= id_pc_i;
     else if ( bp_branch_hit  ) dpc <= id_pc_i;
-    else if ( du_latch_nxt_pc_o & ~|dbg.cause) dpc <= id_pc_i;
+    else if ( du_latch_nxt_pc_o && ~|dbg.cause) dpc <= id_pc_i;
 
 
   //DBG IE
@@ -370,58 +389,20 @@ endgenerate
 
   //send to Thread-State
   assign du_ie_o = dbg.ie;
+  assign du_ee_o = dbg.ee;
 
 
   //DBG CAUSE
   always @(posedge clk_i,negedge rst_ni)
-    if (!rst_ni)                                        dbg.cause <= 'h0;
-    else if ( du_we_internal && du_addr_o == DBG_CAUSE) dbg.cause <= du_d_o;
-    else if ( du_flush_o & ~|du_exceptions_i          ) dbg.cause <= 'h0;
-    else if (|du_exceptions_i[15:0]) //traps
-    begin
-        casex (du_exceptions_i[15:0])
-          16'b????_????_????_???1 : dbg.cause <=  0;
-          16'b????_????_????_??10 : dbg.cause <=  1;
-          16'b????_????_????_?100 : dbg.cause <=  2;
-          16'b????_????_????_1000 : dbg.cause <=  3;
-          16'b????_????_???1_0000 : dbg.cause <=  4;
-          16'b????_????_??10_0000 : dbg.cause <=  5;
-          16'b????_????_?100_0000 : dbg.cause <=  6;
-          16'b????_????_1000_0000 : dbg.cause <=  7;
-          16'b????_???1_0000_0000 : dbg.cause <=  8;
-          16'b????_??10_0000_0000 : dbg.cause <=  9;
-          16'b????_?100_0000_0000 : dbg.cause <= 10;
-          16'b????_1000_0000_0000 : dbg.cause <= 11;
-          16'b???1_0000_0000_0000 : dbg.cause <= 12;
-          16'b??10_0000_0000_0000 : dbg.cause <= 13;
-          16'b?100_0000_0000_0000 : dbg.cause <= 14;
-          16'b1000_0000_0000_0000 : dbg.cause <= 15;
-          default                 : dbg.cause <=  0;
-        endcase
-    end
-    else if (|du_exceptions_i[31:16]) //Interrupts
-    begin
-        casex ( du_exceptions_i[31:16])
-          16'b????_????_????_???1 : dbg.cause <= ('h1 << (XLEN-1)) |  0;
-          16'b????_????_????_??10 : dbg.cause <= ('h1 << (XLEN-1)) |  1;
-          16'b????_????_????_?100 : dbg.cause <= ('h1 << (XLEN-1)) |  2;
-          16'b????_????_????_1000 : dbg.cause <= ('h1 << (XLEN-1)) |  3;
-          16'b????_????_???1_0000 : dbg.cause <= ('h1 << (XLEN-1)) |  4;
-          16'b????_????_??10_0000 : dbg.cause <= ('h1 << (XLEN-1)) |  5;
-          16'b????_????_?100_0000 : dbg.cause <= ('h1 << (XLEN-1)) |  6;
-          16'b????_????_1000_0000 : dbg.cause <= ('h1 << (XLEN-1)) |  7;
-          16'b????_???1_0000_0000 : dbg.cause <= ('h1 << (XLEN-1)) |  8;
-          16'b????_??10_0000_0000 : dbg.cause <= ('h1 << (XLEN-1)) |  9;
-          16'b????_?100_0000_0000 : dbg.cause <= ('h1 << (XLEN-1)) | 10;
-          16'b????_1000_0000_0000 : dbg.cause <= ('h1 << (XLEN-1)) | 11;
-          16'b???1_0000_0000_0000 : dbg.cause <= ('h1 << (XLEN-1)) | 12;
-          16'b??10_0000_0000_0000 : dbg.cause <= ('h1 << (XLEN-1)) | 13;
-          16'b?100_0000_0000_0000 : dbg.cause <= ('h1 << (XLEN-1)) | 14;
-          16'b1000_0000_0000_0000 : dbg.cause <= ('h1 << (XLEN-1)) | 15;
-          default                 : dbg.cause <= ('h1 << (XLEN-1)) |  0;
-        endcase
-    end
-   
+    if      (!rst_ni                ) dbg.cause <= 'h0;
+    else if ( du_we_internal    &&
+              du_addr_o == DBG_CAUSE) dbg.cause <= du_d_o;
+    else if ( du_flush_o        &&
+              ~|du_exceptions_i &&
+              ~|du_interrupts_i     ) dbg.cause <= 'h0;
+    else if (|du_exceptions_i       ) dbg.cause <= find_first_one(du_exceptions_i);
+    else if (|du_interrupts_i       ) dbg.cause <= (1'h1 << (MXLEN-1)) | find_first_one(du_interrupts_i);
+  
 
   //DBG BPCTRL / DBG BPDATA
 generate

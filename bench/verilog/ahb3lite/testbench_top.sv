@@ -47,34 +47,34 @@ import biu_constants_pkg::*;
 module testbench_top; 
 
 //core parameters
-parameter XLEN             = 64;           //CPU data size
-parameter ALEN             = XLEN;         //address bus size
-parameter PC_INIT          = 'h8000_0000;  //Start here after reset
-parameter BASE             = PC_INIT;      //offset where to load program in memory
-parameter INIT_FILE        = "test.hex";
-parameter MEM_LATENCY      = 1;
-parameter RSB_DEPTH        = 4;
-parameter HAS_U            = 1;
-parameter HAS_S            = 1;
-parameter HAS_H            = 0;
-parameter HAS_MMU          = 0;
-parameter HAS_FPU          = 0;
-parameter HAS_RVA          = 0;
-parameter HAS_RVM          = 0;
-parameter HAS_RVC          = 1;
-parameter MULT_LATENCY     = 0;
-parameter CORES            = 1;
-
-parameter HTIF             = 0; //Host-interface
-parameter TOHOST           = 32'h80001000; //HAS_RVC ? 32'h80003000 : 32'h80001000;
-parameter UART_TX          = 32'h80001080;
+parameter int         MXLEN            = 64;           //CPU data size
+parameter int         ALEN             = MXLEN;        //address bus size
+parameter [MXLEN-1:0] PC_INIT          = 'h8000_0000;  //Start here after reset
+parameter [MXLEN-1:0] BASE             = PC_INIT;      //offset where to load program in memory
+parameter string      INIT_FILE        = "test.hex";
+parameter int         MEM_LATENCY      = 1;
+parameter int         RSB_DEPTH        = 4;
+parameter bit         HAS_U            = 1;
+parameter bit         HAS_S            = 1;
+parameter bit         HAS_H            = 0;
+parameter bit         HAS_MMU          = 0;
+parameter bit         HAS_FPU          = 0;
+parameter bit         HAS_RVA          = 0;
+parameter bit         HAS_RVM          = 0;
+parameter bit         HAS_RVC          = 1;
+parameter int         MULT_LATENCY     = 0;
+parameter int         CORES            = 1;
+parameter string      TECHNOLOGY = "GENERIC";
+parameter             HTIF             = 0; //Host-interface
+parameter             TOHOST           = 32'h80001000; //HAS_RVC ? 32'h80003000 : 32'h80001000;
+parameter             UART_TX          = 32'h80001080;
 
 
 //caches
-parameter ICACHE_SIZE      = 0;
-parameter DCACHE_SIZE      = 0;
+parameter int ICACHE_SIZE      = 0;
+parameter int DCACHE_SIZE      = 0;
 
-parameter PMA_CNT          = 4;
+parameter int PMA_CNT          = 4;
 
 
 //////////////////////////////////////////////////////////////////
@@ -88,71 +88,71 @@ localparam MULLAT = MULT_LATENCY > 4 ? 4 : MULT_LATENCY;
 //
 // Variables
 //
-logic            HCLK, HRESETn;
+logic             HCLK, HRESETn;
 
 //PMA configuration
-pmacfg_t         pma_cfg [PMA_CNT];
-logic [ALEN-1:0] pma_adr [PMA_CNT];
+pmacfg_t          pma_cfg [PMA_CNT];
+logic [ALEN -1:0] pma_adr [PMA_CNT];
 
 //Instruction interface
-logic            ins_HSEL;
-logic [ALEN-1:0] ins_HADDR;
-logic [XLEN-1:0] ins_HRDATA;
-logic [XLEN-1:0] ins_HWDATA; //always 0
-logic            ins_HWRITE; //always 0
-logic [     2:0] ins_HSIZE;
-logic [     2:0] ins_HBURST;
-logic [     3:0] ins_HPROT;
-logic [     1:0] ins_HTRANS;
-logic            ins_HMASTLOCK;
-logic            ins_HREADY;
-logic            ins_HRESP;
+logic             ins_HSEL;
+logic [ALEN -1:0] ins_HADDR;
+logic [MXLEN-1:0] ins_HRDATA;
+logic [MXLEN-1:0] ins_HWDATA; //always 0
+logic             ins_HWRITE; //always 0
+logic [      2:0] ins_HSIZE;
+logic [      2:0] ins_HBURST;
+logic [      3:0] ins_HPROT;
+logic [      1:0] ins_HTRANS;
+logic             ins_HMASTLOCK;
+logic             ins_HREADY;
+logic             ins_HRESP;
 
 //Data interface
-logic            dat_HSEL;
-logic [ALEN-1:0] dat_HADDR;
-logic [XLEN-1:0] dat_HWDATA;
-logic [XLEN-1:0] dat_HRDATA;
-logic            dat_HWRITE;
-logic [     2:0] dat_HSIZE;
-logic [     2:0] dat_HBURST;
-logic [     3:0] dat_HPROT;
-logic [     1:0] dat_HTRANS;
-logic            dat_HMASTLOCK;
-logic            dat_HREADY;
-logic            dat_HRESP;
+logic             dat_HSEL;
+logic [ALEN -1:0] dat_HADDR;
+logic [MXLEN-1:0] dat_HWDATA;
+logic [MXLEN-1:0] dat_HRDATA;
+logic             dat_HWRITE;
+logic [      2:0] dat_HSIZE;
+logic [      2:0] dat_HBURST;
+logic [      3:0] dat_HPROT;
+logic [      1:0] dat_HTRANS;
+logic             dat_HMASTLOCK;
+logic             dat_HREADY;
+logic             dat_HRESP;
 
 //Debug Interface
-logic            dbp_bp,
-                 dbg_stall,
-                 dbg_strb,
-                 dbg_ack,
-                 dbg_we;
-logic [    15:0] dbg_addr;
-logic [XLEN-1:0] dbg_dati,
-                 dbg_dato;
+logic             dbp_bp,
+                  dbg_stall,
+                  dbg_strb,
+                  dbg_ack,
+                  dbg_we;
+logic [     15:0] dbg_addr;
+logic [MXLEN-1:0] dbg_dati,
+                  dbg_dato;
 
 
 
 //Host Interface
-logic            host_csr_req,
-                 host_csr_ack,
-                 host_csr_we;
-logic [XLEN-1:0] host_csr_tohost,
-                 host_csr_fromhost;
+logic             host_csr_req,
+                  host_csr_ack,
+                  host_csr_we;
+logic [MXLEN-1:0] host_csr_tohost,
+                  host_csr_fromhost;
 
 
 //Unified memory interface
-logic            mem_hsel  [2];
-logic [     1:0] mem_htrans[2];
-logic [     2:0] mem_hburst[2];
-logic            mem_hready[2],
-                 mem_hresp [2];
-logic [ALEN-1:0] mem_haddr [2];
-logic [XLEN-1:0] mem_hwdata[2],
-                 mem_hrdata[2];
-logic [     2:0] mem_hsize [2];
-logic            mem_hwrite[2];
+logic             mem_hsel  [2];
+logic [      1:0] mem_htrans[2];
+logic [      2:0] mem_hburst[2];
+logic             mem_hready[2],
+                  mem_hresp [2];
+logic [ALEN -1:0] mem_haddr [2];
+logic [MXLEN-1:0] mem_hwdata[2],
+                  mem_hrdata[2];
+logic [      2:0] mem_hsize [2];
+logic             mem_hwrite[2];
 
 
 ////////////////////////////////////////////////////////////////
@@ -223,7 +223,7 @@ assign pma_cfg[3].a        = NAPOT;
 
 //Hookup Device Under Test
 riscv_top_ahb3lite #(
-  .XLEN             ( XLEN             ),
+  .MXLEN            ( MXLEN            ),
   .ALEN             ( ALEN             ),
   .PC_INIT          ( PC_INIT          ),
   .HAS_USER         ( HAS_U            ),
@@ -260,8 +260,8 @@ dut (
 
 //Hookup Debug Unit
 dbg_bfm #(
-  .DATA_WIDTH ( XLEN ),
-  .ADDR_WIDTH ( 16   )
+  .DATA_WIDTH ( MXLEN ),
+  .ADDR_WIDTH ( 16    )
 )
 dbg_ctrl (
   .rstn ( HRESETn ),
@@ -285,7 +285,7 @@ assign mem_hburst[0] = ins_HBURST;
 assign mem_haddr [0] = ins_HADDR;
 assign mem_hwrite[0] = ins_HWRITE;
 assign mem_hsize [0] = 4'h0;
-assign mem_hwdata[0] = {XLEN{1'b0}};
+assign mem_hwdata[0] = {MXLEN{1'b0}};
 assign ins_HRDATA    = mem_hrdata[0];
 assign ins_HREADY    = mem_hready[0];
 assign ins_HRESP     = mem_hresp [0];
@@ -304,7 +304,7 @@ assign dat_HRESP     = mem_hresp [1];
 
 //hookup memory model
 memory_model_ahb3lite #(
-  .DATA_WIDTH ( XLEN        ),
+  .DATA_WIDTH ( MXLEN       ),
   .ADDR_WIDTH ( ALEN        ),
   .BASE       ( BASE        ),
   .PORTS      (           2 ),
@@ -330,7 +330,7 @@ generate
   if (HTIF)
   begin
       //Old HTIF interface
-      htif #(XLEN)
+      htif #(MXLEN)
       htif_inst (
         .rstn              ( HRESETn           ),
         .clk               ( HCLK              ),
@@ -343,7 +343,7 @@ generate
   else
   begin
       //New MMIO interface
-      mmio_if #(XLEN, ALEN, TOHOST, UART_TX)
+      mmio_if #(MXLEN, ALEN, TOHOST, UART_TX)
       mmio_if_inst (
         .HRESETn ( HRESETn ),
         .HCLK    ( HCLK        ),
@@ -360,7 +360,7 @@ endgenerate
 //Hookup Data Memory Access Validator
 `define RV_CORE dut.core
 dmav #(
-  .XLEN          ( XLEN      ),
+  .MXLEN          ( MXLEN      ),
   .INIT_FILE     ( INIT_FILE )
 //  ,.CHECK_CREATE ( 0         )
 )
@@ -392,9 +392,9 @@ begin
     $display (" |  |\\  \\ ' '-' '\\ '-'  |    |  '--.' '-' ' '-' ||  |\\ `--. ");
     $display (" `--' '--' `---'  `--`--'    `-----' `---' `-   /`--' `---' ");
     $display ("- RISC-V Regression Testbench -----------  `---'  ----------");
-    $display ("  XLEN | PRIV | MMU | FPU | RVA | RVM | MULLAT | CORES  ");
-    $display ("   %3d | %C%C%C%C | %3d | %3d | %3d | %3d | %6d | %3d   ", 
-               XLEN, "M", HAS_H > 0 ? "H" : " ", HAS_S > 0 ? "S" : " ", HAS_U > 0 ? "U" : " ",
+    $display ("  MXLEN | PRIV | MMU | FPU | RVA | RVM | MULLAT | CORES  ");
+    $display ("   %3d  | %C%C%C%C | %3d | %3d | %3d | %3d | %6d | %3d   ", 
+               MXLEN, "M", HAS_H > 0 ? "H" : " ", HAS_S > 0 ? "S" : " ", HAS_U > 0 ? "U" : " ",
                HAS_MMU, HAS_FPU, HAS_RVA, HAS_RVM, MULLAT, CORES);
     $display ("-------------------------------------------------------------");
     $display ("  Test   = %s", INIT_FILE);
@@ -599,17 +599,17 @@ endmodule
  * HTIF Interface
  */
 module htif #(
-  parameter XLEN=32
+  parameter MXLEN=32
 )
 (
-  input             rstn,
-  input             clk,
+  input              rstn,
+  input              clk,
 
-  output            host_csr_req,
-  input             host_csr_ack,
-  output            host_csr_we,
-  input  [XLEN-1:0] host_csr_tohost,
-  output [XLEN-1:0] host_csr_fromhost
+  output             host_csr_req,
+  input              host_csr_ack,
+  output             host_csr_we,
+  input  [MXLEN-1:0] host_csr_tohost,
+  output [MXLEN-1:0] host_csr_fromhost
 );
   function string hostcode_to_string;
     input integer hostcode;
@@ -636,7 +636,7 @@ module htif #(
           $display("* RISC-V test bench finished");
           if (host_csr_tohost[0] == 1'b1)
           begin
-              if (~|host_csr_tohost[XLEN-1:1])
+              if (~|host_csr_tohost[MXLEN-1:1])
                 $display("* PASSED %0d", host_csr_tohost);
               else
                 $display ("* FAILED: code: 0x%h (%0d: %s)", host_csr_tohost >> 1, host_csr_tohost >> 1, hostcode_to_string(host_csr_tohost >> 1) );
@@ -659,23 +659,23 @@ endmodule
  * Data Memory Access Validation
  */
 module dmav #(
-  parameter XLEN         = 32,
+  parameter MXLEN         = 32,
   parameter INIT_FILE    = "inifile",
   parameter CHECK_CREATE = 1
 )
 (
-  input            clk_i,
-  input            req_i,
-  input [XLEN-1:0] adr_i,
-  input [XLEN-1:0] d_i,
-  input [XLEN-1:0] q_i,
-  input            we_i,
-  input biu_size_t size_i,
-  input            lock_i,
-  input            ack_i,
-                   err_i,
-                   misaligned_i,
-                   page_fault_i
+  input             clk_i,
+  input             req_i,
+  input [MXLEN-1:0] adr_i,
+  input [MXLEN-1:0] d_i,
+  input [MXLEN-1:0] q_i,
+  input             we_i,
+  input biu_size_t  size_i,
+  input             lock_i,
+  input             ack_i,
+                    err_i,
+                    misaligned_i,
+                    page_fault_i
 );
 
  /////////////////////////////////////////////////////////////////
@@ -683,16 +683,16 @@ module dmav #(
  // Typedef
  //
  typedef struct {
-   logic [XLEN-1:0] adr;
-   logic [XLEN-1:0] data;
-   logic            we;
-   biu_size_t       size;
-   logic            lock;
-   logic            ack,
-                    err,
-                    misaligned,
-                    page_fault;
-   string           comment;
+   logic [MXLEN-1:0] adr;
+   logic [MXLEN-1:0] data;
+   logic             we;
+   biu_size_t        size;
+   logic             lock;
+   logic             ack,
+                     err,
+                     misaligned,
+                     page_fault;
+   string            comment;
  } data_t;
 
 
@@ -766,12 +766,12 @@ module dmav #(
     if (r !== g && g.comment[0] !== "+")
     begin
         $display ("ERROR  : golden_compare error @%0t %s", $realtime, g.comment);
-        $display ("        | golden %s| reference", {XLEN/4-6{" "}} );
+        $display ("        | golden %s| reference", {MXLEN/4-6{" "}} );
         $display ("adr     | %h | %h",   g.adr,  r.adr);
         $display ("data    | %h | %h",   g.data, r.data);
-        $display ("size    | %h  %s| %h",   g.size, {XLEN/4-2{" "}}, r.size);
-        $display ("we/lock | %b%b %s| %b%b", g.we, g.lock, {XLEN/4-2{" "}}, r.we, r.lock);
-        $display ("aemp    | %b%b%b%b %s| %b%b%b%b", g.ack, g.err, g.misaligned, g.page_fault, {XLEN/4-4{" "}},
+        $display ("size    | %h  %s| %h",   g.size, {MXLEN/4-2{" "}}, r.size);
+        $display ("we/lock | %b%b %s| %b%b", g.we, g.lock, {MXLEN/4-2{" "}}, r.we, r.lock);
+        $display ("aemp    | %b%b%b%b %s| %b%b%b%b", g.ack, g.err, g.misaligned, g.page_fault, {MXLEN/4-4{" "}},
                                                    r.ack, r.err, r.misaligned, r.page_fault);
         return -1;
     end

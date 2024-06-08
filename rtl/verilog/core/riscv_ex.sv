@@ -97,6 +97,7 @@ import biu_constants_pkg::*;
 
   //From State
   input      [               1:0] st_xlen_i,
+  input                           st_be_i,
   input                           st_flush_i,
   input      [XLEN          -1:0] st_csr_rval_i, //TODO: read during ID
 
@@ -245,6 +246,7 @@ import biu_constants_pkg::*;
     .opB_i             ( opB               ),
 
     .st_xlen_i         ( st_xlen_i         ),
+    .st_be_i           ( st_be_i           ),
 
     .dmem_req_o        ( dmem_req_o        ),
     .dmem_lock_o       ( dmem_lock_o       ),

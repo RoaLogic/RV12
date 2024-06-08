@@ -40,18 +40,19 @@ import riscv_state_pkg::*;
 #(
   parameter    int                  XLEN           = 32,
   parameter    [XLEN          -1:0] PC_INIT        = 'h200,
-  parameter    int                  HAS_HYPER      = 0,
-  parameter    int                  HAS_SUPER      = 0,
-  parameter    int                  HAS_USER       = 0,
-  parameter    int                  HAS_FPU        = 0,
-  parameter    int                  HAS_RVA        = 0,
-  parameter    int                  HAS_RVM        = 0,
-  parameter    int                  HAS_RVC        = 0,
+  parameter    bit                  HAS_HYPER      = 0,
+  parameter    bit                  HAS_SUPER      = 0,
+  parameter    bit                  HAS_USER       = 0,
+  parameter    bit                  HAS_FPU        = 0,
+  parameter    bit                  HAS_RVA        = 0,
+  parameter    bit                  HAS_RVM        = 0,
+  parameter    bit                  HAS_RVC        = 0,
   parameter    int                  MULT_LATENCY   = 0,
   parameter    int                  RF_REGOUT      = 1,
   parameter    int                  BP_GLOBAL_BITS = 2,
   parameter    int                  RSB_DEPTH      = 0,
-  parameter    int                  MEM_STAGES     = 1
+  parameter    int                  MEM_STAGES     = 1,
+  parameter    int                  PMP_CNT        = 16
 )
 (
   input                             rst_ni,
@@ -373,7 +374,7 @@ endgenerate
         my_exceptions.exceptions.breakpoint          = ~pd_insn_i.bubble & (pd_insn_i.instr == EBREAK);
         my_exceptions.exceptions.umode_ecall         = ~pd_insn_i.bubble & (pd_insn_i.instr == ECALL ) & (st_prv_i == PRV_U) & has_u;
         my_exceptions.exceptions.smode_ecall         = ~pd_insn_i.bubble & (pd_insn_i.instr == ECALL ) & (st_prv_i == PRV_S) & has_s;
-        my_exceptions.exceptions.hmode_ecall         = ~pd_insn_i.bubble & (pd_insn_i.instr == ECALL ) & (st_prv_i == PRV_H) & has_h;
+//        my_exceptions.exceptions.hmode_ecall         = ~pd_insn_i.bubble & (pd_insn_i.instr == ECALL ) & (st_prv_i == PRV_H) & has_h;
         my_exceptions.exceptions.mmode_ecall         = ~pd_insn_i.bubble & (pd_insn_i.instr == ECALL ) & (st_prv_i == PRV_M);
 
 	my_exceptions.any                            = |my_exceptions.exceptions | |my_exceptions.interrupts | int_nmi_i;
@@ -1058,14 +1059,6 @@ endgenerate
   always_comb
     case (pd_insn_i.instr[31:20])
       //User
-      USTATUS   : illegal_csr_rd = ~has_u;
-      UIE       : illegal_csr_rd = ~has_u;
-      UTVEC     : illegal_csr_rd = ~has_u;
-      USCRATCH  : illegal_csr_rd = ~has_u;
-      UEPC      : illegal_csr_rd = ~has_u;
-      UCAUSE    : illegal_csr_rd = ~has_u;
-      UTVAL     : illegal_csr_rd = ~has_u;
-      UIP       : illegal_csr_rd = ~has_u;
       FFLAGS    : illegal_csr_rd = ~has_fpu;
       FRM       : illegal_csr_rd = ~has_fpu;
       FCSR      : illegal_csr_rd = ~has_fpu;
@@ -1090,17 +1083,25 @@ endgenerate
       //TODO: hpmcounters
 
       //Supervisor
-      SSTATUS   : illegal_csr_rd = ~has_s               | (st_prv_i < PRV_S);
-      SEDELEG   : illegal_csr_rd = ~has_s               | (st_prv_i < PRV_S);
-      SIDELEG   : illegal_csr_rd = ~has_s               | (st_prv_i < PRV_S);
-      SIE       : illegal_csr_rd = ~has_s               | (st_prv_i < PRV_S);
-      STVEC     : illegal_csr_rd = ~has_s               | (st_prv_i < PRV_S);
-      SSCRATCH  : illegal_csr_rd = ~has_s               | (st_prv_i < PRV_S);
-      SEPC      : illegal_csr_rd = ~has_s               | (st_prv_i < PRV_S);
-      SCAUSE    : illegal_csr_rd = ~has_s               | (st_prv_i < PRV_S);
-      STVAL     : illegal_csr_rd = ~has_s               | (st_prv_i < PRV_S);
-      SIP       : illegal_csr_rd = ~has_s               | (st_prv_i < PRV_S);
-      SATP      : illegal_csr_rd = ~has_s               | (st_prv_i < PRV_S) | (st_prv_i == PRV_S && st_tvm_i);
+      SSTATUS       : illegal_csr_rd = ~has_s               | (st_prv_i < PRV_S);
+      SIE           : illegal_csr_rd = ~has_s               | (st_prv_i < PRV_S);
+      STVEC         : illegal_csr_rd = ~has_s               | (st_prv_i < PRV_S);
+      SCOUNTEREN    : illegal_csr_rd = ~has_s               | (st_prv_i < PRV_S);
+      SCOUNTINHIBIT : illegal_csr_rd = ~has_s               | (st_prv_i < PRV_S);
+      SENVCFG       : illegal_csr_rd = ~has_s               | (st_prv_i < PRV_S);
+      SSCRATCH      : illegal_csr_rd = ~has_s               | (st_prv_i < PRV_S);
+      SEPC          : illegal_csr_rd = ~has_s               | (st_prv_i < PRV_S);
+      SCAUSE        : illegal_csr_rd = ~has_s               | (st_prv_i < PRV_S);
+      STVAL         : illegal_csr_rd = ~has_s               | (st_prv_i < PRV_S);
+      SIP           : illegal_csr_rd = ~has_s               | (st_prv_i < PRV_S);
+//      SCOUNTOVF     : illegal_csr_rd = ~has_s               | (st_prv_i < PRV_S);
+      SATP          : illegal_csr_rd = ~has_s               | (st_prv_i < PRV_S) | (st_prv_i == PRV_S && st_tvm_i);
+      SCONTEXT      : illegal_csr_rd = ~has_s               | (st_prv_i < PRV_S);
+//      SSTATEEN0     : illegal_csr_rd = ~has_s               | (st_prv_i < PRV_S);
+//      SSTATEEN1     : illegal_csr_rd = ~has_s               | (st_prv_i < PRV_S);
+//      SSTATEEN2     : illegal_csr_rd = ~has_s               | (st_prv_i < PRV_S);
+//      SSTATEEN3     : illegal_csr_rd = ~has_s               | (st_prv_i < PRV_S);
+
 
       //Hypervisor
 /*
@@ -1116,84 +1117,99 @@ endgenerate
       HIP       : illegal_csr_rd = (HAS_HYPER == 0)               | (st_prv_i < PRV_H);
 */
       //Machine
-      MVENDORID : illegal_csr_rd =                        (st_prv_i < PRV_M);
-      MARCHID   : illegal_csr_rd =                        (st_prv_i < PRV_M);
-      MIMPID    : illegal_csr_rd =                        (st_prv_i < PRV_M);
-      MHARTID   : illegal_csr_rd =                        (st_prv_i < PRV_M);
-      MSTATUS   : illegal_csr_rd =                        (st_prv_i < PRV_M);
-      MISA      : illegal_csr_rd =                        (st_prv_i < PRV_M);
-      MEDELEG   : illegal_csr_rd =                        (st_prv_i < PRV_M);
-      MIDELEG   : illegal_csr_rd =                        (st_prv_i < PRV_M);
-      MIE       : illegal_csr_rd =                        (st_prv_i < PRV_M);
-      MTVEC     : illegal_csr_rd =                        (st_prv_i < PRV_M);
-      MCOUNTEREN: illegal_csr_rd =                        (st_prv_i < PRV_M);
-      MSCRATCH  : illegal_csr_rd =                        (st_prv_i < PRV_M);
-      MEPC      : illegal_csr_rd =                        (st_prv_i < PRV_M);
-      MCAUSE    : illegal_csr_rd =                        (st_prv_i < PRV_M);
-      MTVAL     : illegal_csr_rd =                        (st_prv_i < PRV_M);
-      MIP       : illegal_csr_rd =                        (st_prv_i < PRV_M);
-      PMPCFG0   : illegal_csr_rd =                        (st_prv_i < PRV_M);
-      PMPCFG1   : illegal_csr_rd =          (XLEN > 32) | (st_prv_i < PRV_M);
-      PMPCFG2   : illegal_csr_rd =          (XLEN > 64) | (st_prv_i < PRV_M);
-      PMPCFG3   : illegal_csr_rd =          (XLEN > 32) | (st_prv_i < PRV_M);
-      PMPADDR0  : illegal_csr_rd =                        (st_prv_i < PRV_M);
-      PMPADDR1  : illegal_csr_rd =                        (st_prv_i < PRV_M);
-      PMPADDR2  : illegal_csr_rd =                        (st_prv_i < PRV_M);
-      PMPADDR3  : illegal_csr_rd =                        (st_prv_i < PRV_M);
-      PMPADDR4  : illegal_csr_rd =                        (st_prv_i < PRV_M);
-      PMPADDR5  : illegal_csr_rd =                        (st_prv_i < PRV_M);
-      PMPADDR6  : illegal_csr_rd =                        (st_prv_i < PRV_M);
-      PMPADDR7  : illegal_csr_rd =                        (st_prv_i < PRV_M);
-      PMPADDR8  : illegal_csr_rd =                        (st_prv_i < PRV_M);
-      PMPADDR9  : illegal_csr_rd =                        (st_prv_i < PRV_M);
-      PMPADDR10 : illegal_csr_rd =                        (st_prv_i < PRV_M);
-      PMPADDR11 : illegal_csr_rd =                        (st_prv_i < PRV_M);
-      PMPADDR12 : illegal_csr_rd =                        (st_prv_i < PRV_M);
-      PMPADDR13 : illegal_csr_rd =                        (st_prv_i < PRV_M);
-      PMPADDR14 : illegal_csr_rd =                        (st_prv_i < PRV_M);
-      PMPADDR15 : illegal_csr_rd =                        (st_prv_i < PRV_M);
-      MCYCLE    : illegal_csr_rd =                        (st_prv_i < PRV_M); 
-      MINSTRET  : illegal_csr_rd =                        (st_prv_i < PRV_M);
+      MVENDORID     : illegal_csr_rd =                        (st_prv_i < PRV_M);
+      MARCHID       : illegal_csr_rd =                        (st_prv_i < PRV_M);
+      MIMPID        : illegal_csr_rd =                        (st_prv_i < PRV_M);
+      MHARTID       : illegal_csr_rd =                        (st_prv_i < PRV_M);
+      MCONFIGPTR    : illegal_csr_rd =                        (st_prv_i < PRV_M);
+      MSTATUS       : illegal_csr_rd =                        (st_prv_i < PRV_M);
+      MSTATUSH      : illegal_csr_rd =          (XLEN > 32) | (st_prv_i < PRV_M);
+      MISA          : illegal_csr_rd =                        (st_prv_i < PRV_M);
+      MEDELEG       : illegal_csr_rd =                        (st_prv_i < PRV_M);
+      MEDELEGH      : illegal_csr_rd =          (XLEN > 32) | (st_prv_i < PRV_M);
+      MIDELEG       : illegal_csr_rd =                        (st_prv_i < PRV_M);
+      MIE           : illegal_csr_rd =                        (st_prv_i < PRV_M);
+      MIP           : illegal_csr_rd =                        (st_prv_i < PRV_M);
+      MTVEC         : illegal_csr_rd =                        (st_prv_i < PRV_M);
+      MCOUNTEREN    : illegal_csr_rd =                        (st_prv_i < PRV_M);
+      MSCRATCH      : illegal_csr_rd =                        (st_prv_i < PRV_M);
+      MEPC          : illegal_csr_rd =                        (st_prv_i < PRV_M);
+      MCAUSE        : illegal_csr_rd =                        (st_prv_i < PRV_M);
+      MTVAL         : illegal_csr_rd =                        (st_prv_i < PRV_M);
+      MTVAL2        : illegal_csr_rd =                        (st_prv_i < PRV_M);
+      MTINST        : illegal_csr_rd =                        (st_prv_i < PRV_M);
+      MENVCFG       : illegal_csr_rd =                        (st_prv_i < PRV_M);
+      MENVCFGH      : illegal_csr_rd =          (XLEN > 32) | (st_prv_i < PRV_M);
+      MSECCFG       : illegal_csr_rd =                        (st_prv_i < PRV_M);
+      MSECCFGH      : illegal_csr_rd =          (XLEN > 32) | (st_prv_i < PRV_M);
+      PMPCFG0       : illegal_csr_rd =                        (st_prv_i < PRV_M);
+      PMPCFG1       : illegal_csr_rd =          (XLEN > 32) | (st_prv_i < PRV_M);
+      PMPCFG2       : illegal_csr_rd =          (XLEN > 64) | (st_prv_i < PRV_M);
+      PMPCFG3       : illegal_csr_rd =          (XLEN > 32) | (st_prv_i < PRV_M);
+      PMPADDR0      : illegal_csr_rd =       (PMP_CNT <  1) | (st_prv_i < PRV_M);
+      PMPADDR1      : illegal_csr_rd =       (PMP_CNT <  2) | (st_prv_i < PRV_M);
+      PMPADDR2      : illegal_csr_rd =       (PMP_CNT <  3) | (st_prv_i < PRV_M);
+      PMPADDR3      : illegal_csr_rd =       (PMP_CNT <  4) | (st_prv_i < PRV_M);
+      PMPADDR4      : illegal_csr_rd =       (PMP_CNT <  5) | (st_prv_i < PRV_M);
+      PMPADDR5      : illegal_csr_rd =       (PMP_CNT <  6) | (st_prv_i < PRV_M);
+      PMPADDR6      : illegal_csr_rd =       (PMP_CNT <  7) | (st_prv_i < PRV_M);
+      PMPADDR7      : illegal_csr_rd =       (PMP_CNT <  8) | (st_prv_i < PRV_M);
+      PMPADDR8      : illegal_csr_rd =       (PMP_CNT <  9) | (st_prv_i < PRV_M);
+      PMPADDR9      : illegal_csr_rd =       (PMP_CNT < 10) | (st_prv_i < PRV_M);
+      PMPADDR10     : illegal_csr_rd =       (PMP_CNT < 11) | (st_prv_i < PRV_M);
+      PMPADDR11     : illegal_csr_rd =       (PMP_CNT < 12) | (st_prv_i < PRV_M);
+      PMPADDR12     : illegal_csr_rd =       (PMP_CNT < 13) | (st_prv_i < PRV_M);
+      PMPADDR13     : illegal_csr_rd =       (PMP_CNT < 14) | (st_prv_i < PRV_M);
+      PMPADDR14     : illegal_csr_rd =       (PMP_CNT < 15) | (st_prv_i < PRV_M);
+      PMPADDR15     : illegal_csr_rd =       (PMP_CNT < 16) | (st_prv_i < PRV_M);
+      MSTATEEN0     : illegal_csr_rd =                        (st_prv_i < PRV_M);
+      MSTATEEN0H    : illegal_csr_rd =          (XLEN > 32) | (st_prv_i < PRV_M);
+      MSTATEEN1     : illegal_csr_rd =                        (st_prv_i < PRV_M);
+      MSTATEEN1H    : illegal_csr_rd =          (XLEN > 32) | (st_prv_i < PRV_M);
+      MSTATEEN2     : illegal_csr_rd =                        (st_prv_i < PRV_M);
+      MSTATEEN2H    : illegal_csr_rd =          (XLEN > 32) | (st_prv_i < PRV_M);
+      MSTATEEN3     : illegal_csr_rd =                        (st_prv_i < PRV_M);
+      MSTATEEN3H    : illegal_csr_rd =          (XLEN > 32) | (st_prv_i < PRV_M);
+      MNSCRATCH     : illegal_csr_rd =                        (st_prv_i < PRV_M);
+      MNEPC         : illegal_csr_rd =                        (st_prv_i < PRV_M);
+      MNCAUSE       : illegal_csr_rd =                        (st_prv_i < PRV_M);
+      MNSTATUS      : illegal_csr_rd =                        (st_prv_i < PRV_M);
+      MCYCLE        : illegal_csr_rd =                        (st_prv_i < PRV_M); 
+      MCYCLEH       : illegal_csr_rd =          (XLEN > 32) | (st_prv_i < PRV_M);
+      MINSTRET      : illegal_csr_rd =                        (st_prv_i < PRV_M);
+      MINSTRETH     : illegal_csr_rd =          (XLEN > 32) | (st_prv_i < PRV_M);
      //TODO: performance counters
-      MCYCLEH   : illegal_csr_rd =          (XLEN > 32) | (st_prv_i < PRV_M);
-      MINSTRETH : illegal_csr_rd =          (XLEN > 32) | (st_prv_i < PRV_M);
 
-      default   : illegal_csr_rd = 1'b1;
+      default       : illegal_csr_rd = 1'b1;
     endcase
 
   always_comb
     case (pd_insn_i.instr[31:20])
-      USTATUS   : illegal_csr_wr = ~has_u;
-      UIE       : illegal_csr_wr = ~has_u;
-      UTVEC     : illegal_csr_wr = ~has_u;
-      USCRATCH  : illegal_csr_wr = ~has_u;
-      UEPC      : illegal_csr_wr = ~has_u;
-      UCAUSE    : illegal_csr_wr = ~has_u;
-      UTVAL     : illegal_csr_wr = ~has_u;
-      UIP       : illegal_csr_wr = ~has_u;
-      FFLAGS    : illegal_csr_wr = ~has_fpu;
-      FRM       : illegal_csr_wr = ~has_fpu;
-      FCSR      : illegal_csr_wr = ~has_fpu;
-      CYCLE     : illegal_csr_wr = 1'b1; 
-      TIME      : illegal_csr_wr = 1'b1;
-      INSTRET   : illegal_csr_wr = 1'b1;
+      FFLAGS        : illegal_csr_wr = ~has_fpu;
+      FRM           : illegal_csr_wr = ~has_fpu;
+      FCSR          : illegal_csr_wr = ~has_fpu;
+      CYCLE         : illegal_csr_wr = 1'b1; 
+      TIME          : illegal_csr_wr = 1'b1;
+      INSTRET       : illegal_csr_wr = 1'b1;
       //TODO:hpmcounters
-      CYCLEH    : illegal_csr_wr = 1'b1;
-      TIMEH     : illegal_csr_wr = 1'b1;
-      INSTRETH  : illegal_csr_wr = 1'b1;
+      CYCLEH        : illegal_csr_wr = 1'b1;
+      TIMEH         : illegal_csr_wr = 1'b1;
+      INSTRETH      : illegal_csr_wr = 1'b1;
+
       //Supervisor
-      SSTATUS   : illegal_csr_wr = ~has_s               | (st_prv_i < PRV_S);
-      SEDELEG   : illegal_csr_wr = ~has_s               | (st_prv_i < PRV_S);
-      SIDELEG   : illegal_csr_wr = ~has_s               | (st_prv_i < PRV_S);
-      SIE       : illegal_csr_wr = ~has_s               | (st_prv_i < PRV_S);
-      STVEC     : illegal_csr_wr = ~has_s               | (st_prv_i < PRV_S);
-      SCOUNTEREN: illegal_csr_wr = ~has_s               | (st_prv_i < PRV_S);
-      SSCRATCH  : illegal_csr_wr = ~has_s               | (st_prv_i < PRV_S);
-      SEPC      : illegal_csr_wr = ~has_s               | (st_prv_i < PRV_S);
-      SCAUSE    : illegal_csr_wr = ~has_s               | (st_prv_i < PRV_S);
-      STVAL     : illegal_csr_wr = ~has_s               | (st_prv_i < PRV_S);
-      SIP       : illegal_csr_wr = ~has_s               | (st_prv_i < PRV_S);
-      SATP      : illegal_csr_wr = ~has_s               | (st_prv_i < PRV_S)  | (st_prv_i == PRV_S && st_tvm_i);
+      SSTATUS       : illegal_csr_wr = ~has_s               | (st_prv_i < PRV_S);
+      SIE           : illegal_csr_wr = ~has_s               | (st_prv_i < PRV_S);
+      STVEC         : illegal_csr_wr = ~has_s               | (st_prv_i < PRV_S);
+      SCOUNTEREN    : illegal_csr_wr = ~has_s               | (st_prv_i < PRV_S);
+      SENVCFG       : illegal_csr_wr = ~has_s               | (st_prv_i < PRV_S);
+      SCOUNTINHIBIT : illegal_csr_wr = ~has_s               | (st_prv_i < PRV_S);
+      SSCRATCH      : illegal_csr_wr = ~has_s               | (st_prv_i < PRV_S);
+      SEPC          : illegal_csr_wr = ~has_s               | (st_prv_i < PRV_S);
+      SCAUSE        : illegal_csr_wr = ~has_s               | (st_prv_i < PRV_S);
+      STVAL         : illegal_csr_wr = ~has_s               | (st_prv_i < PRV_S);
+      SIP           : illegal_csr_wr = ~has_s               | (st_prv_i < PRV_S);
+      SATP          : illegal_csr_wr = ~has_s               | (st_prv_i < PRV_S)  | (st_prv_i == PRV_S && st_tvm_i);
+      SCONTEXT      : illegal_csr_wr = ~has_s               | (st_prv_i < PRV_S);
 
      //Hypervisor
 /*
@@ -1209,48 +1225,65 @@ endgenerate
       HIP       : illegal_csr_wr = (HAS_HYPER == 0)               | (st_prv_i < PRV_H);
 */
       //Machine
-      MVENDORID : illegal_csr_wr = 1'b1;
-      MARCHID   : illegal_csr_wr = 1'b1;
-      MIMPID    : illegal_csr_wr = 1'b1;
-      MHARTID   : illegal_csr_wr = 1'b1;
-      MSTATUS   : illegal_csr_wr =                        (st_prv_i < PRV_M);
-      MISA      : illegal_csr_wr =                        (st_prv_i < PRV_M);
-      MEDELEG   : illegal_csr_wr =                        (st_prv_i < PRV_M);
-      MIDELEG   : illegal_csr_wr =                        (st_prv_i < PRV_M);
-      MIE       : illegal_csr_wr =                        (st_prv_i < PRV_M);
-      MTVEC     : illegal_csr_wr =                        (st_prv_i < PRV_M);
-      MNMIVEC   : illegal_csr_wr =                        (st_prv_i < PRV_M);
-      MCOUNTEREN: illegal_csr_wr =                        (st_prv_i < PRV_M);
-      MSCRATCH  : illegal_csr_wr =                        (st_prv_i < PRV_M);
-      MEPC      : illegal_csr_wr =                        (st_prv_i < PRV_M);
-      MCAUSE    : illegal_csr_wr =                        (st_prv_i < PRV_M);
-      MTVAL     : illegal_csr_wr =                        (st_prv_i < PRV_M);
-      MIP       : illegal_csr_wr =                        (st_prv_i < PRV_M);
-      PMPCFG0   : illegal_csr_wr =                        (st_prv_i < PRV_M);
-      PMPCFG1   : illegal_csr_wr =          (XLEN > 32) | (st_prv_i < PRV_M);
-      PMPCFG2   : illegal_csr_wr =          (XLEN > 64) | (st_prv_i < PRV_M);
-      PMPCFG3   : illegal_csr_wr =          (XLEN > 32) | (st_prv_i < PRV_M);
-      PMPADDR0  : illegal_csr_wr =                        (st_prv_i < PRV_M);
-      PMPADDR1  : illegal_csr_wr =                        (st_prv_i < PRV_M);
-      PMPADDR2  : illegal_csr_wr =                        (st_prv_i < PRV_M);
-      PMPADDR3  : illegal_csr_wr =                        (st_prv_i < PRV_M);
-      PMPADDR4  : illegal_csr_wr =                        (st_prv_i < PRV_M);
-      PMPADDR5  : illegal_csr_wr =                        (st_prv_i < PRV_M);
-      PMPADDR6  : illegal_csr_wr =                        (st_prv_i < PRV_M);
-      PMPADDR7  : illegal_csr_wr =                        (st_prv_i < PRV_M);
-      PMPADDR8  : illegal_csr_wr =                        (st_prv_i < PRV_M);
-      PMPADDR9  : illegal_csr_wr =                        (st_prv_i < PRV_M);
-      PMPADDR10 : illegal_csr_wr =                        (st_prv_i < PRV_M);
-      PMPADDR11 : illegal_csr_wr =                        (st_prv_i < PRV_M);
-      PMPADDR12 : illegal_csr_wr =                        (st_prv_i < PRV_M);
-      PMPADDR13 : illegal_csr_wr =                        (st_prv_i < PRV_M);
-      PMPADDR14 : illegal_csr_wr =                        (st_prv_i < PRV_M);
-      PMPADDR15 : illegal_csr_wr =                        (st_prv_i < PRV_M);
-      MCYCLE    : illegal_csr_wr =                        (st_prv_i < PRV_M); 
-      MINSTRET  : illegal_csr_wr =                        (st_prv_i < PRV_M);
+      MVENDORID     : illegal_csr_wr = 1'b1;
+      MARCHID       : illegal_csr_wr = 1'b1;
+      MIMPID        : illegal_csr_wr = 1'b1;
+      MHARTID       : illegal_csr_wr = 1'b1;
+      MCONFIGPTR    : illegal_csr_wr = 1'b1;
+      MSTATUS       : illegal_csr_wr =                        (st_prv_i < PRV_M);
+      MSTATUSH      : illegal_csr_wr =          (XLEN > 32) | (st_prv_i < PRV_M);
+      MISA          : illegal_csr_wr =                        (st_prv_i < PRV_M);
+      MEDELEG       : illegal_csr_wr =                        (st_prv_i < PRV_M);
+      MEDELEGH      : illegal_csr_wr =          (XLEN > 32) | (st_prv_i < PRV_M);
+      MIDELEG       : illegal_csr_wr =                        (st_prv_i < PRV_M);
+      MIE           : illegal_csr_wr =                        (st_prv_i < PRV_M);
+      MIP           : illegal_csr_wr =                        (st_prv_i < PRV_M);
+      MTVEC         : illegal_csr_wr =                        (st_prv_i < PRV_M);
+      MNMIVEC       : illegal_csr_wr =                        (st_prv_i < PRV_M);
+      MCOUNTEREN    : illegal_csr_wr =                        (st_prv_i < PRV_M);
+      MSCRATCH      : illegal_csr_wr =                        (st_prv_i < PRV_M);
+      MEPC          : illegal_csr_wr =                        (st_prv_i < PRV_M);
+      MCAUSE        : illegal_csr_wr =                        (st_prv_i < PRV_M);
+      MTVAL         : illegal_csr_wr =                        (st_prv_i < PRV_M);
+      MTVAL2        : illegal_csr_wr =                        (st_prv_i < PRV_M);
+      MTINST        : illegal_csr_wr =                        (st_prv_i < PRV_M);
+      PMPCFG0       : illegal_csr_wr =                        (st_prv_i < PRV_M);
+      PMPCFG1       : illegal_csr_wr =          (XLEN > 32) | (st_prv_i < PRV_M);
+      PMPCFG2       : illegal_csr_wr =          (XLEN > 64) | (st_prv_i < PRV_M);
+      PMPCFG3       : illegal_csr_wr =          (XLEN > 32) | (st_prv_i < PRV_M);
+      PMPADDR0      : illegal_csr_wr =       (PMP_CNT <  1) | (st_prv_i < PRV_M);
+      PMPADDR1      : illegal_csr_wr =       (PMP_CNT <  2) | (st_prv_i < PRV_M);
+      PMPADDR2      : illegal_csr_wr =       (PMP_CNT <  3) | (st_prv_i < PRV_M);
+      PMPADDR3      : illegal_csr_wr =       (PMP_CNT <  4) | (st_prv_i < PRV_M);
+      PMPADDR4      : illegal_csr_wr =       (PMP_CNT <  5) | (st_prv_i < PRV_M);
+      PMPADDR5      : illegal_csr_wr =       (PMP_CNT <  6) | (st_prv_i < PRV_M);
+      PMPADDR6      : illegal_csr_wr =       (PMP_CNT <  7) | (st_prv_i < PRV_M);
+      PMPADDR7      : illegal_csr_wr =       (PMP_CNT <  8) | (st_prv_i < PRV_M);
+      PMPADDR8      : illegal_csr_wr =       (PMP_CNT <  9) | (st_prv_i < PRV_M);
+      PMPADDR9      : illegal_csr_wr =       (PMP_CNT < 10) | (st_prv_i < PRV_M);
+      PMPADDR10     : illegal_csr_wr =       (PMP_CNT < 11) | (st_prv_i < PRV_M);
+      PMPADDR11     : illegal_csr_wr =       (PMP_CNT < 12) | (st_prv_i < PRV_M);
+      PMPADDR12     : illegal_csr_wr =       (PMP_CNT < 13) | (st_prv_i < PRV_M);
+      PMPADDR13     : illegal_csr_wr =       (PMP_CNT < 14) | (st_prv_i < PRV_M);
+      PMPADDR14     : illegal_csr_wr =       (PMP_CNT < 15) | (st_prv_i < PRV_M);
+      PMPADDR15     : illegal_csr_wr =       (PMP_CNT < 16) | (st_prv_i < PRV_M);
+      MSTATEEN0     : illegal_csr_wr =                        (st_prv_i < PRV_M);
+      MSTATEEN0H    : illegal_csr_wr =          (XLEN > 32) | (st_prv_i < PRV_M);
+      MSTATEEN1     : illegal_csr_wr =                        (st_prv_i < PRV_M);
+      MSTATEEN1H    : illegal_csr_wr =          (XLEN > 32) | (st_prv_i < PRV_M);
+      MSTATEEN2     : illegal_csr_wr =                        (st_prv_i < PRV_M);
+      MSTATEEN2H    : illegal_csr_wr =          (XLEN > 32) | (st_prv_i < PRV_M);
+      MSTATEEN3     : illegal_csr_wr =                        (st_prv_i < PRV_M);
+      MSTATEEN3H    : illegal_csr_wr =          (XLEN > 32) | (st_prv_i < PRV_M);
+      MNSCRATCH     : illegal_csr_wr =                        (st_prv_i < PRV_M);
+      MNEPC         : illegal_csr_wr =                        (st_prv_i < PRV_M);
+      MNCAUSE       : illegal_csr_wr =                        (st_prv_i < PRV_M);
+      MNSTATUS      : illegal_csr_wr =                        (st_prv_i < PRV_M);
+      MCYCLE        : illegal_csr_wr =                        (st_prv_i < PRV_M); 
+      MCYCLEH       : illegal_csr_wr =          (XLEN > 32) | (st_prv_i < PRV_M);
+      MINSTRET      : illegal_csr_wr =                        (st_prv_i < PRV_M);
+      MINSTRETH     : illegal_csr_wr =          (XLEN > 32) | (st_prv_i < PRV_M);
      //TODO: performance counters
-      MCYCLEH   : illegal_csr_wr =          (XLEN > 32) | (st_prv_i < PRV_M);
-      MINSTRETH : illegal_csr_wr =          (XLEN > 32) | (st_prv_i < PRV_M);
 
       default   : illegal_csr_wr = 1'b1;
     endcase

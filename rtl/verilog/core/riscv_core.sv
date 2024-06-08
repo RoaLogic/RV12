@@ -33,102 +33,101 @@ import riscv_state_pkg::*;
 import riscv_opcodes_pkg::*;
 import biu_constants_pkg::*;
 #(
-  parameter int        XLEN                  = 32,
-  parameter [XLEN-1:0] PC_INIT               = 'h200,
-  parameter int        HAS_USER              = 0,
-  parameter int        HAS_SUPER             = 0,
-  parameter int        HAS_HYPER             = 0,
-  parameter int        HAS_BPU               = 1,
-  parameter int        HAS_FPU               = 0,
-  parameter int        HAS_MMU               = 0,
-  parameter int        HAS_RVA               = 0,
-  parameter int        HAS_RVB               = 0,
-  parameter int        HAS_RVC               = 0,
-  parameter int        HAS_RVM               = 0,
-  parameter int        HAS_RVN               = 0,
-  parameter int        HAS_RVP               = 0,
-  parameter int        HAS_RVT               = 0,
-  parameter int        IS_RV32E              = 0,
+  parameter int         MXLEN                 = 32,
+  parameter [MXLEN-1:0] PC_INIT               = 'h200,
+  parameter bit         HAS_USER              = 0,
+  parameter bit         HAS_SUPER             = 0,
+  parameter bit         HAS_HYPER             = 0,
+  parameter bit         HAS_BPU               = 1,
+  parameter bit         HAS_FPU               = 0,
+  parameter bit         HAS_MMU               = 0,
+  parameter bit         HAS_RVA               = 0,
+  parameter bit         HAS_RVB               = 0,
+  parameter bit         HAS_RVC               = 0,
+  parameter bit         HAS_RVM               = 0,
+  parameter bit         HAS_RVN               = 0,
+  parameter bit         HAS_RVP               = 0,
+  parameter bit         HAS_RVT               = 0,
+  parameter bit         IS_RV32E              = 0,
 
-  parameter int        RF_REGOUT             = 1,
-  parameter int        MULT_LATENCY          = 1,
+  parameter int         RF_REGOUT             = 1,
+  parameter int         MULT_LATENCY          = 1,
 
-  parameter int        BREAKPOINTS           = 3,
-  parameter int        PMP_CNT               = 16,
+  parameter int         BREAKPOINTS           = 3,
+  parameter int         PMP_CNT               = 16,
 
-  parameter int        BP_GLOBAL_BITS        = 2,
-  parameter int        BP_LOCAL_BITS         = 10,
-  parameter int        RSB_DEPTH             = 0,
+  parameter int         BP_GLOBAL_BITS        = 2,
+  parameter int         BP_LOCAL_BITS         = 10,
+  parameter int         RSB_DEPTH             = 0,
 
-  parameter string     TECHNOLOGY            = "GENERIC",
+  parameter string      TECHNOLOGY            = "GENERIC",
 
-  parameter [XLEN-1:0] MNMIVEC_DEFAULT       = PC_INIT -'h004,
-  parameter [XLEN-1:0] MTVEC_DEFAULT         = PC_INIT -'h040,
-  parameter [XLEN-1:0] HTVEC_DEFAULT         = PC_INIT -'h080,
-  parameter [XLEN-1:0] STVEC_DEFAULT         = PC_INIT -'h0C0,
-  parameter [XLEN-1:0] UTVEC_DEFAULT         = PC_INIT -'h100,
+  parameter [MXLEN-1:0] MNMIVEC_DEFAULT       = PC_INIT -'h004,
+  parameter [MXLEN-1:0] MTVEC_DEFAULT         = PC_INIT -'h040,
+  parameter [MXLEN-1:0] HTVEC_DEFAULT         = PC_INIT -'h080,
+  parameter [MXLEN-1:0] STVEC_DEFAULT         = PC_INIT -'h0C0,
 
-  parameter int        JEDEC_BANK            = 10,
-  parameter int        JEDEC_MANUFACTURER_ID = 'h6e,
+  parameter [      7:0] JEDEC_BANK            = 10,
+  parameter [      6:0] JEDEC_MANUFACTURER_ID = 'h6e,
 
-  parameter int        HARTID                = 0,
+  parameter [MXLEN-1:0] HARTID                = 0,
 
-  parameter int        PARCEL_SIZE           = 16,
-  parameter int        MEM_STAGES            = 1    //Minimal 1, causes wb_stall
+  parameter int         PARCEL_SIZE           = 16,
+  parameter int         MEM_STAGES            = 1    //Minimal 1, causes wb_stall
                                                     //no data cache: max 2: optimal, no wb_stall
 )
 (
-  input  logic                                 rst_ni,   //Reset
-  input  logic                                 clk_i,    //Clock
+  input  logic                                  rst_ni,   //Reset
+  input  logic                                  clk_i,    //Clock
 
   //Instruction Memory Access bus
-  output logic          [XLEN            -1:0] imem_adr_o,
-  output logic                                 imem_req_o,
-  input  logic                                 imem_ack_i,
-  output logic                                 imem_flush_o,
-  input  logic          [XLEN            -1:0] imem_parcel_i,
-  input  logic          [XLEN/PARCEL_SIZE-1:0] imem_parcel_valid_i,
-  input  logic                                 imem_parcel_misaligned_i,
-  input  logic                                 imem_parcel_page_fault_i,
-  input  logic                                 imem_parcel_error_i,
+  output logic          [MXLEN            -1:0] imem_adr_o,
+  output logic                                  imem_req_o,
+  input  logic                                  imem_ack_i,
+  output logic                                  imem_flush_o,
+  input  logic          [MXLEN            -1:0] imem_parcel_i,
+  input  logic          [MXLEN/PARCEL_SIZE-1:0] imem_parcel_valid_i,
+  input  logic                                  imem_parcel_misaligned_i,
+  input  logic                                  imem_parcel_page_fault_i,
+  input  logic                                  imem_parcel_error_i,
 
   //Data memory Access  bus
-  output logic          [XLEN            -1:0] dmem_adr_o,
-                                               dmem_d_o,
-  input  logic          [XLEN            -1:0] dmem_q_i,
-  output logic                                 dmem_we_o,
-  output biu_size_t                            dmem_size_o,
-  output logic                                 dmem_lock_o,
-  output logic                                 dmem_req_o,
-  input  logic                                 dmem_ack_i,
-                                               dmem_err_i,
-                                               dmem_misaligned_i,
-                                               dmem_page_fault_i,
+  output logic          [MXLEN            -1:0] dmem_adr_o,
+                                                dmem_d_o,
+  input  logic          [MXLEN            -1:0] dmem_q_i,
+  output logic                                  dmem_we_o,
+  output biu_size_t                             dmem_size_o,
+  output logic                                  dmem_lock_o,
+  output logic                                  dmem_req_o,
+  input  logic                                  dmem_ack_i,
+                                                dmem_err_i,
+                                                dmem_misaligned_i,
+                                                dmem_page_fault_i,
 
   //cpu state
-  output logic          [                 1:0] st_prv_o,
-  output pmpcfg_t       [                15:0] st_pmpcfg_o,
-  output logic [   15:0][XLEN            -1:0] st_pmpaddr_o,
+  output logic          [                  1:0] st_prv_o,
+  output pmpcfg_t       [                 15:0] st_pmpcfg_o,
+  output logic [   15:0][MXLEN            -1:0] st_pmpaddr_o,
 
-  output logic                                 cm_ic_invalidate_o,
-  output logic                                 cm_dc_invalidate_o,
-  output logic                                 cm_dc_clean_o,
+  output logic                                  cm_ic_invalidate_o,
+  output logic                                  cm_dc_invalidate_o,
+  output logic                                  cm_dc_clean_o,
 
   //Interrupts
-  input  logic                                 int_nmi_i,
-                                               int_timer_i,
-                                               int_software_i,
-  input  logic          [                 3:0] int_external_i,
+  input  logic                                  int_nmi_i,
+                                                int_timer_i,
+                                                int_software_i,
+  input  logic          [                  3:0] int_external_i,
 
   //Debug Interface
-  input  logic                                 dbg_stall_i,
-  input  logic                                 dbg_strb_i,
-  input  logic                                 dbg_we_i,
-  input  logic          [DBG_ADDR_SIZE   -1:0] dbg_addr_i,
-  input  logic          [XLEN            -1:0] dbg_dati_i,
-  output logic          [XLEN            -1:0] dbg_dato_o,
-  output logic                                 dbg_ack_o,
-  output logic                                 dbg_bp_o
+  input  logic                                  dbg_stall_i,
+  input  logic                                  dbg_strb_i,
+  input  logic                                  dbg_we_i,
+  input  logic          [DBG_ADDR_SIZE    -1:0] dbg_addr_i,
+  input  logic          [MXLEN            -1:0] dbg_dati_i,
+  output logic          [MXLEN            -1:0] dbg_dato_o,
+  output logic                                  dbg_ack_o,
+  output logic                                  dbg_bp_o
 );
 
 
@@ -136,7 +135,7 @@ import biu_constants_pkg::*;
   //
   // Variables
   //
-  logic [XLEN          -1:0] pd_nxt_pc,
+  logic [MXLEN         -1:0] pd_nxt_pc,
                              bu_nxt_pc,
                              st_nxt_pc,
 			     if_predict_pc,
@@ -212,12 +211,12 @@ import biu_constants_pkg::*;
                              id_rs2;
   rsd_t                      rf_src1,
                              rf_src2;
-  logic [XLEN          -1:0] rf_srcv1,
+  logic [MXLEN         -1:0] rf_srcv1,
                              rf_srcv2;
 
 
   //ALU signals
-  logic [XLEN          -1:0] id_opA,
+  logic [MXLEN         -1:0] id_opA,
                              id_opB,
                              ex_r,
                              mem_r      [MEM_STAGES],
@@ -233,14 +232,15 @@ import biu_constants_pkg::*;
 
   //CPU state
   logic [               1:0] st_xlen;
-  logic                      st_tvm,
+  logic                      st_be,
+                             st_tvm,
                              st_tw,
                              st_tsr;
-  logic [XLEN          -1:0] st_mcounteren,
+  logic [MXLEN         -1:0] st_mcounteren,
                              st_scounteren;
   logic [              11:0] pd_csr_reg,
 	                     ex_csr_reg;
-  logic [XLEN          -1:0] ex_csr_wval,
+  logic [MXLEN         -1:0] ex_csr_wval,
                              st_csr_rval,
                              du_csr_rval;
   logic                      ex_csr_we;
@@ -248,7 +248,7 @@ import biu_constants_pkg::*;
   //Write back
   rsd_t                      wb_dst;
   logic [               0:0] wb_we;
-  logic [XLEN          -1:0] wb_badaddr;
+  logic [MXLEN         -1:0] wb_badaddr;
 
   //Debug
   logic                      du_latch_nxt_pc;
@@ -259,11 +259,13 @@ import biu_constants_pkg::*;
                              du_we_csr,
                              du_we_pc;
   logic [DU_ADDR_SIZE  -1:0] du_addr;
-  logic [XLEN          -1:0] du_dato,
+  logic [MXLEN         -1:0] du_dato,
                              du_dati_rf,
                              du_dati_frf;
-  logic [              31:0] du_ie,
-                             du_exceptions;
+  logic [MXLEN         -1:0] du_interrupts,
+                             du_ie;
+  logic [              63:0] du_exceptions,
+                             du_ee;
 
 
   ////////////////////////////////////////////////////////////////
@@ -291,7 +293,7 @@ import biu_constants_pkg::*;
    * Fetch next instruction
    */
   riscv_if #(
-    .XLEN                     ( XLEN                     ),
+    .XLEN                     ( MXLEN                    ),
     .PC_INIT                  ( PC_INIT                  ),
     .HAS_RVC                  ( HAS_RVC                  ),
     .BP_GLOBAL_BITS           ( BP_GLOBAL_BITS           ) )
@@ -351,7 +353,7 @@ import biu_constants_pkg::*;
    * Pre-Decoder
    */
   riscv_pd #(
-    .XLEN              ( XLEN                 ),
+    .XLEN              ( MXLEN                ),
     .PC_INIT           ( PC_INIT              ),
     .HAS_RVC           ( HAS_RVC              ),
     .HAS_BPU           ( HAS_BPU              ),
@@ -406,7 +408,7 @@ import biu_constants_pkg::*;
    * Data from RF/ROB is available here
    */
   riscv_id #(
-    .XLEN             ( XLEN                 ),
+    .XLEN             ( MXLEN                ),
     .PC_INIT          ( PC_INIT              ),
     .HAS_USER         ( HAS_USER             ),
     .HAS_SUPER        ( HAS_SUPER            ),
@@ -418,7 +420,8 @@ import biu_constants_pkg::*;
     .RF_REGOUT        ( RF_REGOUT            ),
     .BP_GLOBAL_BITS   ( BP_GLOBAL_BITS       ),
     .RSB_DEPTH        ( RSB_DEPTH            ),
-    .MEM_STAGES       ( MEM_STAGES           ) )
+    .MEM_STAGES       ( MEM_STAGES           ),
+    .PMP_CNT          ( PMP_CNT              ) )
   id_unit (
     .rst_ni           ( rst_ni               ),
     .clk_i            ( clk_i                ),
@@ -491,7 +494,7 @@ import biu_constants_pkg::*;
    * Execution units
    */
   riscv_ex #(
-    .XLEN                   ( XLEN                 ),
+    .XLEN                   ( MXLEN                ),
     .PC_INIT                ( PC_INIT              ),
     .HAS_RVC                ( HAS_RVC              ),
     .HAS_RVA                ( HAS_RVA              ),
@@ -550,6 +553,7 @@ import biu_constants_pkg::*;
     .ex_csr_wval_o          ( ex_csr_wval          ),
     .ex_csr_we_o            ( ex_csr_we            ),
     .st_xlen_i              ( st_xlen              ),
+    .st_be_i                ( st_be                ),
     .st_flush_i             ( st_flush             ),
     .st_csr_rval_i          ( st_csr_rval          ),
 
@@ -578,7 +582,7 @@ generate
     if (n==0)
     begin
         riscv_mem #(
-          .XLEN                ( XLEN                   ),
+          .XLEN                ( MXLEN                  ),
           .PC_INIT             ( PC_INIT                ) )
         mem_unit   (
           .rst_ni              ( rst_ni                 ),
@@ -605,7 +609,7 @@ generate
     else
     begin
        riscv_mem #(
-          .XLEN                ( XLEN                   ),
+          .XLEN                ( MXLEN                  ),
           .PC_INIT             ( PC_INIT                ) )
         mem_unit   (
           .rst_ni              ( rst_ni                 ),
@@ -636,7 +640,7 @@ endgenerate
    * Memory acknowledge + Write Back unit
    */
   riscv_wb #(
-    .XLEN              ( XLEN                             ),
+    .XLEN              ( MXLEN                            ),
     .PC_INIT           ( PC_INIT                          ) )
   wb_unit   (
     .rst_ni            ( rst_ni                           ),
@@ -667,7 +671,7 @@ endgenerate
   * Simply delays WB outputs purely for bypass purposes
   */
   riscv_dwb #(
-    .XLEN       ( XLEN       ),
+    .XLEN       ( MXLEN      ),
     .PC_INIT    ( PC_INIT    ) )
   dwb_unit (
     .rst_ni     ( rst_ni     ),
@@ -683,7 +687,7 @@ endgenerate
    * Thread state
    */
   riscv_state1_10 #(
-    .XLEN                  ( XLEN                  ),
+    .MXLEN                 ( MXLEN                 ),
     .PC_INIT               ( PC_INIT               ),
     .IS_RV32E              ( IS_RV32E              ),
 
@@ -703,7 +707,6 @@ endgenerate
     .MTVEC_DEFAULT         ( MTVEC_DEFAULT         ),
     .HTVEC_DEFAULT         ( HTVEC_DEFAULT         ),
     .STVEC_DEFAULT         ( STVEC_DEFAULT         ),
-    .UTVEC_DEFAULT         ( UTVEC_DEFAULT         ),
 
     .JEDEC_BANK            ( JEDEC_BANK            ),
     .JEDEC_MANUFACTURER_ID ( JEDEC_MANUFACTURER_ID ),
@@ -729,6 +732,7 @@ endgenerate
 
     .st_prv_o        ( st_prv_o        ),
     .st_xlen_o       ( st_xlen         ),
+    .st_be_o         ( st_be           ),
     .st_tvm_o        ( st_tvm          ),
     .st_tw_o         ( st_tw           ),
     .st_tsr_o        ( st_tsr          ),
@@ -758,6 +762,8 @@ endgenerate
     .du_dato_i       ( du_dato         ),
     .du_addr_i       ( du_addr         ),
     .du_ie_i         ( du_ie           ),
+    .du_ee_i         ( du_ee           ),
+    .du_interrupts_o ( du_interrupts   ),
     .du_exceptions_o ( du_exceptions   ) );
 
 
@@ -768,7 +774,7 @@ endgenerate
   assign rf_src2 = (RF_REGOUT > 0) ? pd_rs2 : id_rs2;
 
   riscv_rf #(
-    .XLEN        ( XLEN       ),
+    .XLEN        ( MXLEN      ),
     .REGOUT      ( RF_REGOUT  ) )
   int_rf (
     .rst_ni      ( rst_ni     ),
@@ -804,7 +810,7 @@ generate
   end
   else
     riscv_bp #(
-      .XLEN                   ( XLEN                 ),
+      .XLEN                   ( MXLEN                ),
       .PC_INIT                ( PC_INIT              ),
       .HAS_RVC                ( HAS_RVC              ),
       .BP_GLOBAL_BITS         ( BP_GLOBAL_BITS       ),
@@ -834,7 +840,7 @@ endgenerate
    * Debug Unit
    */
   riscv_du #(
-    .XLEN              ( XLEN                            ),
+    .MXLEN             ( MXLEN                           ),
     .BREAKPOINTS       ( BREAKPOINTS                     ) )
   du_unit (
     .rst_ni            ( rst_ni                          ),
@@ -864,9 +870,10 @@ endgenerate
     .du_we_pc_o        ( du_we_pc                        ),
     .du_addr_o         ( du_addr                         ),
     .du_d_o            ( du_dato                         ),
+    .du_ee_o           ( du_ee                           ),
     .du_ie_o           ( du_ie                           ),
     .du_rf_q_i         ( du_dati_rf                      ),
-    .du_frf_q_i        ( {XLEN{1'b0}}                    ), //du_dati_frf     ),
+    .du_frf_q_i        ( {MXLEN{1'b0}}                   ), //du_dati_frf     ),
     .st_csr_q_i        ( du_csr_rval                     ),
     .if_nxt_pc_i       ( if_nxt_pc                       ),
     .bu_nxt_pc_i       ( bu_nxt_pc                       ),
@@ -888,6 +895,7 @@ endgenerate
     .dmem_ack_i        ( dmem_ack_i                      ),
     .ex_stall_i        ( ex_stall                        ),
 
+    .du_interrupts_i   ( du_interrupts                   ),
     .du_exceptions_i   ( du_exceptions                   ) );
 
 endmodule

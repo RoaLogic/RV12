@@ -64,6 +64,7 @@ import biu_constants_pkg::*;
 
   //From State
   input      [               1:0] st_xlen_i,
+  input                           st_be_i,
 
   //To Memory
   output reg                      dmem_req_o,
@@ -80,7 +81,6 @@ import biu_constants_pkg::*;
   input                           dmem_misaligned_i,
                                   dmem_page_fault_i
 );
-
 
   ////////////////////////////////////////////////////////////////
   //
@@ -259,10 +259,24 @@ generate
     //memory write data
     always_comb
       casex ( opcR )
-        SB     : d = opB_i[ 7:0] << (8* adr[2:0]);
-        SH     : d = opB_i[15:0] << (8* adr[2:0]);
-        SW     : d = opB_i[31:0] << (8* adr[2:0]);
-        SD     : d = opB_i;
+        SB     : d =              opB_i[ 7: 0]   << (8* adr[2:0]);
+        SH     : d = (!st_be_i ?  opB_i[15: 0]
+                               : {opB_i[ 7: 0],
+                                  opB_i[15: 8]}) << (8* adr[2:0]);
+        SW     : d = (!st_be_i ?  opB_i[31: 0]
+                               : {opB_i[ 7: 0],
+                                  opB_i[15: 8],
+                                  opB_i[23:16],
+                                  opB_i[31:24]}) << (8* adr[2:0]);
+        SD     : d =  !st_be_i ?  opB_i
+                               : {opB_i[ 7: 0],
+                                  opB_i[15: 8],
+                                  opB_i[23:16],
+                                  opB_i[31:24],
+                                  opB_i[39:32],
+                                  opB_i[47:40],
+                                  opB_i[55:48],
+                                  opB_i[63:56]};
         default: d = 'hx;
       endcase
   end

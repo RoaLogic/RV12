@@ -73,8 +73,10 @@ package riscv_du_pkg;
     */
    localparam [4:0] DBG_CTRL    = 'h00, //debug control
                     DBG_HIT     = 'h01, //debug HIT register
-                    DBG_IE      = 'h02, //debug interrupt enable (which exception halts the CPU?)
+                    DBG_EE      = 'h02, //debug exception enable (which exceptions halt the CPU?)
                     DBG_CAUSE   = 'h03, //debug cause (which exception halted the CPU?)
+                    DBG_EEH     = 'h04, //debug exception enable high (bits 63:32). Only RV32
+                    DBG_IE      = 'h05, //debug interrupt enable (which interrupts halt the CPU?)
                     DBG_BPCTRL0 = 'h10, //hardware breakpoint0 control
                     DBG_BPDATA0 = 'h11, //hardware breakpoint0 data
                     DBG_BPCTRL1 = 'h12, //hardware breakpoint1 control

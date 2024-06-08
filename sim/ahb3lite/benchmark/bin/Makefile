@@ -64,7 +64,6 @@ HAS_RVA           = 0
 HAS_RVC           = 1
 HAS_RVM           = 1
 MULT_LATENCY      = 0
-
 MEM_LATENCY       = 0
 
 
@@ -93,7 +92,7 @@ $(bmarks):
 	          MULT_LATENCY=$(MULT_LATENCY)					\
 	          HAS_U=$(HAS_U) HAS_S=$(HAS_S) HAS_H=$(HAS_H)			\
 	          HAS_RVA=$(HAS_RVA) HAS_RVC=$(HAS_RVC) HAS_RVM=$(HAS_RVM)	\
-	          TECHNOLOGY=$(TECHNOLOGY)					\
+	          TECHNOLOGY=\"$(TECHNOLOGY)\"					\
 	          INIT_FILE=\"$(TST_SRC_DIR)/$@$(POSTFIX)\" "
 
 
