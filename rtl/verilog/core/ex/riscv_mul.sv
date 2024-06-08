@@ -32,37 +32,37 @@ module riscv_mul
 import riscv_opcodes_pkg::*;
 import riscv_state_pkg::*;
 #(
-  parameter XLEN         = 32,
-  parameter MULT_LATENCY = 0
+  parameter int MXLEN        = 32,
+  parameter int MULT_LATENCY = 0
 )
 (
-  input                 rst_ni,
-  input                 clk_i,
+  input                  rst_ni,
+  input                  clk_i,
 
-  input                 mem_stall_i,
-  input                 ex_stall_i,
-  output reg            mul_stall_o,
+  input                  mem_stall_i,
+  input                  ex_stall_i,
+  output reg             mul_stall_o,
 
   //Instruction
-  input instruction_t   id_insn_i,
+  input instruction_t    id_insn_i,
 
   //Operands
-  input      [XLEN-1:0] opA_i,
-                        opB_i,
+  input      [MXLEN-1:0] opA_i,
+                         opB_i,
 
   //from State
-  input      [     1:0] st_xlen_i,
+  input      [      1:0] st_xlen_i,
 
   //to WB
-  output reg            mul_bubble_o,
-  output reg [XLEN-1:0] mul_r_o
+  output reg             mul_bubble_o,
+  output reg [MXLEN-1:0] mul_r_o
 );
 
   ////////////////////////////////////////////////////////////////
   //
   // Constants
   //
-  localparam DXLEN       = 2*XLEN;
+  localparam DXLEN       = 2*MXLEN;
 
   localparam MAX_LATENCY = 3;
   localparam LATENCY     = MULT_LATENCY > MAX_LATENCY ? MAX_LATENCY : MULT_LATENCY;
@@ -85,17 +85,17 @@ import riscv_state_pkg::*;
   //
   // functions
   //
-  function [XLEN-1:0] sext32;
+  function [MXLEN-1:0] sext32;
     input [31:0] operand;
     logic sign;
 
     sign   = operand[31];
-    sext32 = { {XLEN-32{sign}}, operand};
+    sext32 = { {MXLEN-32{sign}}, operand};
   endfunction
 
 
-  function [XLEN-1:0] twos;
-    input [XLEN-1:0] a;
+  function [MXLEN-1:0] twos;
+    input [MXLEN-1:0] a;
 
     twos = ~a +'h1;
   endfunction
@@ -107,10 +107,10 @@ import riscv_state_pkg::*;
   endfunction
 
 
-  function [XLEN-1:0] abs;
-    input [XLEN-1:0] a;
+  function [MXLEN-1:0] abs;
+    input [MXLEN-1:0] a;
 
-    abs = a[XLEN-1] ? twos(a) : a;
+    abs = a[MXLEN-1] ? twos(a) : a;
   endfunction
 
 
@@ -130,7 +130,7 @@ import riscv_state_pkg::*;
 
 
   logic              mult_neg,      mult_neg_reg;
-  logic [XLEN  -1:0] mult_opA,      mult_opA_reg,
+  logic [MXLEN -1:0] mult_opA,      mult_opA_reg,
                      mult_opB,      mult_opB_reg;
   logic [DXLEN -1:0] mult_r,        mult_r_reg,
                      mult_r_signed, mult_r_signed_reg;
@@ -190,9 +190,9 @@ import riscv_state_pkg::*;
   //negate multiplier output?
   always_comb 
     unique casex ( opcR )
-      MUL    : mult_neg = opA_i[XLEN-1] ^ opB_i[XLEN-1];
-      MULH   : mult_neg = opA_i[XLEN-1] ^ opB_i[XLEN-1];
-      MULHSU : mult_neg = opA_i[XLEN-1];
+      MUL    : mult_neg = opA_i[MXLEN-1] ^ opB_i[MXLEN-1];
+      MULH   : mult_neg = opA_i[MXLEN-1] ^ opB_i[MXLEN-1];
+      MULHSU : mult_neg = opA_i[MXLEN-1];
       MULHU  : mult_neg = 1'b0;
       MULW   : mult_neg = opA32[31] ^ opB32[31];  //RV64
       default: mult_neg = 'hx;
@@ -289,9 +289,9 @@ endgenerate
    */
   always @(posedge clk_i)
     unique casex ( opcR_mul )
-      MUL    : mul_r_o <= mult_r_signed_reg[XLEN -1:   0];
+      MUL    : mul_r_o <= mult_r_signed_reg[MXLEN -1:   0];
       MULW   : mul_r_o <= sext32( mult_r_signed_reg[31:0] );  //RV64
-      default: mul_r_o <= mult_r_signed_reg[DXLEN-1:XLEN];
+      default: mul_r_o <= mult_r_signed_reg[DXLEN-1:MXLEN];
     endcase
 
 

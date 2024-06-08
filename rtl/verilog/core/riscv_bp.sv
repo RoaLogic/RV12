@@ -28,8 +28,8 @@
 /////////////////////////////////////////////////////////////////////
 
 module riscv_bp #(
-  parameter                       XLEN              = 32,
-  parameter  [XLEN          -1:0] PC_INIT           = 'h200,
+  parameter                       MXLEN             = 32,
+  parameter  [MXLEN         -1:0] PC_INIT           = 'h200,
   parameter                       HAS_BPU           = 0,
   parameter                       HAS_RVC           = 0,
 
@@ -46,13 +46,13 @@ module riscv_bp #(
  
   //Read side
   input                           id_stall_i,
-  input      [XLEN          -1:0] if_parcel_pc_i,
+  input      [MXLEN         -1:0] if_parcel_pc_i,
   input      [BP_GLOBAL_BITS-1:0] if_parcel_bp_history_i,
   output reg [               1:0] bp_bp_predict_o,
 
 
   //Write side
-  input      [XLEN          -1:0] ex_pc_i,
+  input      [MXLEN         -1:0] ex_pc_i,
   input      [BP_GLOBAL_BITS-1:0] bu_bp_history_i,      //branch history
   input      [               1:0] bu_bp_predict_i,      //prediction bits for branch
   input                           bu_bp_btaken_i,
@@ -70,7 +70,7 @@ module riscv_bp #(
   logic [ADR_BITS-1:0] radr,
                        wadr;
 
-  logic [XLEN    -1:0] if_parcel_pc_dly;
+  logic [MXLEN   -1:0] if_parcel_pc_dly;
 
   logic [         1:0] new_prediction;
   bit   [         1:0] current_prediction;

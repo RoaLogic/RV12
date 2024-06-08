@@ -30,7 +30,7 @@
 module riscv_rf
 import riscv_opcodes_pkg::*;
 #(
-  parameter XLEN      = 32,
+  parameter MXLEN     = 32,
   parameter REGOUT    = 0
 )
 (
@@ -40,12 +40,12 @@ import riscv_opcodes_pkg::*;
   //Register File read
   input        rsd_t         rf_src1_i,
   input        rsd_t         rf_src2_i,
-  output logic [XLEN   -1:0] rf_src1_q_o,
-  output logic [XLEN   -1:0] rf_src2_q_o,
+  output logic [MXLEN  -1:0] rf_src1_q_o,
+  output logic [MXLEN  -1:0] rf_src2_q_o,
 
   //Register File write
   input        rsd_t         rf_dst_i,
-  input        [XLEN   -1:0] rf_dst_d_i,
+  input        [MXLEN  -1:0] rf_dst_d_i,
   input                      rf_we_i,
   input                      pd_stall_i,
                              id_stall_i,
@@ -53,8 +53,8 @@ import riscv_opcodes_pkg::*;
   //Debug Interface
   input                      du_re_rf_i,
                              du_we_rf_i,
-  input        [XLEN   -1:0] du_d_i,   //output from debug unit
-  output logic [XLEN   -1:0] du_rf_q_o,
+  input        [MXLEN  -1:0] du_d_i,   //output from debug unit
+  output logic [MXLEN  -1:0] du_rf_q_o,
   input        [       11:0] du_addr_i
 );
 
@@ -65,24 +65,24 @@ import riscv_opcodes_pkg::*;
 
 //Actual register file
 //Need to figure out if an array of rsd_t is actually allowed
-logic [XLEN-1:0] rf [32];
+logic [MXLEN-1:0] rf [32];
 
-rsd_t            src1,
-                 src2;
+rsd_t             src1,
+                  src2;
 
 //read data from register file
-logic [XLEN-1:0] rfout1,
-                 rfout2;
+logic [MXLEN-1:0] rfout1,
+                  rfout2;
 
 //Exceptions
-logic            src1_is_x0,
-	         src2_is_x0,
-                 dst_is_src1,
-                 dst_is_src2;
-logic [XLEN-1:0] dout1,
-                 dout2;
+logic             src1_is_x0,
+	          src2_is_x0,
+                  dst_is_src1,
+                  dst_is_src2;
+logic [MXLEN-1:0] dout1,
+                  dout2;
 
-logic            du_re_rf_dly;
+logic             du_re_rf_dly;
 
 
 /////////////////////////////////////////////////////////////////
@@ -120,13 +120,13 @@ logic            du_re_rf_dly;
 
   always_comb
     casex (src1_is_x0)
-      1'b1: dout1 = {XLEN{1'b0}};
+      1'b1: dout1 = {MXLEN{1'b0}};
       1'b0: dout1 = rfout1;
     endcase
 
   always_comb
     casex (src2_is_x0)
-      1'b1: dout2 = {XLEN{1'b0}};
+      1'b1: dout2 = {MXLEN{1'b0}};
       1'b0: dout2 = rfout2;
     endcase
 

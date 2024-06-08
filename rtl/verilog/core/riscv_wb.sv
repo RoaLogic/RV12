@@ -31,8 +31,8 @@ module riscv_wb
 import riscv_opcodes_pkg::*;
 import riscv_state_pkg::*;
 #(
-  parameter               XLEN    = 32,
-  parameter   [XLEN -1:0] PC_INIT = 'h200
+  parameter                MXLEN    = 32,
+  parameter   [MXLEN -1:0] PC_INIT = 'h200
 )
 (
   input  logic                   rst_ni,        //Reset
@@ -40,32 +40,32 @@ import riscv_state_pkg::*;
 
   output logic                   wb_stall_o,    //Stall on memory-wait
 
-  input  logic [XLEN       -1:0] mem_pc_i,
-  output logic [XLEN       -1:0] wb_pc_o,
+  input  logic [MXLEN      -1:0] mem_pc_i,
+  output logic [MXLEN      -1:0] wb_pc_o,
 
   input  instruction_t           mem_insn_i,
   output instruction_t           wb_insn_o,
 
   input  interrupts_exceptions_t mem_exceptions_i,
   output interrupts_exceptions_t wb_exceptions_o,
-  output logic [XLEN       -1:0] wb_badaddr_o,
+  output logic [MXLEN      -1:0] wb_badaddr_o,
 
-  input  logic [XLEN       -1:0] mem_r_i,
+  input  logic [MXLEN      -1:0] mem_r_i,
                                  mem_memadr_i,
 
   //From Memory System
   input  logic                   dmem_ack_i,
                                  dmem_err_i,
-  input  logic [XLEN       -1:0] dmem_q_i,
+  input  logic [MXLEN      -1:0] dmem_q_i,
   input  logic                   dmem_misaligned_i,
                                  dmem_page_fault_i,
 
   //to ID for early feedback to EX
-  output logic [XLEN       -1:0] wb_memq_o,
+  output logic [MXLEN      -1:0] wb_memq_o,
 
   //To Register File
   output rsd_t                   wb_dst_o,
-  output logic [XLEN       -1:0] wb_r_o,
+  output logic [MXLEN      -1:0] wb_r_o,
   output logic                   wb_we_o
 );
 
@@ -81,9 +81,9 @@ import riscv_state_pkg::*;
   interrupts_exceptions_t exceptions;
 
 `ifdef RV_NO_X_ON_LOAD
-  bit   [XLEN       -1:0] dmem_q;
+  bit   [MXLEN      -1:0] dmem_q;
 `else
-  logic [XLEN       -1:0] dmem_q;
+  logic [MXLEN      -1:0] dmem_q;
 `endif
   logic [            7:0] m_qb;
   logic [           15:0] m_qh;
@@ -167,9 +167,9 @@ import riscv_state_pkg::*;
              exceptions.exceptions.breakpoint         )
       wb_badaddr_o <= mem_memadr_i;
     else if (exceptions.exceptions.illegal_instruction)
-      wb_badaddr_o <= { {XLEN-$bits(mem_insn_i.instr){1'b0}}, mem_insn_i.instr};
+      wb_badaddr_o <= { {MXLEN-$bits(mem_insn_i.instr){1'b0}}, mem_insn_i.instr};
     else
-      wb_badaddr_o <= {XLEN{1'b0}}; //mem_pc_i;
+      wb_badaddr_o <= {MXLEN{1'b0}}; //mem_pc_i;
 
 
   /*
@@ -187,9 +187,9 @@ import riscv_state_pkg::*;
   assign dmem_q = dmem_q_i; //convert (or not) 'xz'
 
 generate
-  if (XLEN==64)
+  if (MXLEN==64)
   begin
-      logic [XLEN-1:0] m_qd;
+      logic [MXLEN-1:0] m_qd;
 
       assign m_qb = dmem_q >> (8* mem_memadr_i[2:0]);
       assign m_qh = dmem_q >> (8* mem_memadr_i[2:0]);
@@ -198,13 +198,13 @@ generate
 
       always_comb
         casex ( opcR )
-          LB     : wb_memq_o = { {XLEN- 8{m_qb[ 7]}},m_qb};
-          LH     : wb_memq_o = { {XLEN-16{m_qh[15]}},m_qh};
-          LW     : wb_memq_o = { {XLEN-32{m_qw[31]}},m_qw};
-          LD     : wb_memq_o = {                     m_qd};
-          LBU    : wb_memq_o = { {XLEN- 8{    1'b0}},m_qb};
-          LHU    : wb_memq_o = { {XLEN-16{    1'b0}},m_qh};
-          LWU    : wb_memq_o = { {XLEN-32{    1'b0}},m_qw};
+          LB     : wb_memq_o = { {MXLEN- 8{m_qb[ 7]}},m_qb};
+          LH     : wb_memq_o = { {MXLEN-16{m_qh[15]}},m_qh};
+          LW     : wb_memq_o = { {MXLEN-32{m_qw[31]}},m_qw};
+          LD     : wb_memq_o = {                      m_qd};
+          LBU    : wb_memq_o = { {MXLEN- 8{    1'b0}},m_qb};
+          LHU    : wb_memq_o = { {MXLEN-16{    1'b0}},m_qh};
+          LWU    : wb_memq_o = { {MXLEN-32{    1'b0}},m_qw};
           default: wb_memq_o = 'hx;
         endcase
   end
@@ -216,11 +216,11 @@ generate
 
       always_comb
         casex ( opcR )
-          LB     : wb_memq_o = { {XLEN- 8{m_qb[ 7]}},m_qb};
-          LH     : wb_memq_o = { {XLEN-16{m_qh[15]}},m_qh};
-          LW     : wb_memq_o = {                     m_qw};
-          LBU    : wb_memq_o = { {XLEN- 8{    1'b0}},m_qb};
-          LHU    : wb_memq_o = { {XLEN-16{    1'b0}},m_qh};
+          LB     : wb_memq_o = { {MXLEN- 8{m_qb[ 7]}},m_qb};
+          LH     : wb_memq_o = { {MXLEN-16{m_qh[15]}},m_qh};
+          LW     : wb_memq_o = {                      m_qw};
+          LBU    : wb_memq_o = { {MXLEN- 8{    1'b0}},m_qb};
+          LHU    : wb_memq_o = { {MXLEN-16{    1'b0}},m_qh};
           default: wb_memq_o = 'hx;
         endcase
   end

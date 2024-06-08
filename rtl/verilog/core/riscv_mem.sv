@@ -32,8 +32,8 @@ module riscv_mem
 import riscv_opcodes_pkg::*;
 import riscv_state_pkg::*;
 #(
-  parameter              XLEN    = 32,
-  parameter  [XLEN -1:0] PC_INIT = 'h200
+  parameter               MXLEN    = 32,
+  parameter  [MXLEN -1:0] PC_INIT = 'h200
 )
 (
   input                          rst_ni,
@@ -43,8 +43,8 @@ import riscv_state_pkg::*;
   output                         mem_stall_o,
 
   //Program counter
-  input      [XLEN         -1:0] mem_pc_i,
-  output reg [XLEN         -1:0] mem_pc_o,
+  input      [MXLEN        -1:0] mem_pc_i,
+  output reg [MXLEN        -1:0] mem_pc_o,
 
   //Instruction
   input  instruction_t           mem_insn_i,
@@ -57,12 +57,12 @@ import riscv_state_pkg::*;
 
  
   //From upstream (EX)
-  input      [XLEN         -1:0] mem_r_i,
+  input      [MXLEN        -1:0] mem_r_i,
                                  mem_memadr_i,
 
   //To downstream (WB)
-  output reg [XLEN         -1:0] mem_r_o,
-  output reg [XLEN         -1:0] mem_memadr_o
+  output reg [MXLEN        -1:0] mem_r_o,
+  output reg [MXLEN        -1:0] mem_memadr_o
 );
   ////////////////////////////////////////////////////////////////
   //

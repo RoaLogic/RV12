@@ -32,8 +32,8 @@ module riscv_alu
 import riscv_opcodes_pkg::*;
 import riscv_state_pkg::*;
 #(
-  parameter             XLEN    = 32,
-  parameter             HAS_RVC = 0
+  parameter int                  MXLEN   = 32,
+  parameter bit                  HAS_RVC = 0
 )
 (
   input                          rst_ni,
@@ -42,13 +42,13 @@ import riscv_state_pkg::*;
   input                          ex_stall_i,
 
   //Program counter
-  input      [XLEN         -1:0] id_pc_i,
+  input      [MXLEN        -1:0] id_pc_i,
 
   //Instruction
   input  instruction_t           id_insn_i,
 
   //Operands
-  input      [XLEN         -1:0] opA_i,
+  input      [MXLEN        -1:0] opA_i,
                                  opB_i,
 
   //catch WB-exceptions
@@ -58,16 +58,16 @@ import riscv_state_pkg::*;
 
   //to WB
   output reg                     alu_bubble_o,
-  output reg [XLEN         -1:0] alu_r_o,
+  output reg [MXLEN        -1:0] alu_r_o,
 
 
   //To State
   output reg [             11:0] ex_csr_reg_o,
-  output reg [XLEN         -1:0] ex_csr_wval_o,
+  output reg [MXLEN        -1:0] ex_csr_wval_o,
   output reg                     ex_csr_we_o,
 
   //From State
-  input      [XLEN         -1:0] st_csr_rval_i,
+  input      [MXLEN        -1:0] st_csr_rval_i,
   input      [              1:0] st_xlen_i
 );
 
@@ -76,12 +76,12 @@ import riscv_state_pkg::*;
   //
   // functions
   //
-  function [XLEN-1:0] sext32;
+  function [MXLEN-1:0] sext32;
     input [31:0] operand;
     logic sign;
   begin
     sign   = operand[31];
-    sext32 = { {XLEN-31{sign}}, operand[30:0]};
+    sext32 = { {MXLEN-31{sign}}, operand[30:0]};
   end
   endfunction
 
@@ -90,7 +90,7 @@ import riscv_state_pkg::*;
   //
   // Variables
   //
-  localparam SBITS=$clog2(XLEN);
+  localparam SBITS=$clog2(MXLEN);
 
   opcR_t             opcR;
   logic              xlen32;
@@ -101,7 +101,7 @@ import riscv_state_pkg::*;
   logic [      31:0] opB32;
   logic [SBITS -1:0] shamt;
   logic [       4:0] shamt32;
-  logic [XLEN  -1:0] csri;
+  logic [MXLEN -1:0] csri;
 
   ////////////////////////////////////////////////////////////////
   //
@@ -153,8 +153,8 @@ import riscv_state_pkg::*;
         {1'b?,SLL   }: alu_r_o <= opA_i << shamt;
         {1'b0,SLLIW }: alu_r_o <= sext32(opA32 << shamt32); //RV64
         {1'b0,SLLW  }: alu_r_o <= sext32(opA32 << shamt32); //RV64
-        {1'b?,SLTI  }: alu_r_o <= {~opA_i[XLEN-1],opA_i[XLEN-2:0]} < {~opB_i[XLEN-1],opB_i[XLEN-2:0]} ? 'h1 : 'h0;
-        {1'b?,SLT   }: alu_r_o <= {~opA_i[XLEN-1],opA_i[XLEN-2:0]} < {~opB_i[XLEN-1],opB_i[XLEN-2:0]} ? 'h1 : 'h0;
+        {1'b?,SLTI  }: alu_r_o <= {~opA_i[MXLEN-1],opA_i[MXLEN-2:0]} < {~opB_i[MXLEN-1],opB_i[MXLEN-2:0]} ? 'h1 : 'h0;
+        {1'b?,SLT   }: alu_r_o <= {~opA_i[MXLEN-1],opA_i[MXLEN-2:0]} < {~opB_i[MXLEN-1],opB_i[MXLEN-2:0]} ? 'h1 : 'h0;
         {1'b?,SLTIU }: alu_r_o <= opA_i < opB_i ? 'h1 : 'h0;
         {1'b?,SLTU  }: alu_r_o <= opA_i < opB_i ? 'h1 : 'h0;
         {1'b?,SRLI  }: alu_r_o <= opA_i >> shamt;
@@ -167,12 +167,12 @@ import riscv_state_pkg::*;
         {1'b?,SRAW  }: alu_r_o <= sext32($signed(opA32) >>> shamt32);
 
         //CSR access
-        {1'b?,CSRRW }: alu_r_o <= {XLEN{1'b0}} | st_csr_rval_i;
-        {1'b?,CSRRWI}: alu_r_o <= {XLEN{1'b0}} | st_csr_rval_i;
-        {1'b?,CSRRS }: alu_r_o <= {XLEN{1'b0}} | st_csr_rval_i;
-        {1'b?,CSRRSI}: alu_r_o <= {XLEN{1'b0}} | st_csr_rval_i;
-        {1'b?,CSRRC }: alu_r_o <= {XLEN{1'b0}} | st_csr_rval_i;
-        {1'b?,CSRRCI}: alu_r_o <= {XLEN{1'b0}} | st_csr_rval_i;
+        {1'b?,CSRRW }: alu_r_o <= {MXLEN{1'b0}} | st_csr_rval_i;
+        {1'b?,CSRRWI}: alu_r_o <= {MXLEN{1'b0}} | st_csr_rval_i;
+        {1'b?,CSRRS }: alu_r_o <= {MXLEN{1'b0}} | st_csr_rval_i;
+        {1'b?,CSRRSI}: alu_r_o <= {MXLEN{1'b0}} | st_csr_rval_i;
+        {1'b?,CSRRC }: alu_r_o <= {MXLEN{1'b0}} | st_csr_rval_i;
+        {1'b?,CSRRCI}: alu_r_o <= {MXLEN{1'b0}} | st_csr_rval_i;
 
         default      : alu_r_o <= 'hx;
       endcase
@@ -235,7 +235,7 @@ import riscv_state_pkg::*;
   /*
    * CSR
    */
-  assign csri = {{XLEN-5{1'b0}},opB_i[4:0]};
+  assign csri = {{MXLEN-5{1'b0}},opB_i[4:0]};
 
   always @(posedge clk_i,negedge rst_ni)
     if (!rst_ni)

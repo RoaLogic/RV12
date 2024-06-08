@@ -32,62 +32,62 @@ module riscv_if
 import riscv_opcodes_pkg::*;
 import riscv_state_pkg::*;
 #(
-  parameter                           XLEN           = 32,
-  parameter    [XLEN            -1:0] PC_INIT        = 'h200,
-  parameter                           HAS_RVC        = 0,
-  parameter                           BP_GLOBAL_BITS = 2,
+  parameter                            MXLEN          = 32,
+  parameter    [MXLEN            -1:0] PC_INIT        = 'h200,
+  parameter                            HAS_RVC        = 0,
+  parameter                            BP_GLOBAL_BITS = 2,
 
-  localparam                          PARCEL_SIZE    = 16
+  localparam                           PARCEL_SIZE    = 16
 )
 (
-  input                               rst_ni,                   //Reset
-  input                               clk_i,                    //Clock
+  input                                rst_ni,                   //Reset
+  input                                clk_i,                    //Clock
 
-  output logic [XLEN            -1:0] imem_adr_o,               //next Instruction Memory location
-  output                              imem_req_o,               //request new parcel from BIU (cache/bus-interface)
-  input                               imem_ack_i,               //acknowledge from BIU; send new imem_adr
-  output                              imem_flush_o,             //flush instruction fetch BIU (cache/bus-interface)
+  output logic [MXLEN            -1:0] imem_adr_o,               //next Instruction Memory location
+  output                               imem_req_o,               //request new parcel from BIU (cache/bus-interface)
+  input                                imem_ack_i,               //acknowledge from BIU; send new imem_adr
+  output                               imem_flush_o,             //flush instruction fetch BIU (cache/bus-interface)
 
-  input        [XLEN            -1:0] imem_parcel_i,
-  input        [XLEN/PARCEL_SIZE-1:0] imem_parcel_valid_i,
-  input                               imem_parcel_misaligned_i,
-  input                               imem_parcel_page_fault_i,
-  input                               imem_parcel_error_i,
+  input        [MXLEN            -1:0] imem_parcel_i,
+  input        [MXLEN/PARCEL_SIZE-1:0] imem_parcel_valid_i,
+  input                                imem_parcel_misaligned_i,
+  input                                imem_parcel_page_fault_i,
+  input                                imem_parcel_error_i,
 
-  input        [BP_GLOBAL_BITS  -1:0] bu_bp_history_i,          //Branch Predictor History
-  output       [BP_GLOBAL_BITS  -1:0] if_predict_history_o,     //Predictor History to BP unit
-  output reg   [BP_GLOBAL_BITS  -1:0] if_bp_history_o,          //Predictor History to PD
-  output logic [XLEN            -1:0] if_predict_pc_o,          //Early program counters towards predictor
-  output reg   [XLEN            -1:0] if_nxt_pc_o,              //Next Program Counter
-                                      if_pc_o,                  //Program Counter
-  output instruction_t                if_nxt_insn_o,
-                                      if_insn_o,
-  output interrupts_exceptions_t      if_exceptions_o,          //Interrupts and Exceptions
-  input  interrupts_exceptions_t      pd_exceptions_i,
-                                      id_exceptions_i,
-                                      ex_exceptions_i,
-                                      mem_exceptions_i,
-                                      wb_exceptions_i,
+  input        [BP_GLOBAL_BITS   -1:0] bu_bp_history_i,          //Branch Predictor History
+  output       [BP_GLOBAL_BITS   -1:0] if_predict_history_o,     //Predictor History to BP unit
+  output reg   [BP_GLOBAL_BITS   -1:0] if_bp_history_o,          //Predictor History to PD
+  output logic [MXLEN            -1:0] if_predict_pc_o,          //Early program counters towards predictor
+  output reg   [MXLEN            -1:0] if_nxt_pc_o,              //Next Program Counter
+                                       if_pc_o,                  //Program Counter
+  output instruction_t                 if_nxt_insn_o,
+                                       if_insn_o,
+  output interrupts_exceptions_t       if_exceptions_o,          //Interrupts and Exceptions
+  input  interrupts_exceptions_t       pd_exceptions_i,
+                                       id_exceptions_i,
+                                       ex_exceptions_i,
+                                       mem_exceptions_i,
+                                       wb_exceptions_i,
 
-  input        [XLEN            -1:0] pd_pc_i,
-  input                               pd_stall_i,
-                                      pd_flush_i,
-	                              pd_latch_nxt_pc_i,
+  input        [MXLEN            -1:0] pd_pc_i,
+  input                                pd_stall_i,
+                                       pd_flush_i,
+	                               pd_latch_nxt_pc_i,
 
-  input                               bu_flush_i,               //flush pipe & load new program counter
-                                      st_flush_i,
+  input                                bu_flush_i,               //flush pipe & load new program counter
+                                       st_flush_i,
 
-                                      du_stall_i,
-                                      du_we_pc_i,
-                                      du_latch_nxt_pc_i,
-	                              du_flush_i,
-  input        [XLEN            -1:0] du_dato_i,
+                                       du_stall_i,
+                                       du_we_pc_i,
+                                       du_latch_nxt_pc_i,
+	                               du_flush_i,
+  input        [MXLEN            -1:0] du_dato_i,
 
-  input        [XLEN            -1:0] pd_nxt_pc_i,              //pre-decoder Next Program Counter
-                                      bu_nxt_pc_i,              //Branch Unit Next Program Counter
-                                      st_nxt_pc_i,              //State Next Program Counter
+  input        [MXLEN            -1:0] pd_nxt_pc_i,              //pre-decoder Next Program Counter
+                                       bu_nxt_pc_i,              //Branch Unit Next Program Counter
+                                       st_nxt_pc_i,              //State Next Program Counter
 
-  input        [                 1:0] st_xlen_i                 //Current XLEN setting
+  input        [                  1:0] st_xlen_i                 //Current XLEN setting
 );
 
   ////////////////////////////////////////////////////////////////
@@ -96,16 +96,16 @@ import riscv_state_pkg::*;
   //
 
   //Instruction address mask
-  localparam ADR_MASK = HAS_RVC != 0 ? {XLEN{1'b1}} << 1 : {XLEN{1'b1}} << 2;
+  localparam ADR_MASK = HAS_RVC != 0 ? {MXLEN{1'b1}} << 1 : {MXLEN{1'b1}} << 2;
 
   //HandLe up to 2 inflight instruction fetches
   localparam INFLIGHT_CNT   = 3;
 
   //Queue depth, in parcels
-  localparam QUEUE_DEPTH    = 3*INFLIGHT_CNT * XLEN/PARCEL_SIZE;
+  localparam QUEUE_DEPTH    = 3*INFLIGHT_CNT * MXLEN/PARCEL_SIZE;
 
   //Halt instruction fetches when FULL_THRESHOLD (in parcels) reached
-  localparam FULL_THRESHOLD = QUEUE_DEPTH - (INFLIGHT_CNT+1)*XLEN/PARCEL_SIZE;
+  localparam FULL_THRESHOLD = QUEUE_DEPTH - (INFLIGHT_CNT+1)*MXLEN/PARCEL_SIZE;
 
 
   ////////////////////////////////////////////////////////////////
@@ -308,7 +308,7 @@ import riscv_state_pkg::*;
     else
     begin
         if      ( pd_latch_nxt_pc_i        ) imem_adr_o <= pd_nxt_pc_i & ADR_MASK;
-        else if ( imem_req_o && imem_ack_i ) imem_adr_o <= (imem_adr_o + (XLEN/8)) & ( {XLEN{1'b1}} << $clog2(XLEN/8) );
+        else if ( imem_req_o && imem_ack_i ) imem_adr_o <= (imem_adr_o + (MXLEN/8)) & ( {MXLEN{1'b1}} << $clog2(MXLEN/8) );
     end
 
 
@@ -322,11 +322,11 @@ import riscv_state_pkg::*;
    * pipeline stalls while parcels are in flight
    */
   riscv_parcel_queue #(
-    .DEPTH                   ( QUEUE_DEPTH      ),
-    .WR_PARCELS              ( XLEN/PARCEL_SIZE ),
-    .RD_PARCELS              ( 4                ), //max 32bit instructions
-    .ALMOST_EMPTY_THRESHOLD  ( 1                ), //must update for marco-fusion
-    .ALMOST_FULL_THRESHOLD   ( FULL_THRESHOLD   )
+    .DEPTH                   ( QUEUE_DEPTH       ),
+    .WR_PARCELS              ( MXLEN/PARCEL_SIZE ),
+    .RD_PARCELS              ( 4                 ), //max 32bit instructions
+    .ALMOST_EMPTY_THRESHOLD  ( 1                 ), //must update for marco-fusion
+    .ALMOST_FULL_THRESHOLD   ( FULL_THRESHOLD    )
   )
   parcel_queue_inst (
     .rst_ni              ( rst_ni                     ),
@@ -420,7 +420,7 @@ import riscv_state_pkg::*;
     casex ( {xlen128, xlen64, xlen32, decode_rvc_opcA(rvc_parcel1)} )
 
       {3'b???,C_LWSP}    : rv_instr = rvc_parcel1.CI.rd == 0
-                                    ? {{XLEN-16{1'b0}},rvc_parcel1}                    //reserved ILLEGAL
+                                    ? {{MXLEN-16{1'b0}},rvc_parcel1}                   //reserved ILLEGAL
                                     : encode_I (LW,                                    //C.LWSP=lw rd,imm(x2)
                                                 rvc_parcel1.CI.rd,
                                                 rsd_t'             ( 5'h2      ),      //x2
@@ -430,7 +430,7 @@ import riscv_state_pkg::*;
 
 
       {3'b??0,C_LDSP}    : rv_instr = rvc_parcel1.CI.rd == 0
-                                    ? {{XLEN-16{1'b0}},rvc_parcel1}                    //reserved ILLEGAL
+                                    ? {{MXLEN-16{1'b0}},rvc_parcel1}                   //reserved ILLEGAL
                                     : encode_I (LD,                                    //C.LDSP=ld rd,imm(x2)
                                                 rvc_parcel1.CI.rd,
                                                 rsd_t'             ( 5'h2      ),
@@ -525,7 +525,7 @@ import riscv_state_pkg::*;
                                                2'b00
                                               )
                                     : rvc_parcel1.CR.rd == 0
-				    ? {{XLEN-16{1'b0}},rvc_parcel1}                    //reserved ILLEGAL
+				    ? {{MXLEN-16{1'b0}},rvc_parcel1}                   //reserved ILLEGAL
                                     : encode_I (JALR,                                  //C.JR=jalr x0, 0(rd)
                                                 rsd_t'(0),                             //x0
 						rvc_parcel1.CR.rd,
@@ -577,7 +577,7 @@ import riscv_state_pkg::*;
 
       //C.LUI and C.ADDI16SP
       {3'b???,C_ADDI16SP}: rv_instr = {rvc_parcel1.CI.pos12,rvc_parcel1.CI.pos6_2} == 0
-                                    ? {{XLEN-16{1'b0}},rvc_parcel1}                    //reserved ILLEGAL
+                                    ? {{MXLEN-16{1'b0}},rvc_parcel1}                   //reserved ILLEGAL
                                     : rvc_parcel1.CI.rd == 2
                                     ? encode_I (ADDI,                                  //C.ADDI16SP=addi x2,x2,imm
                                                 rsd_t'           (5'h2        ),       //x2
@@ -604,7 +604,7 @@ import riscv_state_pkg::*;
 
 
       {3'b??0,C_ADDIW}   : rv_instr = rvc_parcel1.CI.rd == 0
-                                    ? {{XLEN-16{1'b0}},rvc_parcel1}                    //reserved ILLEGAL
+                                    ? {{MXLEN-16{1'b0}},rvc_parcel1}                   //reserved ILLEGAL
                                     : encode_I (ADDIW,                                 //C.ADDIW=addiw rd,rd,imm
                                                 rvc_parcel1.CI.rd,
                                                 rvc_parcel1.CI.rd,
@@ -614,7 +614,7 @@ import riscv_state_pkg::*;
 
 
       {3'b???,C_ADDI4SPN}: rv_instr = (rvc_parcel1 == 16'h0)                           //All zeros is defined illegal
-                                    ? {{XLEN-16{1'b0}},rvc_parcel1}                    //illegal instruction (definition)
+                                    ? {{MXLEN-16{1'b0}},rvc_parcel1}                   //illegal instruction (definition)
                                     : encode_I (ADDI,
                                                 rvc_rsdp2rsd     (rvc_parcel1.CIW.rd),
                                                 rsd_t'           (5'h2              ),  //x2
@@ -703,7 +703,7 @@ import riscv_state_pkg::*;
                                               );
 
 
-      default            : rv_instr = {{XLEN-16{1'b0}},rvc_parcel1};                    //ILLEGAL
+      default            : rv_instr = {{MXLEN-16{1'b0}},rvc_parcel1};                  //ILLEGAL
     endcase
     else    //32bit instructions
     case(parcel12)

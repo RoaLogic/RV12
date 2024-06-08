@@ -293,7 +293,7 @@ import biu_constants_pkg::*;
    * Fetch next instruction
    */
   riscv_if #(
-    .XLEN                     ( MXLEN                    ),
+    .MXLEN                    ( MXLEN                    ),
     .PC_INIT                  ( PC_INIT                  ),
     .HAS_RVC                  ( HAS_RVC                  ),
     .BP_GLOBAL_BITS           ( BP_GLOBAL_BITS           ) )
@@ -353,7 +353,7 @@ import biu_constants_pkg::*;
    * Pre-Decoder
    */
   riscv_pd #(
-    .XLEN              ( MXLEN                ),
+    .MXLEN             ( MXLEN                ),
     .PC_INIT           ( PC_INIT              ),
     .HAS_RVC           ( HAS_RVC              ),
     .HAS_BPU           ( HAS_BPU              ),
@@ -494,7 +494,7 @@ import biu_constants_pkg::*;
    * Execution units
    */
   riscv_ex #(
-    .XLEN                   ( MXLEN                ),
+    .MXLEN                  ( MXLEN                ),
     .PC_INIT                ( PC_INIT              ),
     .HAS_RVC                ( HAS_RVC              ),
     .HAS_RVA                ( HAS_RVA              ),
@@ -582,7 +582,7 @@ generate
     if (n==0)
     begin
         riscv_mem #(
-          .XLEN                ( MXLEN                  ),
+          .MXLEN               ( MXLEN                  ),
           .PC_INIT             ( PC_INIT                ) )
         mem_unit   (
           .rst_ni              ( rst_ni                 ),
@@ -609,7 +609,7 @@ generate
     else
     begin
        riscv_mem #(
-          .XLEN                ( MXLEN                  ),
+          .MXLEN               ( MXLEN                  ),
           .PC_INIT             ( PC_INIT                ) )
         mem_unit   (
           .rst_ni              ( rst_ni                 ),
@@ -640,7 +640,7 @@ endgenerate
    * Memory acknowledge + Write Back unit
    */
   riscv_wb #(
-    .XLEN              ( MXLEN                            ),
+    .MXLEN             ( MXLEN                            ),
     .PC_INIT           ( PC_INIT                          ) )
   wb_unit   (
     .rst_ni            ( rst_ni                           ),
@@ -671,7 +671,7 @@ endgenerate
   * Simply delays WB outputs purely for bypass purposes
   */
   riscv_dwb #(
-    .XLEN       ( MXLEN      ),
+    .MXLEN      ( MXLEN      ),
     .PC_INIT    ( PC_INIT    ) )
   dwb_unit (
     .rst_ni     ( rst_ni     ),
@@ -774,7 +774,7 @@ endgenerate
   assign rf_src2 = (RF_REGOUT > 0) ? pd_rs2 : id_rs2;
 
   riscv_rf #(
-    .XLEN        ( MXLEN      ),
+    .MXLEN       ( MXLEN      ),
     .REGOUT      ( RF_REGOUT  ) )
   int_rf (
     .rst_ni      ( rst_ni     ),
@@ -810,7 +810,7 @@ generate
   end
   else
     riscv_bp #(
-      .XLEN                   ( MXLEN                ),
+      .MXLEN                  ( MXLEN                ),
       .PC_INIT                ( PC_INIT              ),
       .HAS_RVC                ( HAS_RVC              ),
       .BP_GLOBAL_BITS         ( BP_GLOBAL_BITS       ),

@@ -33,8 +33,8 @@ import riscv_opcodes_pkg::*;
 import riscv_state_pkg::*;
 import biu_constants_pkg::*;
 #(
-  parameter XLEN           = 32,
-  parameter HAS_A          = 0
+  parameter int MXLEN = 32,
+  parameter bit HAS_A = 0
 )
 (
   input                           rst_ni,
@@ -48,7 +48,7 @@ import biu_constants_pkg::*;
   input  instruction_t            id_insn_i,
 
   output reg                      lsu_bubble_o,
-  output     [XLEN          -1:0] lsu_r_o,
+  output     [MXLEN         -1:0] lsu_r_o,
 
   input  interrupts_exceptions_t  id_exceptions_i,
                                   ex_exceptions_i,
@@ -59,7 +59,7 @@ import biu_constants_pkg::*;
 
 
   //Operands
-  input      [XLEN          -1:0] opA_i,
+  input      [MXLEN         -1:0] opA_i,
                                   opB_i,
 
   //From State
@@ -71,13 +71,13 @@ import biu_constants_pkg::*;
                                   dmem_lock_o,
                                   dmem_we_o,
   output biu_size_t               dmem_size_o,
-  output reg [XLEN          -1:0] dmem_adr_o,
+  output reg [MXLEN         -1:0] dmem_adr_o,
                                   dmem_d_o,
 
 
   //From Memory (for AMO)
   input                           dmem_ack_i,
-  input      [XLEN          -1:0] dmem_q_i,
+  input      [MXLEN         -1:0] dmem_q_i,
   input                           dmem_misaligned_i,
                                   dmem_page_fault_i
 );
@@ -90,16 +90,16 @@ import biu_constants_pkg::*;
   logic              xlen32;
 
   //Operand generation
-  immS_t             immS;
-  logic [XLEN  -1:0] ext_immS;
+  immS_t              immS;
+  logic [MXLEN  -1:0] ext_immS;
 
 
   //FSM
   enum logic [1:0] {IDLE=2'b00} state;
 
-  logic [XLEN  -1:0] adr,
-                     d;
-  biu_size_t         size;
+  logic [MXLEN  -1:0] adr,
+                      d;
+  biu_size_t          size;
 
 
   ////////////////////////////////////////////////////////////////
@@ -120,7 +120,7 @@ import biu_constants_pkg::*;
    * Decode Immediates
    */
   assign immS     = decode_immS(id_insn_i.instr);
-  assign ext_immS = { {XLEN-$bits(immS){immS[$left(immS,1)]}}, immS};
+  assign ext_immS = { {MXLEN-$bits(immS){immS[$left(immS,1)]}}, immS};
 
 
   //Access Statemachine
@@ -237,7 +237,7 @@ import biu_constants_pkg::*;
 
 generate
   //memory byte enable
-  if (XLEN==64) //RV64
+  if (MXLEN==64) //RV64
   begin
     always_comb
       casex ( opcR )

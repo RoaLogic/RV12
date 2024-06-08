@@ -43,27 +43,27 @@
 
 
 module riscv_rsb #(
-  parameter XLEN  = 32,
+  parameter MXLEN = 32,
   parameter DEPTH = 4
 )
 (
-  input  logic            rst_ni,
-  input  logic            clk_i,
-  input  logic            ena_i,
+  input  logic             rst_ni,
+  input  logic             clk_i,
+  input  logic             ena_i,
 
-  input  logic [XLEN-1:0] d_i,
-  output logic [XLEN-1:0] q_o,
-  input  logic            push_i,
-  input  logic            pop_i,
-  output logic            empty_o
+  input  logic [MXLEN-1:0] d_i,
+  output logic [MXLEN-1:0] q_o,
+  input  logic             push_i,
+  input  logic             pop_i,
+  output logic             empty_o
 );
 
   ////////////////////////////////////////////////////////////////
   //
   // Variables
   //
-  logic [XLEN           -1:0] stack [DEPTH];
-  logic [XLEN           -1:0] last_value;
+  logic [MXLEN          -1:0] stack [DEPTH];
+  logic [MXLEN          -1:0] last_value;
   logic [$clog2(DEPTH+1)-1:0] cnt;
 
 

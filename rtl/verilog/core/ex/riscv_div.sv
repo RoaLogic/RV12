@@ -34,54 +34,54 @@ module riscv_div
 import riscv_opcodes_pkg::*;
 import riscv_state_pkg::*;
 #(
-  parameter XLEN = 32
+  parameter int MXLEN = 32
 )
 (
-  input                 rst_ni,
-  input                 clk_i,
+  input                  rst_ni,
+  input                  clk_i,
 
-  input                 mem_stall_i,
-  input                 ex_stall_i,
-  output reg            div_stall_o,
+  input                  mem_stall_i,
+  input                  ex_stall_i,
+  output reg             div_stall_o,
 
   //Instruction
-  input  instruction_t  id_insn_i,
+  input  instruction_t   id_insn_i,
 
   //Operands
-  input      [XLEN-1:0] opA_i,
-                        opB_i,
+  input      [MXLEN-1:0] opA_i,
+                         opB_i,
 
   //From State
-  input      [     1:0] st_xlen_i,
+  input      [      1:0] st_xlen_i,
 
   //To WB
-  output reg            div_bubble_o,
-  output reg [XLEN-1:0] div_r_o
+  output reg             div_bubble_o,
+  output reg [MXLEN-1:0] div_r_o
 );
   ////////////////////////////////////////////////////////////////
   //
   // functions
   //
-  function [XLEN-1:0] sext32;
+  function [MXLEN-1:0] sext32;
     input [31:0] operand;
     logic sign;
 
     sign   = operand[31];
-    sext32 = { {XLEN-32{sign}}, operand};
+    sext32 = { {MXLEN-32{sign}}, operand};
   endfunction
 
 
-  function [XLEN-1:0] twos;
-    input [XLEN-1:0] a;
+  function [MXLEN-1:0] twos;
+    input [MXLEN-1:0] a;
 
     twos = ~a +'h1;
   endfunction
 
 
-  function [XLEN-1:0] abs;
-    input [XLEN-1:0] a;
+  function [MXLEN-1:0] abs;
+    input [MXLEN-1:0] a;
 
-    abs = a[XLEN-1] ? twos(a) : a;
+    abs = a[MXLEN-1] ? twos(a) : a;
   endfunction
 
 
@@ -90,28 +90,28 @@ import riscv_state_pkg::*;
   //
   // Variables
   //
-  logic                    xlen32;
-  instr_t                  div_instr;
+  logic                     xlen32;
+  instr_t                   div_instr;
 
-  opcR_t                   opcR, opcR_div;
+  opcR_t                    opcR, opcR_div;
 
   //Operand generation
-  logic [            31:0] opA_i32,
-                           opB_i32;
+  logic [             31:0] opA_i32,
+                            opB_i32;
 
-  logic [$clog2(XLEN)-1:0] cnt;
-  logic                    neg_q, //negate quotient
-                           neg_s; //negate remainder
+  logic [$clog2(MXLEN)-1:0] cnt;
+  logic                     neg_q, //negate quotient
+                            neg_s; //negate remainder
 
   //divider internals
   typedef struct packed {
-    logic [XLEN-1:0] p, a;
+    logic [MXLEN-1:0] p, a;
   } pa_struct;
 
   pa_struct                pa,
                            pa_shifted;
-  logic [XLEN          :0] p_minus_b;
-  logic [XLEN        -1:0] b;
+  logic [MXLEN         :0] p_minus_b;
+  logic [MXLEN       -1:0] b;
 
 
   //FSM
@@ -152,7 +152,7 @@ import riscv_state_pkg::*;
   assign p_minus_b  = pa_shifted.p - b;
 
 
-  //Division: bit-serial. Max XLEN cycles
+  //Division: bit-serial. Max MXLEN cycles
   // q = z/d + s
   // z: Dividend
   // d: Divisor
@@ -188,13 +188,13 @@ import riscv_state_pkg::*;
                        {1'b?,DIV  } :
                                 if (~|opB_i)
                                 begin //signed divide by zero
-                                    div_r_o      <= {XLEN{1'b1}}; //=-1
+                                    div_r_o      <= {MXLEN{1'b1}}; //=-1
                                     div_bubble_o <= 1'b0;
                                 end
                                 else
-                                if (opA_i == {1'b1,{XLEN-1{1'b0}}} && &opB_i) // signed overflow (Dividend=-2^(XLEN-1), Divisor=-1)
+                                if (opA_i == {1'b1,{MXLEN-1{1'b0}}} && &opB_i) // signed overflow (Dividend=-2^(MXLEN-1), Divisor=-1)
                                 begin
-                                    div_r_o      <= {1'b1,{XLEN-1{1'b0}}};
+                                    div_r_o      <= {1'b1,{MXLEN-1{1'b0}}};
                                     div_bubble_o <= 1'b0;
                                 end
                                 else
@@ -203,8 +203,8 @@ import riscv_state_pkg::*;
                                     state       <= ST_DIV;
                                     div_stall_o <= 1'b1;
 
-                                    neg_q       <= opA_i[XLEN-1] ^ opB_i[XLEN-1];
-                                    neg_s       <= opA_i[XLEN-1];
+                                    neg_q       <= opA_i[MXLEN-1] ^ opB_i[MXLEN-1];
+                                    neg_s       <= opA_i[MXLEN-1];
 
                                     pa.p        <= 'h0;
                                     pa.a        <= abs(opA_i);
@@ -214,11 +214,11 @@ import riscv_state_pkg::*;
                        {1'b0,DIVW } :
                                 if (~|opB_i32)
                                 begin //signed divide by zero
-                                    div_r_o      <= {XLEN{1'b1}}; //=-1
+                                    div_r_o      <= {MXLEN{1'b1}}; //=-1
                                     div_bubble_o <= 1'b0;
                                 end
                                 else
-                                if (opA_i32 == {1'b1,{31{1'b0}}} && &opB_i32) // signed overflow (Dividend=-2^(XLEN-1), Divisor=-1)
+                                if (opA_i32 == {1'b1,{31{1'b0}}} && &opB_i32) // signed overflow (Dividend=-2^(MXLEN-1), Divisor=-1)
                                 begin
                                     div_r_o      <= sext32( {1'b1,{31{1'b0}}} );
                                     div_bubble_o <= 1'b0;
@@ -233,14 +233,14 @@ import riscv_state_pkg::*;
                                     neg_s       <= opA_i32[31];
 
                                     pa.p        <= 'h0;
-                                    pa.a        <= { abs( sext32(opA_i32) ), {XLEN-32{1'b0}}      };
+                                    pa.a        <= { abs( sext32(opA_i32) ), {MXLEN-32{1'b0}}      };
                                     b           <= abs( sext32(opB_i32) );
                                 end
 
                        {1'b?,DIVU } :
                                 if (~|opB_i)
                                 begin //unsigned divide by zero
-                                    div_r_o      <= {XLEN{1'b1}}; //= 2^XLEN -1
+                                    div_r_o      <= {MXLEN{1'b1}}; //= 2^MXLEN -1
                                     div_bubble_o <= 1'b0;
                                 end
                                 else
@@ -260,7 +260,7 @@ import riscv_state_pkg::*;
                        {1'b0,DIVUW} :
                                 if (~|opB_i32)
                                 begin //unsigned divide by zero
-                                    div_r_o      <= {XLEN{1'b1}}; //= 2^XLEN -1
+                                    div_r_o      <= {MXLEN{1'b1}}; //= 2^MXLEN -1
                                     div_bubble_o <= 1'b0;
                                 end
                                 else
@@ -273,8 +273,8 @@ import riscv_state_pkg::*;
                                     neg_s       <= 1'b0;
 
                                     pa.p        <= 'h0;
-                                    pa.a        <= { opA_i32, {XLEN-32{1'b0}} };
-                                    b           <= { {XLEN-32{1'b0}}, opB_i32 };
+                                    pa.a        <= { opA_i32, {MXLEN-32{1'b0}} };
+                                    b           <= { {MXLEN-32{1'b0}}, opB_i32 };
                                 end
 
                        {1'b?,REM  } :
@@ -284,7 +284,7 @@ import riscv_state_pkg::*;
                                     div_bubble_o <= 1'b0;
                                 end
                                 else
-                                if (opA_i == {1'b1,{XLEN-1{1'b0}}} && &opB_i) // signed overflow (Dividend=-2^(XLEN-1), Divisor=-1)
+                                if (opA_i == {1'b1,{MXLEN-1{1'b0}}} && &opB_i) // signed overflow (Dividend=-2^(MXLEN-1), Divisor=-1)
                                 begin
                                     div_r_o      <=  'h0;
                                     div_bubble_o <= 1'b0;
@@ -295,8 +295,8 @@ import riscv_state_pkg::*;
                                     state       <= ST_DIV;
                                     div_stall_o <= 1'b1;
 
-                                    neg_q       <= opA_i[XLEN-1] ^ opB_i[XLEN-1];
-                                    neg_s       <= opA_i[XLEN-1];
+                                    neg_q       <= opA_i[MXLEN-1] ^ opB_i[MXLEN-1];
+                                    neg_s       <= opA_i[MXLEN-1];
 
                                     pa.p        <= 'h0;
                                     pa.a        <= abs(opA_i);
@@ -310,7 +310,7 @@ import riscv_state_pkg::*;
                                     div_bubble_o <= 1'b0;
                                 end
                                 else
-                                if (opA_i32 == {1'b1,{31{1'b0}}} && &opB_i32) // signed overflow (Dividend=-2^(XLEN-1), Divisor=-1)
+                                if (opA_i32 == {1'b1,{31{1'b0}}} && &opB_i32) // signed overflow (Dividend=-2^(MXLEN-1), Divisor=-1)
                                 begin
                                     div_r_o      <=  'h0;
                                     div_bubble_o <= 1'b0;
@@ -325,7 +325,7 @@ import riscv_state_pkg::*;
                                     neg_s       <= opA_i32[31];
 
                                     pa.p        <= 'h0;
-                                    pa.a        <= { abs( sext32(opA_i32) ), {XLEN-32{1'b0}}      };
+                                    pa.a        <= { abs( sext32(opA_i32) ), {MXLEN-32{1'b0}}      };
                                     b           <= abs( sext32(opB_i32) );
                                 end
 
@@ -365,8 +365,8 @@ import riscv_state_pkg::*;
                                     neg_s       <= 1'b0;
 
                                     pa.p        <= 'h0;
-                                    pa.a        <= { opA_i32, {XLEN-32{1'b0}} };
-                                    b           <= { {XLEN-32{1'b0}}, opB_i32 };
+                                    pa.a        <= { opA_i32, {MXLEN-32{1'b0}} };
+                                    b           <= { {MXLEN-32{1'b0}}, opB_i32 };
                                 end
                        default: ;
                     endcase
@@ -380,15 +380,15 @@ import riscv_state_pkg::*;
                       if (~| cnt) state <= ST_RES;
 
                       //restoring divider section
-                      if (p_minus_b[XLEN])
+                      if (p_minus_b[MXLEN])
                       begin //sub gave negative result
                           pa.p <=  pa_shifted.p;                   //restore
-                          pa.a <= {pa_shifted.a[XLEN-1:1], 1'b0};  //shift in '0' for Q
+                          pa.a <= {pa_shifted.a[MXLEN-1:1], 1'b0};  //shift in '0' for Q
                       end
                       else
                       begin //sub gave positive result
-                          pa.p <=  p_minus_b[XLEN-1:0];            //store sub result
-                          pa.a <= {pa_shifted.a[XLEN-1:1], 1'b1};  //shift in '1' for Q
+                          pa.p <=  p_minus_b[MXLEN-1:0];            //store sub result
+                          pa.a <= {pa_shifted.a[MXLEN-1:1], 1'b1};  //shift in '1' for Q
                       end
                   end
 

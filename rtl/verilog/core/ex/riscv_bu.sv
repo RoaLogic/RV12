@@ -32,11 +32,11 @@ module riscv_bu
 import riscv_opcodes_pkg::*;
 import riscv_state_pkg::*;
 #(
-  parameter int        XLEN           = 32,
-  parameter [XLEN-1:0] PC_INIT        = 'h200,
-  parameter int        BP_GLOBAL_BITS = 2,
-  parameter int        RSB_DEPTH      = 0,
-  parameter int        HAS_RVC        = 0
+  parameter int         MXLEN          = 32,
+  parameter [MXLEN-1:0] PC_INIT        = 'h200,
+  parameter int         BP_GLOBAL_BITS = 2,
+  parameter int         RSB_DEPTH      = 0,
+  parameter bit         HAS_RVC        = 0
 )
 (
   input                           rst_ni,
@@ -48,9 +48,9 @@ import riscv_state_pkg::*;
   output reg                      bu_bubble_o,
 
   //Program counter
-  input      [XLEN          -1:0] id_pc_i,
+  input      [MXLEN         -1:0] id_pc_i,
                                   id_rsb_pc_i,
-  output reg [XLEN          -1:0] bu_nxt_pc_o,
+  output reg [MXLEN         -1:0] bu_nxt_pc_o,
   output reg                      bu_flush_o,
                                   cm_ic_invalidate_o,
                                   cm_dc_invalidate_o,
@@ -73,14 +73,14 @@ import riscv_state_pkg::*;
   output interrupts_exceptions_t  bu_exceptions_o,
 
   //from ID
-  input      [XLEN          -1:0] opA_i,
+  input      [MXLEN         -1:0] opA_i,
                                   opB_i
 );
   ////////////////////////////////////////////////////////////////
   //
   // Variables
   //
-  localparam SBITS=$clog2(XLEN);
+  localparam SBITS=$clog2(MXLEN);
 
   logic                    has_rvc;
   logic                    has_rsb;
@@ -93,7 +93,7 @@ import riscv_state_pkg::*;
   //Immediates
   immUJ_t                  immUJ;
   immSB_t                  immSB;
-  logic [XLEN        -1:0] ext_immUJ,
+  logic [MXLEN       -1:0] ext_immUJ,
                            ext_immSB;
 
   //Branch controls
@@ -106,7 +106,7 @@ import riscv_state_pkg::*;
                            btaken,
                            bp_update;
   logic [BP_GLOBAL_BITS:0] bp_history;
-  logic [XLEN        -1:0] nxt_pc;
+  logic [MXLEN       -1:0] nxt_pc;
 
 
   ////////////////////////////////////////////////////////////////
@@ -158,8 +158,8 @@ import riscv_state_pkg::*;
    */
   assign immUJ     = decode_immUJ(id_insn_i.instr);
   assign immSB     = decode_immSB(id_insn_i.instr);
-  assign ext_immUJ = { {XLEN-$bits(immUJ){immUJ[$left(immUJ,1)]}}, immUJ};
-  assign ext_immSB = { {XLEN-$bits(immSB){immSB[$left(immSB,1)]}}, immSB};
+  assign ext_immUJ = { {MXLEN-$bits(immUJ){immUJ[$left(immUJ,1)]}}, immUJ};
+  assign ext_immSB = { {MXLEN-$bits(immSB){immSB[$left(immSB,1)]}}, immSB};
 
 
   /*
@@ -189,8 +189,8 @@ import riscv_state_pkg::*;
                           ic_invalidate = 1'b0;
                           dc_invalidate = 1'b0;
                           dc_clean      = 1'b0;
-                          nxt_pc        = (opA_i + opB_i) & { {XLEN-1{1'b1}},1'b0 };
-                          pipeflush     = is_ret ?  (nxt_pc[XLEN-1:1] != id_rsb_pc_i[XLEN-1:1]) : 1'b1;
+                          nxt_pc        = (opA_i + opB_i) & { {MXLEN-1{1'b1}},1'b0 };
+                          pipeflush     = is_ret ?  (nxt_pc[MXLEN-1:1] != id_rsb_pc_i[MXLEN-1:1]) : 1'b1;
                       end
                       else
                       begin
@@ -202,7 +202,7 @@ import riscv_state_pkg::*;
                           ic_invalidate = 1'b0;
                           dc_invalidate = 1'b0;
                           dc_clean      = 1'b0;
-                          nxt_pc        = (opA_i + opB_i) & { {XLEN-1{1'b1}},1'b0 };
+                          nxt_pc        = (opA_i + opB_i) & { {MXLEN-1{1'b1}},1'b0 };
                       end
       {1'b0,BEQ    }: begin
                           bu_bubble     = 1'b0;

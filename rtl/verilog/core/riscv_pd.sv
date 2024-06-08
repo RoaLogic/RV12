@@ -31,8 +31,8 @@ module riscv_pd
 import riscv_opcodes_pkg::*;
 import riscv_state_pkg::*;
 #(
-  parameter                       XLEN           = 32,
-  parameter  [XLEN          -1:0] PC_INIT        = 'h200,
+  parameter                       MXLEN          = 32,
+  parameter  [MXLEN         -1:0] PC_INIT        = 'h200,
   parameter                       HAS_RVC        = 0,
   parameter                       HAS_BPU        = 0,
   parameter                       BP_GLOBAL_BITS = 2,
@@ -56,9 +56,9 @@ import riscv_state_pkg::*;
 
   output     [              11:0] pd_csr_reg_o,
 
-  input      [XLEN          -1:0] bu_nxt_pc_i,     //Branch Unit Next Program Counter
+  input      [MXLEN         -1:0] bu_nxt_pc_i,     //Branch Unit Next Program Counter
                                   st_nxt_pc_i,     //State Next Program Counter
-  output reg [XLEN          -1:0] pd_nxt_pc_o,     //Branch Preditor Next Program Counter
+  output reg [MXLEN         -1:0] pd_nxt_pc_o,     //Branch Preditor Next Program Counter
   output reg                      pd_latch_nxt_pc_o,
 
   input      [BP_GLOBAL_BITS-1:0] if_bp_history_i,
@@ -67,8 +67,8 @@ import riscv_state_pkg::*;
   input      [               1:0] bp_bp_predict_i, //Branch Prediction bits
   output reg [               1:0] pd_bp_predict_o, //push down the pipe
 
-  input      [XLEN          -1:0] if_pc_i,
-  output reg [XLEN          -1:0] pd_pc_o,
+  input      [MXLEN         -1:0] if_pc_i,
+  output reg [MXLEN         -1:0] pd_pc_o,
                                   pd_rsb_pc_o,
 
   input  instruction_t            if_insn_i,
@@ -89,7 +89,7 @@ import riscv_state_pkg::*;
   //
 
   //Instruction address mask
-  localparam ADR_MASK = HAS_RVC != 0 ? {XLEN{1'b1}} << 1 : {XLEN{1'b1}} << 2;
+  localparam ADR_MASK = HAS_RVC != 0 ? {MXLEN{1'b1}} << 1 : {MXLEN{1'b1}} << 2;
 
 
   ////////////////////////////////////////////////////////////////
@@ -100,7 +100,7 @@ import riscv_state_pkg::*;
   //RSB
   logic             is_16bit_instruction;
   logic             has_rsb;
-  logic [XLEN -1:0] rsb_nxt_pc,
+  logic [MXLEN-1:0] rsb_nxt_pc,
                     rsb_predict_pc;
   logic             rsb_push,
                     rsb_pop,
@@ -117,7 +117,7 @@ import riscv_state_pkg::*;
   //Immediates for branches and jumps
   immUJ_t           immUJ;
   immSB_t           immSB;
-  logic [XLEN -1:0] ext_immUJ,
+  logic [MXLEN-1:0] ext_immUJ,
                     ext_immSB;
 
 
@@ -248,7 +248,7 @@ generate
   begin: gen_rsb
 
       riscv_rsb #(
-        .XLEN    ( XLEN           ),
+        .MXLEN   ( MXLEN          ),
         .DEPTH   ( RSB_DEPTH      ) )
       rsb_inst (
         .rst_ni  ( rst_ni         ),
@@ -304,10 +304,10 @@ endgenerate
 
 
   //Immediates
-  assign immUJ = decode_immUJ(if_insn_i.instr);
-  assign immSB = decode_immSB(if_insn_i.instr);
-  assign ext_immUJ = { {XLEN-$bits(immUJ){immUJ[$left(immUJ,1)]}}, immUJ};
-  assign ext_immSB = { {XLEN-$bits(immSB){immSB[$left(immSB,1)]}}, immSB};
+  assign immUJ     = decode_immUJ(if_insn_i.instr);
+  assign immSB     = decode_immSB(if_insn_i.instr);
+  assign ext_immUJ = { {MXLEN-$bits(immUJ){immUJ[$left(immUJ,1)]}}, immUJ};
+  assign ext_immSB = { {MXLEN-$bits(immSB){immSB[$left(immSB,1)]}}, immSB};
 
 
   // Branch and Jump prediction

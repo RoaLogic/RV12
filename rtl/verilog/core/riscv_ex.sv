@@ -33,14 +33,14 @@ import riscv_opcodes_pkg::*;
 import riscv_state_pkg::*;
 import biu_constants_pkg::*;
 #(
-  parameter int        XLEN           = 32,
-  parameter [XLEN-1:0] PC_INIT        = 'h200,
-  parameter int        BP_GLOBAL_BITS = 2,
-  parameter int        HAS_RVC        = 0,
-  parameter int        HAS_RVA        = 0,
-  parameter int        HAS_RVM        = 0,
-  parameter int        MULT_LATENCY   = 0,
-  parameter int        RSB_DEPTH      = 0
+  parameter int         MXLEN          = 32,
+  parameter [MXLEN-1:0] PC_INIT        = 'h200,
+  parameter int         BP_GLOBAL_BITS = 2,
+  parameter bit         HAS_RVC        = 0,
+  parameter bit         HAS_RVA        = 0,
+  parameter bit         HAS_RVM        = 0,
+  parameter int         MULT_LATENCY   = 0,
+  parameter int         RSB_DEPTH      = 0
 )
 (
   input                           rst_ni,
@@ -50,9 +50,9 @@ import biu_constants_pkg::*;
   output                          ex_stall_o,
 
   //Program counter
-  input      [XLEN          -1:0] id_pc_i,
+  input      [MXLEN         -1:0] id_pc_i,
                                   id_rsb_pc_i,
-  output reg [XLEN          -1:0] ex_pc_o,
+  output reg [MXLEN         -1:0] ex_pc_o,
                                   bu_nxt_pc_o,
   output                          bu_flush_o,
                                   cm_ic_invalidate_o,
@@ -80,35 +80,35 @@ import biu_constants_pkg::*;
                                   id_userf_opB_i,
                                   id_bypex_opA_i,
                                   id_bypex_opB_i,
-  input      [XLEN          -1:0] id_opA_i,
+  input      [MXLEN         -1:0] id_opA_i,
                                   id_opB_i,
 
   //from RF
-  input      [XLEN          -1:0] rf_srcv1_i,
+  input      [MXLEN         -1:0] rf_srcv1_i,
                                   rf_srcv2_i,
 
   //to MEM
-  output reg [XLEN          -1:0] ex_r_o,
+  output reg [MXLEN         -1:0] ex_r_o,
 
   //To State
   output     [              11:0] ex_csr_reg_o,
-  output     [XLEN          -1:0] ex_csr_wval_o,
+  output     [MXLEN         -1:0] ex_csr_wval_o,
   output                          ex_csr_we_o,
 
   //From State
   input      [               1:0] st_xlen_i,
   input                           st_be_i,
   input                           st_flush_i,
-  input      [XLEN          -1:0] st_csr_rval_i, //TODO: read during ID
+  input      [MXLEN         -1:0] st_csr_rval_i, //TODO: read during ID
 
   //To DCACHE/Memory
   output                          dmem_req_o,
   output                          dmem_lock_o,
-  output     [XLEN          -1:0] dmem_adr_o,
+  output     [MXLEN         -1:0] dmem_adr_o,
   output     biu_size_t           dmem_size_o,
   output                          dmem_we_o,
-  output     [XLEN          -1:0] dmem_d_o,
-  input      [XLEN          -1:0] dmem_q_i,
+  output     [MXLEN         -1:0] dmem_d_o,
+  input      [MXLEN         -1:0] dmem_q_i,
   input                           dmem_ack_i,
                                   dmem_misaligned_i,
                                   dmem_page_fault_i
@@ -121,9 +121,9 @@ import biu_constants_pkg::*;
   //
 
   //Operand generation
-  logic [XLEN          -1:0] opA,opB;
+  logic [MXLEN         -1:0] opA,opB;
 
-  logic [XLEN          -1:0] alu_r,
+  logic [MXLEN         -1:0] alu_r,
                              lsu_r,
                              mul_r,
                              div_r;
@@ -191,7 +191,7 @@ import biu_constants_pkg::*;
    * Execution Units
    */
   riscv_alu #(
-    .XLEN             ( XLEN             ),
+    .MXLEN            ( MXLEN            ),
     .HAS_RVC          ( HAS_RVC          ))
   alu (
     .rst_ni           ( rst_ni           ),
@@ -222,7 +222,7 @@ import biu_constants_pkg::*;
 
   // Load-Store Unit
   riscv_lsu #(
-    .XLEN              ( XLEN              ) )
+    .MXLEN             ( MXLEN             ) )
   lsu (
     .rst_ni            ( rst_ni            ),
     .clk_i             ( clk_i             ),
@@ -262,7 +262,7 @@ import biu_constants_pkg::*;
 
   // Branch Unit
   riscv_bu #(
-    .XLEN                   ( XLEN                   ),
+    .MXLEN                  ( MXLEN                  ),
     .HAS_RVC                ( HAS_RVC                ),
     .PC_INIT                ( PC_INIT                ),
     .BP_GLOBAL_BITS         ( BP_GLOBAL_BITS         ),
@@ -307,7 +307,7 @@ generate
   if (HAS_RVM != 0)
   begin
       riscv_mul #(
-        .XLEN         ( XLEN         ),
+        .MXLEN        ( MXLEN        ),
         .MULT_LATENCY ( MULT_LATENCY ) )
       mul (
         .rst_ni       ( rst_ni       ),
@@ -329,7 +329,7 @@ generate
 
 
       riscv_div #(
-        .XLEN         ( XLEN        ) )
+        .MXLEN        ( MXLEN       ) )
       div (
         .rst_ni       ( rst_ni      ),
         .clk_i        ( clk_i       ),

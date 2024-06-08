@@ -33,8 +33,8 @@ module riscv_dwb
 import riscv_opcodes_pkg::*;
 import riscv_state_pkg::*;
 #(
-  parameter            XLEN    = 32,
-  parameter [XLEN-1:0] PC_INIT = 'h200
+  parameter             MXLEN    = 32,
+  parameter [MXLEN-1:0] PC_INIT = 'h200
 )
 (
   input                  rst_ni,          //Reset
@@ -42,10 +42,10 @@ import riscv_state_pkg::*;
   
   input  instruction_t   wb_insn_i,
   input                  wb_we_i,
-  input      [XLEN -1:0] wb_r_i,
+  input      [MXLEN-1:0] wb_r_i,
 
   output instruction_t   dwb_insn_o,
-  output reg [XLEN -1:0] dwb_r_o
+  output reg [MXLEN-1:0] dwb_r_o
 );
 
 
