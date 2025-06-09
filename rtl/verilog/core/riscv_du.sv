@@ -386,6 +386,10 @@ endgenerate
     if      (!rst_ni                               ) dbg.ie <= 'h0;
     else if ( du_we_internal && du_addr_o == DBG_IE) dbg.ie <= du_d_o[31:0];
 
+  //DBG EE
+  always @(posedge clk_i,negedge rst_ni)
+    if      (!rst_ni                               ) dbg.ee <= 'h0;
+    else if ( du_we_internal && du_addr_o == DBG_EE) dbg.ee <= du_d_o[31:0];
 
   //send to Thread-State
   assign du_ie_o = dbg.ie;
