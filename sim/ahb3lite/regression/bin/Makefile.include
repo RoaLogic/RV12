@@ -83,7 +83,9 @@ RTL_VLOG += $(call load_filelist, $(ROOT_DIR)/rtl/filelist_$(busif).f)
 
 RTL_VLOG += $(MEM_SRC_DIR)/rl_queue.sv						\
             $(MEM_SRC_DIR)/rl_ram_1r1w.sv					\
-            $(MEM_SRC_DIR)/rl_ram_1r1w_generic.sv
+            $(MEM_SRC_DIR)/rl_ram_1r1w_generic.sv				\
+	    $(MEM_SRC_DIR)/rl_ram_1rw.sv					\
+	    $(MEM_SRC_DIR)/rl_ram_1rw_generic.sv
 
 #RTL_VLOG = $(DUT_SRC_DIR)/pkg/riscv_rv12_pkg.sv				\
 	   $(DUT_SRC_DIR)/pkg/riscv_opcodes_pkg.sv				\
