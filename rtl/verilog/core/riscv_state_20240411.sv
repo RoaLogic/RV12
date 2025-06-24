@@ -269,8 +269,8 @@ import riscv_state_pkg::*;
     logic          [MXLEN -1:0] mtval2;        //bad guest physical address
 
     //Machine Configuration
-    logic          [MXLEN -1:0] menvcfg;       //environment configuration
-    logic          [MXLEN -1:0] meccfg;        //security configuration
+    logic          [63		 :0] menvcfg;       //environment configuration
+	  logic          [63      :0] mseccfg;        //security configuration
 
     //Machine Memory Protection
     pmpcfg_t [15:0]             pmpcfg;        //physical memory protection configuration
@@ -432,7 +432,7 @@ import riscv_state_pkg::*;
       INSTRETH  : csr_rval = is_rv32 ? csr.minstret.h : 'h0;
 
       //Supervisor
-      SSTATUS   : csr_rval = {mstatus[127],mstatus[MXLEN-2:0]} & (1 << MXLEN-1 | 2'b11 << 32 | 'hde133);
+      SSTATUS   : csr_rval = {mstatus[63],mstatus[MXLEN-2:0]} & (1 << MXLEN-1 | 2'b11 << 32 | 'hde133);
       SIE       : csr_rval = has_s            ? csr.mie               & 12'h333 : 'h0;
       STVEC     : csr_rval = has_s            ? csr.stvec                       : 'h0;
       SCOUNTEREN: csr_rval = has_s            ? csr.scounteren                  : 'h0;
@@ -1038,14 +1038,14 @@ endgenerate
   assign st_int_o.external[PRV_S[1]] = ( ((st_prv_o < PRV_S) | (st_prv_o == PRV_S & csr.mstatus.sie)) & (csr.mip.seip & csr.mie.seie) );
 
   assign st_int_o.software[PRV_M[1]] = ( ((st_prv_o < PRV_M) | (st_prv_o == PRV_M & csr.mstatus.mie)) & (csr.mip.msip & csr.mie.msie) ) &
-                                   ~st_int_o.external[PRV_M];
+                                   ~st_int_o.external[PRV_M[1]];
   assign st_int_o.software[PRV_S[1]] = ( ((st_prv_o < PRV_S) | (st_prv_o == PRV_S & csr.mstatus.sie)) & (csr.mip.ssip & csr.mie.ssie) ) &
-                                   ~st_int_o.external[PRV_S];
+                                   ~st_int_o.external[PRV_S[1]];
 
   assign st_int_o.timer   [PRV_M[1]] = ( ((st_prv_o < PRV_M) | (st_prv_o == PRV_M & csr.mstatus.mie)) & (csr.mip.mtip & csr.mie.mtie) ) &
-                                   ~(st_int_o.external[PRV_M] | st_int_o.software[PRV_M]);
+                                   ~(st_int_o.external[PRV_M[1]] | st_int_o.software[PRV_M[1]]);
   assign st_int_o.timer   [PRV_S[1]] = ( ((st_prv_o < PRV_S) | (st_prv_o == PRV_S & csr.mstatus.sie)) & (csr.mip.stip & csr.mie.stie) ) &
-                                   ~(st_int_o.external[PRV_S] | st_int_o.software[PRV_S]);
+                                   ~(st_int_o.external[PRV_S[1]] | st_int_o.software[PRV_S[1]]);
 
 
   //exception/interrupt cause priority
