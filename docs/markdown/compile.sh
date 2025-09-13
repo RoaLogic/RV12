@@ -21,14 +21,14 @@ done
 
 # Generate new Markdown
 cd ..
-pandoc 	--atx-headers \
-		--base-header-level=2 \
+pandoc 	--markdown-headings=atx \
+		--shift-heading-level-by=2 \
 		--number-sections \
 		--default-image-extension=png \
 		--file-scope \
 		--toc \
 		--toc-depth=1 \
-		-t markdown_github \
+		-t gfm \
 		-B markdown/frontmatter.md \
 		-o ../DATASHEET.md \
 		$topfile.tex
